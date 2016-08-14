@@ -1,0 +1,485 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: Plural forms</title>
+
+<meta name="description" content="GNU gettext utilities: Plural forms">
+<meta name="keywords" content="GNU gettext utilities: Plural forms">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="gettext.html#gettext" rel="up" title="gettext">
+<link href="Optimized-gettext.html#Optimized-gettext" rel="next" title="Optimized gettext">
+<link href="Contexts.html#Contexts" rel="prev" title="Contexts">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="Plural-forms"></a>
+<div class="header">
+<p>
+Next: <a href="Optimized-gettext.html#Optimized-gettext" accesskey="n" rel="next">Optimized gettext</a>, Previous: <a href="Contexts.html#Contexts" accesskey="p" rel="prev">Contexts</a>, Up: <a href="gettext.html#gettext" accesskey="u" rel="up">gettext</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="Additional-functions-for-plural-forms"></a>
+<h4 class="subsection">11.2.6 Additional functions for plural forms</h4>
+<a name="index-plural-forms"></a>
+
+<p>いままで説明してきた既存のアプローチでは完全に無視してきましたが、<code>gettext</code>ファミリーの関数(すべての<code>catgets</code>関数も同様)を実世界で使用する場合は、1つの問題があります。それはplural
+form(複数形書式)の取り扱いです。
+</p>
+<p>インターナショナリゼーション以前のUnixのソースコード(そして悲しいことにインターナショナリゼーション以降のソースコードさえも)を見てみると、以下のようなコードを目にすることがあります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">   printf (&quot;%d file%s deleted&quot;, n, n == 1 ? &quot;&quot; : &quot;s&quot;);
+</pre></div>
+
+<p>最初にコードをインターナショナライズする人々から不具合が報告された後は、このような複数形についての場合分けを無視するか、<code>&quot;file(s)&quot;</code>という文字列を使うようになりました。これはどちらも不自然で解決法とはなりませんでした。最初の試みとして、以下のようにすることで解決が図られました:
+</p>
+<div class="smallexample">
+<pre class="smallexample">   if (n == 1)
+     printf (&quot;%d file deleted&quot;, n);
+   else
+     printf (&quot;%d files deleted&quot;, n);
+</pre></div>
+
+<p>しかし、これは問題の解決になっていません。この方法は、単純に名詞に
+‘s’
+を追加することによりplural
+formを表現するだけではない言語をも対象としていましたが、結局それだけのことでした。人々は自分が使っている言語のルールが、他の言語にも適用できる普遍的なものだと信じるという罠に陥っていたのです。実際には言語ファミリー間でplural
+formの取り扱いかたは大きく異なっていたのです。たとえば、Rafal Maszkowski
+<code>&lt;rzm@mat.uni.torun.pl&gt;</code>による以下のレポートを見てください:
+</p>
+<blockquote>
+<p>わたしたちはPolishでplik(fileのこと)を以下ように表現します:
+</p><div class="example">
+<pre class="example">1 plik
+2,3,4 pliki
+5-21 pliko'w
+22-24 pliki
+25-31 pliko'w
+</pre></div>
+<p>以下同様にカウントしていきます(o&rsquo;は8859-2 oacuteを意味しており、okreskaより、むしろaogonekと似ています。
+</p></blockquote>
+
+<p>言語間(そして言語ファミリー内部においてさえも)には、2つの異なる事象が存在しました:
+</p>
+<ul>
+<li> plural
+formを構築する方式が異なること。これは規則的ではないルールを多くもつ言語で問題になります。極端なケースとしてはGermanがあげられます。EnglishからGermanへは、同じ言語ファミリー(Germanic)ですが、名詞に(
+‘s’)
+を付加して複数形を表す標準的な方式を、Germanではほとんど見出せません。
+
+</li><li> plural
+formを適用するべき数値が異なること。これは、複数形にすべき数値が単に2からであるような、RomanicやGermanicしか経験したことのない人を驚かせます。
+
+<p>単一の形式しかもたない言語ファミリーや、多数の形式をもつ言語ファミリーがあります。これに関する更なる情報は、このセクションの範囲を超えています。
+</p></li></ul>
+
+<p>これらの理由により、アプリケーションを記述する人は、これらの問題をコードで解決するべきではないという結論になります。これは言語環境にたいしてハードコードされた状態においてのみ有用なローカリゼーションでしょう。かわりに拡張された<code>gettext</code>のインターフェースを使うべきです。
+</p>
+<p>これらの追加の関数は、単一のキー文字列ではなく、2つの文字列と、数値の引数をとります。この考え方の背景には、数値の引数と最初の文字列をキー文字列として使用することにより、翻訳者が指定した正しいplural
+formを実装が選択できるようにするというアイデアがあります。それから、2つの文字列引数は、メッセージカタログが見つからなかったときの戻り値を提供するために使用されます(これは通常の<code>gettext</code>の振る舞いと同じです)。このケースではGermanic言語のルールが適用され、最初の文字列引数はsingular
+form、2番目の文字列引数はplural formとみなされます。
+</p>
+<p>この結果、言語カタログをもたないプログラムは、それがGermanic言語のルールにしたがって記述された場合のみ正しい文字列を表示できるということになります。これは確かに制限なのですが、GNU
+C library(とGNU
+<code>gettext</code>パッケージ)がGNUパッケージの一部として記述されていること、そしてGNUプロジェクトのコーディング規約がEnglishによるプログラム記述を要請しているので、制限があるにもかかわらずこの解決策により要件を満足することができるのです。
+</p>
+<dl>
+<dt><a name="index-ngettext"></a>Function: <em>char *</em> <strong>ngettext</strong> <em>(const char *<var>msgid1</var>, const char *<var>msgid2</var>, unsigned long int <var>n</var>)</em></dt>
+<dd><p><code>ngettext</code>関数は、<code>gettext</code>関数と似ており、メッセージカタログを検索する方法は同じですが、2つの追加の引数をとります。パラメーター<var>msgid1</var>には、変換する必要のある文字列のsingular
+formを指定します。このパラメーターはカタログを検索するキーとしても使用されます。パラメーター<var>msgid2</var>にはplural
+formを指定します。パラメーター<var>n</var>は、plural
+formの適用を決定するのに使用されます。メッセージカタログが見つからなかったとき、<code>n ==
+1</code>なら<code>msgid1</code>が戻され、それ以外のときは<code>msgid2</code>が戻されます。
+</p>
+<p>以下はこの関数の使用例です:
+</p>
+<div class="smallexample">
+<pre class="smallexample">printf (ngettext (&quot;%d file removed&quot;, &quot;%d files removed&quot;, n), n);
+</pre></div>
+
+<p><var>n</var>の数値は、<code>printf</code>関数にも引き渡されることに注意してください。<code>ngettext</code>だけに渡したい場合、この例は不適切です。
+</p>
+<p>Englishのsingular caseの場合、常に1であるような数値は、&quot;one&quot;に置き換えることができます:
+</p>
+<div class="smallexample">
+<pre class="smallexample">printf (ngettext (&quot;One file removed&quot;, &quot;%d files removed&quot;, n), n);
+</pre></div>
+
+<p>&lsquo;<samp>printf</samp>&rsquo;関数は、format stringが与えられていない余分な引数を無視するので、この例は問題なく動作します。
+</p>
+<p>ここで2つ以上の引数を要求するようなformat stringを関数で使う場合、以下の例のような使い方はできません:
+</p>
+<div class="smallexample">
+<pre class="smallexample">printf (ngettext (&quot;%d file removed from directory %s&quot;,
+                  &quot;%d files removed from directory %s&quot;,
+                  n),
+        n, dir);
+</pre></div>
+
+<p>Englishでsingular
+caseのときに&lsquo;<samp>%d</samp>&rsquo;を&ldquo;one&rdquo;に置き換えたように、他の言語の翻訳者も特定の単語に置き換えたいと望むかもしれません。しかしCのformat
+stringでは、1番目の引数をスキップして2番目の引数を使用するようなことはできません。このような場合は引数の順番を変えて、&lsquo;<samp>n</samp>&rsquo;が最後にくるようにする必要があります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">printf (ngettext (&quot;%$2d file removed from directory %$1s&quot;,
+                  &quot;%$2d files removed from directory %$1s&quot;,
+                  n),
+        dir, n);
+</pre></div>
+
+<p>このように引数の配置を指定する文法についての詳細は、<a href="c_002dformat.html#c_002dformat">c-format</a>を参照してください。
+</p>
+<p><code>n</code>の値がとる範囲がわかっている場合には、<code>xgettext</code>ツールのためのコメントを指定することができます。以下の例のような情報は、翻訳者が適切な翻訳を行う助けとなるでしょう:
+</p>
+<div class="smallexample">
+<pre class="smallexample">if (days &gt; 7 &amp;&amp; days &lt; 14)
+  /* xgettext: range: 1..6 */
+  printf (ngettext (&quot;one week and one day&quot;, &quot;one week and %d days&quot;,
+                    days - 7),
+          days - 7);
+</pre></div>
+
+<p>以下の例のように、文字列に数値が含まれないようなときに、この関数を使うこともできます:
+</p>
+<div class="smallexample">
+<pre class="smallexample">puts (ngettext (&quot;Delete the selected file?&quot;,
+                &quot;Delete the selected files?&quot;,
+                n));
+</pre></div>
+
+<p>この例で、<var>n</var>はplural formであるかを判定するためだけに使用されています。
+</p></dd></dl>
+
+<dl>
+<dt><a name="index-dngettext"></a>Function: <em>char *</em> <strong>dngettext</strong> <em>(const char *<var>domain</var>, const char *<var>msgid1</var>, const char *<var>msgid2</var>, unsigned long int <var>n</var>)</em></dt>
+<dd><p><code>dngettext</code>は、選択されたメッセージカタログにたいして、<code>dgettext</code>と同様な方法で使用します。異なるのは、正しいplural
+formのために、2つの余分なパラメーターを指定できる点です。この2つのパラメーターは、<code>ngettext</code>のときと同様に処理されます。
+</p></dd></dl>
+
+<dl>
+<dt><a name="index-dcngettext"></a>Function: <em>char *</em> <strong>dcngettext</strong> <em>(const char *<var>domain</var>, const char *<var>msgid1</var>, const char *<var>msgid2</var>, unsigned long int <var>n</var>, int <var>category</var>)</em></dt>
+<dd><p><code>dcngettext</code>は、選択されたメッセージカタログにたいして、<code>dcgettext</code>と同様な方法で使用します。異なるのは、正しいplural
+formのために、2つの余分なパラメーターを指定できる点です。この2つのパラメーターは、<code>ngettext</code>のときと同様に処理されます。
+</p></dd></dl>
+
+<p>では、これらの関数はどのようにしてplural formsの問題を解決しているのでしょうか?
+言語学の情報(そして、それは利用可能ではありません)がないかぎり、少しの差異しかないplural
+formのうちからどれを使用すればよいのか、そして新たにサポートされる言語ごとに数を増やせるかを決定することはできません。
+</p>
+<p>したがって、plural
+formを選択するルールを翻訳者が指定するという解決策が実装されました。各言語ごとに方式が異なる以上、これはコード内に情報をハードコーディングする以外の、唯一可能な解決策なのです(それでもまだ新しい言語の使用を妨げない拡張可能性を満たすという要件は残されています)。
+</p>
+<a name="index-specifying-plural-form-in-a-PO-file"></a>
+<a name="index-nplurals_002c-in-a-PO-file-header"></a>
+<a name="index-plural_002c-in-a-PO-file-header"></a>
+<p>plural
+form選択のための情報は、以下のようにPOファイルのヘッダーエントリー(<code>msgid</code>が空文字列のエントリーのうちの1つ)に保存されています:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=2; plural=n == 1 ? 0 : 1;
+</pre></div>
+
+<p><code>nplurals</code>には、その言語では何種類のplural
+formがあるのかを数字で指定します。<code>plural</code>に続く文字列には、C言語で使用できる評価式です。負の数値は使用できません。数値には正の整数を指定します。また、変数として使用できるのは<code>n</code>だけです。式で空白を使うことはできますが、バックスラッシュは使用できません。以下の例のうち、バックスラッシュと改行が使用されている例がありますが、これは表示を見やすくする目的のためだけに使用しています。この式は<code>ngettext</code>、<code>dngettext</code>、<code>dcngettext</code>が呼び出されたときに評価されます。これらの関数に数値が渡されると、式中の変数<code>n</code>の値として、その数値が評価されます。結果は0以上、かつ<code>nplurals</code>に指定した値より小さくなければなりません。
+</p>
+<p><a name="index-plural-form-formulas"></a>
+複数形の使い分けについては、以下のルールが知られています。言語と言語のファミリーが記載されていますが、この情報を言語ファミリー全体に適用する必要があるという訳ではありません(見やすくするために併記しています)。<a name="DOCF5" href="#FOOT5"><sup>5</sup></a>
+</p>
+<dl compact="compact">
+<dt>１つの形式だけを使うもの:</dt>
+<dd><p>1つの形式しか必要としない言語があります。これらの言語ではsingular formとplural
+formの区別はありません。この場合の適切なヘッダーエントリーは以下のようになるでしょう:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=1; plural=0;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Asian family</dt>
+<dd><p>Japanese, Vietnamese, Korean </p></dd>
+</dl>
+
+</dd>
+<dt>2つの形式がありsingularは１にしか適用しないもの</dt>
+<dd><p>この形式はEnglishで使われているもので、既存のプログラムでも一番多く使用されています。この場合のヘッダーエントリーは以下のようになるでしょう:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=2; plural=n != 1;
+</pre></div>
+
+<p>(注意: これはCの真偽値が0か1の2値をとる機能を使用しています。)
+</p>
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Germanic family</dt>
+<dd><p>English, German, Dutch, Swedish, Danish, Norwegian, Faroese </p></dd>
+<dt>Romanic family</dt>
+<dd><p>Spanish, Portuguese, Italian, Bulgarian </p></dd>
+<dt>Latin/Greek family</dt>
+<dd><p>Greek </p></dd>
+<dt>Finno-Ugric family</dt>
+<dd><p>Finnish, Estonian </p></dd>
+<dt>Semitic family</dt>
+<dd><p>Hebrew </p></dd>
+<dt>Artificial</dt>
+<dd><p>Esperanto </p></dd>
+</dl>
+
+<p>同じヘッダーエントリーを使う他の言語:
+</p>
+<dl compact="compact">
+<dt>Finno-Ugric family</dt>
+<dd><p>Hungarian </p></dd>
+<dt>Turkic/Altaic family</dt>
+<dd><p>Turkish </p></dd>
+</dl>
+
+<p>Hungarianは、数字を含んだセンテンスでは複数形を使いません。たとえば&ldquo;1 apple&rdquo;は “1 alma” で、&ldquo;123
+apples&rdquo;も&ldquo;123 alma&rdquo;です。しかし数が明確でない場合には&ldquo;the apple&rdquo;は&ldquo;az alma&rdquo;、&ldquo;the
+apples&rdquo;は&ldquo;az
+alm&aacute;k&rdquo;のようにsingularとpluralを区別します。このようなセンテンスを<code>ngettext</code>がサポートするようになってから、Hungarianも2つの形式をもつクラスに分類されるようになりました。
+</p>
+<p>Turkish も同様です: &ldquo;1 apple&rdquo;は&ldquo;1 elma&rdquo;で、&ldquo;123 apples&rdquo;も&ldquo;123
+elma&rdquo;です。しかし数字が省略された場合には、&ldquo;the apple&rdquo;は&ldquo;elma&rdquo;、&ldquo;the
+apples&rdquo;は&ldquo;elmalar&rdquo;のようにsingularとpluralを区別します。
+</p>
+</dd>
+<dt>2つの形式がありsingularを0と1に適用するもの</dt>
+<dd><p>言語ファミリーの例外的なケースです。ヘッダーエントリーは以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=2; plural=n&gt;1;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Romanic family</dt>
+<dd><p>Brazilian Portuguese, French </p></dd>
+</dl>
+
+</dd>
+<dt>3つの形式があり、0を特別なケースとして扱うもの</dt>
+<dd><p>ヘッダーエントリーは以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=3; plural=n%10==1 &amp;&amp; n%100!=11 ? 0 : n != 0 ? 1 : 2;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Baltic family</dt>
+<dd><p>Latvian </p></dd>
+</dl>
+
+</dd>
+<dt>3つの形式があり、1と2を特別なケースとして扱うもの</dt>
+<dd><p>ヘッダーエントリーは以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=3; plural=n==1 ? 0 : n==2 ? 1 : 2;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Celtic</dt>
+<dd><p>Gaeilge (Irish) </p></dd>
+</dl>
+
+</dd>
+<dt>3つの形式があり、00または[2-9][0-9]で終わる数字を特別なケースとして扱うもの</dt>
+<dd><p>ヘッダーエントリーは以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=3; \
+    plural=n==1 ? 0 : (n==0 || (n%100 &gt; 0 &amp;&amp; n%100 &lt; 20)) ? 1 : 2;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Romanic family</dt>
+<dd><p>Romanian </p></dd>
+</dl>
+
+</dd>
+<dt>3つの形式があり、1[2-9]で終わる数字を特別なケースとして扱うもの</dt>
+<dd><p>ヘッダーエントリーは以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=3; \
+    plural=n%10==1 &amp;&amp; n%100!=11 ? 0 : \
+           n%10&gt;=2 &amp;&amp; (n%100&lt;10 || n%100&gt;=20) ? 1 : 2;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Baltic family</dt>
+<dd><p>Lithuanian </p></dd>
+</dl>
+
+</dd>
+<dt>3つの形式があり、1、または2、3、4で終わる数字を特別なケースとして扱うもの、ただし1[1-4]で終わる数字を除く</dt>
+<dd><p>ヘッダーエントリーは以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=3; \
+    plural=n%10==1 &amp;&amp; n%100!=11 ? 0 : \
+           n%10&gt;=2 &amp;&amp; n%10&lt;=4 &amp;&amp; (n%100&lt;10 || n%100&gt;=20) ? 1 : 2;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Slavic family</dt>
+<dd><p>Russian, Ukrainian, Belarusian, Serbian, Croatian </p></dd>
+</dl>
+
+</dd>
+<dt>3つの形式があり、1と、2、3、4を特別なケースとして扱うもの</dt>
+<dd><p>ヘッダーエントリーは以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=3; \
+    plural=(n==1) ? 0 : (n&gt;=2 &amp;&amp; n&lt;=4) ? 1 : 2;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Slavic family</dt>
+<dd><p>Czech, Slovak </p></dd>
+</dl>
+
+</dd>
+<dt>3つの形式があり1と、2、3、4で終わる数字を特別なケースとして扱うもの</dt>
+<dd><p>ヘッダーエントリーは以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=3; \
+    plural=n==1 ? 0 : \
+           n%10&gt;=2 &amp;&amp; n%10&lt;=4 &amp;&amp; (n%100&lt;10 || n%100&gt;=20) ? 1 : 2;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Slavic family</dt>
+<dd><p>Polish </p></dd>
+</dl>
+
+</dd>
+<dt>4つの形式があり1と、02、03、04で終わるすべての数字を特別なケースとして扱うもの</dt>
+<dd><p>ヘッダーエントリーは以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">Plural-Forms: nplurals=4; \
+    plural=n%100==1 ? 0 : n%100==2 ? 1 : n%100==3 || n%100==4 ? 2 : 3;
+</pre></div>
+
+<p>このような特性をもつのは以下の言語です:
+</p>
+<dl compact="compact">
+<dt>Slavic family</dt>
+<dd><p>Slovenian </p></dd>
+</dl>
+</dd>
+</dl>
+
+<p>ここまで読んで、あなたは思うかもしれません。<code>ngettext</code>が扱う<var>n</var>の型は&lsquo;<samp>unsigned
+long</samp>&rsquo;だ。では、もっと大きな整数型の場合はどうだろうか? 負の数値については? 浮動小数値の場合は?
+</p>
+<p>&lsquo;<samp>uintmax_t</samp>&rsquo;や&lsquo;<samp>unsigned long
+long</samp>&rsquo;のようなより大きな数値のための整数型の場合、これらの数値は&lsquo;<samp>unsigned
+long</samp>&rsquo;の範囲に適合するように値を小さくして処理できます。この場合、単に値を&lsquo;<samp>unsigned
+long</samp>&rsquo;にキャストするのは正しくありません(キャストでは<code>ULONG_MAX + 1</code>は0、<code>ULONG_MAX +
+2</code>は1、...のようにキャストされます)。あなたは、いままで紹介してきたすべてのplural
+formで、100(または1000や1000000)で除する方法によって数式を間接的に評価できるという事実を見てきたでしょう。もし大きな数値を、下6桁を保持して[1000000,
+1999999]という範囲の他の数値に置き換えられれば、同じplural formの選択方法で取り扱えます。この場合のコードは以下のようになるでしょう:
+</p>
+<div class="smallexample">
+<pre class="smallexample">#include &lt;inttypes.h&gt;
+uintmax_t nbytes = ...;
+printf (ngettext (&quot;The file has %&quot;PRIuMAX&quot; byte.&quot;,
+                  &quot;The file has %&quot;PRIuMAX&quot; bytes.&quot;,
+                  (nbytes &gt; ULONG_MAX
+                   ? (nbytes % 1000000) + 1000000
+                   : nbytes)),
+        nbytes);
+</pre></div>
+
+<p>負の数や小数については、通常はsingularかpluralが明解でない物質量に適用されます。このようなケースでは、<code>ngettext</code>を使う必要はなく、単にすべての値に適切な形式を指定して<code>gettext</code>を呼び出します:
+</p>
+<div class="smallexample">
+<pre class="smallexample">printf (gettext (&quot;Time elapsed: %.3f seconds&quot;),
+        num_milliseconds * 0.001);
+</pre></div>
+
+<p><var>num_milliseconds</var>が1000の倍数のようなときでも、出力は以下のようになります
+</p><div class="smallexample">
+<pre class="smallexample">Time elapsed: 1.000 seconds
+</pre></div>
+<p>これは、Englishや他の言語でも許容できる出力です。
+</p>
+<p>plural formにたいする翻訳者の考え方については、<a href="Translating-plural-forms.html#Translating-plural-forms">Translating plural forms</a>で説明しています。
+</p>
+<div class="footnote">
+<hr>
+<h4 class="footnotes-heading">Footnotes</h4>
+
+<h3><a name="FOOT5" href="#DOCF5">(5)</a></h3>
+<p>追加の情報を歓迎します。<a href="mailto:bug-gnu-gettext@gnu.org">bug-gnu-gettext@gnu.org</a>か
+<a href="mailto:bug-glibc-manual@gnu.org">bug-glibc-manual@gnu.org</a>までメールしてください。</p>
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Optimized-gettext.html#Optimized-gettext" accesskey="n" rel="next">Optimized gettext</a>, Previous: <a href="Contexts.html#Contexts" accesskey="p" rel="prev">Contexts</a>, Up: <a href="gettext.html#gettext" accesskey="u" rel="up">gettext</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

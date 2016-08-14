@@ -1,0 +1,115 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: Interpolation II</title>
+
+<meta name="description" content="GNU gettext utilities: Interpolation II">
+<meta name="keywords" content="GNU gettext utilities: Interpolation II">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Perl.html#Perl" rel="up" title="Perl">
+<link href="Parentheses.html#Parentheses" rel="next" title="Parentheses">
+<link href="Interpolation-I.html#Interpolation-I" rel="prev" title="Interpolation I">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="Interpolation-II"></a>
+<div class="header">
+<p>
+Next: <a href="Parentheses.html#Parentheses" accesskey="n" rel="next">Parentheses</a>, Previous: <a href="Interpolation-I.html#Interpolation-I" accesskey="p" rel="prev">Interpolation I</a>, Up: <a href="Perl.html#Perl" accesskey="u" rel="up">Perl</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="Valid-Uses-Of-String-Interpolation"></a>
+<h4 class="subsubsection">15.5.18.6 Valid Uses Of String Interpolation</h4>
+<a name="index-Perl-valid-string-interpolation"></a>
+
+<p>Perlは他のプログラム言語のソースや、任意のファイルフォーマットを生成するために使用されることもあります。このような使用方法の例として有名なものには、HTMLコードを出力するWebアプリケーションがあります。
+</p>
+<p>以下のHTMLの例のように、翻訳可能なメッセージを含む言語(またはプログラム言語)を、散在させて記述したい状況に出会うこともあるでしょう:
+</p>
+<div class="example">
+<pre class="example">print gettext &lt;&lt;EOF;
+&lt;h1&gt;My Homepage&lt;/h1&gt;
+&lt;script language=&quot;JavaScript&quot;&gt;&lt;!--
+for (i = 0; i &lt; 100; ++i) {
+    alert (&quot;Thank you so much for visiting my homepage!&quot;);
+}
+//--&gt;&lt;/script&gt;
+EOF
+</pre></div>
+
+<p>parserによりヒアドキュメント全体が抽出されて、埋め込みJavaScriptの断片が含まれたHTMLコードが、抽出結果であるPOファイルに出現します。上記のような構築法の多用には、そのパッケージの翻訳者がもっと難易度の低いパッケージを探すというリスクがあります。このような場合には以下のような代替の表現を考慮する必要があるでしょう:
+</p>
+<div class="example">
+<pre class="example">print &lt;&lt;EOF;
+&lt;h1&gt;$gettext{&quot;My Homepage&quot;}&lt;/h1&gt;
+&lt;script language=&quot;JavaScript&quot;&gt;&lt;!--
+for (i = 0; i &lt; 100; ++i) {
+    alert (&quot;$gettext{'Thank you so much for visiting my homepage!'}&quot;);
+}
+//--&gt;&lt;/script&gt;
+EOF
+</pre></div>
+
+<p>この例ではコードの翻訳可能な部分だけが抽出されるので、結果となるPOファイルは、不本意ながら可読性の点においては改善されるでしょう。
+</p>
+<p>すべての文字列の中のhashのルックアップ、およびquote風な表現は補間することができます(quote風というな表現は、補完という処理が抱えているテーマでもあります。詳細についてはmanpage
+&lsquo;<samp>man perlop</samp>&rsquo;を参照してください)。しかし2重の補間は無効になります:
+</p>
+<div class="example">
+<pre class="example"># TRANSLATORS: Replace &quot;the earth&quot; with the name of your planet.
+print gettext qq{Welcome to $gettext-&gt;{&quot;the earth&quot;}};
+</pre></div>
+
+<p>最初の位置の<code>qq</code>によりクォートされた文字列が、<code>xgettext</code>の引数として認識されて、無効な可変補間かどうかをチェックされますそのため、hash-dereferencingの$記号は、parserによって&ldquo;invalid
+interpolation&rdquo;エラーとなります。
+</p>
+<p>以下の、正規表現の中のhash lookupの補間は有効です:
+</p>
+<div class="example">
+<pre class="example">if ($var =~ /$gettext{&quot;the earth&quot;}/) {
+   print gettext &quot;Match!\n&quot;;
+}
+s/$gettext{&quot;U. S. A.&quot;}/$gettext{&quot;U. S. A.&quot;} $gettext{&quot;(dial +0)&quot;}/g;
+</pre></div>
+
+
+
+
+</body>
+</html>

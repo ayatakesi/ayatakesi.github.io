@@ -1,0 +1,106 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: c-format Flag</title>
+
+<meta name="description" content="GNU gettext utilities: c-format Flag">
+<meta name="keywords" content="GNU gettext utilities: c-format Flag">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Sources.html#Sources" rel="up" title="Sources">
+<link href="Special-cases.html#Special-cases" rel="next" title="Special cases">
+<link href="Marking.html#Marking" rel="prev" title="Marking">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="c_002dformat-Flag"></a>
+<div class="header">
+<p>
+Next: <a href="Special-cases.html#Special-cases" accesskey="n" rel="next">Special cases</a>, Previous: <a href="Marking.html#Marking" accesskey="p" rel="prev">Marking</a>, Up: <a href="Sources.html#Sources" accesskey="u" rel="up">Sources</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="Special-Comments-preceding-Keywords"></a>
+<h3 class="section">4.6 Special Comments preceding Keywords</h3>
+
+
+<a name="index-format-strings"></a>
+<p>Cプログラム中の文字列は、しばしば<code>printf</code>ファミリーと呼ばれる関数呼び出しで使用されます。これらで使用される書式指定文字列に関して特筆すべきは、<kbd>%</kbd>で始まる書式指定子が含まれていることです。以下のようなコードがあるとしましょう。
+</p>
+<div class="example">
+<pre class="example">printf (gettext (&quot;String `%s' has %d characters\n&quot;), s, strlen (s));
+</pre></div>
+
+<p>上記の文字列にたいして、以下のようなGermanの翻訳が考えられます:
+</p>
+<div class="example">
+<pre class="example">&quot;%d Zeichen lang ist die Zeichenkette `%s'&quot;
+</pre></div>
+
+<p>Germanを話せないCプログラマーでも、まずい点があることに気がつくでしょう。文字列中の書式指定子の順序が変更されていますが、<code>printf</code>の引数の順序は変更されません。一番問題なのは、文字列のアドレスが期待されている箇所に、文字列の長さが渡していることです。
+</p>
+<p>翻訳に起因する実行時のエラーを防ぐために、<code>msgfmt</code>は翻訳前の文字列と、翻訳後の文字列に含まれる引数のタイプと数を、静的にチェックすることができます。このチェックを満足しないような場合、<code>msgfmt</code>に&lsquo;<samp>-c</samp>&rsquo;が指定されていると、<code>msgfmt</code>はエラーを発生させてMOファイルを生成しません。&lsquo;<samp>msgfmt
+-c</samp>&rsquo;を使用することにより、エラーを事前に検出して、実行時の問題を防ぐことができます。
+</p>
+<p>Germanの翻訳で上述の単語順が正しい場合は、以下のように記述する必要があります
+</p>
+<div class="example">
+<pre class="example">&quot;%2$d Zeichen lang ist die Zeichenkette `%1$s'&quot;
+</pre></div>
+
+<p><code>msgfmt</code>ルーチンは、この特別な表記法を認識できます。
+</p>
+<p>プログラムのすべての文字列が書式文字列というわけではないので、<samp>.po</samp>ファイルの中のすべての文字列を<code>msgfmt</code>がテストする必要はありません。また文字列の中に書式指定子と似た文字列が含まれるが、その文字列が<code>printf</code>で使われる文字列ではないような場合は、問題が発生します。
+</p>
+<p>そのため<code>xgettext</code>は、それらの書式文字列と思われるメッセージに特別なタグを付与します。このタグ付けは絶対的なルールではなく、発見的なルールです。<samp>.po</samp>ファイルの中のそれらのエントリーには、<code>#,</code>によるコメント行で、<code>c-format</code>というフラグによりマークされます(<a href="PO-Files.html#PO-Files">PO Files</a>を参照してください)。
+</p>
+<a name="index-c_002dformat_002c-and-xgettext"></a>
+<a name="index-no_002dc_002dformat_002c-and-xgettext"></a>
+<p>注意深い読者は、まだ問題があると気づくでしょう。発見されたものが間違っている場合です。これは真実であり、そのために<code>xgettext</code>は、プログラマーが意志決定すべき特別な種類のコメントを認識することができるのです。<code>gettext</code>キーワードと同じ行、またはそれに続く行に<code>xgettext:c-format</code>という単語を含むコメントを発見すると、<code>xgettext</code>はどのような場合であれ、文字列を<code>c-format</code>フラグでマークします。この種のコメントは、<code>xgettext</code>が文字列を書式文字列と認識しない場合(テストしてみて実際に認識されない場合)に使う必要があります。<code>gettext</code>キーワードと同じ行にコメントがある場合、翻訳される前にコメントを挿入しなければならないことに注意してください。
+</p>
+<p>このような状況は頻繁に発生します。<code>printf</code>関数にわたされる文字列に書式指定子が含まれない場合もあります。そのようなケースでは通常、<code>fputs</code>を使用するのでしょうが、それでもこのような状況はあり得ます。このような場合、<code>xgettext</code>はそれを書式文字列として認識しませんが、翻訳に書式指定子として認識されるような文字列が含まれていると何が起こるでしょうか?
+<code>printf</code>関数はパラメーターにアクセスしようとしますが、翻訳前の文字列には何も引数がわたされないため、パラメーターは存在しません。
+</p>
+<p>もちろん他の原因により、<code>xgettext</code>が間違って書式文字列ではない文字列を、書式文字列と認識することがあります。このような場合、<code>msgfmt</code>は多くの警告を出力し、<samp>.po</samp>ファイルへの変換は失敗します。このように間違って書式文字列と認識されるのを防ぐには、上記と同様に<code>xgettext:no-c-format</code>という文字列を含むコメントを使用します。
+</p>
+<p>文字列が<code>c-format</code>と間違ってマークされている場合、ユーザーは何が原因なのか調べることができます。<code>--debug</code>オプション使用して、どのように問題を解決するかについては、<a href="xgettext-Invocation.html#xgettext-Invocation">xgettext Invocation</a>を参照してください。
+</p>
+
+
+
+</body>
+</html>

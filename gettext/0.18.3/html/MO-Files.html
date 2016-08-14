@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: MO Files</title>
+
+<meta name="description" content="GNU gettext utilities: MO Files">
+<meta name="keywords" content="GNU gettext utilities: MO Files">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Binaries.html#Binaries" rel="up" title="Binaries">
+<link href="Programmers.html#Programmers" rel="next" title="Programmers">
+<link href="msgunfmt-Invocation.html#msgunfmt-Invocation" rel="prev" title="msgunfmt Invocation">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="MO-Files"></a>
+<div class="header">
+<p>
+Previous: <a href="msgunfmt-Invocation.html#msgunfmt-Invocation" accesskey="p" rel="prev">msgunfmt Invocation</a>, Up: <a href="Binaries.html#Binaries" accesskey="u" rel="up">Binaries</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="The-Format-of-GNU-MO-Files"></a>
+<h3 class="section">10.3 The Format of GNU MO Files</h3>
+<a name="index-MO-file_0027s-format"></a>
+<a name="index-file-format_002c-_002emo"></a>
+
+<p>生成されたMOファイルの書式については、以下のような図を用いて説明するのがよいでしょう。
+</p>
+<a name="index-magic-signature-of-MO-files"></a>
+<p>最初の2wordには、ファイルの識別が含まれます。magic numberは常にGNU
+MOファイルを意味するnumberになります。numberは生成されたマシンのバイトオーダーにしたがって格納されます。つまり実際のmagic
+numberは、<code>0x950412de</code>と<code>0xde120495</code>のいずれかです。
+</p>
+<p>2番目のwordは、ファイル書式の現在のrevisionを説明し、major revision number、およびminor revision
+numberから成り立ちます。revision
+numberにより、MOファイルの読み手は、古い書式と新しい書式を識別して、(可能なかぎり)内容を処理できます。いまのところmajor
+revisionは0か1で、minor revisionも0と1ですが、将来は追加されるかもしれません。想定外のmajor revision
+numberの場合、プログラムはMOファイル全体を読み込むのを中止する必要があります。想定外のminor revision
+numberは、ファイルは読み込めても、すべての内容は読み込めないことを意味します。プログラムが解析できるのは、より小さなminor revision
+numberのときだけです。
+</p>
+<p>異なるmagic numberによって書式の違いを表すのではなく、magic
+numberとは別にversionが保持されます。これは<samp>/etc/magic</samp>が滅多に更新されないことが主な理由です。
+</p>
+<p>MOファイルの冒頭部の情報が拡張されたときに、それらを読み込むプログラムをリコンパイルしなくても良いように、以降のテーブルのポインターを使ってください。そのようにしておけば、後で新しいフラグのビットを追加したり、使用されている文字コードの表示や、新しいテーブルなどを挿入されたときに便利です。
+</p>
+<p>図中のoffset <var>O</var>とoffset <var>T</var>には、2つのstring
+descriptorを見出すことができます。この2つのテーブルでは、どちらもstring descriptorとして
+32ビットの整数が使用されており、1つは文字列の長さを示し、もう1つは文字列がMOファイルの先頭から何バイト目かというoffsetを示します。最初のテーブルには元の文字列のdescriptorが含まれていて、これらの元文字列は辞書順にソートされて格納されています。2番目のテーブルには翻訳された文字列のdescriptorが含まれており、これらは1番目のテーブルに対応しています。つまり1番目のテーブルと同じ添字で2番目のテーブルにアクセスすれば、対応する翻訳を取得できます。
+</p>
+<p>元の文字列をソートして格納することにより、MOファイルにハッシュテーブルを含まれていなかったり、含まれていたとしても実際に使うことができないときにも、単純な二分探索が可能になります。これには他にも利点があります。GNU
+<code>gettext</code>は、POファイルの空の文字列にたいする翻訳文字列として、MOファイルに付加するシステム情報を割り当てます。この空文字列と翻訳のペアが、元の文字列のテーブルと、翻訳文字列のテーブルの最初に配置されることにより、システム情報を簡単に見つけることができるのです。
+</p>
+<a name="index-hash-table_002c-inside-MO-files"></a>
+<p>ハッシュテーブルのサイズ<var>S</var>が0のときもあります。これは、ハッシュテーブル自体がMOファイルに含まれていない場合です。事前に算出されたハッシュテーブルはディスク容量を消費し、速度も早くないという理由で、この方式を好む人もいます。ハッシュテーブルは、MOファイル中の文字列のソートされた配列の添字を含んでいます。競合はdouble
+hashingにより解決しています。使用されている正確なhashing algorithmは、GNU
+<code>gettext</code>のコード実装の説明になってしまうので、ここでは説明しません。
+</p>
+<p>ハッシュテーブルを参照して取得する文字列自体は<tt class="key">NUL</tt>終端されており、string
+descriptorの文字列長にその<tt class="key">NUL</tt>の分は含まれません。<code>msgfmt</code>プログラムには、MOファイル中の文字列のインデントを選択するオプションがあります。このオプションを指定すると、個々の文字列の開始位置のオフセットは指定されたインデント値の倍数分ずれます。RISCマシンには、適したインデント指定によって速度が改善するものがあります。
+</p>
+<a name="index-context_002c-in-MO-files"></a>
+<p>contextについては、元の文字列の代わりに、context文字列と元の文字列を<tt class="key">EOT</tt>で連結したものが、ソートされて格納されます。
+</p>
+<a name="index-plural-forms_002c-in-MO-files"></a>
+<p>plural formについては、元の文字列のsingularとpluralが<tt class="key">NUL</tt>で区切られて格納されます。string
+descriptorには、両方の長さが記述されます。しかし、ハッシュテーブルを参照するときは、元の文字列のsingularだけが使用されます。さまざまなpluralにたいする翻訳は、すべて<tt class="key">NUL</tt>区切りで格納されます。この場合もstring
+descriptorには、それらすべての長さが格納されます。
+</p>
+<p>MOファイル内の文字列に<tt class="key">NUL</tt>が埋め込まれることを防ぐ方法はありません。しかし現在のプログラムのインターフェースは、文字列が<tt class="key">NUL</tt>で終端されると仮定しているため、文字列の途中に<tt class="key">NUL</tt>が埋め込まれている場合、何らかの不都合が起こり得ます。MOファイルの書式は、後から他のインターフェースを適用できるほどには一般的です。一例としては、意図しない<tt class="key">NUL</tt>が出現するような箇所にwide
+characterを使用する方法などがあります(実際にはMOファイル中にwide characterを保持することはしません。wide
+characterを使用するとファイルの容量が不必要に大きくなります。また&lsquo;<samp>wchar_t</samp>&rsquo;はプラットフォームに依存するため、MOファイルもプラットフォームに依存することになるからです)。
+</p>
+<p>この技術的な問題は、GNU <code>gettext</code>のdevelopment
+forumで盛んに議論されており、MOファイルの書式が将来、進化・変更されることが予想されます。その可能性としては、同時に複数の書式にたいするサポートさえもが含まれます。しかし、わたしたちに何らかの出発点が必要なことは確かで、ここで説明しているMOファイルの書式はよい出発点でした。今の書式には厳密な制約もなく、後から書式を拡張するのは簡単なので、わたしたちは現在のアプローチに満足しています。
+</p>
+<div class="example">
+<pre class="example">        byte
+             +------------------------------------------+
+          0  | magic number = 0x950412de                |
+             |                                          |
+          4  | file format revision = 0                 |
+             |                                          |
+          8  | number of strings                        |  == N
+             |                                          |
+         12  | offset of table with original strings    |  == O
+             |                                          |
+         16  | offset of table with translation strings |  == T
+             |                                          |
+         20  | size of hashing table                    |  == S
+             |                                          |
+         24  | offset of hashing table                  |  == H
+             |                                          |
+             .                                          .
+             .    (possibly more entries later)         .
+             .                                          .
+             |                                          |
+          O  | length &amp; offset 0th string  ----------------.
+      O + 8  | length &amp; offset 1st string  ------------------.
+              ...                                    ...   | |
+O + ((N-1)*8)| length &amp; offset (N-1)th string           |  | |
+             |                                          |  | |
+          T  | length &amp; offset 0th translation  ---------------.
+      T + 8  | length &amp; offset 1st translation  -----------------.
+              ...                                    ...   | | | |
+T + ((N-1)*8)| length &amp; offset (N-1)th translation      |  | | | |
+             |                                          |  | | | |
+          H  | start hash table                         |  | | | |
+              ...                                    ...   | | | |
+  H + S * 4  | end hash table                           |  | | | |
+             |                                          |  | | | |
+             | NUL terminated 0th string  &lt;----------------' | | |
+             |                                          |    | | |
+             | NUL terminated 1st string  &lt;------------------' | |
+             |                                          |      | |
+              ...                                    ...       | |
+             |                                          |      | |
+             | NUL terminated 0th translation  &lt;---------------' |
+             |                                          |        |
+             | NUL terminated 1st translation  &lt;-----------------'
+             |                                          |
+              ...                                    ...
+             |                                          |
+             +------------------------------------------+
+</pre></div>
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: Perl Pitfalls</title>
+
+<meta name="description" content="GNU gettext utilities: Perl Pitfalls">
+<meta name="keywords" content="GNU gettext utilities: Perl Pitfalls">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Perl.html#Perl" rel="up" title="Perl">
+<link href="PHP.html#PHP" rel="next" title="PHP">
+<link href="Long-Lines.html#Long-Lines" rel="prev" title="Long Lines">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="Perl-Pitfalls"></a>
+<div class="header">
+<p>
+Previous: <a href="Long-Lines.html#Long-Lines" accesskey="p" rel="prev">Long Lines</a>, Up: <a href="Perl.html#Perl" accesskey="u" rel="up">Perl</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="Bugs_002c-Pitfalls_002c-And-Things-That-Do-Not-Work"></a>
+<h4 class="subsubsection">15.5.18.9 Bugs, Pitfalls, And Things That Do Not Work</h4>
+<a name="index-Perl-pitfalls"></a>
+
+<p>ここまでのセクションでは、Perlのソースから翻訳可能な文字列を抽出点において、<code>xgettext</code>がとてもスマートであることが証明されました。しかし動作すると期待されていたエキゾチックな構成物のうちのいくつかは、多かれ少なかれ動作しません。  
+</p>
+<p>それに関係する制限のうちの1つは、クォートされた文字列内の変数の補間に関する実装で見つけることができます。クォートされた文字列の場合、単純なhash
+lookupしか使うことができません:
+</p>
+<div class="example">
+<pre class="example">print &lt;&lt;EOF;
+$gettext{&quot;The dot operator&quot;
+          . &quot; does not work&quot;
+          . &quot;here!&quot;}
+Likewise, you cannot @{[ gettext (&quot;interpolate function calls&quot;) ]}
+inside quoted strings or quote-like expressions.
+EOF
+</pre></div>
+
+<p>これは有効なPerlのコードであり、実行時には実際に<code>gettext</code>関数を呼び出します。しかし<code>xgettext</code>のPerl
+parserは、文字列の認識に失敗します。これほど明確ではない実相の制限は、正規表現の補間で見つけることができます:
+</p>
+<div class="example">
+<pre class="example">s/&lt;!--START_OF_WEEK--&gt;/gettext (&quot;Sunday&quot;)/e;
+</pre></div>
+
+<p>修飾子<code>e</code>は、評価可能なステートメントとして解釈して置き換えを行います。その結果、実行時に<code>gettext()</code>関数が呼び出されまが、この場合もparserは文字列&ldquo;Sunday&rdquo;を抽出することに失敗します。この機能を本当に使いたいならば、シンプルな回避策は一時的な変数を使うことです:
+</p>
+<div class="example">
+<pre class="example">my $sunday = gettext &quot;Sunday&quot;;
+s/&lt;!--START_OF_WEEK--&gt;/$sunday/;
+</pre></div>
+
+<p>hash slicesも手軽ですが、認識されません:
+</p>
+<div class="example">
+<pre class="example">my @weekdays = @gettext{'Sunday', 'Monday', 'Tuesday', 'Wednesday',
+                        'Thursday', 'Friday', 'Saturday'};
+# Or even:
+@weekdays = @gettext{qw (Sunday Monday Tuesday Wednesday Thursday
+                         Friday Saturday) };
+</pre></div>
+
+<p>これはtied hash %gettextの完全に有効な使い方ですが、文字列は認識されないため、抽出もされません。
+</p>
+<p>現在のバージョンにたいするその他の注意点は、識別子の中の非アスキー文字にたいするお粗末なサポートがあげられます。&rsquo;A&rsquo;-&rsquo;Z&rsquo;、&rsquo;a&rsquo;-&rsquo;z&rsquo;、&rsquo;0&rsquo;-&rsquo;9&rsquo;、およびアンダースコアー
+&rsquo;_&rsquo; の範囲外の文字を識別子に使った場合、あなたは深刻な問題に直面するでしょう。
+</p>
+<p>これらの存在しない機能のうちのいくつかは将来のバージョンで実装されるかもしれませんが、最小限の努力により回避できるものばかりなので、開発の優先度は低くなっています。
+</p>
+<p>たちの悪いのは、普通のテキストの中の一部にすでにbraceが含まれているようなbrace format
+stringsの問題です。たとえば、プログラムの使い方を説明する文字列は、プログラムの中で普通に出会うものです:
+</p>
+<div class="example">
+<pre class="example">die &quot;usage: $0 {OPTIONS} FILENAME...\n&quot;;
+</pre></div>
+
+<p>このPerlのbrace format stringsを含んだコードをインターナショナライズしようとすると、問題が起きます:
+</p>
+<div class="example">
+<pre class="example">die __x (&quot;usage: {program} {OPTIONS} FILENAME...\n&quot;, program =&gt; $0);
+</pre></div>
+
+<p>&lsquo;<samp>{program}</samp>&rsquo;はplaceholderです。一方&lsquo;<samp>{OPTIONS}</samp>&rsquo;はplaceholderではなく、おそらく翻訳される必要があります。しかし最初のものを認識して、他のものをそのままにしておくように<code>xgettext</code>のPerl
+parserに教える術はありません。
+</p>
+<p>この問題を回避するためには2つの方法が考えられます。プログラムが(<code>printf()</code>で位置パラメーターを扱える)Perl
+5.8.0以降で実行されることがわかっている場合か、翻訳者が引数の順番を変える必要がないことがわかっている場合 &ndash;
+たとえば文字列に1つしかbraceのplaceholderがない場合や、上記の例のように構文を説明するためのものの場合 &ndash;
+文字列をno-perl-brace-formatとマークして<code>printf()</code>を使うことができます:
+</p>
+<div class="example">
+<pre class="example"># xgettext: no-perl-brace-format
+die sprintf (&quot;usage: %s {OPTIONS} FILENAME...\n&quot;, $0);
+</pre></div>
+
+<p>もっと可搬性のあるPerlのbrace formatを使いたいときは、placeholdersをリテラルのbracesの中に配置します:
+</p>
+<div class="example">
+<pre class="example">die __x (&quot;usage: {program} {[}OPTIONS{]} FILENAME...\n&quot;,
+         program =&gt; $0, '[' =&gt; '{', ']' =&gt; '}');
+</pre></div>
+
+<p>Perlのbrace
+を使った書式文字列は、エスケープするための仕組みを知りません。このエスケープするための仕組みがどのようなものであれ、これはプログラマーに困難な時をもたらし、Perlのbrace
+を使った書式文字列の翻訳を困難にするか、format命令が実行されるときの実行時の性能を劣化させるでしょう。このような特別なケースでは、<code>printf()</code>のために幸せな時間のほとんどを費やすことになります。
+</p>
+
+
+
+</body>
+</html>
