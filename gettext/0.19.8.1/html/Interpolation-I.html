@@ -1,0 +1,132 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: Interpolation I</title>
+
+<meta name="description" content="GNU gettext utilities: Interpolation I">
+<meta name="keywords" content="GNU gettext utilities: Interpolation I">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Perl.html#Perl" rel="up" title="Perl">
+<link href="Interpolation-II.html#Interpolation-II" rel="next" title="Interpolation II">
+<link href="Quote_002dlike-Expressions.html#Quote_002dlike-Expressions" rel="prev" title="Quote-like Expressions">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="Interpolation-I"></a>
+<div class="header">
+<p>
+Next: <a href="Interpolation-II.html#Interpolation-II" accesskey="n" rel="next">Interpolation II</a>, Previous: <a href="Quote_002dlike-Expressions.html#Quote_002dlike-Expressions" accesskey="p" rel="prev">Quote-like Expressions</a>, Up: <a href="Perl.html#Perl" accesskey="u" rel="up">Perl</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="WenZi-Lie-Nei-Cha-noWu-Xiao-naShi-iFang-"></a>
+<h4 class="subsubsection">15.5.18.5 文字列内挿の無効な使い方</h4>
+<a name="index-Perl-invalid-string-interpolation"></a>
+
+<p>Perlでは、変数による文字列の補間ができます。これはローカライズされるプログラムに恩恵をもたらしますが、問題を引き起こすこともあります。
+</p>
+<p>以下のような文字列の生成はエラーを発生させます:
+</p>
+<div class="example">
+<pre class="example">print gettext &quot;This is the program $0!\n&quot;;
+</pre></div>
+
+<p>このような場合Perlは実行時に、関数<code>gettext()</code>の引数内の、変数<code>$0</code>を補間するでしょう。これにより、この引数は文字列定数ではなく文字列変数となります(<code>$0</code>はグローバル変数で、実行されているperlのスクリプト名が保持されています)。補間はPerlが文字列引数を<code>gettext()</code>に渡す前に行われるので、文字列は実行時にのみ決定可能なスクリプト名に依存することになります。その結果、実行時に翻訳を見つけるのはほとんど不可能になります(メッセージカタログで補間された文字列が偶然見つかってしまった場合を除きます)。
+</p>
+<p>そのため<code>xgettext</code>プログラムは、抽出された文字列の中に変数を見つけると、致命的なエラーとして解析を打ちきります。これは一般的に、このような補間文字列すべてをコンパイル時に安全に処理することができないからです。あなたが自分が何をしているか完全に知っている場合には、以下のようにしてこの挙動を回避できます:
+</p>
+<div class="example">
+<pre class="example">my $know_what_i_am_doing = &quot;This is program $0!\n&quot;;
+print gettext $know_what_i_am_doing;
+</pre></div>
+
+<p>パーサーは、変数やその他の単語は認識しませんが、文字列と引用符の類だけなら認識するので、上記の文は許されます。しかし、多分あなたは元文字列をメッセージカタログに抽出するための、別の方法を見つける必要があるでしょう。
+</p>
+<p><code>--extract-all</code>(または<code>-a</code>)オプションを指定して呼び出すと、変数の補間ができるようになります。理論的な根拠:
+一般的にはソースをインターナショナライズ用に準備するために、このオプションを使うでしょう。
+</p>
+<p>補間される文字列・補間されない文字列と、引用符類の表現についての詳細は、&lsquo;<samp>man
+perlop</samp>&rsquo;のmanpageを参照してください。以下は、(致命的なエラーとならない)安全な補間です:
+</p>
+<ul>
+<li> エスケープシーケンス<code>\t</code>(tab, HT, TAB)、
+<code>\\n</code>(newline、NL)、<code>\r</code>(return、CR)、<code>\f</code>(form
+feed、FF)、<code>\b</code>(backspace、BS)、<code>\a</code>(alarm、bell、BEL)、<code>\e</code>
+(escape、ESC)
+
+</li><li> <code>\033</code>のような8進文字
+<br>400から777の範囲の8進シーケンスは、<code>use utf8</code>
+pragmaが記述されているか否かにかかわらず、UTF-8表現に翻訳されることに注意してください。
+
+</li><li> hex chars, like <code>\x1b</code>
+
+</li><li> <code>\x{263a}</code>のような16進文字
+<br>このエスケープは、<code>use utf8</code> pragmaが記述されているか否かにかかわらず、UTF-8表現に翻訳されることに注意してください。
+
+</li><li> <code>\c[</code>(CTRL-[)のような制御文字
+
+</li><li> <code>\N{LATIN CAPITAL LETTER C WITH CEDILLA}</code>のような名前つきUnicode文字
+<br>このエスケープは、<code>use utf8</code> pragmaが記述されているか否かにかかわらず、UTF-8表現に翻訳されることに注意してください。
+</li></ul>
+
+<p>以下のエスケープは、部分的には安全だとみなされます:
+</p>
+<ul>
+<li> <code>\l</code> 次の文字を小文字にします
+
+</li><li> <code>\u</code> 次の文字を大文字にします
+
+</li><li> <code>\L</code> \E までを小文字にします
+
+</li><li> <code>\U</code> \Eまでを大文字にします
+
+</li><li> <code>\E</code> 大文字小文字変換を終端します
+
+</li><li> <code>\Q</code> \Eまでの非単語文字をクォートします
+
+</li></ul>
+
+<p>これらのエスケープは、文字列にASCII文字しか含まれていないときだけ、安全とみなされます。ASCIIで定義された範囲外の翻訳文字はlocale依存であり、実際には実行時しか処理できません。<code>xgettext</code>は、これらのlocale依存の翻訳を抽出時に処理しません。
+</p>
+<p>修飾子<code>\Q</code>を除き、たとえこれらの翻訳が有効だとしても、一般的には無用であり、ソースがわかりにくくなるだけです。コンパイル時に翻訳が安全に処理できるなら、あなたも、意図することを同じように記述できるはずです。
+</p>
+
+
+
+</body>
+</html>

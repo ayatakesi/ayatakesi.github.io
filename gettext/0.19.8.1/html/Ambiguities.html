@@ -1,0 +1,91 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: Ambiguities</title>
+
+<meta name="description" content="GNU gettext utilities: Ambiguities">
+<meta name="keywords" content="GNU gettext utilities: Ambiguities">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="gettext.html#gettext" rel="up" title="gettext">
+<link href="Locating-Catalogs.html#Locating-Catalogs" rel="next" title="Locating Catalogs">
+<link href="Interface-to-gettext.html#Interface-to-gettext" rel="prev" title="Interface to gettext">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="Ambiguities"></a>
+<div class="header">
+<p>
+Next: <a href="Locating-Catalogs.html#Locating-Catalogs" accesskey="n" rel="next">Locating Catalogs</a>, Previous: <a href="Interface-to-gettext.html#Interface-to-gettext" accesskey="p" rel="prev">Interface to gettext</a>, Up: <a href="gettext.html#gettext" accesskey="u" rel="up">gettext</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="aimaizanoJie-Jue-"></a>
+<h4 class="subsection">11.2.2 あいまいざの解決</h4>
+<a name="index-several-domains"></a>
+<a name="index-domain-ambiguities"></a>
+<a name="index-large-package"></a>
+
+<p>ほとんどのアプリケーションでは、単一のドメイン名でうまく動作するかもしれませんが、複数のドメインから翻訳を取得する必要があるアプリケーションも存在します。<code>textdomain</code>を呼び出すことにより異なるドメインに切り替えることもできますが、これは不便だし低速です。起こり得る状況としては、この文書を記述しているときに提出された議論(一般的に使われる関数のすべてのエラーメッセージは、errorというドメインに分離するべきである)のケースがあります。これには翻訳が1度で済むという意味があります。他のケースとしてはライブラリーのメッセージの場合で、これらがアプリケーションの現在のドメインからは独立している<em>必要</em>があります。
+</p>
+<p>これらの理由により、文字列を取得するために、さらに2つの関数が用意されています:
+</p>
+<div class="example">
+<pre class="example">char *dgettext (const char *domain_name, const char *msgid);
+char *dcgettext (const char *domain_name, const char *msgid,
+                 int category);
+</pre></div>
+
+<p>これらの関数は、どちらも1番目に追加の引数があります。これには<code>textdomain</code>と同じ引数を与えます。<code>dcgettext</code>の3番目の引数により、<code>LC_MESSAGES</code>以外の、他のlocale
+categoryを使うことができます(実際のところ、わたしにはこれがどんなときに便利なのか、わかりませんが)。<var>domain_name</var>が<code>NULL</code>のとき、または<var>category</var>に未知のものが指定された場合、結果は未定義となります。Solarisの関数ファミリーの2番目の実装にはでは、1つは含まれているのに、この関数は含まれていないことも触れておくべきでしょう
+</p>
+<p>多重定義が発生する2番目の理由は、複数のドメインが同じ名前を共有するかもしれないという事実に起因します。これは必要なメッセージカタログがどこにあるか指定することで解決します。
+</p>
+<div class="example">
+<pre class="example">char *bindtextdomain (const char *domain_name,
+                      const char *dir_name);
+</pre></div>
+
+<p>この関数を呼び出すことにより、指定されたドメインとディレクトリーのファイルがバインドされます(ファイルがどのように決定されるかは以下で説明します)。特に、システムの既定の位置にあるファイルのかわりに、指定された位置のファイルを使って<code>textdomain</code>を呼び出したいときに使用します。<var>dir_name</var>パラメーターに<code>NULL</code>ポインターを与えると、<var>domain_name</var>にバインドされている値が戻されます。<var>domain_name</var>自身が<code>NULL</code>の場合は何も行われず、<code>NULL</code>ポインターが戻されます。他の関数と同様に、戻された値を変更することはできません!
+</p>
+<p><var>dir_name</var>に相対パスを指定することは、トラブルの原因になることを覚えておくことは重要です。プログラムが<code>chdir</code>コマンドを呼び出すことにより、カレントディレクトリーに関連づいた相対パスは、再計算されます。相対パスの使用により、常に非依存性と信頼性が無効にされます。
+</p>
+
+
+
+</body>
+</html>

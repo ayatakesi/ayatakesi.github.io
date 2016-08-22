@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: Comparison</title>
+
+<meta name="description" content="GNU gettext utilities: Comparison">
+<meta name="keywords" content="GNU gettext utilities: Comparison">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Programmers.html#Programmers" rel="up" title="Programmers">
+<link href="Using-libintl_002ea.html#Using-libintl_002ea" rel="next" title="Using libintl.a">
+<link href="Optimized-gettext.html#Optimized-gettext" rel="prev" title="Optimized gettext">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="Comparison"></a>
+<div class="header">
+<p>
+Next: <a href="Using-libintl_002ea.html#Using-libintl_002ea" accesskey="n" rel="next">Using libintl.a</a>, Previous: <a href="gettext.html#gettext" accesskey="p" rel="prev">gettext</a>, Up: <a href="Programmers.html#Programmers" accesskey="u" rel="up">Programmers</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="g_t2tunointahuesunoBi-Jiao-"></a>
+<h3 class="section">11.3 2つのインターフェースの比較</h3>
+<a name="index-gettext-vs-catgets"></a>
+<a name="index-comparison-of-interfaces"></a>
+
+
+<p>以下の議論は幾分誇張されたものかもしれません。これまで述べてきたように、わたしたちはUniforumの勧告にしたがう理由があって、GNU
+<code>gettext</code>を実装しました。しかし、どのようにしてこの決定に至ったかをお見せするべきでしょう。
+</p>
+<p>最初に開発プロセスを概観してみましょう。わたしたちが<code>gettext</code>により提供されるNLSを使ってアプリケーションを記述するときは、いつものとおり処理のことです。ユーザーの目に触れるので文字列を翻訳する必要があるときだけ、わたしたちは<code>&quot;&hellip;&quot;</code>のかわりに<code>gettext(&quot;&hellip;&quot;)</code>を使って翻訳を行います。各ソースファイル(または中核となるヘッダーファイル)で、以下を定義します
+</p>
+<div class="example">
+<pre class="example">#define gettext(String) (String)
+</pre></div>
+
+<p>この定義により、システムのCライブラリー自体で<code>gettext</code>がサポートされていても、それを無効化できます。このコードをコンパイルすると、NLSコードを使わない場合と同じ結果が得られます。GNU
+<code>gettext</code>のコードを見ると、<code>gettext(&quot;&hellip;&quot;)</code>のかわりに<code>_(&quot;&hellip;&quot;)</code>を使っているのがわかるでしょう。これにより翻訳可能な文字列のために余分にタイプしなければならない文字数を3文字まで減らせます。
+</p>
+<p>これを出荷するバージョンのプログラムにする場合は、単に以下の定義
+</p>
+<div class="example">
+<pre class="example">#define _(String) (String)
+</pre></div>
+
+<p>を、以下の定義に置き換えるだけで済みます。
+</p>
+<a name="index-include-file-libintl_002eh-2"></a>
+<div class="example">
+<pre class="example">#include &lt;libintl.h&gt;
+#define _(String) gettext (String)
+</pre></div>
+
+<p>そして、翻訳可能な文字列を含むすべてのソースファイルにたいして<samp>xgettext</samp>プログラムを実行します。わたしたちは翻訳が利用できないものにたいしても、利用可能になったら使えるように、プログラムを実行します。
+</p>
+<a name="index-N_005f_002c-a-convenience-macro"></a>
+<p>同様のことは<code>gettext_noop</code>呼び出しでも行うことができます(<a href="Special-cases.html#Special-cases">Special cases</a>を参照してください)。<code>gettext_noop</code>は通常、no-op(訳注: no-operation = 何もしない)
+マクロとして定義します。プロジェクトでは以下のようなコードを考慮する必要があります:
+</p>
+<div class="example">
+<pre class="example">#define gettext_noop(String) String
+#define N_(String) gettext_noop (String)
+</pre></div>
+
+<p><code>N_</code>は、<code>_</code>と同様、省略形です。GNU
+<code>gettext</code>の<samp>po/</samp>ディレクトリーにある<samp>Makefile</samp>は、これらの省略形を認識するので、必要に応じて使うことができます。
+</p>
+<p>今度は<code>catgets</code>を見てみましょう。主な問題点はプログラマー向けの機能にあります。彼は、翻訳可能な文字列ごとに、毎回異なる数字(または記号定数)を割り当てる必要があります。彼は重複したエントリー、重複したメッセージID、etc...にも注意を払わなければなりません。もしGNU
+<code>gettext</code>プログラムが提供するのと同じ品質をメッセージカタログにもたせたい場合、文字列にたいする説明コメントやソースコード中での場所をメッセージカタログに記述しなければなりません。これはほとんどMission:
+Impossibleでしょう。
+</p>
+<p>しかし<code>catgets</code>の優位性を語る人たちが触れる点もいくつかあります。文字列内にある単語があり、その文字列が異なるコンテキストや他の言語で使われている場合に、その単語は異なる翻訳をもつことができます。以下に例を示しましょう:
+</p>
+<div class="example">
+<pre class="example">printf (&quot;%s: %d&quot;, gettext (&quot;number&quot;), number_of_errors)
+
+printf (&quot;you should see %d %s&quot;, number_count,
+        number_count == 1 ? gettext (&quot;number&quot;) : gettext (&quot;numbers&quot;))
+</pre></div>
+
+<p>この例では、<code>&quot;number&quot;</code>という文字列を2回翻訳する必要があります。たとえあなたがEnglishに類する言語を話さなくても、この単語が2つの文で異なる意味をもつかもしれないことに気づくでしょう。Germanでは、1番目にたいして<code>&quot;Anzahl&quot;</code>、2番目には<code>&quot;Zahl&quot;</code>と翻訳する必要があります。
+</p>
+<p>これであなたはこのが難解な例だということに同意するでしょう。そしてあなたは間違っていません!
+では問題を正確に把握して、その問題がそれほど深刻ではないことにも気づくはずです。この問題は以下のようにして簡単に解決することができます:
+</p>
+<div class="example">
+<pre class="example">printf (&quot;%s %d&quot;, gettext (&quot;number:&quot;), number_of_errors)
+
+printf (number_count == 1 ? gettext (&quot;you should see %d number&quot;)
+                          : gettext (&quot;you should see %d numbers&quot;),
+        number_count)
+</pre></div>
+
+<p>わたしたちは、この方法で文字列の競合はすべて解決できると信じます。もし競合する文字列の一方を変更するのが困難なら、もう一方の文字列を少しだけ変更することも考慮できます。これを克服するのは不可能ではありません。
+</p>
+<p><code>catgets</code>は、同じ元文字列にたいして異なる翻訳をもたせることができます。<code>gettext</code>では同じ元文字列にたいして異なる翻訳をもたせることはできませんが、この種のあいまいさによる問題を解決する、よりスケーラブルな解決策があります。<a href="Ambiguities.html#Ambiguities">Ambiguities</a>を参照してください。
+</p>
+
+
+
+</body>
+</html>

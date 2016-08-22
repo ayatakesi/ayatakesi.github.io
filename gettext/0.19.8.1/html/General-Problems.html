@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: General Problems</title>
+
+<meta name="description" content="GNU gettext utilities: General Problems">
+<meta name="keywords" content="GNU gettext utilities: General Problems">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Perl.html#Perl" rel="up" title="Perl">
+<link href="Default-Keywords.html#Default-Keywords" rel="next" title="Default Keywords">
+<link href="Perl.html#Perl" rel="prev" title="Perl">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="General-Problems"></a>
+<div class="header">
+<p>
+Next: <a href="Default-Keywords.html#Default-Keywords" accesskey="n" rel="next">Default Keywords</a>, Previous: <a href="Perl.html#Perl" accesskey="p" rel="prev">Perl</a>, Up: <a href="Perl.html#Perl" accesskey="u" rel="up">Perl</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="PerlkodowopasusurutokinoYiBan-De-naWen-Ti-"></a>
+<h4 class="subsubsection">15.5.18.1 Perlコードをパースするときの一般的な問題</h4>
+
+<p>PerlだけがPerlをパースできるということを、しばしば耳にしますが、これは真実ではありません。結局Perlを<em>パース</em>することはできず、<em>実行</em>することができるだけなのです。Perlにはビルトインでさまざまなあいまいさがあり、それを解決できるのは実行時だけなのです。
+</p>
+<p>以下は一般的な例を示した例です:
+</p>
+<div class="example">
+<pre class="example">print gettext &quot;Hello World!&quot;;
+</pre></div>
+
+<p>これは関数呼び出しの&quot;堅実&quot;な例に見えるかもしれませんが、そうでもありません:
+</p>
+<div class="example">
+<pre class="example">open gettext, &quot;&gt;testfile&quot; or die;
+print gettext &quot;Hello world!&quot;
+</pre></div>
+
+<p>上記のコンテキストでは、文字列<code>gettext</code>はファイルハンドルのように見えます。しかし必ずしもそうではありません:
+</p>
+<div class="example">
+<pre class="example">use Locale::Messages qw (:libintl_h);
+open gettext &quot;&gt;testfile&quot; or die;
+print gettext &quot;Hello world!&quot;;
+</pre></div>
+
+<p>この例では、Perlのインクルードパスで最初に見つかる<code>Locale::Messages</code>モジュールがエクスポートする<code>gettext</code>関数により提供されるファイル名は、多分文法エラーになるでしょう。しかし実際の<code>Locale::Messages</code>モジュールが以下のようなものだったらどうなるでしょうか?
+</p>
+<div class="example">
+<pre class="example">use vars qw (*gettext);
+
+1;
+</pre></div>
+
+<p>このケースでは、文字列<code>gettext</code>は再びファイルハンドルとして解釈されるので、<samp>testfile</samp>というファイルを作成して、そのファイルに&ldquo;Hello
+world!&rdquo;という文字列を書き込む例になります。より高度なフロー分析による制御も、助けにはなりません:
+</p>
+<div class="example">
+<pre class="example">if (0.5 &lt; rand) {
+   eval &quot;use Sane&quot;;
+} else {
+   eval &quot;use InSane&quot;;
+}
+print gettext &quot;Hello world!&quot;;
+</pre></div>
+
+<p>わたしたちが期待するような<code>gettext</code>関数をエクスポートするモジュールが<code>Sane</code>で、<code>gettext</code>という<em>ハンドル</em>の出力ストリームを書き込み用にオープンするのが<code>InSane</code>というモジュールの場合、わたしたちには実行時に何が起こるのか知る糸口がなく、完全に予測不能です。本当のところPerlには、実行時にそれ自身のシンボルテーブルにシンボルを追加するために非常に多くの方法があり、実行することなく特定のコードの断片を解釈するのは不可能なのです。
+</p>
+<p>もちろん<code>xgettext</code>は翻訳可能な文字列を走査するときに、走査するPerlのソースを実行するわけではなく、コードを記述した人が何を意図したのかを推測するために発見的な手法を用います。
+</p>
+<p>他にもスラッシュとクエスチョンマークの曖昧さという問題があります。これらの解釈はコンテキストに依存します:
+</p>
+<div class="example">
+<pre class="example"># A pattern match.
+print &quot;OK\n&quot; if /foobar/;
+
+# A division.
+print 1 / 2;
+
+# Another pattern match.
+print &quot;OK\n&quot; if ?foobar?;
+
+# Conditional.
+print $x ? &quot;foo&quot; : &quot;bar&quot;;
+</pre></div>
+
+<p>スラッシュは除算のための演算子と、パターンマッチをあらわすための両方の用途で使用されます。一方、クエスチョン
+マークは3項演算の条件判定と、パターンマッチでも使用されます。他の<code>awk</code>のようなプログラム言語にも同様な問題はありますが、このようにソースを誤って解釈してしまう問題はPerlのソースの場合が特に顕著なのです。たとえば<code>awk</code>では、命令文は決して1行を超えないので、パーサーはパースエラーから復帰して、次の行から残りの入力ストリームを正しく処理できます。これと異なりPerlは、コンテキストの意味とは無関係に、入力ストリームに次の区切り文字(スラッシュまたはクエスチョンマーク)が出現することでパターンマッチが終端されます。本来は除算演算子として使用されているスラッシュがパターンマッチと誤って解釈された場合、おそらく残りの入力ファイルは正常にパースされないでしょう。
+</p>
+<p>以下に、あいまいさの解決が不可能なケースを示します:
+</p>
+<div class="example">
+<pre class="example">$x = wantarray ? 1 : 0;
+</pre></div>
+
+<p>Perlのビルトイン関数である<code>wantarray</code>は引数をとらないので、Perlのパーサーはクエスチョンマークが正規表現の開始ではなく、3項演算子だと知ることができます。
+</p>
+<div class="example">
+<pre class="example">sub wantarrays {}
+$x = wantarrays ? 1 : 0;
+</pre></div>
+
+<p>今度は状況が異なります。関数<code>wantarrays</code>は、可変個の引数をとります(他のプロトタイプがない任意のPerl関数と同様です)。この場合、クエスチョンマークはパターンマッチの区切り文字として解釈されるので、このコードの断片はコンパイルされません。
+</p>
+<div class="example">
+<pre class="example">sub wantarrays() {}
+$x = wantarrays ? 1 : 0;
+</pre></div>
+
+<p>さて今度は関数がプロトタイプされているので、Perlは関数が引数をとらないことを知っているので、クエスチョンマークは再び3項演算子として解釈されます。しかし残念ながら<code>xgettext</code>はそうではありません。
+</p>
+<p><code>xgettext</code>のPerl用パーサーは、関数にプロトタイプがあるのか、そしてそのプロトタイプがどのように見えるのか知ることができないので、経験的に推測することになります。ある関数がPerlのビルトイン関数で、この関数が引数を受け付けない場合は、それに続くクエスチョンマーク(またはスラッシュ)は演算子として扱われ、それ以外の場合は以降に続く正規表現のための区切り文字として扱われます。Perlのビルトイン関数で引数をとらないのは<code>wantarray</code>、<code>fork</code>、<code>time</code>、<code>times</code>、<code>getlogin</code>、<code>getppid</code>、<code>getpwent</code>、<code>getgrent</code>、<code>gethostent</code>、<code>getnetent</code>、<code>getprotoent</code>、<code>getservent</code>、<code>setpwent</code>、<code>setgrent</code>、<code>endpwent</code>、<code>endgrent</code>、<code>endhostent</code>、<code>endnetent</code>、<code>endprotoent</code>、<code>endservent</code>です。
+</p>
+<p>もし<code>xgettext</code>が、あなたのソースから文字列を抽出するのに失敗する場合には、このセクションで説明したようなスラッシュ(またはクエスチョンマーク)を探してみる必要があります。もしかしたら<code>xgettext</code>のPerlパーサーの、他のバグである可能性もあります(もちろんそのようなバグは報告する必要があるでしょう)。そのうちに、あなたは<code>xgettext</code>に
+&quot;挑戦&quot;するより、マナーにのっとってコードを整形する必要があると思うでしょう。
+</p>
+<p>特に、引数をとらない関数をパーサーが認識できないときは、カッコを使ってください:
+</p>
+<div class="example">
+<pre class="example">$x = somefunc() ? 1 : 0;
+$y = (somefunc) ? 1 : 0;
+</pre></div>
+
+<p>実際のところはPerlのパーサーも、このような状況にたいする問題をもっていて、警告を発します。
+</p>
+
+
+
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: Libraries</title>
+
+<meta name="description" content="GNU gettext utilities: Libraries">
+<meta name="keywords" content="GNU gettext utilities: Libraries">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Sources.html#Sources" rel="up" title="Sources">
+<link href="Template.html#Template" rel="next" title="Template">
+<link href="Names.html#Names" rel="prev" title="Names">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="Libraries"></a>
+<div class="header">
+<p>
+Previous: <a href="Names.html#Names" accesskey="p" rel="prev">Names</a>, Up: <a href="Sources.html#Sources" accesskey="u" rel="up">Sources</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="raiburarisosunoZhun-Bei-"></a>
+<h3 class="section">4.10 ライブラリーソースの準備</h3>
+
+<p>あなたがプログラムではなくライブラリーを作成する場合、<code>gettext</code>の使用方法にはわずかな違いしかありません。ここでは前提として、ライブラリーが自分自身の翻訳ドメインとPOTファイルを持つとします(ライブラリーがメインプログラムの翻訳ドメインとPOTファイルを使用する場合は、前のセクションを変更なしに適用できます)。
+</p>
+<ol>
+<li> ライブラリーのコードでは、<code>setlocale (LC_ALL,
+&quot;&quot;)</code>を呼び出しません。localeのセットはメインプログラムの責任です。ライブラリーのドキュメントにはこの事実を明記して、ライブラリーを使用するプログラム開発者が認識できるようにする必要があります。
+
+</li><li> ライブラリーのコードでは、<code>textdomain (PACKAGE)</code>を呼び出しません。text
+domainのセットはメインプログラムの責任です。
+
+</li><li> プログラムのための初期化は以下のようなコードでした
+
+<div class="smallexample">
+<pre class="smallexample">  setlocale (LC_ALL, &quot;&quot;);
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
+</pre></div>
+
+<p>ライブラリーの場合は以下のコードだけになります
+</p>
+<div class="smallexample">
+<pre class="smallexample">  bindtextdomain (PACKAGE, LOCALEDIR);
+</pre></div>
+
+<p>ライブラリーのAPIにまだ初期化の関数が無いなら、<code>bindtextdomain</code>呼び出しを含む初期化関数を作成する必要があります。しかし通常、この初期化関数をエクスポートしたりドキュメント化する必要はありません。初期化関数がまだ呼び出されていない場合は、ライブラリーのすべてのエントリーポイントとなる関数から初期化関数を呼び出すだけで十分です。これを満足するような典型的な例は、初期化関数が呼び出し済みかどうかを保持するブール値の静的な変数を使用する方法です:
+</p>
+<div class="example">
+<pre class="example">static bool libfoo_initialized;
+
+static void
+libfoo_initialize (void)
+{
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  libfoo_initialized = true;
+}
+
+/* This function is part of the exported API.  */
+struct foo *
+create_foo (...)
+{
+  /* Must ensure the initialization is performed.  */
+  if (!libfoo_initialized)
+    libfoo_initialize ();
+  ...
+}
+
+/* This function is part of the exported API.  The argument must be
+   non-NULL and have been created through create_foo().  */
+int
+foo_refcount (struct foo *argument)
+{
+  /* No need to invoke the initialization function here, because
+     create_foo() must already have been called before.  */
+  ...
+}
+</pre></div>
+
+</li><li> プログラムでは通常、各ソースファイル中で、以下のように&lsquo;<samp>_</samp>&rsquo;マクロを定義しました
+
+<div class="smallexample">
+<pre class="smallexample">#include &lt;libintl.h&gt;
+#define _(String) gettext (String)
+</pre></div>
+
+<p>自身の翻訳ドメインを持つライブラリーの場合は、以下のようになります:
+</p>
+<div class="smallexample">
+<pre class="smallexample">#include &lt;libintl.h&gt;
+#define _(String) dgettext (PACKAGE, String)
+</pre></div>
+
+<p>別の言い方をすると、<code>gettext</code>のかわりに<code>dgettext</code>を使用するということです。同様に、<code>ngettext</code>が使用される箇所には、<code>dngettext</code>を使用する必要があります。
+</p></li></ol>
+
+
+
+
+</body>
+</html>

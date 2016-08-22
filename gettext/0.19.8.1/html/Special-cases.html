@@ -1,0 +1,134 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU gettext utilities: Special cases</title>
+
+<meta name="description" content="GNU gettext utilities: Special cases">
+<meta name="keywords" content="GNU gettext utilities: Special cases">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Program-Index.html#Program-Index" rel="index" title="Program Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Sources.html#Sources" rel="up" title="Sources">
+<link href="Bug-Report-Address.html#Bug-Report-Address" rel="next" title="Bug Report Address">
+<link href="c_002dformat-Flag.html#c_002dformat-Flag" rel="prev" title="c-format Flag">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<a name="Special-cases"></a>
+<div class="header">
+<p>
+Next: <a href="Bug-Report-Address.html#Bug-Report-Address" accesskey="n" rel="next">Bug Report Address</a>, Previous: <a href="c_002dformat-Flag.html#c_002dformat-Flag" accesskey="p" rel="prev">c-format Flag</a>, Up: <a href="Sources.html#Sources" accesskey="u" rel="up">Sources</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Program-Index.html#Program-Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="Fan-Yi-Ke-Neng-WenZi-Lie-noTe-Bie-nakesu"></a>
+<h3 class="section">4.7 翻訳可能文字列の特別なケース</h3>
+
+<a name="index-marking-string-initializers"></a>
+<p>注意深い読者なら、常に翻訳可能な文字列を<code>gettext</code>(または同様のもの)でマークすることはできないことに気づくでしょう。たとえば以下のようなケースです:
+</p>
+<div class="example">
+<pre class="example">{
+  static const char *messages[] = {
+    &quot;some very meaningful message&quot;,
+    &quot;and another one&quot;
+  };
+  const char *string;
+  &hellip;
+  string
+    = index &gt; 1 ? &quot;a default message&quot; : messages[index];
+
+  fputs (string);
+  &hellip;
+}
+</pre></div>
+
+<p>文字列<code>&quot;a default
+message&quot;</code>にたいするマーク付けは問題ありませんが、配列<code>messages</code>を初期化する文字列はマークできません。どうすればよいのでしょうか?
+このような場合は2つのタスクを達成する必要があります。最初に<code>xgettext</code>プログラムが文字列を見つけ出せるように文字列をマークします(<a href="xgettext-Invocation.html#xgettext-Invocation">xgettext Invocation</a>を参照してください)。次に実行時に文字列を出力する前に、文字列を翻訳するのです。
+</p>
+<p>最初のタスクは、no-opという新しいキーワードを作ることにより達成できます。2番目のタスクは、配列の文字列にたいするすべてのアクセスポイントをマークします。考えられる解決策の1つは、以下のようなものです:
+</p>
+<div class="example">
+<pre class="example">#define gettext_noop(String) String
+
+{
+  static const char *messages[] = {
+    gettext_noop (&quot;some very meaningful message&quot;),
+    gettext_noop (&quot;and another one&quot;)
+  };
+  const char *string;
+  &hellip;
+  string
+    = index &gt; 1 ? gettext (&quot;a default message&quot;) : gettext (messages[index]);
+
+  fputs (string);
+  &hellip;
+}
+</pre></div>
+
+<p>どのようなケースでも、<code>fputs</code>に記述された文字列は翻訳されると思ってください。どのようにして<code>xgettext</code>が、追加のキーワード<code>gettext_noop</code>を認識するかについては、<a href="xgettext-Invocation.html#xgettext-Invocation">xgettext Invocation</a>を参照してください。
+</p>
+<p>もちろん、これが唯一の解決策という訳ではありません。以下の方法のうちのいずれかを使用することもできます:
+</p>
+<div class="example">
+<pre class="example">#define gettext_noop(String) String
+
+{
+  static const char *messages[] = {
+    gettext_noop (&quot;some very meaningful message&quot;),
+    gettext_noop (&quot;and another one&quot;)
+  };
+  const char *string;
+  &hellip;
+  string
+    = index &gt; 1 ? gettext_noop (&quot;a default message&quot;) : messages[index];
+
+  fputs (gettext (string));
+  &hellip;
+}
+</pre></div>
+
+<p>しかしこの方法には欠点があります。プログラマーは文字列<code>&quot;a default
+message&quot;</code>にも<code>gettext_noop</code>を使うよう留意する必要があります。<code>gettext</code>を使用することにより、予期しない結果となる場合もあります。
+</p>
+<p>利点の1つは、どのようなケースでも出力が翻訳されるようにするために、制御フローを分析する必要がないことです。この分析は一般的に難しいものではありませんが、これにあてはまらないような状況では、2番目の方法を使用することもできます。
+</p>
+
+
+
+</body>
+</html>
