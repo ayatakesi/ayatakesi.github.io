@@ -73,13 +73,9 @@ Next: <a href="SMIE-Indentation.html#SMIE-Indentation" accesskey="n" rel="next">
 <a name="Living-With-a-Weak-Parser"></a>
 <h4 class="subsubsection">22.7.1.5 Living With a Weak Parser</h4>
 
-<p>The parsing technique used by SMIE does not allow tokens to behave
-differently in different contexts.  For most programming languages, this
-manifests itself by precedence conflicts when converting the BNF grammar.
+<p>SMIEが使用するパーステクニックは、異なるコンテキストでトークンが異なる振る舞いをすることを許しません。ほとんどのプログラミング言語にたいして、これは順位の競合によりBNF文法を変換するとき明らかになります。
 </p>
-<p>Sometimes, those conflicts can be worked around by expressing the grammar
-slightly differently.  For example, for Modula-2 it might seem natural to
-have a BNF grammar that looks like this:
+<p>その文法を若干異なるように表現することにより、これらの競合を回避できる場合があります。たとえばModula-2にたいしては、以下のようなBNF文法をもつのが自然に思えるかもしれません:
 </p>
 <div class="example">
 <pre class="example">  ...
@@ -92,11 +88,10 @@ have a BNF grammar that looks like this:
   ...
 </pre></div>
 
-<p>But this will create conflicts for <code>&quot;ELSE&quot;</code>: on the one hand, the IF
-rule implies (among many other things) that <code>&quot;ELSE&quot; = &quot;END&quot;</code>; but on
-the other hand, since <code>&quot;ELSE&quot;</code> appears within <code>cases</code>, which
-appears left of <code>&quot;END&quot;</code>, we also have <code>&quot;ELSE&quot; &gt; &quot;END&quot;</code>.  We can
-solve the conflict either by using:
+<p>しかし、これは<code>&quot;ELSE&quot;</code>にたいする競合を生み出すでしょう。その一方でIFルールは、(他の多くのものの中でも特に)<code>&quot;ELSE&quot;
+=
+&quot;END&quot;</code>を暗示します。しかしその一方では、<code>&quot;ELSE&quot;</code>は<code>cases</code>内に出現しますが、<code>cases</code>は<code>&quot;END&quot;</code>の左に出現するので、わたしたちは<code>&quot;ELSE&quot;
+&gt; &quot;END&quot;</code>も得ることになります。これは、以下を使用して解決できます:
 </p><div class="example">
 <pre class="example">  ...
   (inst (&quot;IF&quot; exp &quot;THEN&quot; insts &quot;ELSE&quot; insts &quot;END&quot;)
@@ -106,7 +101,7 @@ solve the conflict either by using:
   (cases (cases &quot;|&quot; cases) (caselabel &quot;:&quot; insts))
   ...
 </pre></div>
-<p>or
+<p>または
 </p><div class="example">
 <pre class="example">  ...
   (inst (&quot;IF&quot; exp &quot;THEN&quot; else &quot;END&quot;)
@@ -117,39 +112,16 @@ solve the conflict either by using:
   ...
 </pre></div>
 
-<p>Reworking the grammar to try and solve conflicts has its downsides, tho,
-because SMIE assumes that the grammar reflects the logical structure of the
-code, so it is preferable to keep the BNF closer to the intended abstract
-syntax tree.
+<p>文法を書き換えによる競合の解決には欠点があります。なぜなら、SMIEはその文法がコードの論理的構造を反映すると仮定するからです。そのため、BNFと意図する抽象的構文木の関係を密接に保つことが望まれます。
 </p>
-<p>Other times, after careful consideration you may conclude that those
-conflicts are not serious and simply resolve them via the <var>resolvers</var>
-argument of <code>smie-bnf-&gt;prec2</code>.  Usually this is because the grammar is
-simply ambiguous: the conflict does not affect the set of programs described
-by the grammar, but only the way those programs are parsed.  This is
-typically the case for separators and associative infix operators, where you
-want to add a resolver like <code>'((assoc &quot;|&quot;))</code>.  Another case where this
-can happen is for the classic <em>dangling else</em> problem, where you will
-use <code>'((assoc &quot;else&quot; &quot;then&quot;))</code>.  It can also happen for cases where the
-conflict is real and cannot really be resolved, but it is unlikely to pose a
-problem in practice.
+<p>注意深く考慮した後に、これらの競合は深刻ではなく、<code>smie-bnf-&gt;prec2</code>の<var>resolvers</var>引数を通じて解決する決心する場合もあるでしょう。これは通常、その文法が単に不明瞭だからです。その文法により記述されるプログラムセットは競合の影響を受けませんが、それらのプログラムにたいする唯一の方法はパースだけです。<code>'((assoc
+&quot;|&quot;))</code>のようなリゾルバ(resolver:
+解決するもの)を追加したいと望むような場合、通常それはセパレーターと2項結合演算子にたいするケースです。これが発生し得る他のケースは、<code>'((assoc
+&quot;else&quot; &quot;then&quot;))</code>を使用するような場合における、古典的な<em>ぶら下がりelse問題dangling else
+problem</em>です。これは実際に競合があり解決不能だが、実際のところ問題が発生しそうにないケースにたいしても、発生し得ます。
 </p>
-<p>Finally, in many cases some conflicts will remain despite all efforts to
-restructure the grammar.  Do not despair: while the parser cannot be made
-more clever, you can make the lexer as smart as you want.  So, the solution
-is then to look at the tokens involved in the conflict and to split one of
-those tokens into 2 (or more) different tokens.  E.g., if the grammar needs
-to distinguish between two incompatible uses of the token <code>&quot;begin&quot;</code>,
-make the lexer return different tokens (say <code>&quot;begin-fun&quot;</code> and
-<code>&quot;begin-plain&quot;</code>) depending on which kind of <code>&quot;begin&quot;</code> it finds.
-This pushes the work of distinguishing the different cases to the lexer,
-which will thus have to look at the surrounding text to find ad-hoc clues.
+<p>最後に、多くのケースでは、すべての文法再構築努力にも関わらず、いくつかの競合が残るでしょう。しかし失望しないでください。パーサーをより賢くすることはできませんが、あなたの望むようにlexerをスマートにすることは可能です。その方法は、競合が発生したら競合を引き起こしたトークンを調べて、それらのうちの1つを2つ以上の異なるトークンに分割する方法です。たとえば、トークン<code>&quot;begin&quot;</code>にたいする互換性のない2つの使用を文法が区別する必要があり、見つかった<code>&quot;begin&quot;</code>の種類により、lexerに異なるトークン(たとえば<code>&quot;begin-fun&quot;</code>と<code>&quot;begin-plain&quot;</code>)をリターンさせる場合です。これはlexerにたいして、異なるケースを区別する処理を強い、そのためにlexerは特別な手がかりを見つけるために、周囲のテキストを調べる必要があるでしょう。
 </p>
-<hr>
-<div class="header">
-<p>
-Next: <a href="SMIE-Indentation.html#SMIE-Indentation" accesskey="n" rel="next">SMIE Indentation</a>, Previous: <a href="SMIE-Lexer.html#SMIE-Lexer" accesskey="p" rel="prev">SMIE Lexer</a>, Up: <a href="SMIE.html#SMIE" accesskey="u" rel="up">SMIE</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 

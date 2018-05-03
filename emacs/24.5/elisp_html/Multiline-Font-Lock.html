@@ -74,71 +74,38 @@ Previous: <a href="Syntactic-Font-Lock.html#Syntactic-Font-Lock" accesskey="p" r
 <h4 class="subsection">22.6.9 Multiline Font Lock Constructs</h4>
 <a name="index-multiline-font-lock"></a>
 
-<p>Normally, elements of <code>font-lock-keywords</code> should not match across
-multiple lines; that doesn&rsquo;t work reliably, because Font Lock usually scans
-just part of the buffer, and it can miss a multi-line construct that crosses
-the line boundary where the scan starts.  (The scan normally starts at the
-beginning of a line.)
+<p>通常は、<code>font-lock-keywords</code>の要素は複数行にわたるマッチを行うべきではありません。それらの動作に信頼性はありません。なぜなら、Font
+Lockは通常はバッファーのごく一部をスキャンするので、そのスキャンが開始される行境界をまたがる複数行構造を見逃しかねないからです(スキャンは通常、行頭から開始される)。
 </p>
-<p>Making elements that match multiline constructs work properly has two
-aspects: correct <em>identification</em> and correct <em>rehighlighting</em>.
-The first means that Font Lock finds all multiline constructs.  The second
-means that Font Lock will correctly rehighlight all the relevant text when a
-multiline construct is changed&mdash;for example, if some of the text that was
-previously part of a multiline construct ceases to be part of it.  The two
-aspects are closely related, and often getting one of them to work will
-appear to make the other also work.  However, for reliable results you must
-attend explicitly to both aspects.
+<p>ある要素にたいして、複数行構造にたいするマッチを正しく機能させるには、2つの観点があります。それは<em>識別(identification)</em>の補正と、<em>再ハイライト(rehighlighting)</em>の補正です。1つ目は、Font
+Lockがすべての複数行構造を探すことを意味します。2つ目は、複数行構造が変更されたとき、たとえば以前は複数行構造の一部だったテキストが、複数行構造から除外されたときに、関連するすべてのテキストをFont
+Lockに正しく再ハイライトさせることを意味します。これら2つの観点は密接に関連しており、一方を機能させることがもう一方を機能させるようなことが多々あります。しかし、信頼性のある結果を得るためには、これら2つの観点双方にたいして、明示的に注意しなければなりません。
 </p>
-<p>There are three ways to ensure correct identification of multiline
-constructs:
+<p>複数行構造の識別を確実に補正するには、3つの方法があります:
 </p>
 <ul>
-<li> Add a function to <code>font-lock-extend-region-functions</code> that does the
-<em>identification</em> and extends the scan so that the scanned text never
-starts or ends in the middle of a multiline construct.
-</li><li> Use the <code>font-lock-fontify-region-function</code> hook similarly to extend
-the scan so that the scanned text never starts or ends in the middle of a
-multiline construct.
-</li><li> Somehow identify the multiline construct right when it gets inserted into
-the buffer (or at any point after that but before font-lock tries to
-highlight it), and mark it with a <code>font-lock-multiline</code> which will
-instruct font-lock not to start or end the scan in the middle of the
-construct.
+<li> スキャンされるテキストが複数行構造の途中で開始、または終了することがないように<em>識別</em>を行いスキャンを拡張する関数を、<code>font-lock-extend-region-functions</code>に追加する。
+</li><li> 同様に、スキャンされるテキストが複数行構造の途中で開始、または終了することがないようスキャンを拡張するために、<code>font-lock-fontify-region-function</code>フックを使用する。
+</li><li> 複数行構造がバッファーに挿入されたとき(または挿入後、Font
+Lockがハイライトを試みる前の任意のタイミングで)、何らかの方法によりそれを正しく認識して、Font
+Lockが複数行構造の途中で開始、または終了しないよう指示する<code>font-lock-multiline</code>でそれをマークする。
 </li></ul>
 
-<p>There are three ways to do rehighlighting of multiline constructs:
+<p>複数行構造の再ハイライトを行うには、3つの方法があります:
 </p>
 <ul>
-<li> Place a <code>font-lock-multiline</code> property on the construct.  This will
-rehighlight the whole construct if any part of it is changed.  In some cases
-you can do this automatically by setting the <code>font-lock-multiline</code>
-variable, which see.
-</li><li> Make sure <code>jit-lock-contextually</code> is set and rely on it doing its job.
-This will only rehighlight the part of the construct that follows the actual
-change, and will do it after a short delay.  This only works if the
-highlighting of the various parts of your multiline construct never depends
-on text in subsequent lines.  Since <code>jit-lock-contextually</code> is
-activated by default, this can be an attractive solution.
-</li><li> Place a <code>jit-lock-defer-multiline</code> property on the construct.  This
-works only if <code>jit-lock-contextually</code> is used, and with the same delay
-before rehighlighting, but like <code>font-lock-multiline</code>, it also handles
-the case where highlighting depends on subsequent lines.
+<li> その構造にたいして、正しく<code>font-lock-multiline</code>を配する。これにより、その構造の一部が変更された場合は、構造全体が再ハイライトされるだろう。あるケースにおいては、それを参照する<code>font-lock-multiline</code>変数をセットすることにより、これを自動的に行うことができる。
+</li><li> <code>jit-lock-contextually</code>を確実にセットして、それが行う処理に委ねる。これにより、実際の変更に続いて構造の一部だけが、若干の遅延の後に再ハイライトされるだろう。これは、複数行構造のさまざまな箇所のハイライトが、後続行のテキストに依存しない場合のみ機能する。<code>jit-lock-contextually</code>はデフォルトでアクティブなので、これは魅力的な解決策になり得る。
+</li><li> その構造上に、正しく<code>jit-lock-defer-multiline</code>を配する。これは、<code>jit-lock-contextually</code>が使用された場合のみ機能し、再ハイライト前に同様の遅延を伴うが、<code>font-lock-multiline</code>のように後続行に依存する箇所のハイライトも処理する。
 </li></ul>
 
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="Font-Lock-Multiline.html#Font-Lock-Multiline" accesskey="1">Font Lock Multiline</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Marking multiline chunks with a text property.
+<tr><td align="left" valign="top">&bull; <a href="Font-Lock-Multiline.html#Font-Lock-Multiline" accesskey="1">Font Lock Multiline</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">テキストプロパティで複数行塊をマークする。
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="Region-to-Refontify.html#Region-to-Refontify" accesskey="2">Region to Refontify</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Controlling which region gets refontified after 
-                               a buffer change.
+<tr><td align="left" valign="top">&bull; <a href="Region-to-Refontify.html#Region-to-Refontify" accesskey="2">Region to Refontify</a>:</td><td>&nbsp;&nbsp;</td><td align="left" valign="top">バッファー変更後にどのリージョンを再フォント表示するかを制御する。
 </td></tr>
 </table>
 
-<hr>
-<div class="header">
-<p>
-Previous: <a href="Syntactic-Font-Lock.html#Syntactic-Font-Lock" accesskey="p" rel="prev">Syntactic Font Lock</a>, Up: <a href="Font-Lock-Mode.html#Font-Lock-Mode" accesskey="u" rel="up">Font Lock Mode</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 

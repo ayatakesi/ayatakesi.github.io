@@ -74,73 +74,40 @@ Next: <a href="SMIE-Indentation-Helpers.html#SMIE-Indentation-Helpers" accesskey
 <h4 class="subsubsection">22.7.1.6 Specifying Indentation Rules</h4>
 <a name="index-indentation-rules_002c-SMIE"></a>
 
-<p>Based on the provided grammar, SMIE will be able to provide automatic
-indentation without any extra effort.  But in practice, this default
-indentation style will probably not be good enough.  You will want to tweak
-it in many different cases.
+<p>提供された文法にもとづき、他に特別なことを行わなくても、SMIEは自動的なインデントを提供できるでしょう。しかし実際には、このデフォルトのインデントスタイルでは、恐らく十分ではありません。多くの異なる状況において、これを微調整したいと思うかもしれません。
 </p>
-<p>SMIE indentation is based on the idea that indentation rules should be as
-local as possible.  To this end, it relies on the idea of <em>virtual</em>
-indentation, which is the indentation that a particular program point would
-have if it were at the beginning of a line.  Of course, if that program
-point is indeed at the beginning of a line, its virtual indentation is its
-current indentation.  But if not, then SMIE uses the indentation algorithm
-to compute the virtual indentation of that point.  Now in practice, the
-virtual indentation of a program point does not have to be identical to the
-indentation it would have if we inserted a newline before it.  To see how
-this works, the SMIE rule for indentation after a <code>{</code> in C does not
-care whether the <code>{</code> is standing on a line of its own or is at the end
-of the preceding line.  Instead, these different cases are handled in the
-indentation rule that decides how to indent before a <code>{</code>.
+<p>SMIEのインデントは、インデントルールは可能な限りローカルであるべきという考えにもとづきます。<em>バーチャルインデント(virtual
+indentation)</em>という考えによって、この目的を達成します。これは、特定のプログラムポイント(program
+point)は行頭にバーチャルインデントがある場合は、それをもつだろう、という発想です。もちろん、そのプログラムポイントが正に行頭にある場合は、そのプログラムポイントのバーチャルインデントは、プログラムポイントのカレントのインデントです。しかしそうでない場合は、SMIEがそのポイントのバーチャルインデントを計算するために、インデントアルゴリズムを使用します。ところで実際には、あるプログラムポイントのバーチャルインデントは、その前に改行を挿入した場合にプログラムポイントがもつであろうインデントと等しい必要はありません。これが機能する方法を確認するためには、Cにおける<code>{</code>の後のSMIEのインデントルールは、<code>{</code>がインデントする行自体にあるか、あるいは前の行の終端にあるかを配慮しないことが挙げられます。かわりに、これらの異なるケースは、<code>{</code>の前のインデントを決定するインデントルール内で処理されます。
 </p>
-<p>Another important concept is the notion of <em>parent</em>: The <em>parent</em>
-of a token, is the head token of the nearest enclosing syntactic construct.
-For example, the parent of an <code>else</code> is the <code>if</code> to which it
-belongs, and the parent of an <code>if</code>, in turn, is the lead token of the
-surrounding construct.  The command <code>backward-sexp</code> jumps from a token
-to its parent, but there are some caveats: for <em>openers</em> (tokens which
-start a construct, like <code>if</code>), you need to start with point before the
-token, while for others you need to start with point after the token.
-<code>backward-sexp</code> stops with point before the parent token if that is the
-<em>opener</em> of the token of interest, and otherwise it stops with point
-after the parent token.
+<p>他の重要な考え方として、<em>parent</em>の概念があります。あるトークン<em>parent</em>は、周囲にある直近の構文構造の代表トークン(head
+token)です。たとえば、<code>else</code>のparentは、それが属する<code>if</code>であり、<code>if</code>のparentは周囲を取り囲む構造の先導トークン(lead
+token)です。コマンド<code>backward-sexp</code>は、あるトークンからトークンのparentにジャンプしますが、注意点がいくつかあります。<em>opener</em>(<code>if</code>のような、ある構造を開始するトークン)にたいしては、他のトークンではそのトークンの後のポイントから開始する必要があるのにたいして、opnerではそのトークンの前のポイントから開始する必要があります。<code>backward-sexp</code>はparentトークンがそのトークンの<em>opener</em>の場合はparentトークンの前のポイントで停止し、それ以外ではparentトークンの後のポイントで停止します。
 </p>
-<p>SMIE indentation rules are specified using a function that takes two
-arguments <var>method</var> and <var>arg</var> where the meaning of <var>arg</var> and the
-expected return value depend on <var>method</var>.
+<p>SMIEのインデントルールは、2つの引数<var>method</var>と<var>arg</var>をとる関数により指定されます。ここで<var>arg</var>の値と期待されるリターン値は、<var>method</var>に依存します。
 </p>
-<p><var>method</var> can be:
+<p><var>method</var>は、以下のいずれかを指定できます:
 </p><ul>
-<li> <code>:after</code>, in which case <var>arg</var> is a token and the function should
-return the <var>offset</var> to use for indentation after <var>arg</var>.
-</li><li> <code>:before</code>, in which case <var>arg</var> is a token and the function should
-return the <var>offset</var> to use to indent <var>arg</var> itself.
-</li><li> <code>:elem</code>, in which case the function should return either the offset to
-use to indent function arguments (if <var>arg</var> is the symbol <code>arg</code>) or
-the basic indentation step (if <var>arg</var> is the symbol <code>basic</code>).
-</li><li> <code>:list-intro</code>, in which case <var>arg</var> is a token and the function
-should return non-<code>nil</code> if the token is followed by a list of
-expressions (not separated by any token) rather than an expression.
+<li> <code>:after</code>:
+この場合、<var>arg</var>はトークンであり、関数は<var>arg</var>の後に使用するインデントにたいする<var>offset</var>をリターンすべきである。
+</li><li> <code>:before</code>:
+この場合、<var>arg</var>はトークンであり、関数は<var>arg</var>自体に使用するインデントの<var>offset</var>をリターンすべきである。
+</li><li> <code>:elem</code>:
+この場合、関数は関数の引数に使用するインデントのオフセット(<var>arg</var>が<code>arg</code>の場合)、または基本的のインデントステップ(<var>arg</var>が<code>basic</code>の場合)、のいずれかをリターンすべきである。
+</li><li> <code>:list-intro</code>:
+この場合、<var>arg</var>はトークンであり、関数はそのトークンの後が単一の式ではなく、(任意のトークンにより区切られない)式のリストが続く場合は非<code>nil</code>をリターンすべきである。
 </li></ul>
 
-<p>When <var>arg</var> is a token, the function is called with point just before
-that token.  A return value of <code>nil</code> always means to fallback on the
-default behavior, so the function should return <code>nil</code> for arguments it
-does not expect.
+<p><var>arg</var>がトークンのとき、関数はそのトークンの直前のポイントで呼び出されます。リターン値<code>nil</code>は常にデフォルトの振る舞いへのフォールバックを意味するので、関数は期待した引数でないときは<code>nil</code>をリターンするべきです。
 </p>
-<p><var>offset</var> can be:
+<p><var>offset</var>は、以下のいずれかを指定できます:
 </p><ul>
-<li> <code>nil</code>: use the default indentation rule.
-</li><li> <code>(column . <var>column</var>)</code>: indent to column <var>column</var>.
-</li><li> <var>number</var>: offset by <var>number</var>, relative to a base token which is the
-current token for <code>:after</code> and its parent for <code>:before</code>.
+<li> <code>nil</code>: デフォルトのインデントルールを使用する。
+</li><li> <code>(column . <var>column</var>)</code>: 列<var>column</var>にインデントする。
+</li><li> <var>number</var>: 基本トークン(base token:
+<code>:after</code>にたいするカレントトークンであり、かつ<code>:before</code>にたいしてparentであるようなトークン)にたいして相対的な、<var>number</var>によるオフセット。
 </li></ul>
 
-<hr>
-<div class="header">
-<p>
-Next: <a href="SMIE-Indentation-Helpers.html#SMIE-Indentation-Helpers" accesskey="n" rel="next">SMIE Indentation Helpers</a>, Previous: <a href="SMIE-Tricks.html#SMIE-Tricks" accesskey="p" rel="prev">SMIE Tricks</a>, Up: <a href="SMIE.html#SMIE" accesskey="u" rel="up">SMIE</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 
