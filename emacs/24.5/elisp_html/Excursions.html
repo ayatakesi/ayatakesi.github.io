@@ -74,51 +74,32 @@ Next: <a href="Narrowing.html#Narrowing" accesskey="n" rel="next">Narrowing</a>,
 <h3 class="section">29.3 Excursions</h3>
 <a name="index-excursion"></a>
 
-<p>It is often useful to move point &ldquo;temporarily&rdquo; within a localized
-portion of the program.  This is called an <em>excursion</em>, and it is
-done with the <code>save-excursion</code> special form.  This construct
-remembers the initial identity of the current buffer, and its values
-of point and the mark, and restores them after the excursion
-completes.  It is the standard way to move point within one part of a
-program and avoid affecting the rest of the program, and is used
-thousands of times in the Lisp sources of Emacs.
+<p>プログラム中の限定された部分で、ポイントを&ldquo;一時的&rdquo;に移動するのが便利なことが時折あります。これは<em>エクスカーション(excursion:
+遠足、小旅行)</em>と呼ばれ、スペシャルフォーム<code>save-excursion</code>により行います。この構成は、初期のカレントバッファー自体、ポイントおよびマークの値を記憶して、そのエクスカーション完了時にそれらをリストアします。これはプログラムのある部分において、プログラムの他の部分に影響を与えることなくポイントを移動する標準的な手段であり、EmacsのLispソース内では何度も使用されています。
 </p>
-<p>If you only need to save and restore the identity of the current
-buffer, use <code>save-current-buffer</code> or <code>with-current-buffer</code>
-instead (see <a href="Current-Buffer.html#Current-Buffer">Current Buffer</a>).  If you need to save or restore
-window configurations, see the forms described in <a href="Window-Configurations.html#Window-Configurations">Window Configurations</a> and in <a href="Frame-Configurations.html#Frame-Configurations">Frame Configurations</a>. </p>
+<p>カレントバッファー自体のみの保存およびリストアが必要な場合は、かわりに<code>save-current-buffer</code>や<code>with-current-buffer</code>を使用してください(<a href="Current-Buffer.html#Current-Buffer">Current Buffer</a>を参照)。ウィンドウ構成の保存やリストアが必要なら、<a href="Window-Configurations.html#Window-Configurations">Window Configurations</a>および<a href="Frame-Configurations.html#Frame-Configurations">Frame Configurations</a>で説明されているフォームを参照してください。 
+</p>
 <dl>
 <dt><a name="index-save_002dexcursion"></a>Special Form: <strong>save-excursion</strong> <em>body&hellip;</em></dt>
 <dd><a name="index-mark-excursion"></a>
 <a name="index-point-excursion"></a>
-<p>This special form saves the identity of the current buffer and the
-values of point and the mark in it, evaluates <var>body</var>, and finally
-restores the buffer and its saved values of point and the mark.  All
-three saved values are restored even in case of an abnormal exit via
-<code>throw</code> or error (see <a href="Nonlocal-Exits.html#Nonlocal-Exits">Nonlocal Exits</a>).
+<p>このスペシャルフォームは、カレントバッファー自体、およびポイント値とマーク値を保存して<var>body</var>を評価し、最後にバッファーおよび保存したポイントとマークの値をリストアする。<code>throw</code>またはエラーを通じたアブノーマルexit(<a href="Nonlocal-Exits.html#Nonlocal-Exits">Nonlocal Exits</a>を参照)の場合でも、保存された3つすべての値はリストアされる。
 </p>
-<p>The value returned by <code>save-excursion</code> is the result of the last
-form in <var>body</var>, or <code>nil</code> if no body forms were given.
+<p><code>save-excursion</code>がリターンする値は<var>body</var>内の最後のフォームの結果、または<var>body</var>フォームが与えられなければ<code>nil</code>をリターンする。
 </p></dd></dl>
 
-<p>Because <code>save-excursion</code> only saves point and mark for the
-buffer that was current at the start of the excursion, any changes
-made to point and/or mark in other buffers, during the excursion, will
-remain in effect afterward.  This frequently leads to unintended
-consequences, so the byte compiler warns if you call <code>set-buffer</code>
-during an excursion:
+<p><code>save-excursion</code>は、エクスカーション開始時にカレントだったバッファーのポイントとマークだけを保存ため、そのエクスカーション中に変更された他のバッファーのポイントおよび/またはマークは、その後も効果が残るでしょう。これはしばしば予期せぬ結果を招くので、エクスカーション中に<code>set-buffer</code>を呼び出した場合、バイトコンパイラーは警告を発します:
 </p>
 <div class="example">
 <pre class="example">Warning: Use `with-current-buffer' rather than
          save-excursion+set-buffer
 </pre></div>
 
-<p>To avoid such problems, you should call <code>save-excursion</code> only
-after setting the desired current buffer, as in the following example:
+<p>このような問題を避けるには、以下の例のように望むカレントバッファーをセット後にのみ<code>save-excursion</code>を呼び出すべきです:
 </p>
 <div class="example">
 <pre class="example">(defun append-string-to-buffer (string buffer)
-  &quot;Append STRING to the end of BUFFER.&quot;
+  &quot;BUFFER末尾にSTRINGを追加&quot;
   (with-current-buffer buffer
     (save-excursion
       (goto-char (point-max))
@@ -126,26 +107,13 @@ after setting the desired current buffer, as in the following example:
 </pre></div>
 
 <a name="index-window-excursions"></a>
-<p>Likewise, <code>save-excursion</code> does not restore window-buffer
-correspondences altered by functions such as <code>switch-to-buffer</code>.
+<p>同じように、<code>save-excursion</code>は<code>switch-to-buffer</code>のような関数が変更したウィンドウ/バッファーの対応をリストアしません。
 </p>
-<p><strong>Warning:</strong> Ordinary insertion of text adjacent to the saved
-point value relocates the saved value, just as it relocates all
-markers.  More precisely, the saved value is a marker with insertion
-type <code>nil</code>.  See <a href="Marker-Insertion-Types.html#Marker-Insertion-Types">Marker Insertion Types</a>.  Therefore, when the
-saved point value is restored, it normally comes before the inserted
-text.
+<p><strong>警告:</strong>
+保存されたポイント値に隣接する通常のテキスト挿入は、それがすべてのマーカーを再配置するのと同様、保存されたポイントカーを再配置します。より正確には、保存される値は挿入タイプ<code>nil</code>のマーカーです。<a href="Marker-Insertion-Types.html#Marker-Insertion-Types">Marker Insertion Types</a>を参照してください。したがって、保存されたポイント値のリストア時は、通常は挿入されたテキストの直前になります。
 </p>
-<p>Although <code>save-excursion</code> saves the location of the mark, it does
-not prevent functions which modify the buffer from setting
-<code>deactivate-mark</code>, and thus causing the deactivation of the mark
-after the command finishes.  See <a href="The-Mark.html#The-Mark">The Mark</a>.
+<p>たとえ<code>save-excursion</code>がマーク位置を保存しても、バッファーを変更する関数が<code>deactivate-mark</code>をセットするのを禁止しないため、そのコマンド完了後にマークの非アクティブ化が効力を発揮します。<a href="The-Mark.html#The-Mark">The Mark</a>を参照してください。
 </p>
-<hr>
-<div class="header">
-<p>
-Next: <a href="Narrowing.html#Narrowing" accesskey="n" rel="next">Narrowing</a>, Previous: <a href="Motion.html#Motion" accesskey="p" rel="prev">Motion</a>, Up: <a href="Positions.html#Positions" accesskey="u" rel="up">Positions</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 
