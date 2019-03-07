@@ -76,179 +76,114 @@ Next: <a href="Network-Servers.html#Network-Servers" accesskey="n" rel="next">Ne
 <a name="index-TCP"></a>
 <a name="index-UDP"></a>
 
-<p>Emacs Lisp programs can open stream (TCP) and datagram (UDP) network
-connections (see <a href="Datagrams.html#Datagrams">Datagrams</a>) to other processes on the same machine
-or other machines.
-A network connection is handled by Lisp much like a subprocess, and is
-represented by a process object.  However, the process you are
-communicating with is not a child of the Emacs process, has no
-process <acronym>ID</acronym>, and you can&rsquo;t kill it or send it signals.  All you
-can do is send and receive data.  <code>delete-process</code> closes the
-connection, but does not kill the program at the other end; that
-program must decide what to do about closure of the connection.
+<p>Emacs
+Lispプログラムは、同一マシンまたは他のマシン上の別プロセスにたいして、ストリーム(TCP)およびデータグラム(UDP)のネットワーク接続(<a href="Datagrams.html#Datagrams">Datagrams</a>を参照)をオープンできます。ネットワーク接続はLispにより、サブプロセスと同様に処理され、プロセスオブジェクトとして表されます。しかし対話を行うそのプロセスは、Emacsの子プロセスではなく、プロセス<acronym>ID</acronym>をもたず、それをkillしたりシグナルを送信することはできません。行うことができるのは、データの送信と受信だけです。<code>delete-process</code>は接続をクローズしますが、他端のプログラムをkillしません。そのプログラムは接続のクローズについて何を行うか、決定しなければなりません。
 </p>
-<p>Lisp programs can listen for connections by creating network
-servers.  A network server is also represented by a kind of process
-object, but unlike a network connection, the network server never
-transfers data itself.  When it receives a connection request, it
-creates a new network connection to represent the connection just
-made.  (The network connection inherits certain information, including
-the process plist, from the server.)  The network server then goes
-back to listening for more connection requests.
+<p>ネットワークサーバーを作成することにより、Lispプログラムは接続をlistenできます。ネットワークサーバーもある種のプロセスオブジェクトとして表されますが、ネットワーク接続とは異なり、ネットワークサーバーがデータ自体を転送することは決してありません。接続リクエストを受信したときは、それにたいして作成した接続を表す、新たなネットワーク接続を作成します(そのネットワーク接続はサーバーから、プロセスplistを含む特定の情報を継承する)。その後、ネットワークサーバーは更なる接続リクエストのlistenに戻ります。
 </p>
-<p>Network connections and servers are created by calling
-<code>make-network-process</code> with an argument list consisting of
-keyword/argument pairs, for example <code>:server t</code> to create a
-server process, or <code>:type 'datagram</code> to create a datagram
-connection.  See <a href="Low_002dLevel-Network.html#Low_002dLevel-Network">Low-Level Network</a>, for details.  You can also use
-the <code>open-network-stream</code> function described below.
+<p>ネットワーク接続およびサーバーは、キーワード/引数のペアーで構成される引数リストで<code>make-network-process</code>を呼び出すことにより作成されます。たとえば<code>:server
+t</code>はサーバープロセス、<code>:type 'datagram</code>はデータグラム接続を作成します。詳細は<a href="Low_002dLevel-Network.html#Low_002dLevel-Network">Low-Level Network</a>を参照してください。以下で説明する<code>open-network-stream</code>を使用することもできます。
 </p>
-<p>To distinguish the different types of processes, the
-<code>process-type</code> function returns the symbol <code>network</code> for a
-network connection or server, <code>serial</code> for a serial port
-connection, or <code>real</code> for a real subprocess.
+<p>異なるプロセスのタイプを区別するために、<code>process-type</code>関数はネットワーク接続またはサーバーにたいしてはシンボル<code>network</code>、シリアルポート接続は<code>serial</code>、実際のサブプロセスにたいしては<code>real</code>をリターンします。
 </p>
-<p>The <code>process-status</code> function returns <code>open</code>,
-<code>closed</code>, <code>connect</code>, or <code>failed</code> for network
-connections.  For a network server, the status is always
-<code>listen</code>.  None of those values is possible for a real
-subprocess.  See <a href="Process-Information.html#Process-Information">Process Information</a>.
+<p>ネットワーク接続にたいして、<code>process-status</code>関数は<code>open</code>、<code>closed</code>、<code>connect</code>、<code>failed</code>をリターンします。ネットワークサーバーにたいしては、状態は常に<code>listen</code>になります。実際のサブプロセスにたいしては、これらの値はリターンされません。<a href="Process-Information.html#Process-Information">Process Information</a>を参照してください。
 </p>
-<p>You can stop and resume operation of a network process by calling
-<code>stop-process</code> and <code>continue-process</code>.  For a server
-process, being stopped means not accepting new connections.  (Up to 5
-connection requests will be queued for when you resume the server; you
-can increase this limit, unless it is imposed by the operating
-system&mdash;see the <code>:server</code> keyword of <code>make-network-process</code>,
-<a href="Network-Processes.html#Network-Processes">Network Processes</a>.)  For a network stream connection, being
-stopped means not processing input (any arriving input waits until you
-resume the connection).  For a datagram connection, some number of
-packets may be queued but input may be lost.  You can use the function
-<code>process-command</code> to determine whether a network connection or
-server is stopped; a non-<code>nil</code> value means yes.
+<p><code>stop-process</code>と<code>continue-process</code>を呼び出すことにより、ネットワークプロセスの処理の停止と再開が可能です。サーバープロセスにたいする停止は、新たな接続の受け付けないことを意味します(サーバー再開時は5つまでの接続リクエストがキューされる。これがOSによる制限でなければこの制限は増やすことができる。<a href="Network-Processes.html#Network-Processes">Network Processes</a>の<code>make-network-process</code>の<code>:server</code>を参照されたい)。ネットワークストリーム接続にたいしては、停止は入力の処理を行わないことを意味します(到着するすべての入力は接続の再開まで待つ)。データグラム接続にたいしては、いくらかのパケットはキューされますが、入力は失われるかもしれません。ネットワーク接続またはサーバーが停止しているかどうかを判断するために、関数<code>process-command</code>を使用できます。これが非<code>nil</code>なら停止しています。
 </p>
 <a name="index-network-connection_002c-encrypted"></a>
 <a name="index-encrypted-network-connections"></a>
 <a name="index-TLS-network-connections"></a>
 <a name="index-STARTTLS-network-connections"></a>
-<p>Emacs can create encrypted network connections, using either built-in
-or external support.  The built-in support uses the GnuTLS
-(&ldquo;Transport Layer Security&rdquo;) library; see
-<a href="http://www.gnu.org/software/gnutls/">the GnuTLS project page</a>.
-If your Emacs was compiled with GnuTLS support, the function
-<code>gnutls-available-p</code> is defined and returns non-<code>nil</code>.  For
-more details, see <a href="../emacs-gnutls/index.html#Top">Overview</a> in <cite>The Emacs-GnuTLS manual</cite>.
-The external support uses the <samp>starttls.el</samp> library, which
-requires a helper utility such as <code>gnutls-cli</code> to be installed
-on the system.  The <code>open-network-stream</code> function can
-transparently handle the details of creating encrypted connections for
-you, using whatever support is available.
+<p>ビルトインまたは外部のサポートを使用することにより、Emacsは暗号化されたネットワーク接続を作成できます。ビルトインのサポートはGnuTLSライブラリー(&ldquo;TLS:
+Transport Layer Security&rdquo;)を使用します。<a href="http://www.gnu.org/software/gnutls/">the GnuTLS project
+page</a>を参照してください。GnuTLSサポートつきでEmacsをコンパイルした場合は、関数<code>gnutls-available-p</code>が定義され、非<code>nil</code>をリターンします。詳細はsee <a href="../emacs-gnutls/index.html#Top">Overview</a> in <cite>The Emacs-GnuTLS
+manual</cite>を参照してください。外部のサポートの場合は、<samp>starttls.el</samp>ライブラリーを使用します。これはシステム上に<code>gnutls-cli</code>のようなヘルパーユーティリティーのインストールを必要とします。<code>open-network-stream</code>関数は、何であれ利用可能なサポートを使用して、暗号化接続作成の詳細を透過的に処理できます。
 </p>
 <dl>
 <dt><a name="index-open_002dnetwork_002dstream"></a>Function: <strong>open-network-stream</strong> <em>name buffer host service &amp;rest parameters</em></dt>
-<dd><p>This function opens a TCP connection, with optional encryption, and
-returns a process object that represents the connection.
+<dd><p>この関数は、オプションで暗号つきでTCP接続をオープンして、その接続を表すプロセスオブジェクトをリターンする。
 </p>
-<p>The <var>name</var> argument specifies the name for the process object.  It
-is modified as necessary to make it unique.
+<p><var>name</var>引数は、プロセスオブジェクトの名前を指定する。これは必要に応じて一意になるよう修正される。
 </p>
-<p>The <var>buffer</var> argument is the buffer to associate with the
-connection.  Output from the connection is inserted in the buffer,
-unless you specify your own filter function to handle the output.  If
-<var>buffer</var> is <code>nil</code>, it means that the connection is not
-associated with any buffer.
+<p><var>buffer</var>引数は、その接続に関連付けるバッファーである。その接続からの出力は、その出力を処理する独自のフィルター関数を指定していなければ、<var>buffer</var>が<code>nil</code>なら、その接続はバッファーに関連付けられない。
 </p>
-<p>The arguments <var>host</var> and <var>service</var> specify where to connect to;
-<var>host</var> is the host name (a string), and <var>service</var> is the name of
-a defined network service (a string) or a port number (an integer).
+<p>引数<var>host</var>と<var>service</var>は、どこに接続するかを指定する。<var>host</var>はホスト名(文字列)、<var>service</var>は定義済みのネットワークサービス名(文字列)、またはポート番号(数字)である。
 </p>
-<p>The remaining arguments <var>parameters</var> are keyword/argument pairs
-that are mainly relevant to encrypted connections:
+<p>残りの引数<var>parameters</var>は、主に暗号化された接続に関連する、キーワード/引数のペアーである:
 </p>
 <dl compact="compact">
 <dt><code>:nowait <var>boolean</var></code></dt>
-<dd><p>If non-<code>nil</code>, try to make an asynchronous connection.
+<dd><p>非<code>nil</code>なら非同期接続を試みる。
 </p>
 </dd>
 <dt><code>:type <var>type</var></code></dt>
-<dd><p>The type of connection.  Options are:
+<dd><p>接続のタイプ。オプションは以下のとおり:
 </p>
 <dl compact="compact">
 <dt><code>plain</code></dt>
-<dd><p>An ordinary, unencrypted connection.
+<dd><p>通常の暗号化されていない接続。
 </p></dd>
 <dt><code>tls</code></dt>
 <dt><code>ssl</code></dt>
-<dd><p>A <acronym>TLS</acronym> (&ldquo;Transport Layer Security&rdquo;) connection.
+<dd><p><acronym>TLS</acronym>(&ldquo;Transport Layer Security&rdquo;)接続。
 </p></dd>
 <dt><code>nil</code></dt>
 <dt><code>network</code></dt>
-<dd><p>Start with a plain connection, and if parameters &lsquo;<samp>:success</samp>&rsquo;
-and &lsquo;<samp>:capability-command</samp>&rsquo; are supplied, try to upgrade to an encrypted
-connection via <acronym>STARTTLS</acronym>.  If that fails, retain the
-unencrypted connection.
+<dd><p>plain接続を開始して、パラメーター&lsquo;<samp>:success</samp>&rsquo;および&lsquo;<samp>:capability-command</samp>&rsquo;が与えられたら、<acronym>STARTTLS</acronym>を通じて暗号化接続への更新を試みる。これが失敗したら、暗号化されていない接続のまま留まる。
 </p></dd>
 <dt><code>starttls</code></dt>
-<dd><p>As for <code>nil</code>, but if <acronym>STARTTLS</acronym> fails drop the connection.
+<dd><p><code>nil</code>と同様だが、<acronym>STARTTLS</acronym>が失敗したらその接続を切断する。
 </p></dd>
 <dt><code>shell</code></dt>
-<dd><p>A shell connection.
+<dd><p>shell接続。
 </p></dd>
 </dl>
 
 </dd>
 <dt><code>:always-query-capabilities <var>boolean</var></code></dt>
-<dd><p>If non-<code>nil</code>, always ask for the server&rsquo;s capabilities, even when
-doing a &lsquo;<samp>plain</samp>&rsquo; connection.
+<dd><p>非<code>nil</code>なら、たとえ&lsquo;<samp>plain</samp>&rsquo;な接続を行っているときでも、常にサーバーの能力を問い合わせる。
 </p>
 </dd>
 <dt><code>:capability-command <var>capability-command</var></code></dt>
-<dd><p>Command string to query the host capabilities.
+<dd><p>ホストの能力を問い合わせるためのコマンド文字列。
 </p>
 </dd>
 <dt><code>:end-of-command <var>regexp</var></code></dt>
 <dt><code>:end-of-capability <var>regexp</var></code></dt>
-<dd><p>Regular expression matching the end of a command, or the end of the
-command <var>capability-command</var>.  The latter defaults to the former.
+<dd><p>コマンドの終端、またはコマンド<var>capability-command</var>の終端にマッチする正規表現。前者は後者のデフォルトである。
 </p>
 </dd>
 <dt><code>:starttls-function <var>function</var></code></dt>
-<dd><p>Function of one argument (the response to <var>capability-command</var>),
-which returns either <code>nil</code>, or the command to activate <acronym>STARTTLS</acronym>
-if supported.
+<dd><p>単一の引数(<var>capability-command</var>にたいする応答)をとり<code>nil</code>、またはサポートされていれば<acronym>STARTTLS</acronym>をアクティブにするコマンドをリターンする関数。
 </p>
 </dd>
 <dt><code>:success <var>regexp</var></code></dt>
-<dd><p>Regular expression matching a successful <acronym>STARTTLS</acronym> negotiation.
+<dd><p>成功した<acronym>STARTTLS</acronym>ネゴシェーションにマッチする正規表現。
 </p>
 </dd>
 <dt><code>:use-starttls-if-possible <var>boolean</var></code></dt>
-<dd><p>If non-<code>nil</code>, do opportunistic <acronym>STARTTLS</acronym> upgrades even if Emacs
-doesn&rsquo;t have built-in <acronym>TLS</acronym> support.
+<dd><p>非<code>nil</code>なら、たとえEmacsがビルトインの<acronym>TLS</acronym>サポートをもっていなくても、日和見的(opportunistic)に<acronym>STARTTLS</acronym>アップグレードを行う。
 </p>
 </dd>
 <dt><code>:client-certificate <var>list-or-t</var></code></dt>
-<dd><p>Either a list of the form <code>(<var>key-file</var> <var>cert-file</var>)</code>,
-naming the certificate key file and certificate file itself, or
-<code>t</code>, meaning to query <code>auth-source</code> for this information
-(see <a href="../auth/index.html#Top">Overview</a> in <cite>The Auth-Source Manual</cite>).
-Only used for <acronym>TLS</acronym> or <acronym>STARTTLS</acronym>.
+<dd><p>証明書(certificate)のキーと、証明書のファイル自身を命名する<code>(<var>key-file</var>
+<var>cert-file</var>)</code>という形式のリスト、またはこの情報にたいして<code>auth-source</code>を尋ねることを意味する<code>t</code>のいずれか(<a href="../auth/index.html#Top">Overview</a> in <cite>The Auth-Source
+Manual</cite>を参照)。<acronym>TLS</acronym>または<acronym>STARTTLS</acronym>にたいしてのみ使用される。
 </p>
 </dd>
 <dt><code>:return-list <var>cons-or-nil</var></code></dt>
-<dd><p>The return value of this function.  If omitted or <code>nil</code>, return a
-process object.  Otherwise, a cons of the form <code>(<var>process-object</var>
-. <var>plist</var>)</code>, where <var>plist</var> has keywords:
+<dd><p>この関数のリターン値。省略または<code>nil</code>なら、プロセスオブジェクトをリターンする。それ以外なら、<code>(<var>process-object</var>
+. <var>plist</var>)</code>という形式のコンスセルをリターンする。ここで<var>plist</var>は以下のキーワードである:
 </p>
 <dl compact="compact">
 <dt><code>:greeting <var>string-or-nil</var></code></dt>
-<dd><p>If non-<code>nil</code>, the greeting string returned by the host.
+<dd><p>非<code>nil</code>なら、ホストからリターンされたgreeting(挨拶)文字列。
 </p></dd>
 <dt><code>:capabilities <var>string-or-nil</var></code></dt>
-<dd><p>If non-<code>nil</code>, the host&rsquo;s capability string.
+<dd><p>非<code>nil</code>なら、ホストの能力(capability)文字列。
 </p></dd>
 <dt><code>:type <var>symbol</var></code></dt>
-<dd><p>The connection type: &lsquo;<samp>plain</samp>&rsquo; or &lsquo;<samp>tls</samp>&rsquo;.
+<dd><p>接続タイプで、&lsquo;<samp>plain</samp>&rsquo;か&lsquo;<samp>tls</samp>&rsquo;のいずれか。
 </p></dd>
 </dl>
 
@@ -257,11 +192,6 @@ process object.  Otherwise, a cons of the form <code>(<var>process-object</var>
 
 </dd></dl>
 
-<hr>
-<div class="header">
-<p>
-Next: <a href="Network-Servers.html#Network-Servers" accesskey="n" rel="next">Network Servers</a>, Previous: <a href="Transaction-Queues.html#Transaction-Queues" accesskey="p" rel="prev">Transaction Queues</a>, Up: <a href="Processes.html#Processes" accesskey="u" rel="up">Processes</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 

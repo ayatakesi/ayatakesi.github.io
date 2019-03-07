@@ -76,109 +76,60 @@ Next: <a href="Output-from-Processes.html#Output-from-Processes" accesskey="n" r
 <a name="index-sending-signals"></a>
 <a name="index-signals"></a>
 
-<p><em>Sending a signal</em> to a subprocess is a way of interrupting its
-activities.  There are several different signals, each with its own
-meaning.  The set of signals and their names is defined by the operating
-system.  For example, the signal <code>SIGINT</code> means that the user has
-typed <kbd>C-c</kbd>, or that some analogous thing has happened.
+<p>サブプロセスへの<em>シグナル送信(sending a
+signal)</em>は、プロセスの活動に割り込む手段の1つです。異なる複数のシグナルがあり、それぞれが独自の意味をもっています。シグナルのセットとそれらの意味は、オペレーティングシステムにより定義されます。たとえばシグナル<code>SIGINT</code>は、ユーザーが<kbd>C-c</kbd>をタイプしたか、それに類似する何かが発生したことを意味します。
 </p>
-<p>Each signal has a standard effect on the subprocess.  Most signals
-kill the subprocess, but some stop (or resume) execution instead.  Most
-signals can optionally be handled by programs; if the program handles
-the signal, then we can say nothing in general about its effects.
+<p>各シグナルは、サブプロセスに標準的な効果をもちます。ほとんどのシグナルはサブプロセスをkillしますが、かわりに実行を停止(あるいは再開)するものもいくつかあります。ほとんどのシグナルは、オプションでプログラムによりハンドル((処理)することができます。プログラムがそのシグナルをハンドルする場合、その影響についてわたしたちは一般的には何も言うことはできません。
 </p>
-<p>You can send signals explicitly by calling the functions in this
-section.  Emacs also sends signals automatically at certain times:
-killing a buffer sends a <code>SIGHUP</code> signal to all its associated
-processes; killing Emacs sends a <code>SIGHUP</code> signal to all remaining
-processes.  (<code>SIGHUP</code> is a signal that usually indicates that the
-user &ldquo;hung up the phone&rdquo;, i.e., disconnected.)
+<p>このセクション内の関数を呼び出すことにより、明示的にシグナルを送信できます。Emacsも、特定のタイミングで自動的にシグナルを送信します。バッファーのkillにより、それに関連するプロセスには<code>SIGHUP</code>シグナルが送信され、Emacsのkillにより、残されたすべてのプロセスに<code>SIGHUP</code>シグナルが送信されます(<code>SIGHUP</code>は通常、ユーザーが&ldquo;hung
+up the phone&rdquo;、電話を切った、つまり接続を断ったことを示す)。
 </p>
-<p>Each of the signal-sending functions takes two optional arguments:
-<var>process</var> and <var>current-group</var>.
+<p>シグナル送信関数はそれぞれ<var>process</var>と<var>current-group</var>いう、2つのオプション引数を受け取ります。
 </p>
-<p>The argument <var>process</var> must be either a process, a process
-name, a buffer, a buffer name, or <code>nil</code>.  A buffer or buffer name
-stands for a process through <code>get-buffer-process</code>.  <code>nil</code>
-stands for the process associated with the current buffer.  An error
-is signaled if <var>process</var> does not identify a process.
+<p>引数<var>process</var>はプロセス、プロセス名、バッファー、バッファー名、または<code>nil</code>のいずれかでなければなりません。バッファーまたはバッファー名は、<code>get-buffer-process</code>を通じて得られるプロセスを意味します。<code>nil</code>は、カレントバッファーに関連付けられたプロセスを意味します。<var>process</var>がプロセスを識別しなければ、エラーがシグナルされます。
 </p>
-<p>The argument <var>current-group</var> is a flag that makes a difference
-when you are running a job-control shell as an Emacs subprocess.  If it
-is non-<code>nil</code>, then the signal is sent to the current process-group
-of the terminal that Emacs uses to communicate with the subprocess.  If
-the process is a job-control shell, this means the shell&rsquo;s current
-subjob.  If it is <code>nil</code>, the signal is sent to the process group of
-the immediate subprocess of Emacs.  If the subprocess is a job-control
-shell, this is the shell itself.
+<p>引数<var>current-group</var>は、Emacsのサブプロセスとしてジョブ制御shell(job-control
+shell)を実行中の場合に、異なる処理を行うためのフラグです。これが非<code>nil</code>なら、そのシグナルはEmacsがサブプロセスとの対話に使用する端末のカレントプロセスグループに送信されます。そのプロセスがジョブ制御shellなら、これはそのshellのカレントのsubジョブになります。<code>nil</code>なら、そのシグナルはEmacs自身のサブプロセスのプロセスグループに送信されます。そのプロセスがジョブ制御shellなら、それはshell自身になります。
 </p>
-<p>The flag <var>current-group</var> has no effect when a pipe is used to
-communicate with the subprocess, because the operating system does not
-support the distinction in the case of pipes.  For the same reason,
-job-control shells won&rsquo;t work when a pipe is used.  See
-<code>process-connection-type</code> in <a href="Asynchronous-Processes.html#Asynchronous-Processes">Asynchronous Processes</a>.
+<p>サブプロセスとの対話にpipeが使用されている際は、オペレーティングシステムがpipeでの区別をサポートしないので、フラグ<var>current-group</var>に効果はありません。同じ理由により、pipeが使用されている場合は、ジョブ制御shellは機能しないでしょう。<a href="Asynchronous-Processes.html#Asynchronous-Processes">Asynchronous Processes</a>内の<code>process-connection-type</code>を参照してください。
 </p>
 <dl>
 <dt><a name="index-interrupt_002dprocess"></a>Function: <strong>interrupt-process</strong> <em>&amp;optional process current-group</em></dt>
-<dd><p>This function interrupts the process <var>process</var> by sending the
-signal <code>SIGINT</code>.  Outside of Emacs, typing the &ldquo;interrupt
-character&rdquo; (normally <kbd>C-c</kbd> on some systems, and <tt class="key">DEL</tt> on
-others) sends this signal.  When the argument <var>current-group</var> is
-non-<code>nil</code>, you can think of this function as &ldquo;typing <kbd>C-c</kbd>&rdquo;
-on the terminal by which Emacs talks to the subprocess.
+<dd><p>この関数は、シグナル<code>SIGINT</code>を送信することにより、プロセス<var>process</var>に割り込む。Emacs外部では、&ldquo;interrupt
+character&rdquo;(割り込み文字。通常いくつかのシステムでは<kbd>C-c</kbd>、それ以外のシステムでは<tt class="key">DEL</tt>)をタイプすることにより、このシグナルが送信される。引数<var>current-group</var>が非<code>nil</code>のときは、Emacsがサブプロセスと対話する端末上で&ldquo;<kbd>C-c</kbd>がタイプされた&rdquo;と考えることができる。
 </p></dd></dl>
 
 <dl>
 <dt><a name="index-kill_002dprocess"></a>Function: <strong>kill-process</strong> <em>&amp;optional process current-group</em></dt>
-<dd><p>This function kills the process <var>process</var> by sending the
-signal <code>SIGKILL</code>.  This signal kills the subprocess immediately,
-and cannot be handled by the subprocess.
+<dd><p>この関数は、シグナル<code>SIGKILL</code>を送信することにより、プロセス<var>process</var>をkillする。このシグナルは即座にサブプロセスをkillして、サブプロセスでハンドルすることはできない。
 </p></dd></dl>
 
 <dl>
 <dt><a name="index-quit_002dprocess"></a>Function: <strong>quit-process</strong> <em>&amp;optional process current-group</em></dt>
-<dd><p>This function sends the signal <code>SIGQUIT</code> to the process
-<var>process</var>.  This signal is the one sent by the &ldquo;quit
-character&rdquo; (usually <kbd>C-b</kbd> or <kbd>C-\</kbd>) when you are not inside
-Emacs.
+<dd><p>この関数は、プロセス<var>process</var>にシグナル<code>SIGQUIT</code>を送信する。これはEmacs外部では&ldquo;quit
+character&rdquo;(通常は<kbd>C-b</kbd>か<kbd>C-\</kbd>)により送信されるシグナルである。
 </p></dd></dl>
 
 <dl>
 <dt><a name="index-stop_002dprocess"></a>Function: <strong>stop-process</strong> <em>&amp;optional process current-group</em></dt>
-<dd><p>This function stops the process <var>process</var> by sending the
-signal <code>SIGTSTP</code>.  Use <code>continue-process</code> to resume its
-execution.
+<dd><p>この関数は、シグナル<code>SIGTSTP</code>を送信することにより、プロセス<var>process</var>を停止する。実行の再開には、<code>continue-process</code>を使用する。
 </p>
-<p>Outside of Emacs, on systems with job control, the &ldquo;stop character&rdquo;
-(usually <kbd>C-z</kbd>) normally sends this signal.  When
-<var>current-group</var> is non-<code>nil</code>, you can think of this function as
-&ldquo;typing <kbd>C-z</kbd>&rdquo; on the terminal Emacs uses to communicate with the
-subprocess.
+<p>ジョブ制御をもつシステム上のEmacs外部では、&ldquo;stop
+character&rdquo;(通常は<kbd>C-z</kbd>)がこのシグナルを送信する。<var>current-group</var>が非<code>nil</code>なら、この関数をサブプロセスとの対話にEmacsが使用する端末上で&ldquo;<kbd>C-z</kbd>がタイプされた&rdquo;と考えることができる。
 </p></dd></dl>
 
 <dl>
 <dt><a name="index-continue_002dprocess"></a>Function: <strong>continue-process</strong> <em>&amp;optional process current-group</em></dt>
-<dd><p>This function resumes execution of the process <var>process</var> by sending
-it the signal <code>SIGCONT</code>.  This presumes that <var>process</var> was
-stopped previously.
+<dd><p>この関数は、シグナル<code>SIGCONT</code>を送信することにより、プロセス<var>process</var>の実行を再開する。これは<var>process</var>が以前に停止されたものと推定する。
 </p></dd></dl>
 
 <dl>
 <dt><a name="index-signal_002dprocess"></a>Command: <strong>signal-process</strong> <em>process signal</em></dt>
-<dd><p>This function sends a signal to process <var>process</var>.  The argument
-<var>signal</var> specifies which signal to send; it should be an integer,
-or a symbol whose name is a signal.
+<dd><p>この関数は、プロセス<var>process</var>にシグナルを送信する。引数<var>signal</var>は、どのシグナルを送信するかを指定する。これは整数、または名前がシグナルであるようなシンボルであること。
 </p>
-<p>The <var>process</var> argument can be a system process <acronym>ID</acronym> (an
-integer); that allows you to send signals to processes that are not
-children of Emacs.  See <a href="System-Processes.html#System-Processes">System Processes</a>.
+<p><var>process</var>引数にはシステムプロセス<acronym>ID</acronym>(整数)を指定できる。これによりEmacsの子プロセス以外のプロセスにシグナルを送信できる。<a href="System-Processes.html#System-Processes">System Processes</a>を参照のこと。
 </p></dd></dl>
 
-<hr>
-<div class="header">
-<p>
-Next: <a href="Output-from-Processes.html#Output-from-Processes" accesskey="n" rel="next">Output from Processes</a>, Previous: <a href="Input-to-Processes.html#Input-to-Processes" accesskey="p" rel="prev">Input to Processes</a>, Up: <a href="Processes.html#Processes" accesskey="u" rel="up">Processes</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 
