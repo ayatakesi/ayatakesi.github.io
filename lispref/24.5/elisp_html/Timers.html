@@ -63,66 +63,62 @@ Next: <a href="Idle-Timers.html#Idle-Timers" accesskey="n" rel="next">Idle Timer
 <span id="Timers-for-Delayed-Execution"></span><h3 class="section">38.10 Timers for Delayed Execution</h3>
 <span id="index-timer"></span>
 
-<p>You can set up a <em>timer</em> to call a function at a specified
-future time or after a certain length of idleness.
+<p>You can set up a <em>timer</em> to call a function at a specified future time
+or after a certain length of idleness.
 </p>
-<p>Emacs cannot run timers at any arbitrary point in a Lisp program; it
-can run them only when Emacs could accept output from a subprocess:
-namely, while waiting or inside certain primitive functions such as
-<code>sit-for</code> or <code>read-event</code> which <em>can</em> wait.  Therefore, a
-timer&rsquo;s execution may be delayed if Emacs is busy.  However, the time of
-execution is very precise if Emacs is idle.
+<p>Emacs cannot run timers at any arbitrary point in a Lisp program; it can run
+them only when Emacs could accept output from a subprocess: namely, while
+waiting or inside certain primitive functions such as <code>sit-for</code> or
+<code>read-event</code> which <em>can</em> wait.  Therefore, a timer&rsquo;s execution may
+be delayed if Emacs is busy.  However, the time of execution is very precise
+if Emacs is idle.
 </p>
 <p>Emacs binds <code>inhibit-quit</code> to <code>t</code> before calling the timer
-function, because quitting out of many timer functions can leave
-things in an inconsistent state.  This is normally unproblematical
-because most timer functions don&rsquo;t do a lot of work.  Indeed, for a
-timer to call a function that takes substantial time to run is likely
-to be annoying.  If a timer function needs to allow quitting, it
-should use <code>with-local-quit</code> (see <a href="Quitting.html#Quitting">Quitting</a>).  For example, if
-a timer function calls <code>accept-process-output</code> to receive output
-from an external process, that call should be wrapped inside
-<code>with-local-quit</code>, to ensure that <kbd>C-g</kbd> works if the external
-process hangs.
+function, because quitting out of many timer functions can leave things in
+an inconsistent state.  This is normally unproblematical because most timer
+functions don&rsquo;t do a lot of work.  Indeed, for a timer to call a function
+that takes substantial time to run is likely to be annoying.  If a timer
+function needs to allow quitting, it should use <code>with-local-quit</code>
+(see <a href="Quitting.html#Quitting">Quitting</a>).  For example, if a timer function calls
+<code>accept-process-output</code> to receive output from an external process,
+that call should be wrapped inside <code>with-local-quit</code>, to ensure that
+<kbd>C-g</kbd> works if the external process hangs.
 </p>
-<p>It is usually a bad idea for timer functions to alter buffer
-contents.  When they do, they usually should call <code>undo-boundary</code>
-both before and after changing the buffer, to separate the timer&rsquo;s
-changes from user commands&rsquo; changes and prevent a single undo entry
-from growing to be quite large.
+<p>It is usually a bad idea for timer functions to alter buffer contents.  When
+they do, they usually should call <code>undo-boundary</code> both before and after
+changing the buffer, to separate the timer&rsquo;s changes from user commands&rsquo;
+changes and prevent a single undo entry from growing to be quite large.
 </p>
-<p>Timer functions should also avoid calling functions that cause Emacs
-to wait, such as <code>sit-for</code> (see <a href="Waiting.html#Waiting">Waiting</a>).  This can lead to
-unpredictable effects, since other timers (or even the same timer) can
-run while waiting.  If a timer function needs to perform an action
-after a certain time has elapsed, it can do this by scheduling a new
-timer.
+<p>Timer functions should also avoid calling functions that cause Emacs to
+wait, such as <code>sit-for</code> (see <a href="Waiting.html#Waiting">Waiting</a>).  This can lead to
+unpredictable effects, since other timers (or even the same timer) can run
+while waiting.  If a timer function needs to perform an action after a
+certain time has elapsed, it can do this by scheduling a new timer.
 </p>
-<p>If a timer function calls functions that can change the match data,
-it should save and restore the match data.  See <a href="Saving-Match-Data.html#Saving-Match-Data">Saving Match Data</a>.
+<p>If a timer function calls functions that can change the match data, it
+should save and restore the match data.  See <a href="Saving-Match-Data.html#Saving-Match-Data">Saving Match Data</a>.
 </p>
 <dl>
 <dt id="index-run_002dat_002dtime">Command: <strong>run-at-time</strong> <em>time repeat function &amp;rest args</em></dt>
-<dd><p>This sets up a timer that calls the function <var>function</var> with
-arguments <var>args</var> at time <var>time</var>.  If <var>repeat</var> is a number
-(integer or floating point), the timer is scheduled to run again every
-<var>repeat</var> seconds after <var>time</var>.  If <var>repeat</var> is <code>nil</code>,
-the timer runs only once.
+<dd><p>This sets up a timer that calls the function <var>function</var> with arguments
+<var>args</var> at time <var>time</var>.  If <var>repeat</var> is a number (integer or
+floating point), the timer is scheduled to run again every <var>repeat</var>
+seconds after <var>time</var>.  If <var>repeat</var> is <code>nil</code>, the timer runs
+only once.
 </p>
 <p><var>time</var> may specify an absolute or a relative time.
 </p>
-<p>Absolute times may be specified using a string with a limited variety
-of formats, and are taken to be times <em>today</em>, even if already in
-the past.  The recognized forms are &lsquo;<samp><var>xxxx</var></samp>&rsquo;,
-&lsquo;<samp><var>x</var>:<var>xx</var></samp>&rsquo;, or &lsquo;<samp><var>xx</var>:<var>xx</var></samp>&rsquo; (military time),
-and &lsquo;<samp><var>xx</var>am</samp>&rsquo;, &lsquo;<samp><var>xx</var>AM</samp>&rsquo;, &lsquo;<samp><var>xx</var>pm</samp>&rsquo;,
-&lsquo;<samp><var>xx</var>PM</samp>&rsquo;, &lsquo;<samp><var>xx</var>:<var>xx</var>am</samp>&rsquo;,
-&lsquo;<samp><var>xx</var>:<var>xx</var>AM</samp>&rsquo;, &lsquo;<samp><var>xx</var>:<var>xx</var>pm</samp>&rsquo;, or
-&lsquo;<samp><var>xx</var>:<var>xx</var>PM</samp>&rsquo;.  A period can be used instead of a colon
-to separate the hour and minute parts.
+<p>Absolute times may be specified using a string with a limited variety of
+formats, and are taken to be times <em>today</em>, even if already in the
+past.  The recognized forms are &lsquo;<samp><var>xxxx</var></samp>&rsquo;, &lsquo;<samp><var>x</var>:<var>xx</var></samp>&rsquo;,
+or &lsquo;<samp><var>xx</var>:<var>xx</var></samp>&rsquo; (military time), and &lsquo;<samp><var>xx</var>am</samp>&rsquo;,
+&lsquo;<samp><var>xx</var>AM</samp>&rsquo;, &lsquo;<samp><var>xx</var>pm</samp>&rsquo;, &lsquo;<samp><var>xx</var>PM</samp>&rsquo;,
+&lsquo;<samp><var>xx</var>:<var>xx</var>am</samp>&rsquo;, &lsquo;<samp><var>xx</var>:<var>xx</var>AM</samp>&rsquo;,
+&lsquo;<samp><var>xx</var>:<var>xx</var>pm</samp>&rsquo;, or &lsquo;<samp><var>xx</var>:<var>xx</var>PM</samp>&rsquo;.  A period can be
+used instead of a colon to separate the hour and minute parts.
 </p>
-<p>To specify a relative time as a string, use numbers followed by units.
-For example:
+<p>To specify a relative time as a string, use numbers followed by units.  For
+example:
 </p>
 <dl compact="compact">
 <dt>&lsquo;<samp>1 min</samp>&rsquo;</dt>
@@ -136,74 +132,73 @@ For example:
 </p></dd>
 </dl>
 
-<p>For relative time values, Emacs considers a month to be exactly thirty
-days, and a year to be exactly 365.25 days.
+<p>For relative time values, Emacs considers a month to be exactly thirty days,
+and a year to be exactly 365.25 days.
 </p>
-<p>Not all convenient formats are strings.  If <var>time</var> is a number
-(integer or floating point), that specifies a relative time measured in
-seconds.  The result of <code>encode-time</code> can also be used to specify
-an absolute value for <var>time</var>.
+<p>Not all convenient formats are strings.  If <var>time</var> is a number (integer
+or floating point), that specifies a relative time measured in seconds.  The
+result of <code>encode-time</code> can also be used to specify an absolute value
+for <var>time</var>.
 </p>
-<p>In most cases, <var>repeat</var> has no effect on when <em>first</em> call
-takes place&mdash;<var>time</var> alone specifies that.  There is one exception:
-if <var>time</var> is <code>t</code>, then the timer runs whenever the time is a
-multiple of <var>repeat</var> seconds after the epoch.  This is useful for
-functions like <code>display-time</code>.
+<p>In most cases, <var>repeat</var> has no effect on when <em>first</em> call takes
+place&mdash;<var>time</var> alone specifies that.  There is one exception: if
+<var>time</var> is <code>t</code>, then the timer runs whenever the time is a multiple
+of <var>repeat</var> seconds after the epoch.  This is useful for functions like
+<code>display-time</code>.
 </p>
-<p>The function <code>run-at-time</code> returns a timer value that identifies
-the particular scheduled future action.  You can use this value to call
+<p>The function <code>run-at-time</code> returns a timer value that identifies the
+particular scheduled future action.  You can use this value to call
 <code>cancel-timer</code> (see below).
 </p></dd></dl>
 
-<p>A repeating timer nominally ought to run every <var>repeat</var> seconds,
-but remember that any invocation of a timer can be late.  Lateness of
-one repetition has no effect on the scheduled time of the next
-repetition.  For instance, if Emacs is busy computing for long enough
-to cover three scheduled repetitions of the timer, and then starts to
-wait, it will immediately call the timer function three times in
-immediate succession (presuming no other timers trigger before or
-between them).  If you want a timer to run again no less than <var>n</var>
-seconds after the last invocation, don&rsquo;t use the <var>repeat</var> argument.
-Instead, the timer function should explicitly reschedule the timer.
+<p>A repeating timer nominally ought to run every <var>repeat</var> seconds, but
+remember that any invocation of a timer can be late.  Lateness of one
+repetition has no effect on the scheduled time of the next repetition.  For
+instance, if Emacs is busy computing for long enough to cover three
+scheduled repetitions of the timer, and then starts to wait, it will
+immediately call the timer function three times in immediate succession
+(presuming no other timers trigger before or between them).  If you want a
+timer to run again no less than <var>n</var> seconds after the last invocation,
+don&rsquo;t use the <var>repeat</var> argument.  Instead, the timer function should
+explicitly reschedule the timer.
 </p>
 <dl>
 <dt id="index-timer_002dmax_002drepeats">User Option: <strong>timer-max-repeats</strong></dt>
 <dd><p>This variable&rsquo;s value specifies the maximum number of times to repeat
-calling a timer function in a row, when many previously scheduled
-calls were unavoidably delayed.
+calling a timer function in a row, when many previously scheduled calls were
+unavoidably delayed.
 </p></dd></dl>
 
 <dl>
 <dt id="index-with_002dtimeout">Macro: <strong>with-timeout</strong> <em>(seconds timeout-forms&hellip;) body&hellip;</em></dt>
-<dd><p>Execute <var>body</var>, but give up after <var>seconds</var> seconds.  If
-<var>body</var> finishes before the time is up, <code>with-timeout</code> returns
-the value of the last form in <var>body</var>.  If, however, the execution of
-<var>body</var> is cut short by the timeout, then <code>with-timeout</code>
-executes all the <var>timeout-forms</var> and returns the value of the last
-of them.
+<dd><p>Execute <var>body</var>, but give up after <var>seconds</var> seconds.  If <var>body</var>
+finishes before the time is up, <code>with-timeout</code> returns the value of the
+last form in <var>body</var>.  If, however, the execution of <var>body</var> is cut
+short by the timeout, then <code>with-timeout</code> executes all the
+<var>timeout-forms</var> and returns the value of the last of them.
 </p>
 <p>This macro works by setting a timer to run after <var>seconds</var> seconds.  If
-<var>body</var> finishes before that time, it cancels the timer.  If the
-timer actually runs, it terminates execution of <var>body</var>, then
-executes <var>timeout-forms</var>.
+<var>body</var> finishes before that time, it cancels the timer.  If the timer
+actually runs, it terminates execution of <var>body</var>, then executes
+<var>timeout-forms</var>.
 </p>
 <p>Since timers can run within a Lisp program only when the program calls a
 primitive that can wait, <code>with-timeout</code> cannot stop executing
-<var>body</var> while it is in the midst of a computation&mdash;only when it
-calls one of those primitives.  So use <code>with-timeout</code> only with a
-<var>body</var> that waits for input, not one that does a long computation.
+<var>body</var> while it is in the midst of a computation&mdash;only when it calls
+one of those primitives.  So use <code>with-timeout</code> only with a <var>body</var>
+that waits for input, not one that does a long computation.
 </p></dd></dl>
 
-<p>The function <code>y-or-n-p-with-timeout</code> provides a simple way to use
-a timer to avoid waiting too long for an answer.  See <a href="Yes_002dor_002dNo-Queries.html#Yes_002dor_002dNo-Queries">Yes-or-No Queries</a>.
+<p>The function <code>y-or-n-p-with-timeout</code> provides a simple way to use a
+timer to avoid waiting too long for an answer.  See <a href="Yes_002dor_002dNo-Queries.html#Yes_002dor_002dNo-Queries">Yes-or-No Queries</a>.
 </p>
 <dl>
 <dt id="index-cancel_002dtimer">Function: <strong>cancel-timer</strong> <em>timer</em></dt>
 <dd><p>This cancels the requested action for <var>timer</var>, which should be a
 timer&mdash;usually, one previously returned by <code>run-at-time</code> or
-<code>run-with-idle-timer</code>.  This cancels the effect of that call to
-one of these functions; the arrival of the specified time will not
-cause anything special to happen.
+<code>run-with-idle-timer</code>.  This cancels the effect of that call to one of
+these functions; the arrival of the specified time will not cause anything
+special to happen.
 </p></dd></dl>
 
 <hr>
