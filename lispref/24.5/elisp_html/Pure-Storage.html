@@ -63,70 +63,33 @@ Next: <a href="Garbage-Collection.html#Garbage-Collection" accesskey="n" rel="ne
 <span id="Pure-Storage-1"></span><h3 class="section">E.2 Pure Storage</h3>
 <span id="index-pure-storage"></span>
 
-<p>Emacs Lisp uses two kinds of storage for user-created Lisp objects:
-<em>normal storage</em> and <em>pure storage</em>.  Normal storage is where
-all the new data created during an Emacs session are kept
-(see <a href="Garbage-Collection.html#Garbage-Collection">Garbage Collection</a>).  Pure storage is used for certain data
-in the preloaded standard Lisp files&mdash;data that should never change
-during actual use of Emacs.
+<p>Emacs Lispはユーザー作成Lispオブジェクトにたいして、<em>通常ストレージ(normal
+storage)</em>と<em>純粋ストレージ(pure
+storage)</em>という、2種のストレージをもちます。通常ストレージは、Emacsセッションが維持される間に、新たにデータが作成される場所です。純粋ストレージは、事前ロードされた標準Lispファイル内の、特定のデータのために使用されます。このデータは実際のEmacs使用中に決して変更されるべきではないデータです。
 </p>
-<p>Pure storage is allocated only while <code>temacs</code> is loading the
-standard preloaded Lisp libraries.  In the file <samp>emacs</samp>, it is
-marked as read-only (on operating systems that permit this), so that
-the memory space can be shared by all the Emacs jobs running on the
-machine at once.  Pure storage is not expandable; a fixed amount is
-allocated when Emacs is compiled, and if that is not sufficient for
-the preloaded libraries, <samp>temacs</samp> allocates dynamic memory for
-the part that didn&rsquo;t fit.  The resulting image will work, but garbage
-collection (see <a href="Garbage-Collection.html#Garbage-Collection">Garbage Collection</a>) is disabled in this situation,
-causing a memory leak.  Such an overflow normally won&rsquo;t happen unless
-you try to preload additional libraries or add features to the
-standard ones.  Emacs will display a warning about the overflow when
-it starts.  If this happens, you should increase the compilation
-parameter <code>SYSTEM_PURESIZE_EXTRA</code> in the file
-<samp>src/puresize.h</samp> and rebuild Emacs.
+<p>純粋ストレージは、<code>temacs</code>が標準的な事前ローLispライブラリーのロード中だけ割り当てられます。ファイル<samp>emacs</samp>では、このメモリースペースは読み取り専用とマークされるので、そのマシン上で実行中のすべてのEmacsジョブで共有できます。純粋ストレージは拡張できません。Emacsのコンパイル時に固定された量が割り当てられ、それが事前ロードされるライブラリーにたいして不足なら、<samp>temacs</samp>はそれに収まらない部分を動的メモリーに割り当てます。結果イメージは動作するでしょうが、この状況ではメモリーリークとなるので、ガーベージコレクション(<a href="Garbage-Collection.html#Garbage-Collection">Garbage Collection</a>を参照)は無効です。そのような通常なら発生しないオーバーフローは、あなたが事前ロードライブラリの追加や、標準的な事前ロードライブラリに追加を試みないかぎり発生しません。Emacsはオーバーロードの開始時に、オーバーロードに関する警告を表示するでしょう。これが発生したら、ファイル<samp>src/puresize.h</samp>内のコンパイルパラメーターを<code>SYSTEM_PURESIZE_EXTRA</code>を増やして、Emacsをリビルドする必要があります。
 </p>
 <dl>
 <dt id="index-purecopy">Function: <strong>purecopy</strong> <em>object</em></dt>
-<dd><p>This function makes a copy in pure storage of <var>object</var>, and returns
-it.  It copies a string by simply making a new string with the same
-characters, but without text properties, in pure storage.  It
-recursively copies the contents of vectors and cons cells.  It does
-not make copies of other objects such as symbols, but just returns
-them unchanged.  It signals an error if asked to copy markers.
+<dd><p>この関数は純粋ストレージに<var>object</var>のコピーを作成して、それをリターンする。これは同じ文字で新たに文字列を作成することにより文字列をコピーするが、純粋ストレージではテキストプロパティはない。これはベクターとコンスセルのコンテンツを、再帰的にコピーする。シンボルのような他のオブジェクトのコピーは作成しないが、それらを未変更でリターンする。マーカーのコピーを試みると、エラーをシグナルする。
 </p>
-<p>This function is a no-op except while Emacs is being built and dumped;
-it is usually called only in preloaded Lisp files.
+<p>この関数は、Emacsのビルド中とダンプ中を除き、何もしない。通常は事前ロードされるLispファイル内でのみ呼び出される。
 </p></dd></dl>
 
 <dl>
 <dt id="index-pure_002dbytes_002dused">Variable: <strong>pure-bytes-used</strong></dt>
-<dd><p>The value of this variable is the number of bytes of pure storage
-allocated so far.  Typically, in a dumped Emacs, this number is very
-close to the total amount of pure storage available&mdash;if it were not,
-we would preallocate less.
+<dd><p>この変数の値は、これまでに割り当てられた純粋ストレージのバイト数である。ダンプされたEmacsでは、通常は利用可能な純粋ストレージの総量とほとんど同じであり、もしそうでないならわたしたちは事前割り当てをもっと少なくするだろう。
 </p></dd></dl>
 
 <dl>
 <dt id="index-purify_002dflag">Variable: <strong>purify-flag</strong></dt>
-<dd><p>This variable determines whether <code>defun</code> should make a copy of the
-function definition in pure storage.  If it is non-<code>nil</code>, then the
-function definition is copied into pure storage.
+<dd><p>この変数は、<code>defun</code>が純粋ストレージにその関数定義のコピーを作成するべきか否かを判断する。これが非<code>nil</code>なら、その関数の定義は純粋ストレージにコピーされる。
 </p>
-<p>This flag is <code>t</code> while loading all of the basic functions for
-building Emacs initially (allowing those functions to be shareable and
-non-collectible).  Dumping Emacs as an executable always writes
-<code>nil</code> in this variable, regardless of the value it actually has
-before and after dumping.
+<p>このフラグは、Emacsのビルド用の基本的な関数の初回ロード中は<code>t</code>となる。実行可能形式としてEmacsをダンプすることにより、ダンプ前後の実際の値とは無関係に、常にこの変数に<code>nil</code>が書き込まれる。
 </p>
-<p>You should not change this flag in a running Emacs.
+<p>実行中のEmacsで、このフラグを変更しないこと。
 </p></dd></dl>
 
-<hr>
-<div class="header">
-<p>
-Next: <a href="Garbage-Collection.html#Garbage-Collection" accesskey="n" rel="next">Garbage Collection</a>, Previous: <a href="Building-Emacs.html#Building-Emacs" accesskey="p" rel="prev">Building Emacs</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 

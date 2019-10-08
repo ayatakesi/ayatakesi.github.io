@@ -63,50 +63,31 @@ Next: <a href="C-Integer-Types.html#C-Integer-Types" accesskey="n" rel="next">C 
 <span id="Object-Internals-1"></span><h3 class="section">E.7 Object Internals</h3>
 <span id="index-object-internals"></span>
 
-<p>Emacs Lisp provides a rich set of the data types.  Some of them, like cons
-cells, integers and strings, are common to nearly all Lisp dialects.  Some
-others, like markers and buffers, are quite special and needed to provide
-the basic support to write editor commands in Lisp.  To implement such
-a variety of object types and provide an efficient way to pass objects between
-the subsystems of an interpreter, there is a set of C data structures and
-a special type to represent the pointers to all of them, which is known as
-<em>tagged pointer</em>.
+<p>Emacs
+Lispは豊富なデータタイプのセットを提供します。コンスセル、整数、文字列のようにこれらのいくつかは、ほとんどすべてのLisp方言で一般的です。マーカやバッファーのようなそれ以外のものは、Lisp内でエディターコマンドを記述するための基本的サポートを提供するために、極めて特別で必要なものです。そのような種々のオブジェクトタイプを実装して、インタープリターのサブシステムとの間でオブジェクトを渡す効果的な方法を提供するに、Cデータ構造体セットとそれらすべてにたいするポインターを表す、<em>タグ付きポインター(tagged
+pointer)</em>と呼ばれる、特別なタイプが存在します。
 </p>
-<p>In C, the tagged pointer is an object of type <code>Lisp_Object</code>.  Any
-initialized variable of such a type always holds the value of one of the
-following basic data types: integer, symbol, string, cons cell, float,
-vectorlike or miscellaneous object.  Each of these data types has the
-corresponding tag value.  All tags are enumerated by <code>enum Lisp_Type</code>
-and placed into a 3-bit bitfield of the <code>Lisp_Object</code>.  The rest of the
-bits is the value itself.  Integers are immediate, i.e., directly
-represented by those <em>value bits</em>, and all other objects are represented
-by the C pointers to a corresponding object allocated from the heap.  Width
-of the <code>Lisp_Object</code> is platform- and configuration-dependent: usually
-it&rsquo;s equal to the width of an underlying platform pointer (i.e., 32-bit on
-a 32-bit machine and 64-bit on a 64-bit one), but also there is a special
-configuration where <code>Lisp_Object</code> is 64-bit but all pointers are 32-bit.
-The latter trick was designed to overcome the limited range of values for
-Lisp integers on a 32-bit system by using 64-bit <code>long long</code> type for
-<code>Lisp_Object</code>.
+<p>Cでは、タグ付きポインターは、タイプ<code>Lisp_Object</code>のオブジェクトです。そのようなタイプの初期化された変数は、基本的なデータタイプである整数、シンボル、文字列、コンスセル、浮動小数点数、ベクター類似オブジェクトや、その他の雑多なオブジェクトのいずれかを、常に値として保持します。これらのデータタイプのそれぞれは、対応するタグ値をもちます。すべてのタグは<code>enum
+Lisp_Type</code>により列挙され、<code>Lisp_Object</code>の3ビットのビットフィールソに配置されます。残りのビットは、それ自身の値です。整数は即値(<em>値ビット</em>で直接表される)、他のすべてのオブジェクトは、ヒープに割り当てられた対応するオブジェクトへのCポインターで表されます。<code>Lisp_Object</code>のサイズはプラットフォームと設定に依存します。これは通常は背景プラットフォームのポインターと等しい(32ビットマシンなら32ビット、64ビットマシンなら64ビット)ですが、<code>Lisp_Object</code>が64ビットでも、すべてのポインターが32ビットのような特別な構成もあります。後者は<code>Lisp_Object</code>にたいして、64ビットの<code>long
+long</code>タイプを使用することにより、32ビットシステム上のLisp整数にたいする、値範囲の制限を乗り越えるためにデザインされたトリックです。
 </p>
-<p>The following C data structures are defined in <samp>lisp.h</samp> to represent
-the basic data types beyond integers:
+<p>以下のCデータ構造体は、整数ではない基本的なデータタイプを表すために、<samp>lisp.h</samp>で定義されています:
 </p>
 <dl compact="compact">
 <dt><code>struct Lisp_Cons</code></dt>
-<dd><p>Cons cell, an object used to construct lists.
+<dd><p>コンスセル。リストを構築するために使用されるオブジェクトである。
 </p>
 </dd>
 <dt><code>struct Lisp_String</code></dt>
-<dd><p>String, the basic object to represent a sequence of characters.
+<dd><p>文字列。文字シーケンスを表す基本的オブジェクトである。
 </p>
 </dd>
 <dt><code>struct Lisp_Vector</code></dt>
-<dd><p>Array, a fixed-size set of Lisp objects which may be accessed by an index.
+<dd><p>配列。インデックスによりアクセスできる、固定サイズのLispオブジェクトのセットである。
 </p>
 </dd>
 <dt><code>struct Lisp_Symbol</code></dt>
-<dd><p>Symbol, the unique-named entity commonly used as an identifier.
+<dd><p>シンボル。一般的に識別子として使用される一意な名前のエンティティである。
 </p>
 </dd>
 <dt><code>struct Lisp_Float</code></dt>
@@ -114,40 +95,26 @@ the basic data types beyond integers:
 </p>
 </dd>
 <dt><code>union Lisp_Misc</code></dt>
-<dd><p>Miscellaneous kinds of objects which don&rsquo;t fit into any of the above.
+<dd><p>上記のいずれにも適合しない、雑多な種類のオブジェクト。
 </p></dd>
 </dl>
 
-<p>These types are the first-class citizens of an internal type system.
-Since the tag space is limited, all other types are the subtypes of either
-<code>Lisp_Vectorlike</code> or <code>Lisp_Misc</code>.  Vector subtypes are enumerated
-by <code>enum pvec_type</code>, and nearly all complex objects like windows, buffers,
-frames, and processes fall into this category.  The rest of special types,
-including markers and overlays, are enumerated by <code>enum Lisp_Misc_Type</code>
-and form the set of subtypes of <code>Lisp_Misc</code>.
+<p>これらのタイプは、内部的タイプシステムの一級クラスの市民です。タグスペースは限られているので、他のすべてのタイプは<code>Lisp_Vectorlike</code>か<code>Lisp_Misc</code>のサブクラスです。サブタイプのベクターは<code>enum
+pvec_type</code>により列挙されておりウィンドウ、バッファー、フレーム、プロセスのようなほとんどすべての複雑なオブジェクトは、このカテゴリーに分類されます。マーカーとオーバーレイを含む残りのスペシャルタイプは、<code>enum
+Lisp_Misc_Type</code>により列挙されており、<code>Lisp_Misc</code>のサブタイプセットを形成します。
 </p>
-<p>Below there is a description of a few subtypes of <code>Lisp_Vectorlike</code>.
-Buffer object represents the text to display and edit.  Window is the part
-of display structure which shows the buffer or used as a container to
-recursively place other windows on the same frame.  (Do not confuse Emacs Lisp
-window object with the window as an entity managed by the user interface
-system like X; in Emacs terminology, the latter is called frame.)  Finally,
-process object is used to manage the subprocesses.
+<p><code>Lisp_Vectorlike</code>のいくつかのサブタイプを説明します。バッファーオブジェクトは、表示および編集を行うテキストを表します。ウィンドウはバッファーを表示したり、同一フレーム上で再帰的に他のウィンドウを配置するためのコンテナーに使用される、表示構造の一部です(Emacs
+Lispのウィンドウオブジェクトと、Xのようなユーザーインターフェースシステムに管理されるエンティティとしてのウィンドウを混同しないこと。Emacsの用語では後者はフレームと呼ばれる)。最後に、プロセスオブジェクトは、サブプロセスの管理に使用されます。
 </p>
 <table class="menu" border="0" cellspacing="0">
-<tr><td align="left" valign="top">&bull; <a href="Buffer-Internals.html#Buffer-Internals" accesskey="1">Buffer Internals</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Components of a buffer structure.
+<tr><td align="left" valign="top">&bull; <a href="Buffer-Internals.html#Buffer-Internals" accesskey="1">Buffer Internals</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">バッファー構造体の構成子。
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="Window-Internals.html#Window-Internals" accesskey="2">Window Internals</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Components of a window structure.
+<tr><td align="left" valign="top">&bull; <a href="Window-Internals.html#Window-Internals" accesskey="2">Window Internals</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ウィンドウ構造体の構成子。
 </td></tr>
-<tr><td align="left" valign="top">&bull; <a href="Process-Internals.html#Process-Internals" accesskey="3">Process Internals</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Components of a process structure.
+<tr><td align="left" valign="top">&bull; <a href="Process-Internals.html#Process-Internals" accesskey="3">Process Internals</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">プロセス構造体の構成子。
 </td></tr>
 </table>
 
-<hr>
-<div class="header">
-<p>
-Next: <a href="C-Integer-Types.html#C-Integer-Types" accesskey="n" rel="next">C Integer Types</a>, Previous: <a href="Writing-Emacs-Primitives.html#Writing-Emacs-Primitives" accesskey="p" rel="prev">Writing Emacs Primitives</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 
