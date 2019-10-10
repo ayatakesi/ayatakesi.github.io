@@ -1,0 +1,118 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 24.5.
+
+Copyright (C) 1990-1996, 1998-2015 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Internals of Kill Ring (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Internals of Kill Ring (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Internals of Kill Ring (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="The-Kill-Ring.html#The-Kill-Ring" rel="up" title="The Kill Ring">
+<link href="Undo.html#Undo" rel="next" title="Undo">
+<link href="Low_002dLevel-Kill-Ring.html#Low_002dLevel-Kill-Ring" rel="prev" title="Low-Level Kill Ring">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+<link rel="stylesheet" type="text/css" href="info.css"/>
+<script src="modernizr.js" type="text/javascript"></script>
+<script src="info.js" type="text/javascript"></script>
+
+</head>
+
+<body lang="en">
+<span id="Internals-of-Kill-Ring"></span><div class="header">
+<p>
+Previous: <a href="Low_002dLevel-Kill-Ring.html#Low_002dLevel-Kill-Ring" accesskey="p" rel="prev">Low-Level Kill Ring</a>, Up: <a href="The-Kill-Ring.html#The-Kill-Ring" accesskey="u" rel="up">The Kill Ring</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Internals-of-the-Kill-Ring"></span><h4 class="subsection">31.8.6 Internals of the Kill Ring</h4>
+
+<p>変数<code>kill-ring</code>は、文字列リスト形式でkillリングのコンテンツを保持します。もっとも最近のkillが、常にこのリストの先頭になります。
+</p>
+<p>変数<code>kill-ring-yank-pointer</code>は、<small>CAR</small>が次のyankのテキストであるような、killリングリスト内のリンクをpointします。これを、リングの&ldquo;先頭&rdquo;を識別すると言います。そして、<code>kill-ring-yank-pointer</code>を異なるリンクに移動することを、<em>killリングの転回(rotating
+the kill
+ring)</em>と呼びます。yankポインターを移動する関数は、yankポインターをリスト終端から先頭、またはその逆へラップするので、、killリングを&ldquo;ring&rdquo;と呼びます。killリングの転回は仮想的なものであり、<code>kill-ring</code>の値は変更しません。
+</p>
+<p><code>kill-ring</code>および<code>kill-ring-yank-pointer</code>はどちらも、通常は値がリストであるようなLisp変数です。<code>kill-ring-yank-pointer</code>の名前にある単語&ldquo;pointer&rdquo;は、その変数の目的が次回yankコマンドにより使用されるリストの最初の要素を指すことであるのを示します。
+</p>
+<p><code>kill-ring-yank-pointer</code>の値は常にkillリングリスト内の1つのリンクと<code>eq</code>です。それが指す要素は、そのリンクの<small>CAR</small>です。killリングを変更するkillコマンドも、この変数に<code>kill-ring</code>の値をセットします。その効果は、新たにkillされた先頭になるように、リングを転回することです。
+</p>
+<p>以下は、変数<code>kill-ring-yank-pointer</code>が、killリング<code>(&quot;some text&quot; &quot;a different
+piece of text&quot; &quot;yet older text&quot;)</code>内の2番目のエントリーを指すことを表すダイアグラムです。
+</p>
+<div class="example">
+<pre class="example">kill-ring                  ---- kill-ring-yank-pointer
+  |                       |
+  |                       v
+  |     --- ---          --- ---      --- ---
+   --&gt; |   |   |------&gt; |   |   |--&gt; |   |   |--&gt; nil
+        --- ---          --- ---      --- ---
+         |                |            |
+         |                |            |
+         |                |             --&gt;&quot;yet older text&quot;
+         |                |
+         |                 --&gt; &quot;a different piece of text&quot;
+         |
+          --&gt; &quot;some text&quot;
+</pre></div>
+
+<p>この状態は、<kbd>C-y</kbd>(<code>yank</code>)の直後に<kbd>M-y</kbd>(<code>yank-pop</code>)を行うことにより発生し得ます。
+</p>
+<dl>
+<dt id="index-kill_002dring">Variable: <strong>kill-ring</strong></dt>
+<dd><p>この変数は、もっとも最近にkillされたテキストが先頭になるように、killされたテキストのシーケンスのリストを保持する。
+</p></dd></dl>
+
+<dl>
+<dt id="index-kill_002dring_002dyank_002dpointer">Variable: <strong>kill-ring-yank-pointer</strong></dt>
+<dd><p>この変数の値は、yankにたいして使用される、killリングの先頭にある要素を示す。より正確には、値は<code>kill-ring</code>の値のtail値であり、その<small>CAR</small>が<kbd>C-y</kbd>によりyankされるはずのkill文字列となる。
+</p></dd></dl>
+
+<dl>
+<dt id="index-kill_002dring_002dmax">User Option: <strong>kill-ring-max</strong></dt>
+<dd><p>この変数の値は、リング終端の要素を破棄する前に、killリングが成長し得る最大長である。<code>kill-ring-max</code>のデフォルト値は60。
+</p></dd></dl>
+
+
+
+
+</body>
+</html>

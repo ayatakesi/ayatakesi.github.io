@@ -1,0 +1,164 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 24.5.
+
+Copyright (C) 1990-1996, 1998-2015 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Pattern matching case statement (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Pattern matching case statement (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Pattern matching case statement (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Conditionals.html#Conditionals" rel="up" title="Conditionals">
+<link href="Combining-Conditions.html#Combining-Conditions" rel="next" title="Combining Conditions">
+<link href="Conditionals.html#Conditionals" rel="prev" title="Conditionals">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+<link rel="stylesheet" type="text/css" href="info.css"/>
+<script src="modernizr.js" type="text/javascript"></script>
+<script src="info.js" type="text/javascript"></script>
+
+</head>
+
+<body lang="en">
+<span id="Pattern-matching-case-statement"></span><div class="header">
+<p>
+Up: <a href="Conditionals.html#Conditionals" accesskey="u" rel="up">Conditionals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Pattern-matching-case-statement-1"></span><h4 class="subsection">10.2.1 Pattern matching case statement</h4>
+<span id="index-pcase"></span>
+<span id="index-pattern-matching"></span>
+
+<p>特定の値を、可能なさまざまの場合にたいして比較するには、マクロ<code>pcase</code>が便利です。これは以下のフォームをとります:
+</p>
+<div class="example">
+<pre class="example">(pcase <var>exp</var> <var>branch</var>1 <var>branch</var>2 <var>branch</var>3 &hellip;)
+</pre></div>
+
+<p>各<var>branch</var>は、<code>(<var>upattern</var> <var>body-forms</var>&hellip;)</code>というフォームです。
+</p>
+<p>これは最初に<var>exp</var>を評価してから、どの<var>branch</var>を使用するか、その値を各<var>upattern</var>と比較して、その後で対応する<var>body-forms</var>実行します。一般的なのは、少数の異なる定数値を区別するために使用される場合です:
+</p>
+<div class="example">
+<pre class="example">(pcase (get-return-code x)
+  (`success       (message &quot;Done!&quot;))
+  (`would-block   (message &quot;Sorry, can't do it now&quot;))
+  (`read-only     (message &quot;The shmliblick is read-only&quot;))
+  (`access-denied (message &quot;You do not have the needed rights&quot;))
+  (code           (message &quot;Unknown return code %S&quot; code)))
+</pre></div>
+
+<p>最後の条項の<code>code</code>は、<code>(get-return-code x)</code>からreturnされた値にバインドされる変数です。
+</p>
+<p>もっと複雑な例として、以下のような小さな式言語のための単純なインタープリターを示します(この例ではレキシカルバインディングが必要なことに注意してください):
+</p>
+<div class="example">
+<pre class="example">(defun evaluate (exp env)
+  (pcase exp
+    (`(add ,x ,y)       (+ (evaluate x env) (evaluate y env)))
+    (`(call ,fun ,arg)  (funcall (evaluate fun env) (evaluate arg env)))
+    (`(fn ,arg ,body)   (lambda (val)
+                          (evaluate body (cons (cons arg val) env))))
+    ((pred numberp)     exp)
+    ((pred symbolp)     (cdr (assq exp env)))
+    (_                  (error &quot;Unknown expression %S&quot; exp))))
+</pre></div>
+
+<p><code>`(add ,x
+,y)</code>は、<code>exp</code>がシンボル<code>add</code>で始まる3要素のリストかチェックして、その後2番目と3番目の要素を抽出し、それらを変数<code>x</code>と<code>y</code>にバインドするパターンです。<code>(pred
+numberp)</code>は<code>exp</code>が数字かを単にチェックし、<code>_</code>はすべてのものにマッチするcatch-allパターンです。
+</p>
+<p>以下に、いくつかの例を評価した結果とともに示します:
+</p>
+<div class="example">
+<pre class="example">(evaluate '(add 1 2) nil)                 ;=&gt; 3
+(evaluate '(add x y) '((x . 1) (y . 2)))  ;=&gt; 3
+(evaluate '(call (fn x (add 1 x)) 2) nil) ;=&gt; 3
+(evaluate '(sub 1 2) nil)                 ;=&gt; error
+</pre></div>
+
+<p><code>pcase</code>に関係する2種類のパターンがあり、それらは<em>U-patterns</em>、<em>Q-patterns</em>と呼ばれます。上述の<var>upattern</var>はU-patternsで、以下の形式をもつことができます:
+</p>
+<dl compact="compact">
+<dt><code>`<var>qpattern</var></code></dt>
+<dd><p>これは、もっとも一般的なパターンの1つです。このパターンの意図は、バッククォートマクロの模倣です。このパターンは、バッククォート式により構築されるような値にマッチします。わたしたちが行なうのは値の構築ではなくパターンマッチングなので、非クォートは式をどこに挿入するか示すのではなく、かわりにその位置で値にマッチすべき1つのU-patternを指定します。
+</p>
+<p>より具体的には、Q-patternは以下のフォームをもつことができます:
+</p><dl compact="compact">
+<dt><code>(<var>qpattern1</var> . <var>qpattern2</var>)</code></dt>
+<dd><p>このパターンは、<code>car</code>が<var>qpattern1</var>、<code>cdr</code>が<var>pattern2</var>にマッチする、任意のコンスセルにマッチします。
+</p></dd>
+<dt><code><var>atom</var></code></dt>
+<dd><p>このパターンは、<var>atom</var>に<code>equal</code>な任意のアトムにマッチします。
+</p></dd>
+<dt><code>,<var>upattern</var></code></dt>
+<dd><p>このパターンは、<var>upattern</var>にマッチする任意のオブジェクトにマッチします。
+</p></dd>
+</dl>
+
+</dd>
+<dt><code><var>symbol</var></code></dt>
+<dd><p>U-pattern内の単なるシンボルはすべてにマッチし、さらにマッチした値にそのシンボルをバインドするので、<var>body-forms</var>や皇族のパターンから、それを参照することができます。
+</p></dd>
+<dt><code>_</code></dt>
+<dd><p>このパターン &mdash; いわゆる<em>don&rsquo;t care</em>パターン &mdash;
+はシンボルパターンと同様、すべてのものにマッチしますが、シンボルパターンとは異なり、変数へのバインドを行ないません。
+</p></dd>
+<dt><code>(pred <var>pred</var>)</code></dt>
+<dd><p>このパターンは、マッチされるオブジェクトで関数<var>pred</var>が呼び出したとき、非<code>nil</code>をreturnするものにマッチします。
+</p></dd>
+<dt><code>(or <var>upattern1</var> <var>upattern2</var>&hellip;)</code></dt>
+<dd><p>このパターンは、引数のパターンから最初に成立したパターンにマッチします。すべての引数パターンは、同じ変数にバインドされるべきです。
+</p></dd>
+<dt><code>(and <var>upattern1</var> <var>upattern2</var>&hellip;)</code></dt>
+<dd><p>このパターンは、すべての引数パターンが成立したときだけマッチします。
+</p></dd>
+<dt><code>(guard <var>exp</var>)</code></dt>
+<dd><p>このパターンは調べられるオブジェクトを無視して、<var>exp</var>が非<code>nil</code>に評価されたときは成立、それ以外は不成立となります。これは通常、<code>and</code>パターンの内部で使用されます。たとえば、<code>(and
+x (guard (&lt; x 10)))</code>は10より小さい任意の数字にマッチして、それを変数<code>x</code>にバインドします。
+</p></dd>
+</dl>
+
+
+
+
+</body>
+</html>

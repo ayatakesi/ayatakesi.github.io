@@ -1,0 +1,311 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 24.5.
+
+Copyright (C) 1990-1996, 1998-2015 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Buffer Internals (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Buffer Internals (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Buffer Internals (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Object-Internals.html#Object-Internals" rel="up" title="Object Internals">
+<link href="Window-Internals.html#Window-Internals" rel="next" title="Window Internals">
+<link href="Object-Internals.html#Object-Internals" rel="prev" title="Object Internals">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+<link rel="stylesheet" type="text/css" href="info.css"/>
+<script src="modernizr.js" type="text/javascript"></script>
+<script src="info.js" type="text/javascript"></script>
+
+</head>
+
+<body lang="en">
+<span id="Buffer-Internals"></span><div class="header">
+<p>
+Next: <a href="Window-Internals.html#Window-Internals" accesskey="n" rel="next">Window Internals</a>, Up: <a href="Object-Internals.html#Object-Internals" accesskey="u" rel="up">Object Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Buffer-Internals-1"></span><h4 class="subsection">E.7.1 Buffer Internals</h4>
+<span id="index-internals_002c-of-buffer"></span>
+<span id="index-buffer-internals"></span>
+
+<p>2つの構造体(<samp>buffer.h</samp>を参照)は、Cでバッファーを表すために使用されます。<code>buffer_text</code>構造体には、バッファーのテキストを記述するフィールドが含まれます。<code>buffer</code>構造体は他のフィールドを保持します。インダイレクトバッファーの場合には、2つ以上の<code>buffer</code>構造体が、同じ<code>buffer_text</code>構造体を参照します。
+</p>
+<p>以下に<code>struct buffer_text</code>内のフィールドをいくつか示します:
+</p>
+<dl compact="compact">
+<dt><code>beg</code></dt>
+<dd><p>バッファーコンテンツのアドレス。
+</p>
+</dd>
+<dt><code>gpt</code></dt>
+<dt><code>gpt_byte</code></dt>
+<dd><p>バッファーのギャップの文字位置とバイト位置。<a href="Buffer-Gap.html#Buffer-Gap">Buffer Gap</a>を参照のこと。
+</p>
+</dd>
+<dt><code>z</code></dt>
+<dt><code>z_byte</code></dt>
+<dd><p>バッファーテキストの終端の文字位置とバイト位置。
+</p>
+</dd>
+<dt><code>gap_size</code></dt>
+<dd><p>バッファーのギャップのサイズ。<a href="Buffer-Gap.html#Buffer-Gap">Buffer Gap</a>を参照のこと。
+</p>
+</dd>
+<dt><code>modiff</code></dt>
+<dt><code>save_modiff</code></dt>
+<dt><code>chars_modiff</code></dt>
+<dt><code>overlay_modiff</code></dt>
+<dd><p>これらのフィールドは、そのバッファーで行われた、バッファー変更イベントの数をカウントする。<code>modiff</code>はバッファー変更イベントのたびに増分され、それ以外では決して変化しない。<code>save_modiff</code>には、そのバッファーが最後にvisitまたは保存されたときの、<code>modiff</code>の値が含まれる。<code>chars_modiff</code>は、そのバッファー内の文字にたいする変更だけをカウントし、その他すべての種類の変更を無視する。<code>overlay_modiff</code>は、オーバーレイにたいする変更だけをカウントする。
+</p>
+</dd>
+<dt><code>beg_unchanged</code></dt>
+<dt><code>end_unchanged</code></dt>
+<dd><p>最後の再表示完了以降に、未変更だと解っているテキストの、開始と終了の箇所での文字数。
+</p>
+</dd>
+<dt><code>unchanged_modified</code></dt>
+<dt><code>overlay_unchanged_modified</code></dt>
+<dd><p>それぞれ、最後に再表示が完了した後の<code>modiff</code>と<code>overlay_modiff</code>の値。これらのカレント値が<code>modiff</code>や<code>overlay_modiff</code>とマッチしたら、それは<code>beg_unchanged</code>と<code>end_unchanged</code>に有用な情報が含まれないことを意味する。
+</p>
+</dd>
+<dt><code>markers</code></dt>
+<dd><p>このバッファーを参照するマーカー。これは実際には単一のマーカーであり、自身のマーカー&ldquo;チェーン&rdquo;内の一連の要素が、そのバッファー内のテキストを参照する他のマーカーになる。
+</p>
+</dd>
+<dt><code>intervals</code></dt>
+<dd><p>そのバッファーのテキストプロパティを記録する、インターバルツリー。
+</p></dd>
+</dl>
+
+<p><code>struct buffer</code>のいくつかのフィールドを以下に示します:
+</p>
+<dl compact="compact">
+<dt><code>header</code></dt>
+<dd><p>タイプ<code>struct vectorlike_header</code>のヘッダーは、すべてのベクター類似のオブジェクトに共通。
+</p>
+</dd>
+<dt><code>own_text</code></dt>
+<dd><p>構造体<code>struct
+buffer_text</code>は、通常はバッファーのコンテンツを保持する。インダイレクトバッファーでは、このフィールドは使用されない。
+</p>
+</dd>
+<dt><code>text</code></dt>
+<dd><p>そのバッファーの<code>buffer_text</code>構造体へのポインター。通常のバッファーでは、上述の<code>own_text</code>フィールドである。インダイレクトバッファーでは、そのベースバッファーの<code>own_text</code>フィールドになる。
+</p>
+</dd>
+<dt><code>next</code></dt>
+<dd><p>killされたバッファーを含むすべてのバッファーのチェーン内において、次のバッファーへのポインター。このチェーンは、killされたバッファーを正しく回収するために、割り当てとガーベージコレクションのためだけに使用される。
+</p>
+</dd>
+<dt><code>pt</code></dt>
+<dt><code>pt_byte</code></dt>
+<dd><p>バッファー内のポイントの文字位置とバイト位置。
+</p>
+</dd>
+<dt><code>begv</code></dt>
+<dt><code>begv_byte</code></dt>
+<dd><p>そのバッファー内のアクセス可能範囲の、先頭位置の文字位置とバイト位置。
+</p>
+</dd>
+<dt><code>zv</code></dt>
+<dt><code>zv_byte</code></dt>
+<dd><p>そのバッファー内のアクセス可能範囲の、終端位置の文字位置とバイト位置。
+</p>
+</dd>
+<dt><code>base_buffer</code></dt>
+<dd><p>インダイレクトバッファーでは、これはベースバッファーのポイントである。通常のバッファーではnull。
+</p>
+</dd>
+<dt><code>local_flags</code></dt>
+<dd><p>このフィールドは、そのバッファー内でローカルな変数にたいして、それを示すフラグを含む。そのような変数はCコードでは<code>DEFVAR_PER_BUFFER</code>を使用して宣言され、それらのバッファーローカルなバインディングは、このバッファー構造体自身内のフィールドに格納される(これらのフィールドのいくつかは、このテーブル内で説明されておる)。
+</p>
+</dd>
+<dt><code>modtime</code></dt>
+<dd><p>visitされているファイルの変更時刻。これは、そのファイルの書き込みおよび読み込み時にセットされる。そのバッファーをファイルに書き込む前に、そのファイルがディスク上で変更されていないことを確認するために、このフィールドとそのファイルの変更時刻を比較する。<a href="Buffer-Modification.html#Buffer-Modification">Buffer Modification</a>を参照のこと。
+</p>
+</dd>
+<dt><code>auto_save_modified</code></dt>
+<dd><p>そのバッファーが最後に自動保存さらたときの時刻。
+</p>
+</dd>
+<dt><code>last_window_start</code></dt>
+<dd><p>そのバッファー最後にウィンドウに表示されたときの、の<code>window-start</code>位置。
+</p>
+</dd>
+<dt><code>clip_changed</code></dt>
+<dd><p>このフラグは、そのバッファーでのナローイングが変更されているかを示す。<a href="Narrowing.html#Narrowing">Narrowing</a>を参照のこと。
+</p>
+</dd>
+<dt><code>prevent_redisplay_optimizations_p</code></dt>
+<dd><p>このフラグは、そのバッファーの表示において、再表示最適化が使用されるべきではないことを示す。
+</p>
+</dd>
+<dt><code>overlay_center</code></dt>
+<dd><p>このフィールドは、カレントオーバーレイの中心位置を保持する。<a href="Managing-Overlays.html#Managing-Overlays">Managing Overlays</a>を参照のこと。
+</p>
+</dd>
+<dt><code>overlays_before</code></dt>
+<dt><code>overlays_after</code></dt>
+<dd><p>これらのフィールドは、カレントオーバーレイ中心、またはその前で終わるオーバーレイのリスト、およびカレントオーバーレイの後で終わるオーバーレイのリストである。<a href="Managing-Overlays.html#Managing-Overlays">Managing Overlays</a>を参照のこと。<code>overlays_before</code>は終端位置の記述順に格納され、<code>overlays_after</code>は先頭位置増加順で格納される。
+</p>
+
+</dd>
+<dt><code>name</code></dt>
+<dd><p>そのバッファーを命名するLisp文字列。これは一意であることが保証されている。<a href="Buffer-Names.html#Buffer-Names">Buffer Names</a>を参照のこと。
+</p>
+</dd>
+<dt><code>save_length</code></dt>
+<dd><p>そのバッファーがvisitしているファイルを、最後に読み込みまたは保存したときの長さ。インダイレクトバッファーは決して保存されることはないので、保存に関して、このフィールドとその他のフィールドは、<code>buffer_text</code>構造体で維持されない
+</p>
+</dd>
+<dt><code>directory</code></dt>
+<dd><p>相対ファイル名を展開するディレクトリー。これはバッファーローカル変数<code>default-directory</code>の値である(<a href="File-Name-Expansion.html#File-Name-Expansion">File Name Expansion</a>を参照)。
+</p>
+</dd>
+<dt><code>filename</code></dt>
+<dd><p>そのバッファーがvisitしているファイルの名前。これは、バッファーローカル変数<code>buffer-file-name</code>の値である(<a href="Buffer-File-Name.html#Buffer-File-Name">Buffer File Name</a>を参照)。
+</p>
+</dd>
+<dt><code>undo_list</code></dt>
+<dt><code>backed_up</code></dt>
+<dt><code>auto_save_file_name</code></dt>
+<dt><code>auto_save_file_format</code></dt>
+<dt><code>read_only</code></dt>
+<dt><code>file_format</code></dt>
+<dt><code>file_truename</code></dt>
+<dt><code>invisibility_spec</code></dt>
+<dt><code>display_count</code></dt>
+<dt><code>display_time</code></dt>
+<dd><p>これらのフィールドは、自動的にバッファーローカル(<a href="Buffer_002dLocal-Variables.html#Buffer_002dLocal-Variables">Buffer-Local Variables</a>を参照)になるLisp変数の値を格納する。これらに対応する変数は、名前に追加のプレフィクス<code>buffer-</code>がつき、アンダースコアがダッシュで置換される。たとえば<code>undo_list</code>は、<code>buffer-undo-list</code>の値を格納する。
+</p>
+</dd>
+<dt><code>mark</code></dt>
+<dd><p>そのバッファーにたいするマーク。マークはマーカーなので、リスト<code>markers</code>内にも含まれる。<a href="The-Mark.html#The-Mark">The Mark</a>を参照のこと。
+</p>
+</dd>
+<dt><code>local_var_alist</code></dt>
+<dd><p>この連想リストは、そのバッファーのバッファーローカル変数のバインディングを記述する。これにはバッファーオブジェクト内に特別なスロットをもつ、ビルトインのバッファーローカルなバインディングは含まれない(このテーブルでは、それらのスロットは省略している)。<a href="Buffer_002dLocal-Variables.html#Buffer_002dLocal-Variables">Buffer-Local Variables</a>を参照のこと。
+</p>
+</dd>
+<dt><code>major_mode</code></dt>
+<dd><p>そのバッファーのメジャーモードを命名するシンボル(例: <code>lisp-mode</code>)。
+</p>
+</dd>
+<dt><code>mode_name</code></dt>
+<dd><p>そのメジャーモードの愛称(例: <code>&quot;Lisp&quot;</code>)。
+</p>
+</dd>
+<dt><code>keymap</code></dt>
+<dt><code>abbrev_table</code></dt>
+<dt><code>syntax_table</code></dt>
+<dt><code>category_table</code></dt>
+<dt><code>display_table</code></dt>
+<dd><p>これらのフィールドは、そのバッファーのローカルキーマップ(<a href="Keymaps.html#Keymaps">Keymaps</a>を参照)、abbrevテーブル(<a href="Abbrev-Tables.html#Abbrev-Tables">Abbrev Tables</a>を参照)、構文テーブル(<a href="Syntax-Tables.html#Syntax-Tables">Syntax Tables</a>を参照)、カテゴリーテーブル(<a href="Categories.html#Categories">Categories</a>を参照)、ディスプレーテーブル(<a href="Display-Tables.html#Display-Tables">Display Tables</a>を参照)を格納する。
+</p>
+</dd>
+<dt><code>downcase_table</code></dt>
+<dt><code>upcase_table</code></dt>
+<dt><code>case_canon_table</code></dt>
+<dd><p>これらのフィールドはテキストを小文字、大文字、およびcase-fold検索でのテキストの正規化の変換テーブルを格納する。<a href="Case-Tables.html#Case-Tables">Case Tables</a>を参照のこと。
+</p>
+</dd>
+<dt><code>minor_modes</code></dt>
+<dd><p>そのバッファーのマイナーモードのalist。
+</p>
+</dd>
+<dt><code>pt_marker</code></dt>
+<dt><code>begv_marker</code></dt>
+<dt><code>zv_marker</code></dt>
+<dd><p>これらのフィールドはインダイレクトバッファー、またはインダイレクトバッファーのベースバッファーであるようなバッファーでのみ使用される。これらはそれぞれ、そのバッファーがカレントでないときに、そのバッファーにたいする<code>pt</code>、<code>begv</code>、<code>zv</code>を記録するマーカーを保持する。
+</p>
+</dd>
+<dt><code>mode_line_format</code></dt>
+<dt><code>header_line_format</code></dt>
+<dt><code>case_fold_search</code></dt>
+<dt><code>tab_width</code></dt>
+<dt><code>fill_column</code></dt>
+<dt><code>left_margin</code></dt>
+<dt><code>auto_fill_function</code></dt>
+<dt><code>truncate_lines</code></dt>
+<dt><code>word_wrap</code></dt>
+<dt><code>ctl_arrow</code></dt>
+<dt><code>bidi_display_reordering</code></dt>
+<dt><code>bidi_paragraph_direction</code></dt>
+<dt><code>selective_display</code></dt>
+<dt><code>selective_display_ellipses</code></dt>
+<dt><code>overwrite_mode</code></dt>
+<dt><code>abbrev_mode</code></dt>
+<dt><code>mark_active</code></dt>
+<dt><code>enable_multibyte_characters</code></dt>
+<dt><code>buffer_file_coding_system</code></dt>
+<dt><code>cache_long_line_scans</code></dt>
+<dt><code>point_before_scroll</code></dt>
+<dt><code>left_fringe_width</code></dt>
+<dt><code>right_fringe_width</code></dt>
+<dt><code>fringes_outside_margins</code></dt>
+<dt><code>scroll_bar_width</code></dt>
+<dt><code>indicate_empty_lines</code></dt>
+<dt><code>indicate_buffer_boundaries</code></dt>
+<dt><code>fringe_indicator_alist</code></dt>
+<dt><code>fringe_cursor_alist</code></dt>
+<dt><code>scroll_up_aggressively</code></dt>
+<dt><code>scroll_down_aggressively</code></dt>
+<dt><code>cursor_type</code></dt>
+<dt><code>cursor_in_non_selected_windows</code></dt>
+<dd><p>これらのフィールドは、自動的にバッファーローカル(<a href="Buffer_002dLocal-Variables.html#Buffer_002dLocal-Variables">Buffer-Local Variables</a>を参照)になるLisp変数の値を格納する。これらに対応する変数は、名前のアンダースコアがダッシュで置換される。たとえば<code>mode_line_format</code>は、<code>mode-line-format</code>の値を格納する。
+</p>
+</dd>
+<dt><code>last_selected_window</code></dt>
+<dd><p>これは、最後に選択されていたときにそのバッファーを表示していたウィンドウ、またはそのウィンドウがすでにそのバッファーを表示していなければ<code>nil</code>である。
+</p></dd>
+</dl>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Window-Internals.html#Window-Internals" accesskey="n" rel="next">Window Internals</a>, Up: <a href="Object-Internals.html#Object-Internals" accesskey="u" rel="up">Object Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

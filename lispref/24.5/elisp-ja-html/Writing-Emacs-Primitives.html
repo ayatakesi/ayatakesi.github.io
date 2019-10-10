@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 24.5.
+
+Copyright (C) 1990-1996, 1998-2015 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Writing Emacs Primitives (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Writing Emacs Primitives (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Writing Emacs Primitives (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" rel="up" title="GNU Emacs Internals">
+<link href="Object-Internals.html#Object-Internals" rel="next" title="Object Internals">
+<link href="C-Dialect.html#C-Dialect" rel="prev" title="C Dialect">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+<link rel="stylesheet" type="text/css" href="info.css"/>
+<script src="modernizr.js" type="text/javascript"></script>
+<script src="info.js" type="text/javascript"></script>
+
+</head>
+
+<body lang="en">
+<span id="Writing-Emacs-Primitives"></span><div class="header">
+<p>
+Next: <a href="Object-Internals.html#Object-Internals" accesskey="n" rel="next">Object Internals</a>, Previous: <a href="C-Dialect.html#C-Dialect" accesskey="p" rel="prev">C Dialect</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Writing-Emacs-Primitives-1"></span><h3 class="section">E.6 Writing Emacs Primitives</h3>
+<span id="index-primitive-function-internals"></span>
+<span id="index-writing-Emacs-primitives"></span>
+
+<p>Lispプリミティブとは、Cで実装されたLisp関数です。Lispから呼び出せるように、C関数インターフェースの詳細は、Cのマクロで処理されます。新たなCコードの記述のしかたを真に理解するには、ソースを読むのが唯一の方法ですが、ここではいくつかの事について説明します。
+</p>
+<p>スペシャルフォームの例として、以下は<samp>eval.c</samp>の<code>or</code>です(通常の関数は、同様の一般的な外観をもつ)。
+</p>
+<span id="index-garbage-collection-protection"></span>
+<div class="example">
+<pre class="example">DEFUN (&quot;or&quot;, For, Sor, 0, UNEVALLED, 0,
+  doc: /* Eval args until one of them yields non-nil, then return
+that value.
+The remaining args are not evalled at all.
+If all args return nil, return nil.
+</pre><pre class="example">usage: (or CONDITIONS ...)  */)
+  (Lisp_Object args)
+{
+  register Lisp_Object val = Qnil;
+  struct gcpro gcpro1;
+</pre><pre class="example">
+
+</pre><pre class="example">  GCPRO1 (args);
+</pre><pre class="example">
+
+</pre><pre class="example">  while (CONSP (args))
+    {
+      val = eval_sub (XCAR (args));
+      if (!NILP (val))
+        break;
+      args = XCDR (args);
+    }
+</pre><pre class="example">
+
+</pre><pre class="example">  UNGCPRO;
+  return val;
+}
+</pre></div>
+
+<span id="index-DEFUN_002c-C-macro-to-define-Lisp-primitives"></span>
+<p>では<code>DEFUN</code>マクロの引数について、詳細に説明しましょう。以下は、それらのテンプレートです:
+</p>
+<div class="example">
+<pre class="example">DEFUN (<var>lname</var>, <var>fname</var>, <var>sname</var>, <var>min</var>, <var>max</var>, <var>interactive</var>, <var>doc</var>)
+</pre></div>
+
+<dl compact="compact">
+<dt><var>lname</var></dt>
+<dd><p>これは、関数名として定義する、Lispシンボル名である。上記例では<code>or</code>。
+</p>
+</dd>
+<dt><var>fname</var></dt>
+<dd><p>これは、その関数のC関数名である。これはCコードでその関数を呼び出すために使用される名前である。名前は慣習として&lsquo;<samp>F</samp>&rsquo;の後にLisp名をつけ、Lisp名のすべてのダッシュ(&lsquo;<samp>-</samp>&rsquo;)は、アンダースコアに変更する。つまりCコードから呼び出す場合は、<code>For</code>を呼び出す。
+</p>
+</dd>
+<dt><var>sname</var></dt>
+<dd><p>これは、Lispでその関数を表すsubrオブジェクト用に、データ保持のための構造体に使用されるC変数名である。この構造体は、そのシンボルを作成してそれの定義にsubrオブジェクトを格納する初期化ルーチンにおいて、Lispシンボル名を伝達する。慣習により、これは常に<var>fname</var>の&lsquo;<samp>F</samp>&rsquo;を&lsquo;<samp>S</samp>&rsquo;に置き換えた名前になる
+</p>
+</dd>
+<dt><var>min</var></dt>
+<dd><p>これは、その関数が要求する、引数の最小個数である。関数<code>or</code>は、最小で0個の関数を受け入れる。
+</p>
+</dd>
+<dt><var>max</var></dt>
+<dd><p>これは、その関数が受け入れる引数の最大個数が定数なら、引数の最大個数である。または<code>UNEVALLED</code>ならそれは未評価の引数を受け取るスペシャルフォームを示し、<code>MANY</code>なら評価される引数の個数に制限がないことを意味する(<code>&amp;rest</code>と等価)。<code>UNEVALLED</code>と<code>MANY</code>は、いずれもマクロである。<var>max</var>が数字ならそれは<var>min</var>より大きく、8より小さいこと。
+</p>
+<span id="index-interactive-specification-in-primitives"></span>
+</dd>
+<dt><var>interactive</var></dt>
+<dd><p>これはLisp関数で<code>interactive</code>の引数として使用されるような、インタラクティブ仕様である(文字列)。<code>or</code>の場合は0(nullポインター)で、それは<code>or</code>がインタラクティブに呼び出せないことを示す。値<code>&quot;&quot;</code>は、インタラクティブに呼び出し時、関数が引き受けるべきではないことを示す。値が&lsquo;<samp>&quot;(</samp>&rsquo;で始まる場合、その文字列はLispフォームとして評価される。たとえば:
+</p>
+<div class="example">
+<pre class="example">DEFUN (&quot;foo&quot;, Ffoo, Sfoo, 0, UNEVALLED,
+       &quot;(list (read-char-by-name \&quot;Insert character: \&quot;)\
+              (prefix-numeric-value current-prefix-arg)\
+              t))&quot;,
+  doc: /* &hellip; /*)
+</pre></div>
+
+</dd>
+<dt><var>doc</var></dt>
+<dd><p>これはドキュメント文字列である。複数行を含むために特別なことを要しないので、これにはCの文字列構文ではなく、Cコメント構文を使用する。&lsquo;<samp>doc:</samp>&rsquo;の後のコメントは、ドキュメント文字列として認識する。コメントの開始と終了の区切り文字&lsquo;<samp>/*</samp>&rsquo;と&lsquo;<samp>*/</samp>&rsquo;は、ドキュメント文字列の一部にはならない。
+</p>
+<p>ドキュメント文字列の最後の行がキーワード&lsquo;<samp>usage:</samp>&rsquo;で始まる場合、その行の残りの部分は引数リストをドキュメント化するためのものとして扱われる。この方法により、Cコード内で使用される引数名とは異なる引数名を、ドキュメント文字列内で使用することができる。その関数の引数の個数に制限がない場合、&lsquo;<samp>usage:</samp>&rsquo;は必須。
+</p>
+<p>Lispコードでのドキュメント文字列にたいする通常ルールのすべて(<a href="Documentation-Tips.html#Documentation-Tips">Documentation Tips</a>を参照)は、Cコードのドキュメント文字列にも適用される。
+</p></dd>
+</dl>
+
+<p><code>DEFUN</code>マクロ呼び出しの後には、そのC関数にたいする引数リストを、その引数のタイプを含めて記述しなければなりません。そのプリミティブがLispで固定された最大個数をもつ引数を受け入れるなら、Lisp引数それぞれにたいして1つのC引数をもち、各引数のタイプは<code>Lisp_Object</code>でなければなりません(ファイル<samp>lisp.h</samp>では、タイプ<code>Lisp_Object</code>の値を作成する種々のマクロと関数が宣言されている)。そのプリミティブのLispの最大引数個数に上限がない場合、それは正確に2つのC引数をもたなければなりません。1つ目はLisp引数の個数で、2つ目はそれらの値を含むブロックのアドレスです。これらはそれぞれ<code>int</code>、<code><span class="nolinebreak">Lisp_Object</span>&nbsp;*</code><!-- /@w -->のタイプをもちます。<code>Lisp_Object</code>は任意のデータ型と任意のLispオブジェクトを保持できるので、実行時のみ実際のデータ型を判断できます。特定のタイプの引数だけを受け入れるプリミティブを記述したい場合は、適切な述語を使用してタイプを明確にチェックしなければなりません(<a href="Type-Predicates.html#Type-Predicates">Type Predicates</a>を参照)。
+<span id="index-type-checking-internals"></span>
+</p>
+<span id="index-GCPRO-and-UNGCPRO"></span>
+<span id="index-protect-C-variables-from-garbage-collection"></span>
+<p>関数<code>For</code>自身の中では、マクロ<code>GCPRO1</code>と<code>UNGCPRO</code>の使用に注意してください。これらのマクロは、Emacsのデフォルトであるスタックマーキングを使用したガーベージコレクションを使用しない、いくつかのプラットフォームのために定義されています。<code>GCPRO1</code>マクロは、ガーベージコレクションにその変数とコンテンツすべてがアクセス可能でなければならないと、明示的にガーベージコレクションに通知して、ガーベージコレクションから変数を&ldquo;保護&rdquo;します。直接または間接的に、サブルーチンとして<code>eval_sub</code>か<code>Feval</code>を呼び出してLisp評価を行うかもしれないすべての関数で、GC保護は必要です。
+</p>
+<p>各オブジェクトにたいして、それを指すポインターが少なくとも1つあれば、GCからの保護を確実に満足することができます。つまり、ある特定のローカル変数が、(<code>GCPRO</code>をもつ別のローカル変数のような)別のポインターにより保護されるであろうオブジュクトを指すことが確実なら、保護なしでこれを行うことができます。それ以外なら、そのローカル変数には<code>GCPRO</code>が必要になります。
+</p>
+<p>マクロ<code>GCPRO1</code>は、ただ1つのローカル変数を保護します。2つの変数を保護したい場合には、かわりに<code>GCPRO2</code>を使用します。<code>GCPRO1</code>を繰り返しても、機能しないでしょう。<code>GCPRO3</code>、<code>GCPRO4</code>、<code>GCPRO5</code>、<code>GCPRO6</code>のマクロもあります。これらのマクロのすべては、<code>gcpro1</code>のようなローカル変数を暗黙に使用します。あなたはこれらをタイプ<code>struct
+gcpro</code>で、明示的に宣言しなければなりません。つまり<code>GCPRO2</code>を使用するなら、<code>gcpro1</code>と<code>gcpro2</code>を宣言しなければなりません。
+</p>
+<p><code>UNGCPRO</code>は、カレントの関数内で保護された、変数の保護を取り消します。これは明示的に行う必要があります。
+</p>
+<p>一度Emacsがダンプされた後に、その変数に何か書き込まれているときには、その静的変数またはグローバル変数に、Cの初期化を使用してはなりません。初期化されたこれらの変数は、Emacsのダンプの結果として、(特定のオペレーティングシステムでは)読み取り専用となるメモリーエリアに割り当てられます。<a href="Pure-Storage.html#Pure-Storage">Pure Storage</a>を参照してください。
+</p>
+<span id="index-defsubr_002c-Lisp-symbol-for-a-primitive"></span>
+<p>C関数の定義だけでは、Lispプリミティブを利用可能にするのに十分ではありません。そのプリミティブにたいしてLispシンボルを作成して、その関数セルに適切なsubrオブジェクトを格納しなければなりません。このコードは以下のようになるでしょう:
+</p>
+<div class="example">
+<pre class="example">defsubr (&amp;<var>sname</var>);
+</pre></div>
+
+<p>ここで<var>sname</var>は、<code>DEFUN</code>の3つ目の引数として使用する名前です。
+</p>
+<p>すでにLispプリミティブが定義されたファイルにプリミティブを追加する場合には、(そのファイル終端付近にある)<code>syms_of_<var>something</var></code>という名前の関数を探して、そこに<code>defsubr</code>の呼び出しを追加してください。そのファイルにこの関数がない、または新たなファイルを作成する場合には、それに<code>syms_of_<var>filename</var></code>(例:
+<code>syms_of_myfile</code>)を追加します。それから<samp>emacs.c</samp>で、それらの関数すべてが呼び出されるが呼び出される箇所を探して、そこに<code>syms_of_<var>filename</var></code>の呼び出しを追加してください。
+</p>
+<span id="Defining-Lisp-variables-in-C"></span><span id="index-byte_002dboolean_002dvars-1"></span>
+<span id="index-defining-Lisp-variables-in-C"></span>
+<span id="index-DEFVAR_005fINT_002c-DEFVAR_005fLISP_002c-DEFVAR_005fBOOL"></span>
+<p>関数<code>syms_of_<var>filename</var></code>は、Lisp変数として可視となるすべてのC変数を定義する場所でもあります。<code>DEFVAR_LISP</code>はタイプ<code>Lisp_Object</code>のC変数を、Lispから可視にします。<code>DEFVAR_INT</code>はタイプ<code>int</code>のC変数を、常に整数となる値をもつようにして、Lispから可視にします。<code>DEFVAR_BOOL</code>はタイプ<code>int</code>のC変数を、常に<code>t</code>か<code>nil</code>のいずれかとなる値をもつようにして、Lispから可視にします。<code>DEFVAR_BOOL</code>で定義された変数は、バイトコンパイラーに使用されるリスト<code>byte-boolean-vars</code>に、自動的に追加されることに注意してください。
+</p>
+<span id="index-defining-customization-variables-in-C"></span>
+<p>Cで定義されたLisp変数を、<code>defcustom</code>で宣言された変数のように振る舞わせたい場合は、<samp>cus-start.el</samp>に適切なエントリーを追加してください。
+</p>
+<span id="index-staticpro_002c-protection-from-GC"></span>
+<p>タイプ<code>Lisp_Object</code>のファイルをスコープとするC変数を定義する場合には、以下のように<code>syms_of_<var>filename</var></code>内で<code>staticpro</code>を呼び出して、ガーベージコレクションからそれを保護しなければなりません:
+</p>
+<div class="example">
+<pre class="example">staticpro (&amp;<var>variable</var>);
+</pre></div>
+
+<p>以下は、より複雑な引数をもつ別の関数例です。これは<samp>window.c</samp>からのコードで、Lispオブジェクトを操作するためのマクロと関数の使用を示すものです。
+</p>
+<div class="example">
+<pre class="example">DEFUN (&quot;coordinates-in-window-p&quot;, Fcoordinates_in_window_p,
+  Scoordinates_in_window_p, 2, 2, 0,
+  doc: /* Return non-nil if COORDINATES are in WINDOW.
+  ...
+</pre><pre class="example">  or `right-margin' is returned.  */)
+  (register Lisp_Object coordinates, Lisp_Object window)
+{
+  struct window *w;
+  struct frame *f;
+  int x, y;
+  Lisp_Object lx, ly;
+</pre><pre class="example">
+
+</pre><pre class="example">  CHECK_LIVE_WINDOW (window);
+  w = XWINDOW (window);
+  f = XFRAME (w-&gt;frame);
+  CHECK_CONS (coordinates);
+  lx = Fcar (coordinates);
+  ly = Fcdr (coordinates);
+  CHECK_NUMBER_OR_FLOAT (lx);
+  CHECK_NUMBER_OR_FLOAT (ly);
+  x = FRAME_PIXEL_X_FROM_CANON_X (f, lx) + FRAME_INTERNAL_BORDER_WIDTH(f);
+  y = FRAME_PIXEL_Y_FROM_CANON_Y (f, ly) + FRAME_INTERNAL_BORDER_WIDTH(f);
+</pre><pre class="example">
+
+</pre><pre class="example">  switch (coordinates_in_window (w, x, y))
+    {
+    case ON_NOTHING:            /* NOT in window at all. */
+      return Qnil;
+</pre><pre class="example">
+
+    ...
+
+</pre><pre class="example">    case ON_MODE_LINE:          /* In mode line of window. */
+      return Qmode_line;
+</pre><pre class="example">
+
+    ...
+
+</pre><pre class="example">    case ON_SCROLL_BAR:         /* On scroll-bar of window.  */
+      /* Historically we are supposed to return nil in this case.  */
+      return Qnil;
+</pre><pre class="example">
+
+</pre><pre class="example">    default:
+      abort ();
+    }
+}
+</pre></div>
+
+<p>Cコードは、それらがCで記述されていなければ、名前で呼び出すことはできないことに注意してください。Lispで記述された関数を呼び出すには、関数<code>funcall</code>を具現化した<code>Ffuncall</code>を使用します。Lisp関数<code>funcall</code>は個数制限なしの引数を受け付けるので、Cでの引数はLispレベルでの引数個数と、それらの値を含む1次元配列という、2個の引数になります。Lispレベルでの1つ目の引数は呼び出す関数で、残りはそれに渡す引数です。<code>Ffuncall</code>は評価機能(evaluator)を呼び出すかもしれないので、<code>Ffuncall</code>の呼び出し前後でガーベージコレクションからポインターを保護しなければなりません。
+</p>
+<p>C関数<code>call0</code>、<code>call1</code>、<code>call2</code>、...は個数が固定された引数でLisp関数を手軽に呼び出す、便利な方法を提供します。これらは<code>Ffuncall</code>を呼び出すことにより機能します。
+</p>
+<p><samp>eval.c</samp>は例を探すには、よいファイルです。<samp>lisp.h</samp>には、重要なマクロと関数の定義がいくつか含まれています。
+</p>
+<p>副作用をもたない関数を定義する場合には、コンパイラーのオプティマイザーに知らせるために<code>side-effect-free-fns</code>と<code>side-effect-and-error-free-fns</code>をバインドする、<samp>byte-opt.el</samp>内のコードを更新してください。
+</p>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Object-Internals.html#Object-Internals" accesskey="n" rel="next">Object Internals</a>, Previous: <a href="C-Dialect.html#C-Dialect" accesskey="p" rel="prev">C Dialect</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

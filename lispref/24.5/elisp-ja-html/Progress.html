@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 24.5.
+
+Copyright (C) 1990-1996, 1998-2015 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Progress (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Progress (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Progress (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="The-Echo-Area.html#The-Echo-Area" rel="up" title="The Echo Area">
+<link href="Logging-Messages.html#Logging-Messages" rel="next" title="Logging Messages">
+<link href="Displaying-Messages.html#Displaying-Messages" rel="prev" title="Displaying Messages">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+<link rel="stylesheet" type="text/css" href="info.css"/>
+<script src="modernizr.js" type="text/javascript"></script>
+<script src="info.js" type="text/javascript"></script>
+
+</head>
+
+<body lang="en">
+<span id="Progress"></span><div class="header">
+<p>
+Next: <a href="Logging-Messages.html#Logging-Messages" accesskey="n" rel="next">Logging Messages</a>, Previous: <a href="Displaying-Messages.html#Displaying-Messages" accesskey="p" rel="prev">Displaying Messages</a>, Up: <a href="The-Echo-Area.html#The-Echo-Area" accesskey="u" rel="up">The Echo Area</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Reporting-Operation-Progress"></span><h4 class="subsection">37.4.2 Reporting Operation Progress</h4>
+<span id="index-progress-reporting"></span>
+
+<p>処理の完了まで暫く時間を要するかもしれない際は、その進行状況についてユーザーに通知するべきです。これによりユーザーが残り時間を予測するとともに、Emacsがhungしているのではなく、処理中であえうことが明確に確認できます。<em>プログレスリポーター(progress
+reporter: 進行状況リポーター)</em>を使用するのが、これを行う便利な方法です。
+</p>
+<p>以下は、何も有用なことを行わない、実行可能な例です:
+</p>
+<div class="example">
+<pre class="example">(let ((progress-reporter
+       (make-progress-reporter &quot;Collecting mana for Emacs...&quot;
+                               0  500)))
+  (dotimes (k 500)
+    (sit-for 0.01)
+    (progress-reporter-update progress-reporter k))
+  (progress-reporter-done progress-reporter))
+</pre></div>
+
+<dl>
+<dt id="index-make_002dprogress_002dreporter">Function: <strong>make-progress-reporter</strong> <em>message &amp;optional min-value max-value current-value min-change min-time</em></dt>
+<dd><p>この関数は、以下に挙げる他の関数として使用されるであろう、プログレスリポーターオブジェクトを作成して、リターンする。これはプログレスリポーターを高速にするように、可能なかぎり多くのデータを事前に計算するというアイデアが元である。
+</p>
+<p>この後にこのプログレスリポーターを使用する際は、進行状況のパーセンテージを後に付加して<var>message</var>が表示されるだろう。<var>message</var>は、単なる文字列として扱われる。たとえばファイル名に依存させる必要があるなら、この関数の呼び出し前に、<code>format</code>を使えばよい。
+</p>
+<p>引数<var>min-value</var>と<var>max-value</var>は、その処理の開始と終了を意味する数値であること。たとえばバッファーを&ldquo;スキャン&rdquo;する処理なら、これらをそれぞれ<code>point-min</code>と<code>point-max</code>にセットするべきだろう。<var>max-value</var>は<var>min-value</var>より大であること。
+</p>
+<p>かわりに、<var>min-value</var>と<var>max-value</var>を<code>nil</code>にセットすることができる。この場合、プログレスリポーターは進行状況のパーセンテージを報告しない。かわりにプログレスリポーターを更新するたびに刻み(notch)を回転する&ldquo;スピナー(spinner)&rdquo;を表示する。
+</p>
+<p><var>min-value</var>と<var>max-value</var>が数値なら、進行状況の初期の数値を与える引数<var>current-value</var>を与えることができる。省略時のデフォルトは<var>min-value</var>。
+</p>
+<p>残りの引数は、エコーエリアの更新レートを制御する。プログレスリポーターは次のメッセージを表示する前に、その処理が少なくとも<var>min-change</var>パーセントより多く完了するまで待機する。デフォルトは1パーセント。<var>min-time</var>は連続するプリントの間に空ける最小時間をミリ秒単位で指定する(いくつかのオペレーティングシステムでは、プログレスリポーターは秒の少数部をさまざまな制度で処理するかもしれない)。
+</p>
+<p>この関数は<code>progress-reporter-update</code>を呼び出すた、最初のメッセージは即座にプリントされる。
+</p></dd></dl>
+
+<dl>
+<dt id="index-progress_002dreporter_002dupdate">Function: <strong>progress-reporter-update</strong> <em>reporter &amp;optional value</em></dt>
+<dd><p>この関数は、操作の進行状況報告に関する、主要な機能を担う。これは<var>reporter</var>のメッセージと、その後に<var>value</var>により決定された進行状況のパーセンテージを表示する。パーセンテージが0、または引数<var>min-change</var>と<var>min-time</var>に比べて十分0に近ければ、出力は省略される。
+</p>
+<p><var>reporter</var>は、<code>make-progress-reporter</code>呼び出しがリターンした結果でなければならない。<var>value</var>は処理のカレント状況を指定し、<code>make-progress-reporter</code>に渡された<var>min-value</var>と<var>max-value</var>の間(両端を含む)でなければならない。たとえばバッファーのスキャンにおいては、<var>value</var>は<code>point</code>び呼び出し結果であるべきだろう。
+</p>
+<p>この関数は<code>make-progress-reporter</code>に渡された<var>min-change</var>と<var>min-time</var>にしたがい、毎回の呼び出しで新たなメッセージを出力しない。したがってこれは非常に高速であり、通常はこれを呼び出す回数を減らすことを試みるべきではない。結果として生じるオーバーヘッドは、あなたの努力をほぼ否定するだろう。
+</p></dd></dl>
+
+<dl>
+<dt id="index-progress_002dreporter_002dforce_002dupdate">Function: <strong>progress-reporter-force-update</strong> <em>reporter &amp;optional value new-message</em></dt>
+<dd><p>この関数は<code>progress-reporter-update</code>と同様だが、これは無条件にメッセージをエコーエリアにプリントする点が異なる。
+</p>
+<p>最初の2つの引数は、<code>progress-reporter-update</code>の場合と同じ意味をもつ。オプションの<var>new-message</var>で、<var>reporter</var>のメッセージを変更できる。この関数は常にエコーエリアを更新するので、そのような変更は即座にユーザーに示されるだろう。
+</p></dd></dl>
+
+<dl>
+<dt id="index-progress_002dreporter_002ddone">Function: <strong>progress-reporter-done</strong> <em>reporter</em></dt>
+<dd><p>この関数は、処理の完了時に呼び出されるべきである。これはエコーエリア内に、単語&ldquo;done&rdquo;が付加された<var>reporter</var>のメッセージを表示する。
+</p>
+<p>あなたは<code>progress-reporter-update</code>に&ldquo;100%&rdquo;とプリントさせようとせず、常にこの関数を呼び出すべきである。まず、この関数は決してそれをプリントしないだろうし、これが発生しないために多くの正当な理由がある。次に&ldquo;done&rdquo;はより自明である。
+</p></dd></dl>
+
+<dl>
+<dt id="index-dotimes_002dwith_002dprogress_002dreporter">Macro: <strong>dotimes-with-progress-reporter</strong> <em>(var count [result]) message body&hellip;</em></dt>
+<dd><p>これは<code>dotimes</code>と同じ方法で機能するが、上述の関数を使用してループ進行状況(loop
+progress)の報告も行う、便利なマクロである。これにより、タイプ量を幾分節約できる。
+</p>
+<p>以下の方法でこのマクロを使用することにより、このセクション冒頭の例を書き換えることができる:
+</p>
+<div class="example">
+<pre class="example">(dotimes-with-progress-reporter
+    (k 500)
+    &quot;Collecting some mana for Emacs...&quot;
+  (sit-for 0.01))
+</pre></div>
+</dd></dl>
+
+
+
+
+</body>
+</html>
