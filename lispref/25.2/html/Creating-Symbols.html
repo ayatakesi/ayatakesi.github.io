@@ -1,0 +1,228 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 25.2.
+
+Copyright (C) 1990-1996, 1998-2017 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>8.3 シンボルの作成とintern (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="8.3 シンボルの作成とintern (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="8.3 シンボルの作成とintern (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Symbols.html#Symbols" rel="up" title="8 シンボル">
+<link href="Symbol-Properties.html#Symbol-Properties" rel="next" title="8.4 シンボルのプロパティ">
+<link href="Definitions.html#Definitions" rel="prev" title="8.2 シンボルの定義">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Creating-Symbols"></span><div class="header">
+<p>
+Next: <a href="Symbol-Properties.html#Symbol-Properties" accesskey="n" rel="next">Symbol Properties</a>, Previous: <a href="Definitions.html#Definitions" accesskey="p" rel="prev">Definitions</a>, Up: <a href="Symbols.html#Symbols" accesskey="u" rel="up">Symbols</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="sinborunoZuo-Cheng-tointern"></span><h3 class="section">8.3 シンボルの作成とintern</h3>
+<span id="index-reading-symbols"></span>
+
+<p>GNU Emacs
+Lispでシンボルが作成される方法を理解するには、Lispがシンボルを読み取る方法を理解しなければなりません。Lispは、同じ文字綴りを読み取ったら、毎回同じシンボルを見つけることを保証しなければなりません。これに失敗すると、完全な混乱を招くでしょう。
+</p>
+<span id="index-symbol-name-hashing"></span>
+<span id="index-hashing"></span>
+<span id="index-obarray"></span>
+<span id="index-bucket-_0028in-obarray_0029"></span>
+<p>When the Lisp reader encounters a symbol, it reads all the characters of the
+name.  Then it hashes those characters to find an index in a table called an
+<em>obarray</em>.  Hashing is an efficient method of looking something up.  For
+example, instead of searching a telephone book cover to cover when looking
+up Jan Jones, you start with the J&rsquo;s and go from there.  That is a simple
+version of hashing.  Each element of the obarray is a <em>bucket</em> which
+holds all the symbols with a given hash code; to look for a given name, it
+is sufficient to look through all the symbols in the bucket for that name&rsquo;s
+hash code.  (The same idea is used for general Emacs hash tables, but they
+are a different data type; see <a href="Hash-Tables.html#Hash-Tables">ハッシュテーブル</a>.)
+</p>
+<span id="index-interning"></span>
+<p>探している名前のシンボルが見つかったら、リーダーはそのシンボルを使用します。obarrayにその名前のシンボルが含まれない場合、リーダーは新しいシンボルを作成して、それをobarrayに追加します。特定の名前のシンボルを探して追加することを、<em>インターン(intern)</em>すると言い、これが行なわれた後、そのシンボルは<em>インターンされたシンボル(interned
+symbol)</em>と呼ばれます。
+</p>
+<p>インターンすることにより、ある特定の名前のシンボルは、それぞれのobarrayに1つだけであることが保証されます。同じ名前のシンボルは他に存在するかもしれませんが、同じobarrayではありません。したがってリーダーは、(同じobarrayを読みつづける限り)同じ名前にたいして、同じシンボルを取得します。
+</p>
+<p>インターンは通常、リーダー内で自動的に発生しますが、他のプログラムがこれを行なう必要がある場合もあります。たとえば、<kbd>M-x</kbd>コマンドは、その後ミニバッファーを使用してコマンド名を文字列として取得し、その文字列をインターンして、インターンされたその名前のシンボルを得ます。
+</p>
+<span id="index-symbol-equality"></span>
+<span id="index-uninterned-symbol"></span>
+<p>すべてのシンボルを含むobarrayはありません。実際、どのobarrayにも含まれないシンボルがいくつかあります。これらは、<em>インターンされていないシンボル(uninterned
+symbols)</em>と呼ばれます。インターンされていないシンボルも、他のシンボルと同じく4つのセルをもちます。しかし、インターンされていないシンボルへのアクセスを得る唯一の方法は、他の何らかのオブジェクトとして探すか、変数の値として探す方法だけです。
+</p>
+<p>インターンされていないシンボルの作成は、Lispコードを生成するとき有用です。なぜなら、作成されたコード内で変数として使用されているインターンされていないシンボルは、他のLispプログラムで使用されている任意の変数と競合することはありえないからです。
+</p>
+<p>Emacs
+Lispでは、obarrayはベクターです。ベクター内の各要素がバケットになります。要素の値は、名前がそのバケットにハッシュされるインターンされたシンボル、またはバケットが空のときは0です。インターンされたシンボルは、そのバケット内の次のシンボルへの、内部リンク(ユーザーからは見えない)をもちます。これらのリンクは不可視なので、<code>mapatoms</code>を使用する方法をのぞき(以下参照)、obarray内のすべてのシンボルを探す方法はありません。バケット内のシンボルの順番に、意味はありません。
+</p>
+<p>空のobarrayでは、すべての要素が0なので、<code>(make-vector <var>length</var>
+0)</code>でobarrayを作成することができます。<strong>obarrayを作成する有効な方法は、これだけです。</strong>長さに素数を指定すると、よいハッシュ化がされる傾向があります。2の累乗から1減じた長さも、よい結果を生む傾向があります。
+</p>
+<p><strong>自分でobarrayにシンボルを置かないでください。</strong>これはうまくいきません &mdash;
+obarrayに正しくシンボルを入力できるのは、<code>intern</code>だけです。
+</p>
+<span id="index-CL-note_002d_002d_002dsymbol-in-obarrays"></span>
+<blockquote>
+<p><b>Common Lispに関する注意: </b>Common Lispとは異なり、Emacs
+Lispは1つのシンボルを複数のobarrayにインターンする方法を提供しません。
+</p></blockquote>
+
+<p>以下の関数のほとんどは、引数に名前とobarrayをとります。名前が文字列ではない、またはobarrayがベクターでない場合は、<code>wrong-type-argument</code>エラーがシグナルされます。
+</p>
+<dl>
+<dt id="index-symbol_002dname">Function: <strong>symbol-name</strong> <em>symbol</em></dt>
+<dd><p>この関数は、<var>symbol</var>の名前を文字列としてreturnします。たとえば:
+</p>
+<div class="example">
+<pre class="example">(symbol-name 'foo)
+     &rArr; &quot;foo&quot;
+</pre></div>
+
+<p><strong>警告:
+</strong>文字の置き換えにより文字列を変更すると、それはシンボルの名前を変更しますが、obarrayの更新には失敗するので、行なわないでください!
+</p></dd></dl>
+
+<dl>
+<dt id="index-make_002dsymbol">Function: <strong>make-symbol</strong> <em>name</em></dt>
+<dd><p>この関数は、新たに割り当てられた、名前が<var>name</var>(文字列でなかればならない)のインターンされていないシンボルをreturnします。このシンボルの値と関数はvoidで、プロパティーリストは<code>nil</code>です。以下の例では、<code>sym</code>の値は<code>foo</code>と<code>eq</code>ではありません。なぜなら、これは名前が&lsquo;<samp>foo</samp>&rsquo;のインターンされていないシンボルだからです。
+</p>
+<div class="example">
+<pre class="example">(setq sym (make-symbol &quot;foo&quot;))
+     &rArr; foo
+(eq sym 'foo)
+     &rArr; nil
+</pre></div>
+</dd></dl>
+
+<dl>
+<dt id="index-intern">Function: <strong>intern</strong> <em>name &amp;optional obarray</em></dt>
+<dd><p>この関数は、名前が<var>name</var>の、インターンされたシンボルをreturnします。オブジェクト配列<var>obarray</var>の中にそのようなシンボルが存在しない場合、<code>intern</code>はあたらしいシンボルを作成してobarrayに追加し、それをreturnします。<var>obarray</var>が省略された場合、グローバル変数<code>obarray</code>の値が使用されます。
+</p>
+<div class="example">
+<pre class="example">(setq sym (intern &quot;foo&quot;))
+     &rArr; foo
+(eq sym 'foo)
+     &rArr; t
+
+(setq sym1 (intern &quot;foo&quot; other-obarray))
+     &rArr; foo
+(eq sym1 'foo)
+     &rArr; nil
+</pre></div>
+</dd></dl>
+
+<span id="index-CL-note_002d_002d_002dinterning-existing-symbol"></span>
+<blockquote>
+<p><b>Common Lispに関する注意: </b>Common Lispでは、既存のシンボルをobarrayにインターンできます。Emacs
+Lispでは、<code>intern</code>の引数はシンボルではなく文字列なので、これを行なうことはできません。
+</p></blockquote>
+
+<dl>
+<dt id="index-intern_002dsoft">Function: <strong>intern-soft</strong> <em>name &amp;optional obarray</em></dt>
+<dd><p>この関数は、<var>obarray</var>内の名前が<var>name</var>のシンボル、<var>obarray</var>にその名前のシンボルが存在しない場合は<code>nil</code>をreturnします。したがって、与えられた名前のシンボルがすでにインターンされているかテストするために、<code>intern-soft</code>を使用することができます。<var>obarray</var>が省略された場合は、グローバル変数<code>obarray</code>の値が使用されます。
+</p>
+<p>引数<var>name</var>にはシンボルも使用できます。この場合、指定されたobarrayに<var>name</var>がインターンされていれば<var>name</var>、それ以外は<code>nil</code>をreturnします。
+</p>
+<div class="example">
+<pre class="example">(intern-soft &quot;frazzle&quot;)        ; <span class="roman">そのようなシンボルは存在しない。</span>
+     &rArr; nil
+(make-symbol &quot;frazzle&quot;)        ; <span class="roman">インターンされていないシンボルを作成する。</span>
+     &rArr; frazzle
+</pre><pre class="example">(intern-soft &quot;frazzle&quot;)        ; <span class="roman">そのようなシンボルは見つからない。</span>
+     &rArr; nil
+</pre><pre class="example">(setq sym (intern &quot;frazzle&quot;))  ; <span class="roman">インターンされたシンボルを作成する。</span>
+     &rArr; frazzle
+</pre><pre class="example">(intern-soft &quot;frazzle&quot;)        ; <span class="roman">シンボルが見つかった!</span>
+     &rArr; frazzle
+</pre><pre class="example">(eq sym 'frazzle)              ; <span class="roman">そして、それは同じシンボル。</span>
+     &rArr; t
+</pre></div>
+</dd></dl>
+
+<dl>
+<dt id="index-obarray-1">Variable: <strong>obarray</strong></dt>
+<dd><p>この変数は、<code>intern</code>および<code>read</code>で使用される、標準のobarrayです。
+</p></dd></dl>
+
+<dl>
+<dt id="index-mapatoms">Function: <strong>mapatoms</strong> <em>function &amp;optional obarray</em></dt>
+<dd><span id="Definition-of-mapatoms"></span><p>この関数は、オブジェクト配列<var>obarray</var>の中のシンボルに1つにたいして、一度ずつ<var>function</var>を呼び出し、その後<code>nil</code>をreturnします。<var>obarray</var>が省略された場合は、通常のシンボルにたいする標準のオブジェクト配列<code>obarray</code>の値がデフォルトになります。
+</p>
+<div class="example">
+<pre class="example">(setq count 0)
+     &rArr; 0
+(defun count-syms (s)
+  (setq count (1+ count)))
+     &rArr; count-syms
+(mapatoms 'count-syms)
+     &rArr; nil
+count
+     &rArr; 1871
+</pre></div>
+
+<p><code>mapatoms</code>を使用する他の例については、<a href="Accessing-Documentation.html#Accessing-Documentation">ドキュメント文字列へのアクセス</a>の<code>documentation</code>を参照してください。
+</p></dd></dl>
+
+<dl>
+<dt id="index-unintern">Function: <strong>unintern</strong> <em>symbol obarray</em></dt>
+<dd><p>この関数は、オブジェクト配列<var>obarray</var>から、<var>symbol</var>を削除します。obarrayの中に<code>symbol</code>が存在しない場合、<code>unintern</code>は何も行ないません。<var>obarray</var>が<code>nil</code>の場合は、現在のobarrayが使用されます。
+</p>
+<p><var>symbol</var>にシンボルではなく文字列を与えた場合、それはシンボルの名前を意味します。この場合、<code>unintern</code>は、(もしあれば)obarrayからその名前のシンボルを削除します。そのようなシンボルが存在する場合、<code>unintern</code>は何も行ないません。
+</p>
+<p><code>unintern</code>がシンボルを削除した場合は<code>t</code>、それ以外は<code>nil</code>をreturnします。
+</p></dd></dl>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Symbol-Properties.html#Symbol-Properties" accesskey="n" rel="next">Symbol Properties</a>, Previous: <a href="Definitions.html#Definitions" accesskey="p" rel="prev">Definitions</a>, Up: <a href="Symbols.html#Symbols" accesskey="u" rel="up">Symbols</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

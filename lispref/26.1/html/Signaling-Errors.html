@@ -1,0 +1,161 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.1.
+
+Copyright (C) 1990-1996, 1998-2018 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>11.6.3.1 エラーをシグナルする方法 (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="11.6.3.1 エラーをシグナルする方法 (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="11.6.3.1 エラーをシグナルする方法 (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Errors.html#Errors" rel="up" title="11.6.3 エラー">
+<link href="Processing-of-Errors.html#Processing-of-Errors" rel="next" title="11.6.3.2 Emacsがエラーを処理する方法">
+<link href="Errors.html#Errors" rel="prev" title="11.6.3 エラー">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Signaling-Errors"></span><div class="header">
+<p>
+Next: <a href="Processing-of-Errors.html#Processing-of-Errors" accesskey="n" rel="next">Processing of Errors</a>, Up: <a href="Errors.html#Errors" accesskey="u" rel="up">Errors</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="erawosigunarusuruFang-Fa-"></span><h4 class="subsubsection">11.6.3.1 エラーをシグナルする方法</h4>
+<span id="index-signaling-errors"></span>
+
+<p>エラーの<em>シグナリング(signaling)</em>とは、エラーの処理を開始することを意味します。エラー処理は通常、実行中のプログラムのすべて、または一部をアボート(abort)して、エラーをハンドルするためにセットアップされた位置にreturnします。ここでは、エラーをシグナルする方法を記述します。
+</p>
+<p>Most errors are signaled automatically within Lisp primitives which you call
+for other purposes, such as if you try to take the <small>CAR</small> of an integer or
+move forward a character at the end of the buffer.  You can also signal
+errors explicitly with the functions <code>error</code> and <code>signal</code>.
+</p>
+<p>ユーザーが<kbd>C-g</kbd>をタイプしたときに発生するquitは、エラーとは判断されませんが、ほとんどはエラーと同様に扱われます。<a href="Quitting.html#Quitting">quit</a>を参照してください。
+</p>
+<p>すべてのエラーメッセージはそれぞれ、何らかのエラーメッセージを指定します。そのメッセージは、何が悪いのか(&ldquo;File does not
+exist&rdquo;)、物事がどうしてそうあるべきではない(&ldquo;File must exist&rdquo;)かを示すべきです。Emacs
+Lispの監修では、エラーメッセージは大文字で開始され、句読点で終わるべきではありません。
+</p>
+<dl>
+<dt id="index-error">Function: <strong>error</strong> <em>format-string &amp;rest args</em></dt>
+<dd><p>This function signals an error with an error message constructed by applying
+<code>format-message</code> (see section <a href="Formatting-Strings.html#Formatting-Strings">文字列のフォーマット</a>) to <var>format-string</var>
+and <var>args</var>.
+</p>
+<p>以下は、<code>error</code>を使用する典型的な例です:
+</p>
+<div class="example">
+<pre class="example">(error &quot;That is an error -- try something else&quot;)
+     error&rarr; That is an error -- try something else
+</pre><pre class="example">
+
+</pre><pre class="example">(error &quot;Invalid name `%s'&quot; &quot;A%%B&quot;)
+     error&rarr; Invalid name ‘A%%B’
+</pre></div>
+
+<p><code>error</code> works by calling <code>signal</code> with two arguments: the error
+symbol <code>error</code>, and a list containing the string returned by
+<code>format-message</code>.
+</p>
+<p>Typically grave accent and apostrophe in the format translate to matching
+curved quotes, e.g., <tt>&quot;Missing `%s'&quot;</tt> might result in <tt>&quot;Missing
+‘foo’&quot;</tt>.  See section <a href="Text-Quoting-Style.html#Text-Quoting-Style">Text Quoting Style</a>, for how to influence or inhibit this
+translation.
+</p>
+<p><strong>Warning:</strong> If you want to use your own string as an error message
+verbatim, don&rsquo;t just write <code>(error <var>string</var>)</code>.  If <var>string</var>
+<var>string</var> contains &lsquo;<samp>%</samp>&rsquo;, &lsquo;<samp>`</samp>&rsquo;, or &lsquo;<samp>'</samp>&rsquo; it may be reformatted,
+with undesirable results.  Instead, use <code>(error &quot;%s&quot; <var>string</var>)</code>.
+</p></dd></dl>
+
+<dl>
+<dt id="index-signal">Function: <strong>signal</strong> <em>error-symbol data</em></dt>
+<dd><span id="Definition-of-signal"></span><p>この関数は、<var>error-symbol</var>により命名されるエラーをシグナルします。引数<var>data</var>は、エラーの状況に関連する追加のLispオブジェクトのリストです。
+</p>
+<p>The argument <var>error-symbol</var> must be an <em>error symbol</em>&mdash;a symbol
+defined with <code>define-error</code>.  This is how Emacs Lisp classifies
+different sorts of errors.  See section <a href="Error-Symbols.html#Error-Symbols">エラーシンボルとエラー条件</a>, for a description of error
+symbols, error conditions and condition names.
+</p>
+<p>エラーが処理されない場合、エラーメッセージをプリントするために2つの引数が使用されます。このエラーメッセージは通常、<var>error-symbol</var>の<code>error-message</code>プロパティーにより提供されます。<var>data</var>が非<code>nil</code>の場合、その後にコロンと、<var>data</var>の評価されていない要素を、カンマで区切ったリストが続きます。<code>error</code>が発生した場合、エラーメッセージは、<var>data</var>の<small>CAR</small>(文字列でなければなりません)です。<code>file-error</code>のサブカテゴリーは、特別に処理されます。
+</p>
+<p><var>data</var>内のオブジェクトの数と重要性は、<var>error-symbol</var>に依存します。たとえば、<code>wrong-type-argument</code>エラーでは、リスト内には2つのオブジェクト
+&mdash; 期待する型を記述する述語と、その型への適合に失敗したオブジェクト &mdash; であるべきです。
+</p>
+<p>エラーを処理する任意のエラーハンドラーにたいして、<var>error-symbol</var>と<var>data</var>の両方を利用できます。<code>condition-case</code>は、ローカル変数を<code>(<var>error-symbol</var>
+. <var>data</var>)</code>というフォームでバインドします(<a href="Handling-Errors.html#Handling-Errors">エラーを処理するコードの記述</a>を参照してください)。
+</p>
+<p>関数<code>signal</code>は、決してreturnしません。
+</p>
+<div class="example">
+<pre class="example">(signal 'wrong-number-of-arguments '(x y))
+     error&rarr; Wrong number of arguments: x, y
+</pre><pre class="example">
+
+</pre><pre class="example">(signal 'no-such-error '(&quot;My unknown error condition&quot;))
+     error&rarr; peculiar error: &quot;My unknown error condition&quot;
+</pre></div>
+</dd></dl>
+
+<span id="index-user-errors_002c-signaling"></span>
+<dl>
+<dt id="index-user_002derror">Function: <strong>user-error</strong> <em>format-string &amp;rest args</em></dt>
+<dd><p>この関数は、<code>error</code>とまったく同じように振る舞いますが、<code>error</code>ではなく、<code>user-error</code>というエラーシンボルを使用します。名前が示唆するように、このエラーはコード自身のエラーではなく、ユーザーパートのエラーの報告を意図しています。たとえば、Infoの閲覧履歴の開始を超えて履歴を遡るためにコマンド<code>Info-history-back</code>
+(<kbd>l</kbd>)を使用した場合、Emacsは<code>user-error</code>をシグナルします。このようなエラーでは、たとえ<code>debug-on-error</code>が非<code>nil</code>であっても、デバッガーへのエントリーは発生しません。<a href="Error-Debugging.html#Error-Debugging">エラーによるデバッガへのエンター</a>を参照してください。
+</p></dd></dl>
+
+<span id="index-CL-note_002d_002d_002dno-continuable-errors"></span>
+<blockquote>
+<p><b>Common Lispに関する注意: </b>Emacs Lispには、Common Lispのような継続可能なエラーのような概念は存在しません。
+</p></blockquote>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Processing-of-Errors.html#Processing-of-Errors" accesskey="n" rel="next">Processing of Errors</a>, Up: <a href="Errors.html#Errors" accesskey="u" rel="up">Errors</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

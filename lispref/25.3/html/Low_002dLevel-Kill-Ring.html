@@ -1,0 +1,120 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 25.3.
+
+Copyright (C) 1990-1996, 1998-2017 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>31.8.5 低レベルのkillリング (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="31.8.5 低レベルのkillリング (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="31.8.5 低レベルのkillリング (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="The-Kill-Ring.html#The-Kill-Ring" rel="up" title="31.8 killリング">
+<link href="Internals-of-Kill-Ring.html#Internals-of-Kill-Ring" rel="next" title="31.8.6 killリングの内部">
+<link href="Yank-Commands.html#Yank-Commands" rel="prev" title="31.8.4 yankのための関数">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Low_002dLevel-Kill-Ring"></span><div class="header">
+<p>
+Next: <a href="Internals-of-Kill-Ring.html#Internals-of-Kill-Ring" accesskey="n" rel="next">Internals of Kill Ring</a>, Previous: <a href="Yank-Commands.html#Yank-Commands" accesskey="p" rel="prev">Yank Commands</a>, Up: <a href="The-Kill-Ring.html#The-Kill-Ring" accesskey="u" rel="up">The Kill Ring</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Di-reberunokillringu"></span><h4 class="subsection">31.8.5 低レベルのkillリング</h4>
+
+<p>以下の関数および変数は、killリングにたいして低レベルなアクセスを提供しますが、それらはウィンドウシステムの選択(<a href="Window-System-Selections.html#Window-System-Selections">ウィンドウシステムによる選択</a>を参照)との相互作用にも留意するので、Lispプログラム内での使用に関しても依然として有用です。
+</p>
+<dl>
+<dt id="index-current_002dkill">Function: <strong>current-kill</strong> <em>n &amp;optional do-not-move</em></dt>
+<dd><p>The function <code>current-kill</code> rotates the yanking pointer, which
+designates the front of the kill ring, by <var>n</var> places (from newer kills
+to older ones), and returns the text at that place in the ring.
+</p>
+<p>オプションの第2引数<var>do-not-move</var>が非<code>nil</code>なら、<code>current-kill</code>はyankポインターを変更しない。カレントyankポインターから、<var>n</var>個目のkillを単にリターンする。
+</p>
+<p><var>n</var>が0の場合、それは最新のkillの要求を意味しており、<code>current-kill</code>はkillリング照会前に<code>interprogram-paste-function</code>(以下参照)の値を呼び出す。その値が関数で、かつそれが文字列または複数の文字列からなるリストをリターンした場合、<code>current-kill</code>はその文字列をkillリング上にpushして、最初の文字列をリターンする。これは<var>do-not-move</var>の値に関わらず、<code>interprogram-paste-function</code>がリターンする最初の文字列のkillリングエントリーを指すように、yankポインターのセットも行う。それ以外では、<code>current-kill</code>は<var>n</var>にたいする0値を特別に扱うことはなく、yankポインターが指すエントリーをリターンし、yankポインターの移動は行わない。
+</p></dd></dl>
+
+<dl>
+<dt id="index-kill_002dnew">Function: <strong>kill-new</strong> <em>string &amp;optional replace</em></dt>
+<dd><p>この関数は、テキスト<var>string</var>をkillリング上にpushして、yankポインターがそれを指すようにセットする。それが適切なら、もっとも古いエントリーを破棄する。<code>interprogram-cut-function</code>(以下参照)の呼び出しも行う。
+</p>
+<p><var>replace</var>が非<code>nil</code>なら、<code>kill-new</code>はkillリング上に<var>string</var>をpushせずに、killリングの1つ目の要素を<var>string</var>に置き換える。
+</p></dd></dl>
+
+<dl>
+<dt id="index-kill_002dappend">Function: <strong>kill-append</strong> <em>string before-p</em></dt>
+<dd><p>この関数は、killリング内の最初のエントリーにテキスト<var>string</var>を追加して、その結合されたエントリーを指すようにyankポインターをセットする。通常はそのエントリーの終端に<var>string</var>が追加されるが、<var>before-p</var>が非<code>nil</code>ならエントリーの先頭に追加される。この関数は、<code>interprogram-cut-function</code>(以下参照)の呼び出しも行う。
+</p></dd></dl>
+
+<dl>
+<dt id="index-interprogram_002dpaste_002dfunction">Variable: <strong>interprogram-paste-function</strong></dt>
+<dd><p>この変数は、他のプログラムからkillリングへkillされたテキストを転送する方法を提供する。値は<code>nil</code>、または引数のない関数であること。
+</p>
+<p>If the value is a function, <code>current-kill</code> calls it to get the most
+recent kill.  If the function returns a non-<code>nil</code> value, then that
+value is used as the most recent kill.  If it returns <code>nil</code>, then the
+front of the kill ring is used.
+</p>
+<p>To facilitate support for window systems that support multiple selections,
+this function may also return a list of strings.  In that case, the first
+string is used as the most recent kill, and all the other strings are pushed
+onto the kill ring, for easy access by <code>yank-pop</code>.
+</p>
+<p>この関数の通常の用途は、たとえそれが他アプリケーションに属する選択であっても、もっとも最近のkillとして、ウィンドウシステムのクリップボードからそれを取得することである。しかし、クリップボードのコンテンツがカレントEmacsセッション由来なら、この関数は<code>nil</code>をリターンする筈である。
+</p></dd></dl>
+
+<dl>
+<dt id="index-interprogram_002dcut_002dfunction">Variable: <strong>interprogram-cut-function</strong></dt>
+<dd><p>この変数は、ウィンドウシステム使用時に、他のプログラムにkillされたテキストを転送する方法を提供する。値は<code>nil</code>、または1つの引数を要求する関数であること。
+</p>
+<p>値が関数なら、<code>kill-new</code>および<code>kill-append</code>は、killリングの新たな1つ目要素を引数として、それを呼び出す。
+</p>
+<p>この関数の通常の用途は、新たにkillされたテキストを、ウィンドウシステムのクリップボードに配すことである。<a href="Window-System-Selections.html#Window-System-Selections">ウィンドウシステムによる選択</a>を参照のこと。
+</p></dd></dl>
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 25.1.
+
+Copyright (C) 1990-1996, 1998-2016 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>38.11 遅延実行のためのタイマー (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="38.11 遅延実行のためのタイマー (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="38.11 遅延実行のためのタイマー (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="System-Interface.html#System-Interface" rel="up" title="38 オペレーティングシステムのインターフェース">
+<link href="Idle-Timers.html#Idle-Timers" rel="next" title="38.12 アイドルタイマー">
+<link href="Time-Calculations.html#Time-Calculations" rel="prev" title="38.10 時間の計算">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Timers"></span><div class="header">
+<p>
+Next: <a href="Idle-Timers.html#Idle-Timers" accesskey="n" rel="next">Idle Timers</a>, Previous: <a href="Time-Calculations.html#Time-Calculations" accesskey="p" rel="prev">Time Calculations</a>, Up: <a href="System-Interface.html#System-Interface" accesskey="u" rel="up">System Interface</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Chi-Yan-Shi-Xing-notamenotaima"></span><h3 class="section">38.11 遅延実行のためのタイマー</h3>
+<span id="index-timer"></span>
+
+<p>将来の特定時刻や特定の長さのアイドル時間経過後に関数を呼び出すために、<em>タイマー(timer)</em>をセットアップできます。
+</p>
+<p>Emacsは、Lispプログラム内の任意の時点では、タイマーを実行できません。サブプロセスからの出力が受け入れ可能なときだけ、Emacsはタイマーを実行できます。つまり待機中や、待機することが<em>可能</em>な、<code>sit-for</code>や<code>read-event</code>のような特定のプリミティブ関数内部でのみ、タイマーを実行できます。したがってEmacsがbusyなら、タイマーの実行は遅延するかもしれません。しかしEmacsがidleなら、実行される時刻は非常に正確になります。
+</p>
+<p>quitにより、多くのタイマー関数が物事を不整合な状態に放置し得るので、ターマー関数呼び出し前にEmacsは<code>inhibit-quit</code>に<code>t</code>をバインドします。ほとんどのタイマー関数は多くの作業を行わないので、これは通常は問題にはなりません。しかし実際には、実行に長時間を要する関数を呼び出すタイマーは問題となる恐れがあります。タイマー関数がquitを許容する必要がある場合は、<code>with-local-quit</code>を使用するべきです(<a href="Quitting.html#Quitting">quit</a>を参照)。たとえば、外部プロセスから出力を受け取るためにタイマー関数が<code>accept-process-output</code>を呼び出す場合、外部プロセスのハング時の<kbd>C-g</kbd>を確実に機能させるために、その呼び出しを<code>with-local-quit</code>内部にラップすべきです。
+For exam；ple, if a timer function calls  to receive output from an external
+process, that call should be wrapped inside , to ensure that  works if the
+external process hangs.
+</p>
+<p>バッファー内容の変更のためにタイマー関数を呼び出すのは、通常は悪いアイデアです。これを行うときには、そのタイマーによる変更とユーザーのコマンドによる変更を分離して、単一のアンドゥエントリーが巨大になるのを防ぐために、バッファーの変更前後で、通常は<code>undo-boundary</code>を呼び出すべきです。
+</p>
+<p>タイマー関数は<code>sit-for</code>のようなEmacsに待機を発生させるような関数(<a href="Waiting.html#Waiting">時間の経過や入力の待機</a>を参照)の呼び出しも避けるべきです。その待機中に別のタイマー(同じタイマーとう可能性さえある)が実行され得るので、これは予測不可能な効果を導く恐れがあります。特定時間の経過後に処理される必要があるタイマー関数は、新たなタイマーをスケジュールすることにより、これを行うことができます。
+</p>
+<p>マッチデータを変更するかもしれない関数を呼び出すタイマー関数は、マッチデータの保存とリストアをするべきです。<a href="Saving-Match-Data.html#Saving-Match-Data">マッチデータの保存とリストア</a>を参照してください。
+</p>
+<dl>
+<dt id="index-run_002dat_002dtime">Command: <strong>run-at-time</strong> <em>time repeat function &amp;rest args</em></dt>
+<dd><p>これは時刻<var>time</var>に、引数<var>args</var>で関数<var>function</var>を呼び出すタイマーをセットアップする。<var>repeat</var>が数値(整数か浮動小数点数)なら、そのタイマーは<var>time</var>後の各<var>repeat</var>秒ごとに再実行されるようスケジュールされる。<var>repeat</var>が<code>nil</code>なら、そのタイマーは1回だけ実行される。
+</p>
+<p><var>time</var>には、絶対時刻と相対時刻を指定できる。
+</p>
+<p>絶対時刻は限定された種々フォーマットの文字列を使用して指定でき、すでに経過後の時刻であっても<em>当日</em>の時刻とみなされる。認識される形式は&lsquo;<samp><var>xxxx</var></samp>&rsquo;、&lsquo;<samp><var>x</var>:<var>xx</var></samp>&rsquo;、or
+&lsquo;<samp><var>xx</var>:<var>xx</var></samp>&rsquo; (military time)、and
+&lsquo;<samp><var>xx</var>am</samp>&rsquo;、&lsquo;<samp><var>xx</var>AM</samp>&rsquo;、&lsquo;<samp><var>xx</var>pm</samp>&rsquo;、&lsquo;<samp><var>xx</var>PM</samp>&rsquo;、&lsquo;<samp><var>xx</var>:<var>xx</var>am</samp>&rsquo;、&lsquo;<samp><var>xx</var>:<var>xx</var>AM</samp>&rsquo;、&lsquo;<samp><var>xx</var>:<var>xx</var>pm</samp>&rsquo;、&lsquo;<samp><var>xx</var>:<var>xx</var>PM</samp>&rsquo;のいずれか。時と分をの部分を区切るのは、コロンのかわりにピリオドも使用できる。
+</p>
+<p>相対時刻は単位を付加した数字を、文字列として指定する。たとえば:
+</p>
+<dl compact="compact">
+<dt>&lsquo;<samp>1 min</samp>&rsquo;</dt>
+<dd><p>現在時刻から1分後を表す。
+</p></dd>
+<dt>&lsquo;<samp>1 min 5 sec</samp>&rsquo;</dt>
+<dd><p>現在時刻から65秒後を表す。
+</p></dd>
+<dt>&lsquo;<samp>1 min 2 sec 3 hour 4 day 5 week 6 fortnight 7 month 8 year</samp>&rsquo;</dt>
+<dd><p>現在時刻から丁度103ヵ月123日10862秒後を表す。
+</p></dd>
+</dl>
+
+<p>総体time値にたいして、Emacsは月を正確に30日、年を正確に365.25とみなす。
+</p>
+<p>有用なフォーマットのすべてが文字列という訳ではない。<var>time</var>が数字(整数か浮動小数点数)なら、それは秒で数えた相対時刻を指定する。<code>encode-time</code>の結果は、<var>time</var>にたいする絶対時刻の指定にも使用できる。
+</p>
+<p>ほとんどの場合、<em>最初</em>に呼び出されている際は<var>repeat</var>の効果はなく、<var>time</var>単独で時刻を指定する。例外が1つあり<var>time</var>が<code>t</code>なら、エポックから<var>repeat</var>の倍数秒ごとに毎回そのタイマーが実行される。これは<code>display-time</code>のような関数にとって有用である。
+</p>
+<p>関数<code>run-at-time</code>は、スケジュール済みの将来の特定アクションを識別するtime値をリターンする。<code>cancel-timer</code>(以下参照)の呼び出しに、この値を使用できる。
+</p></dd></dl>
+
+<p>タイマーのリピートは名目上<var>repeat</var>秒ごとに毎回実行されますが、すべてのタイマー呼び出しは遅延する可能性があることを忘れないでください。1つの繰り返しの遅延が、次の繰り返しに影響を与えることはありません。たとえば3回分のスケジュール済みのタイマー繰り返しをカバーするほど計算等によりEmacsがbusyでも、それらは待機を開始して、連続してそのタイマー関数が3回呼び出されることになります(それらの間の別のタイマー呼び出しは想定していない)。最後の呼び出しから<var>n</var>秒より短くならずにタイマーを再実行したい場合には、<var>repeat</var>引数を使用しないでください。タイマー関数は、かわりにそのタイマーを明示的に再スケジュールするべきです。
+</p>
+<dl>
+<dt id="index-timer_002dmax_002drepeats">User Option: <strong>timer-max-repeats</strong></dt>
+<dd><p>この変数の値は、以前スケジュールされていた呼び出しが止むを得ずに遅延された際に、タイマー関数がリピートによりまとめて呼び出される最大の回数を指定する
+</p></dd></dl>
+
+<dl>
+<dt id="index-with_002dtimeout">Macro: <strong>with-timeout</strong> <em>(seconds timeout-forms&hellip;) body&hellip;</em></dt>
+<dd><p><var>body</var>を実行するが、<var>seconds</var>秒後に実行を諦める。タイムアップ前に<var>body</var>が終了したら、<code>with-timeout</code>は<var>body</var>内の最後のフォームの値をリターンする。ただし、タイムアウトにより<var>body</var>の実行が打ち切られた場合には、<code>with-timeout</code>は<var>timeout-forms</var>をすべて実行して、それの最後のフォームの値をリターンする。
+</p>
+<p>このマクロは、<var>seconds</var>秒後に実行するタイマーをセットすることにより機能する。その時刻前に<var>body</var>が終了したらそのタイマーを削除し、タイマーが実際に実行されたら<var>body</var>の実行を終了して、それから<var>timeout-forms</var>を実行する。
+</p>
+<p>Lispプログラムでは、待機を行えるプリミティブをプログラムが呼び出している時のみタイマーを実行できるので、<var>body</var>が計算途中の間は<code>with-timeout</code>は実行を停止できない
+&mdash;
+そのプログラムがこれらのプリミティブのいずれかを呼び出したときのみ停止できる。そのため、<var>body</var>で長時間の計算を行う場合ではなく、入力を待機する場合だけ<code>with-timeout</code>を使用すること。
+</p></dd></dl>
+
+<p>あまりに長時間応答を待機するのを避けるために、関数<code>y-or-n-p-with-timeout</code>はタイマーを使用するシンプルな方法を提供します。<a href="Yes_002dor_002dNo-Queries.html#Yes_002dor_002dNo-Queries">Yes-or-Noによる問い合わせ</a>を参照してください。
+</p>
+<dl>
+<dt id="index-cancel_002dtimer">Function: <strong>cancel-timer</strong> <em>timer</em></dt>
+<dd><p>これは<var>timer</var>にたいして要求されたアクションをキャンセルする。ここで<var>timer</var>はタイマーであること。これは通常は以前に<code>run-at-time</code>か<code>run-with-idle-timer</code>がリターンしたものである。この関数は、これらの関数の1つの呼び出しの効果をキャンセルする。指定した時刻が到来しても、特別ni何も起きないだろう。
+</p></dd></dl>
+
+
+
+
+</body>
+</html>

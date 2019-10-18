@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.2.
+
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>11.4 Pattern-Matching Conditional (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="11.4 Pattern-Matching Conditional (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="11.4 Pattern-Matching Conditional (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Control-Structures.html#Control-Structures" rel="up" title="11 制御構造">
+<link href="pcase-Macro.html#pcase-Macro" rel="next" title="11.4.1 The pcase macro">
+<link href="Combining-Conditions.html#Combining-Conditions" rel="prev" title="11.3 条件の組み合わせ">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Pattern_002dMatching-Conditional"></span><div class="header">
+<p>
+Next: <a href="Iteration.html#Iteration" accesskey="n" rel="next">Iteration</a>, Previous: <a href="Combining-Conditions.html#Combining-Conditions" accesskey="p" rel="prev">Combining Conditions</a>, Up: <a href="Control-Structures.html#Control-Structures" accesskey="u" rel="up">Control Structures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Pattern_002dMatching-Conditional-1"></span><h3 class="section">11.4 Pattern-Matching Conditional</h3>
+<span id="index-pcase"></span>
+<span id="index-pattern-matching_002c-programming-style"></span>
+
+<p>Aside from the four basic conditional forms, Emacs Lisp also has a
+pattern-matching conditional form, the <code>pcase</code> macro, a hybrid of
+<code>cond</code> and <code>cl-case</code> (see <a href="https://www.gnu.org/software/emacs/manual/html_node/cl/Conditionals.html#Conditionals">Conditionals</a> in <cite>Common Lisp
+Extensions</cite>)  that overcomes their limitations and introduces the
+<em>pattern matching programming style</em>.  The limitations that <code>pcase</code>
+overcomes are:
+</p>
+<ul>
+<li> The <code>cond</code> form chooses among alternatives by evaluating the predicate
+<var>condition</var> of each of its clauses (see section <a href="Conditionals.html#Conditionals">条件</a>).  The primary
+limitation is that variables let-bound in <var>condition</var> are not available
+to the clause&rsquo;s <var>body-forms</var>.
+
+<p>Another annoyance (more an inconvenience than a limitation)  is that when a
+series of <var>condition</var> predicates implement equality tests, there is a
+lot of repeated code.  (<code>cl-case</code> solves this inconvenience.)
+</p>
+</li><li> The <code>cl-case</code> macro chooses among alternatives by evaluating the
+equality of its first argument against a set of specific values.
+
+<p>Its limitations are two-fold:
+</p>
+<ol>
+<li> The equality tests use <code>eql</code>.
+</li><li> The values must be known and written in advance.
+</li></ol>
+
+<p>These render <code>cl-case</code> unsuitable for strings or compound data
+structures (e.g., lists or vectors).  (<code>cond</code> doesn&rsquo;t have these
+limitations, but it has others, see above.)
+</p></li></ul>
+
+<p>Conceptually, the <code>pcase</code> macro borrows the first-arg focus of
+<code>cl-case</code> and the clause-processing flow of <code>cond</code>, replacing
+<var>condition</var> with a generalization of the equality test which is a
+variant of <em>pattern matching</em>, and adding facilities so that you can
+concisely express a clause&rsquo;s predicate, and arrange to share let-bindings
+between a clause&rsquo;s predicate and <var>body-forms</var>.
+</p>
+<p>The concise expression of a predicate is known as a <em>pattern</em>.  When the
+predicate, called on the value of the first arg, returns non-<code>nil</code>, we
+say that &ldquo;the pattern matches the value&rdquo; (or sometimes &ldquo;the value matches
+the pattern&rdquo;).
+</p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top"><a href="pcase-Macro.html#pcase-Macro" accesskey="1">11.4.1 The <code>pcase</code> macro</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Includes examples and caveats.
+</td></tr>
+<tr><td align="left" valign="top"><a href="Extending-pcase.html#Extending-pcase" accesskey="2">11.4.2 Extending <code>pcase</code></a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Define new kinds of patterns.
+</td></tr>
+<tr><td align="left" valign="top"><a href="Backquote-Patterns.html#Backquote-Patterns" accesskey="3">11.4.3 Backquote-Style Patterns</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Structural patterns 
+                                                   matching.
+</td></tr>
+<tr><td align="left" valign="top"><a href="Destructuring-with-pcase-Patterns.html#Destructuring-with-pcase-Patterns" accesskey="4">11.4.4 Destructuring with <code>pcase</code> Patterns</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">Using pcase patterns to extract 
+                                         subfields.
+</td></tr>
+</table>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Iteration.html#Iteration" accesskey="n" rel="next">Iteration</a>, Previous: <a href="Combining-Conditions.html#Combining-Conditions" accesskey="p" rel="prev">Combining Conditions</a>, Up: <a href="Control-Structures.html#Control-Structures" accesskey="u" rel="up">Control Structures</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.2.
+
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>38.1 サブプロセスを作成する関数 (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="38.1 サブプロセスを作成する関数 (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="38.1 サブプロセスを作成する関数 (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Processes.html#Processes" rel="up" title="38 プロセス">
+<link href="Shell-Arguments.html#Shell-Arguments" rel="next" title="38.2 shell引数">
+<link href="Processes.html#Processes" rel="prev" title="38 プロセス">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Subprocess-Creation"></span><div class="header">
+<p>
+Next: <a href="Shell-Arguments.html#Shell-Arguments" accesskey="n" rel="next">Shell Arguments</a>, Up: <a href="Processes.html#Processes" accesskey="u" rel="up">Processes</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="sabupurosesuwoZuo-Cheng-suruGuan-Shu-"></span><h3 class="section">38.1 サブプロセスを作成する関数</h3>
+<span id="index-create-subprocess"></span>
+<span id="index-process-creation"></span>
+
+<p>There are three primitives that create a new subprocess in which to run a
+program.  One of them, <code>make-process</code>, creates an asynchronous process
+and returns a process object (see section <a href="Asynchronous-Processes.html#Asynchronous-Processes">非同期プロセスの作成</a>).  The other
+two, <code>call-process</code> and <code>call-process-region</code>, create a
+synchronous process and do not return a process object (see section <a href="Synchronous-Processes.html#Synchronous-Processes">同期プロセスの作成</a>).  There are various higher-level functions that make use of
+these primitives to run particular types of process.
+</p>
+<p>同期プロセスと非同期プロセスについては、以降のセクションで説明します。この3つの関数はすべて類似した様式で呼び出されるので、ここでそれらに共通の引数について説明します。
+</p>
+<span id="index-execute-program"></span>
+<span id="index-PATH-environment-variable"></span>
+<span id="index-HOME-environment-variable"></span>
+<p>In all cases, the functions specify the program to be run.  An error is
+signaled if the file is not found or cannot be executed.  If the file name
+is relative, the variable <code>exec-path</code> contains a list of directories to
+search.  Emacs initializes <code>exec-path</code> when it starts up, based on the
+value of the environment variable <code>PATH</code>.  The standard file name
+constructs, &lsquo;<samp>~</samp>&rsquo;, &lsquo;<samp>.</samp>&rsquo;, and &lsquo;<samp>..</samp>&rsquo;, are interpreted as usual in
+<code>exec-path</code>, but environment variable substitutions (&lsquo;<samp>$HOME</samp>&rsquo;,
+etc.) are not recognized; use <code>substitute-in-file-name</code> to perform
+them (see section <a href="File-Name-Expansion.html#File-Name-Expansion">ファイル名を展開する関数</a>).  <code>nil</code> in this list refers to
+<code>default-directory</code>.
+</p>
+<p>プログラムの実行では、指定された名前にサフィックスの追加を試みることもできます:
+</p>
+<dl>
+<dt id="index-exec_002dsuffixes">User Option: <strong>exec-suffixes</strong></dt>
+<dd><p>この変数は、指定されたプログラムファイル名への追加を試みるための、サフィックス(文字列)のリストである。指定されたとおりの名前を試みたいなら、このリストに<code>&quot;&quot;</code>を含めること。デフォルト値はシステムに依存する。
+</p></dd></dl>
+
+<p><strong>Please note:</strong> The argument <var>program</var> contains only the name of
+the program file; it may not contain any command-line arguments.  You must
+use a separate argument, <var>args</var>, to provide those, as described below.
+</p>
+<p>Each of the subprocess-creating functions has a <var>buffer-or-name</var>
+argument that specifies where the output from the program will go.  It
+should be a buffer or a buffer name; if it is a buffer name, that will
+create the buffer if it does not already exist.  It can also be <code>nil</code>,
+which says to discard the output, unless a custom filter function handles
+it.  (See section <a href="Filter-Functions.html#Filter-Functions">プロセスのフィルター関数</a>, and <a href="Read-and-Print.html#Read-and-Print">Lispオブジェクトの読み取りとプリント</a>.)  Normally, you
+should avoid having multiple processes send output to the same buffer
+because their output would be intermixed randomly.  For synchronous
+processes, you can send the output to a file instead of a buffer (and the
+corresponding argument is therefore more appropriately called
+<var>destination</var>).  By default, both standard output and standard error
+streams go to the same destination, but all the 3 primitives allow
+optionally to direct the standard error stream to a different destination.
+</p>
+<span id="index-program-arguments"></span>
+<p>All three of the subprocess-creating functions allow to specify command-line
+arguments for the process to run. For <code>call-process</code> and
+<code>call-process-region</code>, these come in the form of a <code>&amp;rest</code>
+argument, <var>args</var>.  For <code>make-process</code>, both the program to run and
+its command-line arguments are specified as a list of strings.  The
+command-line arguments must all be strings, and they are supplied to the
+program as separate argument strings.  Wildcard characters and other shell
+constructs have no special meanings in these strings, since the strings are
+passed directly to the specified program.
+</p>
+<span id="index-environment-variables_002c-subprocesses"></span>
+<p>サブプロセスはその環境をEmacsから継承しますが、<code>process-environment</code>でそれをオーバーラードするよう指定することができます。<a href="System-Environment.html#System-Environment">オペレーティングシステムの環境</a>を参照してください。サブプロセスは自身のカレントディレクトリーを、<code>default-directory</code>の値から取得します。
+</p>
+<dl>
+<dt id="index-exec_002ddirectory">Variable: <strong>exec-directory</strong></dt>
+<dd><span id="index-movemail"></span>
+<p>この変数の値は、GNU
+Emacsとともに配布され、Emacsにより呼び出されることを意図したプログラムを含むディレクトリーの名前(文字列)である。プログラム<code>movemail</code>はそのようなプログラムの例であり、Rmailはinboxから新しいメールを読み込むためにこのプログラムを使用する。
+</p></dd></dl>
+
+<dl>
+<dt id="index-exec_002dpath">User Option: <strong>exec-path</strong></dt>
+<dd><p>The value of this variable is a list of directories to search for programs
+to run in subprocesses.  Each element is either the name of a directory
+(i.e., a string), or <code>nil</code>, which stands for the default directory
+(which is the value of <code>default-directory</code>).  See section <a href="Locating-Files.html#Locating-Files">executable-find</a>, for the details of this search.
+<span id="index-program-directories"></span>
+</p>
+<p><code>exec-path</code>の値は、<var>program</var>引数が絶対ファイル名でないとき、<code>call-process</code>および<code>start-process</code>により使用される。
+</p>
+<p>一般的には、<code>exec-path</code>を直接変更するべきではない。かわりにEmacs起動前に、環境変数<code>PATH</code>が適切にセットされているか確認すること。<code>PATH</code>とは独立に<code>exec-path</code>の変更を試みると、混乱した結果へと導かれ得る。
+</p></dd></dl>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Shell-Arguments.html#Shell-Arguments" accesskey="n" rel="next">Shell Arguments</a>, Up: <a href="Processes.html#Processes" accesskey="u" rel="up">Processes</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

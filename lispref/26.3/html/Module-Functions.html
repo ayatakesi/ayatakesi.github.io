@@ -1,0 +1,188 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.3.
+
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>E.8.2 Writing Module Functions (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="E.8.2 Writing Module Functions (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="E.8.2 Writing Module Functions (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" rel="up" title="E.8 Writing Dynamically-Loaded Modules">
+<link href="Module-Values.html#Module-Values" rel="next" title="E.8.3 Conversion Between Lisp and Module Values">
+<link href="Module-Initialization.html#Module-Initialization" rel="prev" title="E.8.1 Module Initialization Code">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Module-Functions"></span><div class="header">
+<p>
+Next: <a href="Module-Values.html#Module-Values" accesskey="n" rel="next">Module Values</a>, Previous: <a href="Module-Initialization.html#Module-Initialization" accesskey="p" rel="prev">Module Initialization</a>, Up: <a href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" accesskey="u" rel="up">Writing Dynamic Modules</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Writing-Module-Functions"></span><h4 class="subsection">E.8.2 Writing Module Functions</h4>
+<span id="index-writing-module-functions"></span>
+<span id="index-module-functions"></span>
+
+<p>The main reason for writing an Emacs module is to make additional functions
+available to Lisp programs that load the module.  This subsection describes
+how to write such <em>module functions</em>.
+</p>
+<p>A module function has the following general form and signature:
+</p>
+<dl>
+<dt id="index-module_005ffunc">Function: <em>emacs_value</em> <strong>module_func</strong> <em>(emacs_env *<var>env</var>, ptrdiff_t <var>nargs</var>, emacs_value *<var>args</var>, void *<var>data</var>)</em></dt>
+<dd><p>The <var>env</var> argument provides a pointer to the <acronym>API</acronym> environment,
+needed to access Emacs objects and functions.  The <var>nargs</var> argument is
+the required number of arguments, which can be zero (see
+<code>make_function</code> below for more flexible specification of the argument
+number), and <var>args</var> is a pointer to the array of the function
+arguments.  The argument <var>data</var> points to additional data required by
+the function, which was arranged when <code>make_function</code> (see below) was
+called to create an Emacs function from <code>module_func</code>.
+</p>
+<p>Module functions use the type <code>emacs_value</code> to communicate Lisp objects
+between Emacs and the module (see section <a href="Module-Values.html#Module-Values">Conversion Between Lisp and Module Values</a>).  The <acronym>API</acronym>,
+described below and in the following subsections, provides facilities for
+conversion between basic C data types and the corresponding
+<code>emacs_value</code> objects.
+</p>
+<p>A module function always returns a value.  If the function returns normally,
+the Lisp code which called it will see the Lisp object corresponding to the
+<code>emacs_value</code> value the function returned.  However, if the user typed
+<kbd>C-g</kbd>, or if the module function or its callees signaled an error or
+exited nonlocally (see section <a href="Module-Nonlocal.html#Module-Nonlocal">Nonlocal Exits in Modules</a>), Emacs will ignore the returned
+value and quit or throw as it does when Lisp code encounters the same
+situations.
+</p></dd></dl>
+
+<p>After writing your C code for a module function, you should make a Lisp
+function object from it using the <code>make_function</code> function, whose
+pointer is provided in the environment (recall that the pointer to the
+environment is returned by <code>get_environment</code>).  This is normally done
+in the module initialization function (see <a href="Module-Initialization.html#module-initialization-function">module initialization function</a>), after verifying the <acronym>API</acronym> compatibility.
+</p>
+<dl>
+<dt id="index-make_005ffunction">Function: <em>emacs_value</em> <strong>make_function</strong> <em>(emacs_env *<var>env</var>, ptrdiff_t <var>min_arity</var>, ptrdiff_t <var>max_arity</var>, subr <var>func</var>, const char *<var>docstring</var>, void *<var>data</var>)</em></dt>
+<dd><span id="index-emacs_005fvariadic_005ffunction"></span>
+<p>This returns an Emacs function created from the C function <var>func</var>, whose
+signature is as described for <code>module_func</code> above (assumed here to be
+<code>typedef</code>&rsquo;ed as <code>subr</code>).  The arguments <var>min_arity</var> and
+<var>max_arity</var> specify the minimum and maximum number of arguments that
+<var>func</var> can accept.  The <var>max_arity</var> argument can have the special
+value <code>emacs_variadic_function</code>, which makes the function accept an
+unlimited number of arguments, like the <code>&amp;rest</code> keyword in Lisp
+(see section <a href="Argument-List.html#Argument-List">引数リストのその他機能</a>).
+</p>
+<p>The argument <var>data</var> is a way to arrange for arbitrary additional data to
+be passed to <var>func</var> when it is called.  Whatever pointer is passed to
+<code>make_function</code> will be passed unaltered to <var>func</var>.
+</p>
+<p>The argument <var>docstring</var> specifies the documentation string for the
+function.  It should be either an <acronym>ASCII</acronym> string, or a UTF-8 encoded
+non-<acronym>ASCII</acronym> string, or a <code>NULL</code> pointer; in the latter case the
+function will have no documentation.  The documentation string can end with
+a line that specifies the advertised calling convention, see <a href="Function-Documentation.html#Function-Documentation">関数のドキュメント文字列</a>.
+</p>
+<p>Since every module function must accept the pointer to the environment as
+its first argument, the call to <code>make_function</code> could be made from any
+module function, but you will normally want to do that from the module
+initialization function, so that all the module functions are known to Emacs
+once the module is loaded.
+</p></dd></dl>
+
+<p>Finally, you should bind the Lisp function to a symbol, so that Lisp code
+could call your function by name.  For that, use the module <acronym>API</acronym>
+function <code>intern</code> (see <a href="Module-Misc.html#intern">intern</a>) whose pointer is also provided in
+the environment that module functions can access.
+</p>
+<p>Combining the above steps, code that arranges for a C function
+<code>module_func</code> to be callable as <code>module-func</code> from Lisp will look
+like this, as part of the module initialization function:
+</p>
+<div class="example">
+<pre class="example"> emacs_env *env = ert-&gt;get_environment (ert);
+ emacs_value func = env-&gt;make_function (env, min_arity, max_arity,
+                                        module_func, docstring, data);
+ emacs_value symbol = env-&gt;intern (env, &quot;module-func&quot;);
+ emacs_value args[] = {symbol, func};
+ env-&gt;funcall (env, env-&gt;intern (env, &quot;defalias&quot;), 2, args);
+</pre></div>
+
+<p>This makes the symbol <code>module-func</code> known to Emacs by calling
+<code>env-&gt;intern</code>, then invokes <code>defalias</code> from Emacs to bind the
+function to that symbol.  Note that it is possible to use <code>fset</code>
+instead of <code>defalias</code>; the differences are described in <a href="Defining-Functions.html#Defining-Functions">defalias</a>.
+</p>
+<p>Using the module <acronym>API</acronym>, it is possible to define more complex
+function and data types: interactive functions, inline functions, macros,
+etc.  However, the resulting C code will be cumbersome and hard to read.
+Therefore, we recommend that you limit the module code which creates
+functions and data structures to the absolute minimum, and leave the rest
+for a Lisp package that will accompany your module, because doing these
+additional tasks in Lisp is much easier, and will produce a much more
+readable code.  For example, given a module function <code>module-func</code>
+defined as above, one way of making an interactive command <code>module-cmd</code>
+based on it is with the following simple Lisp wrapper:
+</p>
+<div class="lisp">
+<pre class="lisp">(defun module-cmd (&amp;rest args)
+  &quot;Documentation string for the command.&quot;
+  (interactive <var>spec</var>)
+  (apply 'module-func args))
+</pre></div>
+
+<p>The Lisp package which goes with your module could then load the module
+using the <code>module-load</code> primitive (see section <a href="Dynamic-Modules.html#Dynamic-Modules">Emacs Dynamic Modules</a>) when the
+package is loaded into Emacs.
+</p>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Module-Values.html#Module-Values" accesskey="n" rel="next">Module Values</a>, Previous: <a href="Module-Initialization.html#Module-Initialization" accesskey="p" rel="prev">Module Initialization</a>, Up: <a href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" accesskey="u" rel="up">Writing Dynamic Modules</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.2.
+
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>11.4.3 Backquote-Style Patterns (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="11.4.3 Backquote-Style Patterns (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="11.4.3 Backquote-Style Patterns (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Pattern_002dMatching-Conditional.html#Pattern_002dMatching-Conditional" rel="up" title="11.4 Pattern-Matching Conditional">
+<link href="Destructuring-with-pcase-Patterns.html#Destructuring-with-pcase-Patterns" rel="next" title="11.4.4 Destructuring with pcase Patterns">
+<link href="Extending-pcase.html#Extending-pcase" rel="prev" title="11.4.2 Extending pcase">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Backquote-Patterns"></span><div class="header">
+<p>
+Next: <a href="Destructuring-with-pcase-Patterns.html#Destructuring-with-pcase-Patterns" accesskey="n" rel="next">Destructuring with pcase Patterns</a>, Previous: <a href="Extending-pcase.html#Extending-pcase" accesskey="p" rel="prev">Extending pcase</a>, Up: <a href="Pattern_002dMatching-Conditional.html#Pattern_002dMatching-Conditional" accesskey="u" rel="up">Pattern-Matching Conditional</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Backquote_002dStyle-Patterns"></span><h4 class="subsection">11.4.3 Backquote-Style Patterns</h4>
+<span id="index-backquote_002dstyle-patterns"></span>
+<span id="index-matching_002c-structural"></span>
+<span id="index-structural-matching"></span>
+
+<p>This subsection describes <em>backquote-style patterns</em>, a set of builtin
+patterns that eases structural matching.  For background,
+see section <a href="Pattern_002dMatching-Conditional.html#Pattern_002dMatching-Conditional">Pattern-Matching Conditional</a>.
+</p>
+<p>Backquote-style patterns are a powerful set of <code>pcase</code> pattern
+extensions (created using <code>pcase-defmacro</code>) that make it easy to match
+<var>expval</var> against specifications of its <em>structure</em>.
+</p>
+<p>For example, to match <var>expval</var> that must be a list of two elements whose
+first element is a specific string and the second element is any value, you
+can write a core pattern:
+</p>
+<div class="example">
+<pre class="example">(and (pred listp)
+     ls
+</pre><pre class="example">     (guard (= 2 (length ls)))
+     (guard (string= &quot;first&quot; (car ls)))
+     (let second-elem (cadr ls)))
+</pre></div>
+
+<p>or you can write the equivalent backquote-style pattern:
+</p>
+<div class="example">
+<pre class="example">`(&quot;first&quot; ,second-elem)
+</pre></div>
+
+<p>The backquote-style pattern is more concise, resembles the structure of
+<var>expval</var>, and avoids binding <code>ls</code>.
+</p>
+<p>A backquote-style pattern has the form <code>`<var>qpat</var></code> where <var>qpat</var>
+can have the following forms:
+</p>
+<dl compact="compact">
+<dt><code>(<var>qpat1</var> . <var>qpat2</var>)</code></dt>
+<dd><p>Matches if <var>expval</var> is a cons cell whose <code>car</code> matches <var>qpat1</var>
+and whose <code>cdr</code> matches <var>qpat2</var>.  This readily generalizes to lists
+as in <code>(<var>qpat1</var>&nbsp;<var>qpat2</var>&nbsp;&hellip;)</code><!-- /@w -->.
+</p>
+</dd>
+<dt><code>[<var>qpat1</var> <var>qpat2</var> &hellip; <var>qpatm</var>]</code></dt>
+<dd><p>Matches if <var>expval</var> is a vector of length <var>m</var> whose
+<code>0</code>..<code>(<var>m</var>-1)</code>th elements match <var>qpat1</var>, <var>qpat2</var>
+&hellip; <var>qpatm</var>, respectively.
+</p>
+</dd>
+<dt><code><var>symbol</var></code></dt>
+<dt><code><var>keyword</var></code></dt>
+<dt><code><var>integer</var></code></dt>
+<dt><code><var>string</var></code></dt>
+<dd><p>Matches if the corresponding element of <var>expval</var> is <code>equal</code> to the
+specified literal object.  Note that, aside from <var>symbol</var>, this is the
+same set of self-quoting literal objects that are acceptable as a core
+pattern.
+</p>
+</dd>
+<dt><code>,<var>pattern</var></code></dt>
+<dd><p>Matches if the corresponding element of <var>expval</var> matches <var>pattern</var>.
+Note that <var>pattern</var> is any kind that <code>pcase</code> supports.  (In the
+example above, <code>second-elem</code> is a <var>symbol</var> core pattern; it
+therefore matches anything, and let-binds <code>second-elem</code>.)
+</p></dd>
+</dl>
+
+<p>The <em>corresponding element</em> is the portion of <var>expval</var> that is in
+the same structural position as the structural position of <var>qpat</var> in the
+backquote-style pattern.  (In the example above, the corresponding element
+of <code>second-elem</code> is the second element of <var>expval</var>.)
+</p>
+<p>Here is an example of using <code>pcase</code> to implement a simple interpreter
+for a little expression language (note that this requires lexical binding
+for the lambda expression in the <code>fn</code> clause to properly capture
+<code>body</code> and <code>arg</code> (see section <a href="Lexical-Binding.html#Lexical-Binding">レキシカルバインディング</a>):
+</p>
+<div class="example">
+<pre class="example">(defun evaluate (form env)
+  (pcase form
+    (`(add ,x ,y)       (+ (evaluate x env)
+                           (evaluate y env)))
+</pre><pre class="example">    (`(call ,fun ,arg)  (funcall (evaluate fun env)
+                                 (evaluate arg env)))
+    (`(fn ,arg ,body)   (lambda (val)
+                          (evaluate body (cons (cons arg val)
+                                               env))))
+</pre><pre class="example">    ((pred numberp)     form)
+    ((pred symbolp)     (cdr (assq form env)))
+    (_                  (error &quot;Syntax error: %S&quot; form))))
+</pre></div>
+
+<p>The first three clauses use backquote-style patterns.  <code>`(add ,x ,y)</code>
+is a pattern that checks that <code>form</code> is a three-element list starting
+with the literal symbol <code>add</code>, then extracts the second and third
+elements and binds them to symbols <code>x</code> and <code>y</code>, respectively.  The
+clause body evaluates <code>x</code> and <code>y</code> and adds the results.
+Similarly, the <code>call</code> clause implements a function call, and the
+<code>fn</code> clause implements an anonymous function definition.
+</p>
+<p>The remaining clauses use core patterns.  <code>(pred numberp)</code> matches if
+<code>form</code> is a number.  On match, the body evaluates it.  <code>(pred
+symbolp)</code> matches if <code>form</code> is a symbol.  On match, the body looks up
+the symbol in <code>env</code> and returns its association.  Finally, <code>_</code> is
+the catch-all pattern that matches anything, so it&rsquo;s suitable for reporting
+syntax errors.
+</p>
+<p>Here are some sample programs in this small language, including their
+evaluation results:
+</p>
+<div class="example">
+<pre class="example">(evaluate '(add 1 2) nil)                 &rArr; 3
+(evaluate '(add x y) '((x . 1) (y . 2)))  &rArr; 3
+(evaluate '(call (fn x (add 1 x)) 2) nil) &rArr; 3
+(evaluate '(sub 1 2) nil)                 &rArr; error
+</pre></div>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Destructuring-with-pcase-Patterns.html#Destructuring-with-pcase-Patterns" accesskey="n" rel="next">Destructuring with pcase Patterns</a>, Previous: <a href="Extending-pcase.html#Extending-pcase" accesskey="p" rel="prev">Extending pcase</a>, Up: <a href="Pattern_002dMatching-Conditional.html#Pattern_002dMatching-Conditional" accesskey="u" rel="up">Pattern-Matching Conditional</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 25.1.
+
+Copyright (C) 1990-1996, 1998-2016 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>25.2 自動保存 (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="25.2 自動保存 (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="25.2 自動保存 (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Backups-and-Auto_002dSaving.html#Backups-and-Auto_002dSaving" rel="up" title="25 バックアップと自動保存">
+<link href="Reverting.html#Reverting" rel="next" title="25.3 リバート">
+<link href="Backup-Names.html#Backup-Names" rel="prev" title="25.1.4 バックアップファイルの命名">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Auto_002dSaving"></span><div class="header">
+<p>
+Next: <a href="Reverting.html#Reverting" accesskey="n" rel="next">Reverting</a>, Previous: <a href="Backup-Files.html#Backup-Files" accesskey="p" rel="prev">Backup Files</a>, Up: <a href="Backups-and-Auto_002dSaving.html#Backups-and-Auto_002dSaving" accesskey="u" rel="up">Backups and Auto-Saving</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Zi-Dong-Bao-Cun-"></span><h3 class="section">25.2 自動保存</h3>
+
+<p>Emacsは、visitしているすべてのファイルを定期的に保存します。これは<em>自動保存(auto-saving)</em>と呼ばれます。自動保存は、システムがクラッシュした場合に失われる作業量を、ある作業量以下にします。デフォルトでは、自動保存は300キーストロークごと、またはidle時の30秒後に発生します。自動保存に関するユーザー向けの情報については、<a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Auto-Save.html#Auto-Save">Auto-Saving: Protection Against Disasters</a> in <cite>The GNU
+Emacs Manual</cite>を参照してください。ここでは、自動保存の実施に使用される関数と、それらを制御する変数について説明します。
+</p>
+<dl>
+<dt id="index-buffer_002dauto_002dsave_002dfile_002dname">Variable: <strong>buffer-auto-save-file-name</strong></dt>
+<dd><p>このバッファーローカル変数は、カレントバッファーの自動保存に使用されるファイル名である。そのバッファーが自動保存されるべきでない場合は、<code>nil</code>。
+</p>
+<div class="example">
+<pre class="example">buffer-auto-save-file-name
+     &rArr; &quot;/xcssun/users/rms/lewis/#backups.texi#&quot;
+</pre></div>
+</dd></dl>
+
+<dl>
+<dt id="index-auto_002dsave_002dmode">Command: <strong>auto-save-mode</strong> <em>arg</em></dt>
+<dd><p>これはバッファーローカルなマイナーモードであるAuto Saveモードにたいする、モードコマンドである。Auto
+Saveモードが有効なときは、そのバッファーで自動保存が有効である。呼び出し方は、他のマイナーモードと同様(<a href="Minor-Mode-Conventions.html#Minor-Mode-Conventions">マイナーモード記述の規約</a>を参照)。
+</p>
+<p>ほとんどのマイナーモードとは異なり、<code>auto-save-mode</code>変数は存在しない。<code>buffer-auto-save-file-name</code>が非<code>nil</code>、かつ<code>buffer-saved-size</code>(以下参照)が非0ならば、Auto
+Saveモードは有効である。
+</p></dd></dl>
+
+<dl>
+<dt id="index-auto_002dsave_002dfile_002dname_002dp">Function: <strong>auto-save-file-name-p</strong> <em>filename</em></dt>
+<dd><p>この関数は、<var>filename</var>がauto-saveファイルのような文字列の場合は、非<code>nil</code>をリターンする。先頭と末尾がハッシュマーク(&lsquo;<samp>#</samp>&rsquo;)の名前はauto-saveファイルの可能性があるという、auto-saveファイルにたいする通常の命名規則を想定する。引数<var>filename</var>は、ディレクトリーパートを含むべきではない。
+</p>
+<div class="example">
+<pre class="example">(make-auto-save-file-name)
+     &rArr; &quot;/xcssun/users/rms/lewis/#backups.texi#&quot;
+</pre><pre class="example">(auto-save-file-name-p &quot;#backups.texi#&quot;)
+     &rArr; 0
+</pre><pre class="example">(auto-save-file-name-p &quot;backups.texi&quot;)
+     &rArr; nil
+</pre></div>
+
+<p>この関数の標準的な定義は、以下のようになる:
+</p>
+<div class="example">
+<pre class="example">(defun auto-save-file-name-p (filename)
+  &quot;FILENAMEが以下を満たすなら非nilをリターンする&quot;
+  (string-match &quot;^#.*#$&quot; filename))
+</pre></div>
+
+<p>auto-saveファイルの命名規則規則を変更したいときにカスタマイズできるようにするために、この関数は存在する。これを再定義した場合は、それに対応して関数<code>make-auto-save-file-name</code>も忘れずに再定義すること。
+</p></dd></dl>
+
+<dl>
+<dt id="index-make_002dauto_002dsave_002dfile_002dname">Function: <strong>make-auto-save-file-name</strong></dt>
+<dd><p>この関数は、カレントバッファーの自動保存に使用されるファイル名をリターンする。これは、ファイル名の先頭と末尾にハッシュマーク(&lsquo;<samp>#</samp>&rsquo;)を単に追加する。この関数は、変数<code>auto-save-visited-file-name</code>(以下参照)を調べない。呼び出し側は、まずその変数をチェックするべきである。
+</p>
+<div class="example">
+<pre class="example">(make-auto-save-file-name)
+     &rArr; &quot;/xcssun/users/rms/lewis/#backups.texi#&quot;
+</pre></div>
+
+<p>以下は、この関数の標準的な定義の簡略版である:
+</p>
+<div class="example">
+<pre class="example">(defun make-auto-save-file-name ()
+  &quot;カレントバッファーの自動保存に使用される\
+ファイル名をリターンする&quot;
+  (if buffer-file-name
+</pre><pre class="example">      (concat
+       (file-name-directory buffer-file-name)
+       &quot;#&quot;
+       (file-name-nondirectory buffer-file-name)
+       &quot;#&quot;)
+    (expand-file-name
+     (concat &quot;#%&quot; (buffer-name) &quot;#&quot;))))
+</pre></div>
+
+<p>auto-saveファイルの命名規則をカスタマイズするために再定義できるように、これは独立した関数として存在している。ただし、これに対応した方法で<code>auto-save-file-name-p</code>も忘れずに変更すること。
+</p></dd></dl>
+
+<dl>
+<dt id="index-auto_002dsave_002dvisited_002dfile_002dname">User Option: <strong>auto-save-visited-file-name</strong></dt>
+<dd><p>この変数が非<code>nil</code>の場合、Emacsはvisit中のファイルにバッファーを自動保存する。つまり、自動保存は編集中ファイルと同じファイルにたいして行われる。通常この変数は<code>nil</code>なので、auto-saveファイルは<code>make-auto-save-file-name</code>で作成された別の名前をもつ。
+</p>
+<p>この変数の値を変更した際は、バッファー内でauto-saveモードが再度有効になるまで、既存バッファーにたいして新たな値は効果をもたない。すでにauto-saveモードが有効な場合は、再度<code>auto-save-mode</code>が呼び出されるまで、同じファイルに自動保存が行われる。
+</p></dd></dl>
+
+<dl>
+<dt id="index-recent_002dauto_002dsave_002dp">Function: <strong>recent-auto-save-p</strong></dt>
+<dd><p>この関数は、カレントバッファーが最後に読み込み、または保存されて以降、自動保存されていれば<code>t</code>をリターンする。
+</p></dd></dl>
+
+<dl>
+<dt id="index-set_002dbuffer_002dauto_002dsaved">Function: <strong>set-buffer-auto-saved</strong></dt>
+<dd><p>この関数は、カレントバッファーを自動保存済みとマークする。そのバッファーは、バッファーテキストが再度変更されるまで、自動保存されないだろう。この関数は<code>nil</code>をリターンする。
+</p></dd></dl>
+
+<dl>
+<dt id="index-auto_002dsave_002dinterval">User Option: <strong>auto-save-interval</strong></dt>
+<dd><p>この変数の値は、自動保存の頻度を入力イベント数で指定する。この分の入力イベント読み取りごとに、Emacsは自動保存が有効なすべてのバッファーにたいして、自動保存を行う。これを0にすると、タイプした文字数にもとづく自動保存は無効になる。
+</p></dd></dl>
+
+<dl>
+<dt id="index-auto_002dsave_002dtimeout">User Option: <strong>auto-save-timeout</strong></dt>
+<dd><p>この変数の値は、自動保存が発生すべきidle時間の秒数である。この秒数分ユーザーが休止するたびに、Emacsは自動保存が有効なすべてのバッファーにたいして、自動保存を行う(カレントバッファーが非常に大きい場合、指定されたタイムアウトはサイズ増加とともに増加される因子で乗ぜられる。1MBのバッファーにたいして、この因子はおよそ4である)。
+</p>
+<p>値が0、または<code>nil</code>の場合、idle時間にもとづく自動保存は行われず、<code>auto-save-interval</code>で指定される入力イベント数の後のみ自動保存が行われる。
+</p></dd></dl>
+
+<dl>
+<dt id="index-auto_002dsave_002dhook">Variable: <strong>auto-save-hook</strong></dt>
+<dd><p>このノーマルフックは、自動保存が行われようとするたびに毎回実行される。
+</p></dd></dl>
+
+<dl>
+<dt id="index-auto_002dsave_002ddefault">User Option: <strong>auto-save-default</strong></dt>
+<dd><p>この変数が非<code>nil</code>の場合は、ファイルをvisitするバッファーの自動保存がデフォルトで有効になり、それ以外では有効にならない。
+</p></dd></dl>
+
+<dl>
+<dt id="index-do_002dauto_002dsave">Command: <strong>do-auto-save</strong> <em>&amp;optional no-message current-only</em></dt>
+<dd><p>この関数は、自動保存される必要があるすべてのバッファーを自動保存する。これは自動保存が有効、かつ前回の自動保存以降に変更されたすべてのバッファーを保存する。
+</p>
+<p>いずれかのバッファーが自動保存される場合、通常<code>do-auto-save</code>は自動保存が行われる間、それを示すメッセージ&lsquo;<samp>Auto-saving...</samp>&rsquo;をエコーエリアに表示する。しかし、<var>no-message</var>が非<code>nil</code>の場合、このメッセージは抑制される。
+</p>
+<p><var>current-only</var>が非<code>nil</code>の場合は、カレントバッファーだけが自動保存される。
+</p></dd></dl>
+
+<dl>
+<dt id="index-delete_002dauto_002dsave_002dfile_002dif_002dnecessary">Function: <strong>delete-auto-save-file-if-necessary</strong> <em>&amp;optional force</em></dt>
+<dd><p>この関数は、<code>delete-auto-save-files</code>が非<code>nil</code>なら、カレントバッファーのauto-saveファイルを削除する。これは、バッファー保存時に毎回呼び出される。
+</p>
+<p><var>force</var>が<code>nil</code>の場合、この関数は最後に本当の保存が行われて以降、カレントEmacsセッションにより書き込まれたファイルだけを削除する。
+</p></dd></dl>
+
+<dl>
+<dt id="index-delete_002dauto_002dsave_002dfiles">User Option: <strong>delete-auto-save-files</strong></dt>
+<dd><p>この変数は、関数<code>delete-auto-save-file-if-necessary</code>により使用される。これが非<code>nil</code>の場合、Emacsは(visitされているファイルに)本当に保存が行われたとき、auto-saveファイルを削除する。これはデスク容量を節約し、ディレクトリーを整理する。
+</p></dd></dl>
+
+<dl>
+<dt id="index-rename_002dauto_002dsave_002dfile">Function: <strong>rename-auto-save-file</strong></dt>
+<dd><p>この関数は、visitされているファイルの名前が変更されていれば、カレントバッファーのauto-saveファイルの名前を調整する。これは、カレントEmacsセッションでauto-saveファイルが作成されていれば、既存のauto-saveファイルもリネームする。visitされているファイルの名前が変更されていない場合、この関数は何も行わない。
+</p></dd></dl>
+
+<dl>
+<dt id="index-buffer_002dsaved_002dsize">Variable: <strong>buffer-saved-size</strong></dt>
+<dd><p>このバッファーローカル変数の値は、カレントバッファーが最後に読み取り、保存、または自動保存されたときのバッファーの長さである。これは、サイズの大幅な減少の検知に使用され、それに応じて自動保存がオフに切り替えられる。
+</p>
+<p>-1の場合、それはサイズの大幅な減少により、そのバッファーの自動保存が一時的に停止されていることを意味する。明示的な保存により、この変数に正の値が格納され、自動保存が再び有効になる。自動保存をオフやオンに切り替えることでも、またはこの変数を更新されるので、サイズの大幅な減少は忘れられてしまう。
+</p>
+<p>-2の場合は、そのバッファーがバッファーサイズの変更を無視すべきことを意味する。特に、バッファーサイズの変更により、一時的に自動保存を停止するべきではない。
+</p></dd></dl>
+
+<dl>
+<dt id="index-auto_002dsave_002dlist_002dfile_002dname">Variable: <strong>auto-save-list-file-name</strong></dt>
+<dd><p>この変数は、(非<code>nil</code>の場合は)すべてのauto-saveファイルの名前を記録するファイルを指定する。Emacsが自動保存を行うたびに、そのEmacsは自動保存が有効な各バッファーごとに2行ずつ書き込みを行う。1行目はvisitされているファイルの名前(ファイルをvisitしないバッファーの場合は空)、2行目はauto-saveファイルの名前を示す。
+</p>
+<p>Emacsを正常にexitしたときは、このファイルは削除される。Emacsがクラッシュした場合は、このファイルを調べることにより、失われるはずだった作業を含む、すべてのauto-saveファイルを探すことができる。<code>recover-session</code>コマンドは、それらを見つけるために、このファイルを使用する。
+</p>
+<p>このファイルにたいするデフォルト名は、ユーザーのホームディレクトリーの、&lsquo;<samp>.saves-</samp>&rsquo;で始まるファイルを指定する。この名前には、Emacsのプロセス<acronym>ID</acronym>と、ホスト名も含まれる。
+</p></dd></dl>
+
+<dl>
+<dt id="index-auto_002dsave_002dlist_002dfile_002dprefix">User Option: <strong>auto-save-list-file-prefix</strong></dt>
+<dd><p>initファイルを読み込んだ後、(<code>nil</code>にセット済みでなければ)Emacsはこのプレフィックスにもとづきホスト名とプロセスIDを追加して、<code>auto-save-list-file-name</code>を初期化する。initファイル内でこれを<code>nil</code>にセットした場合、Emacsは<code>auto-save-list-file-name</code>を初期化しない。
+</p></dd></dl>
+
+
+
+
+</body>
+</html>

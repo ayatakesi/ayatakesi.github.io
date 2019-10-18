@@ -1,0 +1,104 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.1.
+
+Copyright (C) 1990-1996, 1998-2018 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>23.7.1.6 インデントルールの指定 (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="23.7.1.6 インデントルールの指定 (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="23.7.1.6 インデントルールの指定 (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="SMIE.html#SMIE" rel="up" title="23.7.1 SMIE: 無邪気なインデントエンジン">
+<link href="SMIE-Indentation-Helpers.html#SMIE-Indentation-Helpers" rel="next" title="23.7.1.7 インデントルールにたいするヘルパー関数">
+<link href="SMIE-Tricks.html#SMIE-Tricks" rel="prev" title="23.7.1.5 非力なパーサーの使用">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="SMIE-Indentation"></span><div class="header">
+<p>
+Next: <a href="SMIE-Indentation-Helpers.html#SMIE-Indentation-Helpers" accesskey="n" rel="next">SMIE Indentation Helpers</a>, Previous: <a href="SMIE-Tricks.html#SMIE-Tricks" accesskey="p" rel="prev">SMIE Tricks</a>, Up: <a href="SMIE.html#SMIE" accesskey="u" rel="up">SMIE</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="indentorurunoZhi-Ding-"></span><h4 class="subsubsection">23.7.1.6 インデントルールの指定</h4>
+<span id="index-indentation-rules_002c-SMIE"></span>
+
+<p>提供された文法にもとづき、他に特別なことを行わなくても、SMIEは自動的なインデントを提供できるでしょう。しかし実際には、このデフォルトのインデントスタイルでは、恐らく十分ではありません。多くの異なる状況において、これを微調整したいと思うかもしれません。
+</p>
+<p>SMIEのインデントは、インデントルールは可能な限りローカルであるべきという考えにもとづきます。<em>バーチャルインデント(virtual
+indentation)</em>という考えによって、この目的を達成します。これは、特定のプログラムポイント(program
+point)は行頭にバーチャルインデントがある場合は、それをもつだろう、という発想です。もちろん、そのプログラムポイントが正に行頭にある場合は、そのプログラムポイントのバーチャルインデントは、プログラムポイントのカレントのインデントです。しかしそうでない場合は、SMIEがそのポイントのバーチャルインデントを計算するために、インデントアルゴリズムを使用します。ところで実際には、あるプログラムポイントのバーチャルインデントは、その前に改行を挿入した場合にプログラムポイントがもつであろうインデントと等しい必要はありません。これが機能する方法を確認するためには、Cにおける<code>{</code>の後のSMIEのインデントルールは、<code>{</code>がインデントする行自体にあるか、あるいは前の行の終端にあるかを配慮しないことが挙げられます。かわりに、これらの異なるケースは、<code>{</code>の前のインデントを決定するインデントルール内で処理されます。
+</p>
+<p>他の重要な考え方として、<em>parent</em>の概念があります。あるトークン<em>parent</em>は、周囲にある直近の構文構造の代表トークン(head
+token)です。たとえば、<code>else</code>のparentは、それが属する<code>if</code>であり、<code>if</code>のparentは周囲を取り囲む構造の先導トークン(lead
+token)です。コマンド<code>backward-sexp</code>は、あるトークンからトークンのparentにジャンプしますが、注意点がいくつかあります。<em>opener</em>(<code>if</code>のような、ある構造を開始するトークン)にたいしては、他のトークンではそのトークンの後のポイントから開始する必要があるのにたいして、opnerではそのトークンの前のポイントから開始する必要があります。<code>backward-sexp</code>はparentトークンがそのトークンの<em>opener</em>の場合はparentトークンの前のポイントで停止し、それ以外ではparentトークンの後のポイントで停止します。
+</p>
+<p>SMIEのインデントルールは、2つの引数<var>method</var>と<var>arg</var>をとる関数により指定されます。ここで<var>arg</var>の値と期待されるリターン値は、<var>method</var>に依存します。
+</p>
+<p><var>method</var>は、以下のいずれかを指定できます:
+</p><ul>
+<li> <code>:after</code>:
+この場合、<var>arg</var>はトークンであり、関数は<var>arg</var>の後に使用するインデントにたいする<var>offset</var>をリターンすべきである。
+</li><li> <code>:before</code>:
+この場合、<var>arg</var>はトークンであり、関数は<var>arg</var>自体に使用するインデントの<var>offset</var>をリターンすべきである。
+</li><li> <code>:elem</code>:
+この場合、関数は関数の引数に使用するインデントのオフセット(<var>arg</var>が<code>arg</code>の場合)、または基本的のインデントステップ(<var>arg</var>が<code>basic</code>の場合)、のいずれかをリターンすべきである。
+</li><li> <code>:list-intro</code>:
+この場合、<var>arg</var>はトークンであり、関数はそのトークンの後が単一の式ではなく、(任意のトークンにより区切られない)式のリストが続く場合は非<code>nil</code>をリターンすべきである。
+</li></ul>
+
+<p><var>arg</var>がトークンのとき、関数はそのトークンの直前のポイントで呼び出されます。リターン値<code>nil</code>は常にデフォルトの振る舞いへのフォールバックを意味するので、関数は期待した引数でないときは<code>nil</code>をリターンするべきです。
+</p>
+<p><var>offset</var>は、以下のいずれかを指定できます:
+</p><ul>
+<li> <code>nil</code>: デフォルトのインデントルールを使用する。
+</li><li> <code>(column . <var>column</var>)</code>: 列<var>column</var>にインデントする。
+</li><li> <var>number</var>: 基本トークン(base token:
+<code>:after</code>にたいするカレントトークンであり、かつ<code>:before</code>にたいしてparentであるようなトークン)にたいして相対的な、<var>number</var>によるオフセット。
+</li></ul>
+
+
+
+
+</body>
+</html>

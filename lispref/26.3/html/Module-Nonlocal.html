@@ -1,0 +1,192 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.3.
+
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>E.8.5 Nonlocal Exits in Modules (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="E.8.5 Nonlocal Exits in Modules (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="E.8.5 Nonlocal Exits in Modules (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" rel="up" title="E.8 Writing Dynamically-Loaded Modules">
+<link href="Object-Internals.html#Object-Internals" rel="next" title="E.9 オブジェクトの内部">
+<link href="Module-Misc.html#Module-Misc" rel="prev" title="E.8.4 Miscellaneous Convenience Functions for Modules">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Module-Nonlocal"></span><div class="header">
+<p>
+Previous: <a href="Module-Misc.html#Module-Misc" accesskey="p" rel="prev">Module Misc</a>, Up: <a href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" accesskey="u" rel="up">Writing Dynamic Modules</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Nonlocal-Exits-in-Modules"></span><h4 class="subsection">E.8.5 Nonlocal Exits in Modules</h4>
+<span id="index-nonlocal-exits_002c-in-modules"></span>
+
+<p>Emacs Lisp supports nonlocal exits, whereby program control is transfered
+from one point in a program to another remote point.  See section <a href="Nonlocal-Exits.html#Nonlocal-Exits">非ローカル脱出</a>.  Thus, Lisp functions called by your module might exit nonlocally by
+calling <code>signal</code> or <code>throw</code>, and your module functions must handle
+such nonlocal exits properly.  Such handling is needed because C programs
+will not automatically release resources and perform other cleanups in these
+cases; your module code must itself do it.  The module <acronym>API</acronym>
+provides facilities for that, described in this subsection.  They are
+generally available since Emacs 25; those of them that became available in
+later releases explicitly call out the first Emacs version where they became
+part of the <acronym>API</acronym>.
+</p>
+<p>When some Lisp code called by a module function signals an error or throws,
+the nonlocal exit is trapped, and the pending exit and its associated data
+are stored in the environment.  Whenever a nonlocal exit is pending in the
+environment, any module <acronym>API</acronym> function called with a pointer to that
+environment will return immediately without any processing (the functions
+<code>non_local_exit_check</code>, <code>non_local_exit_get</code>, and
+<code>non_local_exit_clear</code> are exceptions from this rule).  If your module
+function then does nothing and returns to Emacs, a pending nonlocal exit
+will cause Emacs to act on it: signal an error or throw to the corresponding
+<code>catch</code>.
+</p>
+<p>So the simplest &ldquo;handling&rdquo; of nonlocal exits in module functions is to do
+nothing special and let the rest of your code to run as if nothing
+happened.  However, this can cause two classes of problems:
+</p>
+<ul class="no-bullet">
+<li>- Your module function might use uninitialized or undefined values, since
+<acronym>API</acronym> functions return immediately without producing the expected
+results.
+
+</li><li>- Your module might leak resources, because it might not have the opportunity
+to release them.
+</li></ul>
+
+<p>Therefore, we recommend that your module functions check for nonlocal exit
+conditions and recover from them, using the functions described below.
+</p>
+<dl>
+<dt id="index-emacs_005ffuncall_005fexit">Function: <em>enum</em> <strong>emacs_funcall_exit</strong> <em>non_local_exit_check (emacs_env *<var>env</var>)</em></dt>
+<dd><p>This function returns the kind of nonlocal exit condition stored in
+<var>env</var>.  The possible values are:
+</p>
+<span id="index-emacs_005ffuncall_005fexit_002c-enumeration"></span>
+<dl compact="compact">
+<dt><code>emacs_funcall_exit_return</code>
+<span id="index-emacs_005ffuncall_005fexit_005freturn"></span>
+</dt>
+<dd><p>The last <acronym>API</acronym> function exited normally.
+</p></dd>
+<dt><code>emacs_funcall_exit_signal</code>
+<span id="index-emacs_005ffuncall_005fexit_005fsignal"></span>
+</dt>
+<dd><p>The last <acronym>API</acronym> function signaled an error.
+</p></dd>
+<dt><code>emacs_funcall_exit_throw</code>
+<span id="index-emacs_005ffuncall_005fexit_005fthrow"></span>
+</dt>
+<dd><p>The last <acronym>API</acronym> function exited via <code>throw</code>.
+</p></dd>
+</dl>
+</dd></dl>
+
+<dl>
+<dt id="index-non_005flocal_005fexit_005fget">Function: <em>emacs_funcall_exit</em> <strong>non_local_exit_get</strong> <em>(emacs_env *<var>env</var>, emacs_value *<var>symbol</var>, emacs_value *<var>data</var>)</em></dt>
+<dd><p>This function returns the kind of nonlocal exit condition stored in
+<var>env</var>, like <code>non_local_exit_check</code> does, but it also returns the
+full information about the nonlocal exit, if any.  If the return value is
+<code>emacs_funcall_exit_signal</code>, the function stores the error symbol in
+<code>*<var>symbol</var></code> and the error data in <code>*<var>data</var></code>
+(see section <a href="Signaling-Errors.html#Signaling-Errors">エラーをシグナルする方法</a>).  If the return value is
+<code>emacs_funcall_exit_throw</code>, the function stores the <code>catch</code> tag
+symbol in <code>*<var>symbol</var></code> and the <code>throw</code> value in
+<code>*<var>data</var></code>.  The function doesn&rsquo;t store anything in memory pointed
+by these arguments when the return value is
+<code>emacs_funcall_exit_return</code>.
+</p></dd></dl>
+
+<p>You should check nonlocal exit conditions where it matters: before you
+allocated some resource or after you allocated a resource that might need
+freeing, or where a failure means further processing is impossible or
+infeasible.
+</p>
+<p>Once your module function detected that a nonlocal exit is pending, it can
+either return to Emacs (after performing the necessary local cleanup), or it
+can attempt to recover from the nonlocal exit.  The following <acronym>API</acronym>
+functions will help with these tasks.
+</p>
+<dl>
+<dt id="index-non_005flocal_005fexit_005fclear">Function: <em>void</em> <strong>non_local_exit_clear</strong> <em>(emacs_env *<var>env</var>)</em></dt>
+<dd><p>This function clears the pending nonlocal exit conditions and data from
+<var>env</var>.  After calling it, the module <acronym>API</acronym> functions will work
+normally.  Use this function if your module function can recover from
+nonlocal exits of the Lisp functions it calls and continue, and also before
+calling any of the following two functions (or any other <acronym>API</acronym>
+functions, if you want them to perform their intended processing when a
+nonlocal exit is pending).
+</p></dd></dl>
+
+<dl>
+<dt id="index-non_005flocal_005fexit_005fthrow">Function: <em>void</em> <strong>non_local_exit_throw</strong> <em>(emacs_env *<var>env</var>, emacs_value <var>tag</var>, emacs_value <var>value</var>)</em></dt>
+<dd><p>This function throws to the Lisp <code>catch</code> symbol represented by
+<var>tag</var>, passing it <var>value</var> as the value to return.  Your module
+function should in general return soon after calling this function.  One use
+of this function is when you want to re-throw a non-local exit from one of
+the called <acronym>API</acronym> or Lisp functions.
+</p></dd></dl>
+
+<dl>
+<dt id="index-non_005flocal_005fexit_005fsignal">Function: <em>void</em> <strong>non_local_exit_signal</strong> <em>(emacs_env *<var>env</var>, emacs_value <var>error</var>, emacs_value <var>data</var>)</em></dt>
+<dd><p>This function signals the error represented by <var>error</var> with the
+specified error data <var>data</var>.  The module function should return soon
+after calling this function.  This function could be useful, e.g., for
+signaling errors from module functions to Emacs.
+</p></dd></dl>
+
+
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Module-Misc.html#Module-Misc" accesskey="p" rel="prev">Module Misc</a>, Up: <a href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" accesskey="u" rel="up">Writing Dynamic Modules</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

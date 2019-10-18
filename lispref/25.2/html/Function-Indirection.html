@@ -1,0 +1,143 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 25.2.
+
+Copyright (C) 1990-1996, 1998-2017 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>9.2.4 シンボル関数インダイレクション (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="9.2.4 シンボル関数インダイレクション (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="9.2.4 シンボル関数インダイレクション (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Forms.html#Forms" rel="up" title="9.2 フォームの種類">
+<link href="Function-Forms.html#Function-Forms" rel="next" title="9.2.5 関数フォームの評価">
+<link href="Classifying-Lists.html#Classifying-Lists" rel="prev" title="9.2.3 リストフォームの分類">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Function-Indirection"></span><div class="header">
+<p>
+Next: <a href="Function-Forms.html#Function-Forms" accesskey="n" rel="next">Function Forms</a>, Previous: <a href="Classifying-Lists.html#Classifying-Lists" accesskey="p" rel="prev">Classifying Lists</a>, Up: <a href="Forms.html#Forms" accesskey="u" rel="up">Forms</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="sinboruGuan-Shu-indairekusiyon"></span><h4 class="subsection">9.2.4 シンボル関数インダイレクション</h4>
+<span id="index-symbol-function-indirection"></span>
+<span id="index-indirection-for-functions"></span>
+<span id="index-void-function"></span>
+
+<p>リストの最初の要素がシンボルの場合、評価はそのシンボルの関数セルを調べて、元のシンボルの代わりに、関数セルの内容を使用します。その内容が他のシンボルの場合、シンボルではないものが得られるまで、このプロセスが繰り返されます。このプロセスを<em>シンボル関数インダイレクション(symbol
+function indirection:
+indirectionは間接の意)</em>と呼びます。シンボル関数インダイレクションについての情報は、<a href="Function-Names.html#Function-Names">関数の命名</a>を参照してください。
+</p>
+<p>このプロセスの結果、シンボルの関数競るが同じシンボルを参照する場合、無限ループを起こす可能性があります。それ以外は、最終的には非シンボルにたどりつき、これは関数か、他の適切なオブジェクトであるはずです。
+</p>
+<span id="index-invalid_002dfunction"></span>
+<p>より正確に言うと、それはLisp関数(ラムダ式)、バイトコード関数、基本関数、Lispマクロ、スペシャルフォーム、またはオートロードオブジェクトであるべきです。これらの型のそれぞれについては、以降のセクションで説明します。これらの型以外のオブジェクトの場合、emacsは<code>invalid-function</code>エラーをシグナルします。
+</p>
+<p>以下の例は、シンボルインダイレクションのプロセスを説明するものです。わたしたちは、シンボルの関数セルに関数をセットするのに<code>fset</code>、関数セルの内容(<a href="Function-Cells.html#Function-Cells">関数セルの内容へのアクセス</a>を参照してください)を得るために<code>symbol-function</code>を使用します。具体的に言うと、<code>first</code>の関数セルにシンボル<code>car</code>を格納し、シンボル<code>first</code>を<code>erste</code>の関数セルに格納します。
+</p>
+<div class="example">
+<pre class="example">;; <span class="roman">この関数セルのリンクを構築する:</span>
+;;   -------------       -----        -------        -------
+;;  | #&lt;subr car&gt; | &lt;-- | car |  &lt;-- | first |  &lt;-- | erste |
+;;   -------------       -----        -------        -------
+</pre><pre class="example">(symbol-function 'car)
+     &rArr; #&lt;subr car&gt;
+</pre><pre class="example">(fset 'first 'car)
+     &rArr; car
+</pre><pre class="example">(fset 'erste 'first)
+     &rArr; first
+</pre><pre class="example">(erste '(1 2 3))   ; <span class="roman"><code>erste</code>により参照される関数を呼び出す。</span>
+     &rArr; 1
+</pre></div>
+
+<p>対照的に、以下の例はシンボル関数インダイレクションを使用せずに関数を呼び出します。なぜなら、1番目の要素はシンボルではなく、無名Lisp関数(anonymous
+Lisp function)だからです。
+</p>
+<div class="example">
+<pre class="example">((lambda (arg) (erste arg))
+ '(1 2 3))
+     &rArr; 1
+</pre></div>
+
+<p>関数自身を実行すると、その関数のbodyを評価します。これは、<code>erste</code>を呼び出すとき、シンボル関数インダイレクションが行なわれます。
+</p>
+<p>このフォームが使用されるのは稀で、今では推奨されません。かわりに以下のように記述するべきです:
+</p>
+<div class="example">
+<pre class="example">(funcall (lambda (arg) (erste arg))
+         '(1 2 3))
+</pre></div>
+<p>または単に
+</p><div class="example">
+<pre class="example">(let ((arg '(1 2 3))) (erste arg))
+</pre></div>
+
+<p>ビルトイン関数の<code>indirect-function</code>は、明示的にシンボル関数インダイレクションを処理するための、簡単な方法を提供します。
+</p>
+<dl>
+<dt id="index-indirect_002dfunction">Function: <strong>indirect-function</strong> <em>function &amp;optional noerror</em></dt>
+<dd><span id="Definition-of-indirect_002dfunction"></span><p>この関数は、<var>function</var>が意味するものを、関数としてreturnします。<var>function</var>がシンボルの場合は、<var>function</var>の関数定義を探して、その値で最初からやり直します。<var>function</var>がシンボルでない場合は、<var>function</var>自身をreturnします。
+</p>
+<p>This function returns <code>nil</code> if the final symbol is unbound.  It signals
+a <code>cyclic-function-indirection</code> error if there is a loop in the chain
+of symbols.
+</p>
+<p>The optional argument <var>noerror</var> is obsolete, kept for backward
+compatibility, and has no effect.
+</p>
+<p>以下は、Lispで<code>indirect-function</code>を定義できるという例です:
+</p>
+<div class="example">
+<pre class="example">(defun indirect-function (function)
+  (if (symbolp function)
+      (indirect-function (symbol-function function))
+    function))
+</pre></div>
+</dd></dl>
+
+
+
+
+</body>
+</html>

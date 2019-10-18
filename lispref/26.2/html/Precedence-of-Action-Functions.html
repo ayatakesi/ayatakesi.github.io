@@ -1,0 +1,358 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.2.
+
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>28.13.5 Precedence of Action Functions (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="28.13.5 Precedence of Action Functions (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="28.13.5 Precedence of Action Functions (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Displaying-Buffers.html#Displaying-Buffers" rel="up" title="28.13 Displaying a Buffer in a Suitable Window">
+<link href="The-Zen-of-Buffer-Display.html#The-Zen-of-Buffer-Display" rel="next" title="28.13.6 The Zen of Buffer Display">
+<link href="Choosing-Window-Options.html#Choosing-Window-Options" rel="prev" title="28.13.4 Additional Options for Displaying Buffers">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Precedence-of-Action-Functions"></span><div class="header">
+<p>
+Next: <a href="The-Zen-of-Buffer-Display.html#The-Zen-of-Buffer-Display" accesskey="n" rel="next">The Zen of Buffer Display</a>, Previous: <a href="Choosing-Window-Options.html#Choosing-Window-Options" accesskey="p" rel="prev">Choosing Window Options</a>, Up: <a href="Displaying-Buffers.html#Displaying-Buffers" accesskey="u" rel="up">Displaying Buffers</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Precedence-of-Action-Functions-1"></span><h4 class="subsection">28.13.5 Precedence of Action Functions</h4>
+<span id="index-precedence-of-buffer-display-action-functions"></span>
+<span id="index-execution-order-of-buffer-display-action-functions"></span>
+<span id="index-buffer-display-action-functions_002c-precedence"></span>
+
+<p>From the past subsections we already know that <code>display-buffer</code> must be
+supplied with a number of display actions (see section <a href="Choosing-Window.html#Choosing-Window">Choosing a Window for Displaying a Buffer</a>) in order
+to display a buffer.  In a completely uncustomized Emacs, these actions are
+specified by <code>display-buffer-fallback-action</code> in the following order of
+precedence: Reuse a window, pop up a new window on the same frame, use a
+window previously showing the buffer, use some window and pop up a new
+frame.  (Note that the remaining actions named by
+<code>display-buffer-fallback-action</code> are void in an uncustomized Emacs).
+</p>
+<p>Consider the following form:
+</p>
+<div class="example">
+<pre class="example">(display-buffer (get-buffer-create &quot;*foo*&quot;))
+</pre></div>
+
+<p>Evaluating this form in the buffer <samp>*scratch*</samp> of an uncustomized Emacs
+session will usually fail to reuse a window that shows <samp>*foo*</samp> already,
+but succeed in popping up a new window.  Evaluating the same form again will
+now not cause any visible changes&mdash;<code>display-buffer</code> reused the window
+already showing <samp>*foo*</samp> because that action was applicable and had the
+highest precedence among all applicable actions.
+</p>
+<p>Popping up a new window will fail if there is not enough space on the
+selected frame.  In an uncustomized Emacs it typically fails when there are
+already two windows on a frame.  For example, if you now type <kbd><span class="nolinebreak">C-x</span>&nbsp;1</kbd><!-- /@w --> followed by <kbd><span class="nolinebreak">C-x</span>&nbsp;2</kbd><!-- /@w --> and evaluate the form once more,
+<samp>*foo*</samp> should show up in the lower window&mdash;<code>display-buffer</code> just
+used &ldquo;some&rdquo; window.  If, before typing <kbd><span class="nolinebreak">C-x</span>&nbsp;2</kbd><!-- /@w --> you had typed
+<kbd><span class="nolinebreak">C-x</span>&nbsp;o</kbd><!-- /@w -->, <samp>*foo*</samp> would have been shown in the upper window
+because &ldquo;some&rdquo; window stands for the &ldquo;least recently used&rdquo; window and
+the selected window has been least recently used if and only if it is alone
+on its frame.
+</p>
+<p>Let&rsquo;s assume you did not type <kbd><span class="nolinebreak">C-x</span>&nbsp;o</kbd><!-- /@w --> and <samp>*foo*</samp> is shown in
+the lower window.  Type <kbd><span class="nolinebreak">C-x</span>&nbsp;o</kbd><!-- /@w --> to get there followed by <kbd><span class="nolinebreak">C-x</span>&nbsp;left</kbd><!-- /@w --> and evaluate the form again.  This should display <samp>*foo*</samp> in the
+same, lower window because that window had already shown <samp>*foo*</samp>
+previously and was therefore chosen instead of some other window.
+</p>
+<p>So far we have only observed the default behavior in an uncustomized Emacs
+session.  To see how this behavior can be customized, let&rsquo;s consider the
+option <code>display-buffer-base-action</code>.  It provides a very coarse
+customization which conceptually affects the display of <em>any</em> buffer.
+It can be used to supplement the actions supplied by
+<code>display-buffer-fallback-action</code> by reordering them or by adding
+actions that are not present there but fit more closely the user&rsquo;s editing
+practice.  However, it can also be used to change the default behavior in a
+more profound way.
+</p>
+<p>Let&rsquo;s consider a user who, as a rule, prefers to display buffers on another
+frame.  Such a user might provide the following customization:
+</p>
+<div class="example">
+<pre class="example">(customize-set-variable
+ 'display-buffer-base-action
+ '((display-buffer-reuse-window display-buffer-pop-up-frame)
+   (reusable-frames . 0)))
+</pre></div>
+
+<p>This setting will cause <code>display-buffer</code> to first try to find a window
+showing the buffer on a visible or iconified frame and, if no such frame
+exists, pop up a new frame.  You can observe this behavior on a graphical
+system by typing <kbd><span class="nolinebreak">C-x</span>&nbsp;1</kbd><!-- /@w --> in the window showing <samp>*scratch*</samp> and
+evaluating our canonical <code>display-buffer</code> form.  This will usually
+create (and give focus to) a new frame whose root window shows
+<samp>*foo*</samp>.  Iconify that frame and evaluate the canonical form again:
+<code>display-buffer</code> will reuse the window on the new frame (usually
+raising the frame and giving it focus too).
+</p>
+<p>Only if creating a new frame fails, <code>display-buffer</code> will apply the
+actions supplied by <code>display-buffer-fallback-action</code> which means to
+again try reusing a window, popping up a new window and so on.  A trivial
+way to make frame creation fail is supplied by the following form:
+</p>
+<div class="example">
+<pre class="example">(let ((pop-up-frame-function 'ignore))
+  (display-buffer (get-buffer-create &quot;*foo*&quot;)))
+</pre></div>
+
+<p>We will forget about that form immediately after observing that it fails to
+create a new frame and uses a fallback action instead.
+</p>
+<p>Note that <code>display-buffer-reuse-window</code> appears redundant in the
+customization of <code>display-buffer-base-action</code> because it is already
+part of <code>display-buffer-fallback-action</code> and should be tried there
+anyway.  However, that would fail because due to the precedence of
+<code>display-buffer-base-action</code> over
+<code>display-buffer-fallback-action</code>, at that time
+<code>display-buffer-pop-up-frame</code> would have already won the race.  In
+fact, this:
+</p>
+<div class="example">
+<pre class="example">(customize-set-variable
+ 'display-buffer-base-action
+ '(display-buffer-pop-up-frame (reusable-frames . 0)))
+</pre></div>
+
+<p>would cause <code>display-buffer</code> to <em>always</em> pop up a new frame which
+is probably not what our user wants.
+</p>
+<p>So far, we have only shown how <em>users</em> can customize the default
+behavior of <code>display-buffer</code>.  Let us now see how <em>applications</em>
+can change the course of <code>display-buffer</code>.  The canonical way to do
+that is to use the <var>action</var> argument of <code>display-buffer</code> or a
+function that calls it, like, for example, <code>pop-to-buffer</code>
+(see section <a href="Switching-Buffers.html#Switching-Buffers">ウィンドウ内のバッファーへの切り替え</a>).
+</p>
+<p>Suppose an application wants to display <samp>*foo*</samp> preferably below the
+selected window (to immediately attract the attention of the user to the new
+window) or, if that fails, in a window at the bottom of the frame.  It could
+do that with a call like this:
+</p>
+<div class="example">
+<pre class="example">(display-buffer
+ (get-buffer-create &quot;*foo*&quot;)
+ '((display-buffer-below-selected display-buffer-at-bottom)))
+</pre></div>
+
+<p>In order to see how this new, modified form works, delete any frame showing
+<samp>*foo*</samp>, type <kbd><span class="nolinebreak">C-x</span>&nbsp;1</kbd><!-- /@w --> followed by <kbd><span class="nolinebreak">C-x</span>&nbsp;2</kbd><!-- /@w --> in the window
+showing <samp>*scratch*</samp>, and subsequently evaluate that form.
+<code>display-buffer</code> should split the upper window, and show <samp>*foo*</samp>
+in the new window.  Alternatively, if after <kbd><span class="nolinebreak">C-x</span>&nbsp;2</kbd><!-- /@w --> you had typed
+<kbd><span class="nolinebreak">C-x</span>&nbsp;o</kbd><!-- /@w -->, <code>display-buffer</code> would have split the window at the
+bottom instead.
+</p>
+<p>Suppose now that, before evaluating the new form, you have made the selected
+window as small as possible, for example, by evaluating the form
+<code>(fit-window-to-buffer)</code> in that window.  In that case,
+<code>display-buffer</code> would have failed to split the selected window and
+would have split the frame&rsquo;s root window instead, effectively displaying
+<samp>*foo*</samp> at the bottom of the frame.
+</p>
+<p>In either case, evaluating the new form a second time should reuse the
+window already showing <samp>*foo*</samp> since both functions supplied by the
+<var>action</var> argument try to reuse such a window first.
+</p>
+<p>By setting the <var>action</var> argument, an application effectively overrules
+any customization of <code>display-buffer-base-action</code>.  Our user can now
+either accept the choice of the application, or redouble by customizing the
+option <code>display-buffer-alist</code> as follows:
+</p>
+<div class="example">
+<pre class="example">(customize-set-variable
+ 'display-buffer-alist
+ '((&quot;\\*foo\\*&quot;
+    (display-buffer-reuse-window display-buffer-pop-up-frame))))
+</pre></div>
+
+<p>Trying this with the new, modified form above in a configuration that does
+not show <samp>*foo*</samp> anywhere, will display <samp>*foo*</samp> on a separate
+frame, completely ignoring the <var>action</var> argument of
+<code>display-buffer</code>.
+</p>
+<p>Note that we didn&rsquo;t care to specify a <code>reusable-frames</code> action alist
+entry in our specification of <code>display-buffer-alist</code>.
+<code>display-buffer</code> always takes the first one it finds&mdash;in our case the
+one specified by <code>display-buffer-base-action</code>.  If we wanted to use a
+different specification, for example, to exclude iconified frames showing
+<samp>*foo*</samp> from the list of reusable ones, we would have to specify that
+separately, however:
+</p>
+<div class="example">
+<pre class="example">(customize-set-variable
+ 'display-buffer-alist
+ '((&quot;\\*foo\\*&quot;
+    (display-buffer-reuse-window display-buffer-pop-up-frame)
+    (reusable-frames . visible))))
+</pre></div>
+
+<p>If you try this, you will notice that repeated attempts to display
+<samp>*foo*</samp> will succeed to reuse a frame only if that frame is visible.
+</p>
+<p>The above example would allow the conclusion that users customize
+<code>display-buffer-alist</code> for the sole purpose to overrule the
+<var>action</var> argument chosen by applications.  Such a conclusion would be
+incorrect.  <code>display-buffer-alist</code> is the standard option for users to
+direct the course of display of specific buffers in a preferred way
+regardless of whether the display is also guided by an <var>action</var>
+argument.
+</p>
+<p>We can, however, reasonably conclude that customizing
+<code>display-buffer-alist</code> differs from customizing
+<code>display-buffer-base-action</code> in two major aspects: it is stronger
+because it overrides the <var>action</var> argument of <code>display-buffer</code>, and
+it allows to explicitly specify the affected buffers.  In fact, displaying
+other buffers is not affected in any way by a customization for
+<samp>*foo*</samp>.  For example,
+</p>
+<div class="example">
+<pre class="example">(display-buffer (get-buffer-create &quot;*bar*&quot;))
+</pre></div>
+
+<p>continues being governed by the settings of
+<code>display-buffer-base-action</code> and <code>display-buffer-fallback-action</code>
+only.
+</p>
+<p>We could stop with our examples here but Lisp programs still have an ace up
+their sleeves which they can use to overrule any customization of
+<code>display-buffer-alist</code>.  It&rsquo;s the variable
+<code>display-buffer-overriding-action</code> which they can bind around
+<code>display-buffer</code> calls as follows:
+</p>
+<div class="example">
+<pre class="example">(let ((display-buffer-overriding-action
+       '((display-buffer-same-window))))
+  (display-buffer
+   (get-buffer-create &quot;*foo*&quot;)
+   '((display-buffer-below-selected display-buffer-at-bottom))))
+</pre></div>
+
+<p>Evaluating this form will usually display <samp>*foo*</samp> in the selected
+window regardless of the <var>action</var> argument and any user customizations.
+(Usually, an application will not bother to also provide an <var>action</var>
+argument.  Here it just serves to illustrate the fact that it gets
+overridden.)
+</p>
+<p>It might be illustrative to look at the list of action functions
+<code>display-buffer</code> would have tried to display <samp>*foo*</samp> with the
+customizations we provided here.  The list (including comments explaining
+who added this and the subsequent elements) is:
+</p>
+<div class="example">
+<pre class="example">(display-buffer-same-window  ;; `display-buffer-overriding-action'
+ display-buffer-reuse-window ;; `display-buffer-alist'
+ display-buffer-pop-up-frame
+ display-buffer-below-selected ;; ACTION argument
+ display-buffer-at-bottom
+ display-buffer-reuse-window ;; `display-buffer-base-action'
+ display-buffer-pop-up-frame
+ display-buffer--maybe-same-window ;; `display-buffer-fallback-action'
+ display-buffer-reuse-window
+ display-buffer--maybe-pop-up-frame-or-window
+ display-buffer-in-previous-window
+ display-buffer-use-some-window
+ display-buffer-pop-up-frame)
+</pre></div>
+
+<p>Note that among the internal functions listed here,
+<code>display-buffer--maybe-same-window</code> is effectively ignored while
+<code>display-buffer--maybe-pop-up-frame-or-window</code> actually runs
+<code>display-buffer-pop-up-window</code>.
+</p>
+<p>The action alist passed in each function call is:
+</p>
+<div class="example">
+<pre class="example">((reusable-frames . visible)
+ (reusable-frames . 0))
+</pre></div>
+
+<p>which shows that we have used the second specification of
+<code>display-buffer-alist</code> above, overriding the specification supplied by
+<code>display-buffer-base-action</code>.  Suppose our user had written that as
+</p>
+<div class="example">
+<pre class="example">(customize-set-variable
+ 'display-buffer-alist
+ '((&quot;\\*foo\\*&quot;
+    (display-buffer-reuse-window display-buffer-pop-up-frame)
+    (inhibit-same-window . t)
+    (reusable-frames . visible))))
+</pre></div>
+
+<p>In this case the <code>inhibit-same-window</code> alist entry will successfully
+invalidate the <code>display-buffer-same-window</code> specification from
+<code>display-buffer-overriding-action</code> and <code>display-buffer</code> will show
+<samp>*foo*</samp> on another frame.  To make
+<code>display-buffer-overriding-action</code> more robust in this regard, the
+application would have to specify an appropriate <code>inhibit-same-window</code>
+entry too, for example, as follows:
+</p>
+<div class="example">
+<pre class="example">(let ((display-buffer-overriding-action
+       '(display-buffer-same-window (inhibit-same-window . nil))))
+  (display-buffer (get-buffer-create &quot;*foo*&quot;)))
+</pre></div>
+
+<p>This last example shows that while the precedence order of action functions
+is fixed, as described in <a href="Choosing-Window.html#Choosing-Window">Choosing a Window for Displaying a Buffer</a>, an action alist entry
+specified by a display action ranked lower in that order can affect the
+execution of a higher ranked display action.
+</p>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="The-Zen-of-Buffer-Display.html#The-Zen-of-Buffer-Display" accesskey="n" rel="next">The Zen of Buffer Display</a>, Previous: <a href="Choosing-Window-Options.html#Choosing-Window-Options" accesskey="p" rel="prev">Choosing Window Options</a>, Up: <a href="Displaying-Buffers.html#Displaying-Buffers" accesskey="u" rel="up">Displaying Buffers</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

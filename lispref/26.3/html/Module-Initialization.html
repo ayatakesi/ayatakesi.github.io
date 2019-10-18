@@ -1,0 +1,182 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.3.
+
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>E.8.1 Module Initialization Code (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="E.8.1 Module Initialization Code (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="E.8.1 Module Initialization Code (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" rel="up" title="E.8 Writing Dynamically-Loaded Modules">
+<link href="Module-Functions.html#Module-Functions" rel="next" title="E.8.2 Writing Module Functions">
+<link href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" rel="prev" title="E.8 Writing Dynamically-Loaded Modules">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Module-Initialization"></span><div class="header">
+<p>
+Next: <a href="Module-Functions.html#Module-Functions" accesskey="n" rel="next">Module Functions</a>, Up: <a href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" accesskey="u" rel="up">Writing Dynamic Modules</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Module-Initialization-Code"></span><h4 class="subsection">E.8.1 Module Initialization Code</h4>
+<span id="index-module-initialization"></span>
+
+<p>Begin your module by including the header file <samp>emacs-module.h</samp> and
+defining the GPL compatibility symbol:
+</p>
+<div class="example">
+<pre class="example">#include &lt;emacs-module.h&gt;
+
+int plugin_is_GPL_compatible;
+</pre></div>
+
+<p>The <samp>emacs-module.h</samp> file is installed into your system&rsquo;s include tree
+as part of the Emacs installation.  Alternatively, you can find it in the
+Emacs source tree.
+</p>
+<span id="module-initialization-function"></span><p>Next, write an initialization function for the module.
+</p>
+<dl>
+<dt id="index-emacs_005fmodule_005finit-1">Function: <em>int</em> <strong>emacs_module_init</strong> <em>(struct emacs_runtime *<var>runtime</var>)</em></dt>
+<dd><p>Emacs calls this function when it loads a module.  If a module does not
+export a function named <code>emacs_module_init</code>, trying to load the module
+will signal an error.  The initialization function should return zero if the
+initialization succeeds, non-zero otherwise.  In the latter case, Emacs will
+signal an error, and the loading of the module will fail.  If the user
+presses <kbd>C-g</kbd> during the initialization, Emacs ignores the return value
+of the initialization function and quits (see section <a href="Quitting.html#Quitting">quit</a>).  (If needed,
+you can catch user quitting inside the initialization function,
+see <a href="Module-Misc.html#should_005fquit">should_quit</a>.)
+</p>
+<p>The argument <var>runtime</var> is a pointer to a C <code>struct</code> that includes 2
+public fields: <code>size</code>, which provides the size of the structure in
+bytes; and <code>get_environment</code>, which provides a pointer to a function
+that allows the module initialization function access to the Emacs
+environment object and its interfaces.
+</p>
+<p>The initialization function should perform whatever initialization is
+required for the module.  In addition, it can perform the following tasks:
+</p>
+<dl compact="compact">
+<dd><span id="index-compatibility_002c-between-modules-and-Emacs"></span>
+</dd>
+<dt>Compatibility verification</dt>
+<dd><p>A module can verify that the Emacs executable which loads the module is
+compatible with the module, by comparing the <code>size</code> member of the
+<var>runtime</var> structure with the value compiled into the module:
+</p>
+<div class="example">
+<pre class="example">int
+emacs_module_init (struct emacs_runtime *ert)
+{
+  if (ert-&gt;size &lt; sizeof (*ert))
+    return 1;
+}
+</pre></div>
+
+<p>If the size of the runtime object passed to the module is smaller than what
+it expects, it means the module was compiled for an Emacs version newer
+(later) than the one which attempts to load it, i.e. the module might be
+incompatible with the Emacs binary.
+</p>
+<p>In addition, a module can verify the compatibility of the module
+<acronym>API</acronym> with what the module expects.  The following sample code
+assumes it is part of the <code>emacs_module_init</code> function shown above:
+</p>
+<div class="example">
+<pre class="example">  emacs_env *env = ert-&gt;get_environment (ert);
+  if (env-&gt;size &lt; sizeof (*env))
+    return 2;
+</pre></div>
+
+<p><span id="index-module-runtime-environment"></span>
+This calls the <code>get_environment</code> function using the pointer provided in
+the <code>runtime</code> structure to retrieve a pointer to the <acronym>API</acronym>&rsquo;s
+<em>environment</em>, a C <code>struct</code> which also has a <code>size</code> field
+holding the size of the structure in bytes.
+</p>
+<p>Finally, you can write a module that will work with older versions of Emacs,
+by comparing the size of the environment passed by Emacs with known sizes,
+like this:
+</p>
+<div class="example">
+<pre class="example">  emacs_env *env = ert-&gt;get_environment (ert);
+  if (env-&gt;size &gt;= sizeof (struct emacs_env_26))
+    emacs_version = 26;  /* Emacs 26 or later.  */
+  else if (env-&gt;size &gt;= sizeof (struct emacs_env_25))
+    emacs_version = 25;
+  else
+    return 2; /* Unknown or unsupported version.  */
+</pre></div>
+
+<p>This works because later Emacs versions always <em>add</em> members to the
+environment, never <em>remove</em> any members, so the size can only grow with
+new Emacs releases.  Given the version of Emacs, the module can use only the
+parts of the module <acronym>API</acronym> that existed in that version, since those
+parts are identical in later versions.
+</p>
+<p>We recommend that modules always perform the compatibility verification,
+unless they do their job entirely in the initialization function, and don&rsquo;t
+access any Lisp objects or use any Emacs functions accessible through the
+environment structure.
+</p>
+</dd>
+<dt>Binding module functions to Lisp symbols</dt>
+<dd><p>This gives the module functions names so that Lisp code could call it by
+that name.  We describe how to do this in <a href="Module-Functions.html#Module-Functions">Writing Module Functions</a> below.
+</p></dd>
+</dl>
+</dd></dl>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Module-Functions.html#Module-Functions" accesskey="n" rel="next">Module Functions</a>, Up: <a href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" accesskey="u" rel="up">Writing Dynamic Modules</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

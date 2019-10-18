@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 26.3.
+
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>16.7 名前つき機能 (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="16.7 名前つき機能 (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="16.7 名前つき機能 (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Loading.html#Loading" rel="up" title="16 ロード">
+<link href="Where-Defined.html#Where-Defined" rel="next" title="16.8 どのファイルで特定のシンボルが定義されているか">
+<link href="Repeated-Loading.html#Repeated-Loading" rel="prev" title="16.6 多重ロード">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Named-Features"></span><div class="header">
+<p>
+Next: <a href="Where-Defined.html#Where-Defined" accesskey="n" rel="next">Where Defined</a>, Previous: <a href="Repeated-Loading.html#Repeated-Loading" accesskey="p" rel="prev">Repeated Loading</a>, Up: <a href="Loading.html#Loading" accesskey="u" rel="up">Loading</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Ming-Qian-tukiJi-Neng-"></span><h3 class="section">16.7 名前つき機能</h3>
+<span id="index-features"></span>
+<span id="index-requiring-features"></span>
+<span id="index-providing-features"></span>
+
+<p><code>provide</code>と<code>require</code>は、<code>autoload</code>にかわるファイルを自動的にロードする関数です。これらは名前付きの<em>フィーチャ(feature:
+機能)</em>という面で機能します。オートロードは特定の関数の呼び出しをトリガーにしますが、フィーチャーは最初は他のプログラムが名前により問い合わせたときにロードされます。
+</p>
+<p>フィーチャ名とは、関数、変数などのコレクションを表すシンボルです。これらを定義するファイルは、そのフィーチャを<em>プロバイド(provide:
+提供)</em>すべきです。これらのフィーチャを使用する他のプログラムは、その機能を<em>リクワイア(require:
+要求)</em>することにより、それらが定義されているか確認できるでしょう。これは、定義がまだロードされていなければ、定義ファイルをロードします。
+</p>
+<span id="index-load-error-with-require"></span>
+<p>フィーチャをリクワイアするには、フィーチャ名を引数として<code>require</code>を呼び出します。<code>require</code>は、意図する機能がすでにプロバイドされているか確認するために、グローバル変数<code>features</code>を調べます。もしプロバイドされていなければ、適切なファイルからそのフィーチャをロードします。このファイルは、そのフィーチャを<code>features</code>に追加するために、トップレベルで<code>provide</code>を呼び出すべきです。これに失敗すると、<code>require</code>はエラーをシグナルします。
+</p>
+<p>たとえば、<samp>idlwave.el</samp>内の<code>idlwave-complete-filename</code>にたいする定義には、以下のコードが含まれます:
+</p>
+<div class="example">
+<pre class="example">(defun idlwave-complete-filename ()
+  &quot;Use the comint stuff to complete a file name.&quot;
+   (require 'comint)
+   (let* ((comint-file-name-chars &quot;~/A-Za-z0-9+@:_.$#%={}\\-&quot;)
+          (comint-completion-addsuffix nil)
+          ...)
+       (comint-dynamic-complete-filename)))
+</pre></div>
+
+<p>式<code>(require
+'comint)</code>は、<samp>comint.el</samp>がまだロードされていなければ、<code>comint-dynamic-complete-filename</code>が確実に定義されるように、そのファイルをロードします。フィーチャは通常、それらを提供するファイルにしたがって命名されるため、<code>require</code>にファイル名を与える必要はありません。(<code>require</code>命令文が<code>let</code>のボディーの外側にあるのが重要なことに注意してください。変数がletバインドされているライブラリーをロードすることにより、意図せぬ結果、つまりletをexitした後にその変数がアンバインドされます。)
+</p>
+<p><samp>comint.el</samp>には以下のトップレベル式が含まれます:
+</p>
+<div class="example">
+<pre class="example">(provide 'comint)
+</pre></div>
+
+<p>これは<code>comint</code>はグローバルなリスト<code>features</code>に追加するので、<code>(require
+'comint)</code>は今後何も行う必要がないことを知ることができます。
+</p>
+<span id="index-byte_002dcompiling-require"></span>
+<p>ファイルのトップレベル<code>require</code>が使用されたときは、それをロードしたときと同様、そのファイルをバイトコンパイル(<a href="Byte-Compilation.html#Byte-Compilation">バイトコンパイル</a>を参照)したときにも効果が表れます。これはリクワイアされたパッケージがマクロを含み、バイトコンパイラーがそれを知らなければならない場合です。これは<code>require</code>によりロードされるファイルで定義される関数と変数にたいするバイトコンパイラーの警告も無効にします。
+</p>
+<p>バイトコンパイルの間にトップレベルの<code>require</code>が評価されるとしても、<code>provide</code>呼び出しは評価されません。したがって、以下の例のように<code>provide</code>の後に同じ機能にたいする<code>require</code>を含めることにより、バイトコンパイル前に定義しているファイルを確実にロードできます。
+</p>
+<div class="example">
+<pre class="example">(provide 'my-feature)  ; <span class="roman">バイトコンパイラーには無視され、</span>
+                       ;   <span class="roman"><code>load</code>には評価される。</span>
+(require 'my-feature)  ; <span class="roman">バイトコンパイラーにより評価される。</span>
+</pre></div>
+
+<p>コンパイラーは<code>provide</code>を無視して、その後に対象のファイルをロードすることにより<code>require</code>が処理されます。ファイルのロードは<code>provide</code>呼び出しを実行するので、後続の<code>require</code>はファイルがロードされているときは何も行いません。
+</p>
+<dl>
+<dt id="index-provide">Function: <strong>provide</strong> <em>feature &amp;optional subfeatures</em></dt>
+<dd><p>この関数は、カレントEmacsセッションに<var>feature</var>がロードされた、あるいはロードされつつあることをアナウンスします。これは、<var>feature</var>に関連する機能が他のLispプログラムから利用可能できる、あるいは利用可能になることを意味します。
+</p>
+<p>The direct effect of calling <code>provide</code> is to add <var>feature</var> to the
+front of <code>features</code> if it is not already in that list and call any
+<code>eval-after-load</code> code waiting for it (see section <a href="Hooks-for-Loading.html#Hooks-for-Loading">ロードのためのフック</a>).  The
+argument <var>feature</var> must be a symbol.  <code>provide</code> returns
+<var>feature</var>.
+</p>
+<p><var>subfeatures</var>が与えられた場合、それは<var>feature</var>の当該バージョンによりプロバイドされる特定のサブフィーチャのセットを示すシンボルのリストであるべきです。<code>featurep</code>を使用して、サブフィーチャの存在をテストできます。あるパッケージの、ロードされるか、あるいはそのバージョンに存在するか不明なさまざまな部分や機能に名前を与えて使いやすくするには、そのパッケージが複雑すぎるときにサブフィーチャを使用するというのがサブフィーチャというアイデアです。例としては、<a href="Network-Feature-Testing.html#Network-Feature-Testing">ネットワーク機能の可用性のテスト</a>を参照してください。
+</p>
+<div class="example">
+<pre class="example">features
+     &rArr; (bar bish)
+
+(provide 'foo)
+     &rArr; foo
+features
+     &rArr; (foo bar bish)
+</pre></div>
+
+<p>オートロードによりあるファイルがロードされて、その内容の評価エラーによりストップいたとき、そのロードの間に発生した関数定義や<code>provide</code>呼び出しはアンドゥされます。<a href="Autoload.html#Autoload">autoload</a>を参照してください。
+</p></dd></dl>
+
+<dl>
+<dt id="index-require">Function: <strong>require</strong> <em>feature &amp;optional filename noerror</em></dt>
+<dd><p>この関数はカレントEmacsセッションにおいて、<var>feature</var>が存在するかどうかを、(<code>(featurep
+<var>feature</var>)</code>を使用して。以下を参照)をチェックします。引数<var>feature</var>はシンボルでなければなりません。
+</p>
+<p>そのフィーチャが存在しない場合、<code>require</code>は<code>load</code>により<var>filename</var>をロードします。<var>filename</var>が与えられなかった場合は、シンボル<var>feature</var>の名前がロードするファイル名のベースとして使用されます。しかしこの場合、<code>require</code>は<var>feature</var>を探すためにサフィックス&lsquo;<samp>.el</samp>&rsquo;および&lsquo;<samp>.elc</samp>&rsquo;の追加を強制します(圧縮ファイルのサフィックスに拡張されるかもしれません)。名前がただの<var>feature</var>というファイルは使用されません。(変数<code>load-suffixes</code>は要求されるLispサフィックスを正確に指定します。)
+</p>
+<p><var>noerror</var>が非<code>nil</code>の場合は、ファイルの実際のロードにおけるエラーを抑止します。この場合、そのファイルのロードが失敗すると、<code>require</code>は<code>nil</code>をリターンします。通常では、<code>require</code>は<var>feature</var>をリターンします。
+</p>
+<p>If loading the file succeeds but does not provide <var>feature</var>,
+<code>require</code> signals an error about the missing feature.
+</p></dd></dl>
+
+<dl>
+<dt id="index-featurep">Function: <strong>featurep</strong> <em>feature &amp;optional subfeature</em></dt>
+<dd><p>この関数は、カレントEmacsセッション<var>feature</var>がプロバイドされている場合(たとえば<var>feature</var><code>features</code>のメンバーの場合)は<code>t</code>をリターンします。<var>subfeature</var>が非<code>nil</code>の場合、この関数はサブフィーチャも同様にプロバイドされているとき(たとえば<var>subfeature</var>がシンボル<var>feature</var>のプロパティ<code>subfeature</code>のメンバーのとき)だけ<code>t</code>をリターンします。
+</p></dd></dl>
+
+<dl>
+<dt id="index-features-1">Variable: <strong>features</strong></dt>
+<dd><p>この変数の値はシンボルのリストで、このシンボルはカレントEmacsセッションにロードされたフィーチャです。シンボルはそれぞれ<code>provide</code>を呼び出すことにより、このリストにputされたものです。リスト<code>features</code>内の要素の順番に意味はありません。
+</p></dd></dl>
+
+
+
+
+</body>
+</html>

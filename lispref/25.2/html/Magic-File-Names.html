@@ -1,0 +1,255 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 25.2.
+
+Copyright (C) 1990-1996, 1998-2017 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.6, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>24.11 特定のファイル名の&ldquo;Magic&rdquo;の作成 (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="24.11 特定のファイル名の&ldquo;Magic&rdquo;の作成 (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="24.11 特定のファイル名の&ldquo;Magic&rdquo;の作成 (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html#Top" rel="start" title="Emacs Lisp">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Files.html#Files" rel="up" title="24 ファイル">
+<link href="Format-Conversion.html#Format-Conversion" rel="next" title="24.12 ファイルのフォーマット変換">
+<link href="Create_002fDelete-Dirs.html#Create_002fDelete-Dirs" rel="prev" title="24.10 ディレクトリーの作成・コピー・削除">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Magic-File-Names"></span><div class="header">
+<p>
+Next: <a href="Format-Conversion.html#Format-Conversion" accesskey="n" rel="next">Format Conversion</a>, Previous: <a href="Create_002fDelete-Dirs.html#Create_002fDelete-Dirs" accesskey="p" rel="prev">Create/Delete Dirs</a>, Up: <a href="Files.html#Files" accesskey="u" rel="up">Files</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Te-Ding-nohuairuMing-no_0060_0060Magic_0027_0027noZuo-Cheng-"></span><h3 class="section">24.11 特定のファイル名の&ldquo;Magic&rdquo;の作成</h3>
+<span id="index-magic-file-names"></span>
+
+<p>特定のファイル名にたいして、特別な処理を実装できます。これは、それらの名前の<em>magic</em>化と呼ばれます。この機能は主に、リモートファイルにたいするアクセスの実装に使用されます(<a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Remote-Files.html#Remote-Files">Remote Files</a> in <cite>The GNU Emacs Manual</cite>を参照)。
+</p>
+<p>magicファイル名を定義するには、名前クラスを定義するための正規表現、およびそれにマッチするファイル名にたいするEmacsファイル操作プリミティブすべてを実装するハンドラーを定義しなければなりません。
+</p>
+<span id="index-file-handler"></span>
+<span id="index-file_002dname_002dhandler_002dalist"></span>
+<p>変数<code>file-name-handler-alist</code>は各ハンドラーに適用するときを決定する正規表現とともに、ハンドラーのリストを保持します。各要素は、以下の形式をもちます:
+</p>
+<div class="example">
+<pre class="example">(<var>regexp</var> . <var>handler</var>)
+</pre></div>
+
+<p>ファイルアクセス、およびファイル名変換にたいするすべてのEmacsプリミティブは、<code>file-name-handler-alist</code>にたいして与えられたファイル名をチェックします。そのファイル名が<var>regexp</var>にマッチした場合、そのプリミティブが<var>handler</var>を呼び出してファイルを処理します。
+</p>
+<p><var>handler</var>の1つ目の引数には、プリミティブの名前をシンボルとして与えます。残りの引数は、そのプリミティブに引数として渡されます(これらの引数の1つ目は、ほとんどの場合はファイル名自体である)。たとえば以下を行い:
+</p>
+<div class="example">
+<pre class="example">(file-exists-p <var>filename</var>)
+</pre></div>
+
+<p><var>filename</var>がハンドラー<var>handler</var>をもつ場合、<var>handler</var>は以下のように呼び出されます:
+</p>
+<div class="example">
+<pre class="example">(funcall <var>handler</var> 'file-exists-p <var>filename</var>)
+</pre></div>
+
+<p>関数が2つ以上の引数をとる場合、それらはファイル名でなければならず、関数はそれらのファイル名それぞれにたいしてハンドラーをチェックします。たとえば、
+</p>
+<div class="example">
+<pre class="example">(expand-file-name <var>filename</var> <var>dirname</var>)
+</pre></div>
+
+<p>以下を行った場合は、<var>filename</var>にたいするハンドラーをチェックした後、<var>dirname</var>にたいするハンドラーをチェックします。どちらの場合も、<var>handler</var>は以下のように呼び出されます:
+</p>
+<div class="example">
+<pre class="example">(funcall <var>handler</var> 'expand-file-name <var>filename</var> <var>dirname</var>)
+</pre></div>
+
+<p>その後、<var>handler</var>は<var>filename</var>と<var>dirname</var>のどちらを処理するか解決する必要があります。
+</p>
+<p>指定されたファイル名が2つ以上のハンドラーにマッチする場合は、ファイル名内で最後に開始するマッチが優先されます。リモートファイルアクセスのようなジョブにたいするハンドラーに先立ち、解凍のようなジョブにたいするハンドラーが最初に処理されるように、このルールが選択されました。
+</p>
+<p>以下は、magicファイル名ハンドラーが処理する操作です:
+</p>
+<p><code>access-file</code>, <code>add-name-to-file</code>,
+<code>byte-compiler-base-file-name</code>,<br> <code>copy-directory</code>,
+<code>copy-file</code>, <code>delete-directory</code>, <code>delete-file</code>,
+<code>diff-latest-backup-file</code>, <code>directory-file-name</code>,
+<code>directory-files</code>, <code>directory-files-and-attributes</code>,
+<code>dired-compress-file</code>, <code>dired-uncache</code>,<br> <code>expand-file-name</code>,
+<code>file-accessible-directory-p</code>, <code>file-acl</code>, <code>file-attributes</code>,
+<code>file-directory-p</code>, <code>file-equal-p</code>, <code>file-executable-p</code>,
+<code>file-exists-p</code>, <code>file-in-directory-p</code>, <code>file-local-copy</code>,
+<code>file-modes</code>, <code>file-name-all-completions</code>,
+<code>file-name-as-directory</code>, <code>file-name-completion</code>,
+<code>file-name-directory</code>, <code>file-name-nondirectory</code>,
+<code>file-name-sans-versions</code>, <code>file-newer-than-file-p</code>,
+<code>file-notify-add-watch</code>, <code>file-notify-rm-watch</code>,
+<code>file-notify-valid-p</code>, <code>file-ownership-preserved-p</code>,
+<code>file-readable-p</code>, <code>file-regular-p</code>, <code>file-remote-p</code>,
+<code>file-selinux-context</code>, <code>file-symlink-p</code>, <code>file-truename</code>,
+<code>file-writable-p</code>, <code>find-backup-file-name</code>,
+<code>get-file-buffer</code>, <code>insert-directory</code>,
+<code>insert-file-contents</code>,<br> <code>load</code>, <code>make-auto-save-file-name</code>,
+<code>make-directory</code>, <code>make-directory-internal</code>,
+<code>make-symbolic-link</code>,<br> <code>process-file</code>, <code>rename-file</code>,
+<code>set-file-acl</code>, <code>set-file-modes</code>, <code>set-file-selinux-context</code>,
+<code>set-file-times</code>, <code>set-visited-file-modtime</code>,
+<code>shell-command</code>, <code>start-file-process</code>,
+<code>substitute-in-file-name</code>,<br> <code>unhandled-file-name-directory</code>,
+<code>vc-registered</code>, <code>verify-visited-file-modtime</code>,<br>
+<code>write-region</code>.
+</p>
+<p><code>insert-file-contents</code>にたいするハンドラーは通常、<var>visit</var>引数が非<code>nil</code>の場合は、<code>(set-buffer-modified-p
+nil)</code>によりそのバッファーの変更フラグをクリアーする必要があります。これには、もしそのバッファーがロックされていたら、ロックを解除する効果もあります。
+</p>
+<p>The handler function must handle all of the above operations, and possibly
+others to be added in the future.  It need not implement all these
+operations itself&mdash;when it has nothing special to do for a certain
+operation, it can reinvoke the primitive, to handle the operation in the
+usual way.  It should always reinvoke the primitive for an operation it does
+not recognize.  Here&rsquo;s one way to do this:
+</p>
+<div class="example">
+<pre class="example">(defun my-file-handler (operation &amp;rest args)
+  ;; <span class="roman">特別に処理する必要がある、</span>
+  ;; <span class="roman">特別な操作を最初にチェックする</span>
+  (cond ((eq operation 'insert-file-contents) &hellip;)
+        ((eq operation 'write-region) &hellip;)
+        &hellip;
+        ;; <span class="roman">関知しないその他の操作を処理する</span>
+        (t (let ((inhibit-file-name-handlers
+                  (cons 'my-file-handler
+                        (and (eq inhibit-file-name-operation operation)
+                             inhibit-file-name-handlers)))
+                 (inhibit-file-name-operation operation))
+             (apply operation args)))))
+</pre></div>
+
+<p>ハンドラー関数が通常のEmacsプリミティブを呼び出す決定をした際は、無限再起を引き起こすような、同一ハンドラーからのプリミティブの再呼び出しを防ぐ必要があります。上記の例では、変数<code>inhibit-file-name-handlers</code>と<code>inhibit-file-name-operation</code>により、これを行う方法を示しています。上記の例のように、これらを正確に使用するよう、注意してください。複数ハンドラーの正しい振る舞い、およびそれぞれがハンドラーをもつかもしれない2つのファイル名にたいする操作にたいする詳細は、非常に重要です。
+</p>
+<span id="index-safe_002dmagic-_0028property_0029"></span>
+<p>Handlers that don&rsquo;t really do anything special for actual access to the
+file&mdash;such as the ones that implement completion of host names for remote
+file names&mdash;should have a non-<code>nil</code> <code>safe-magic</code> property.  For
+instance, Emacs normally protects directory names it finds in <code>PATH</code>
+from becoming magic, if they look like magic file names, by prefixing them
+with &lsquo;<samp>/:</samp>&rsquo;.  But if the handler that would be used for them has a
+non-<code>nil</code> <code>safe-magic</code> property, the &lsquo;<samp>/:</samp>&rsquo; is not added.
+</p>
+<span id="index-operations-_0028property_0029"></span>
+<p>ファイル名ハンドラーは、普通とは異なる方法でそれを処理(handle)するのが、どの操作(operation)なのかを宣言するために、<code>operations</code>プロパティをもつことができます。このプロパティが非<code>nil</code>値をもつ場合、それは操作のリストであるべきです。その場合は、それらの操作だけがハンドラーを呼び出すでしょう。これは無駄を省きますが、主な目的はオートロードされるハンドラー関数が実際に処理を行うとき以外はロードされないようにすることです。
+</p>
+<p>通常のプリミティブにたいして、単にすべての操作を延期するのは、機能しません。たとえば、ファイル名ハンドラーが<code>file-exists-p</code>にたいして適用された場合は、通常の<code>load</code>コードは正しく機能しないでしょうから、ハンドラー自身で<code>load</code>を処理しなければなりません。しかし、ハンドラーが<code>file-exists-p</code>プロパティを使用して、<code>file-exists-p</code>を処理しないことを宣言した場合は、普通とは異なる方法で<code>load</code>を処理する必要はなくなります。
+</p>
+<dl>
+<dt id="index-inhibit_002dfile_002dname_002dhandlers">Variable: <strong>inhibit-file-name-handlers</strong></dt>
+<dd><p>この変数は、特定の操作にたいして現在のところ使用を抑制されているハンドラーのリストを保持する。
+</p></dd></dl>
+
+<dl>
+<dt id="index-inhibit_002dfile_002dname_002doperation">Variable: <strong>inhibit-file-name-operation</strong></dt>
+<dd><p>特定のハンドラーにたいして、現在のところ抑制されている操作。
+</p></dd></dl>
+
+<dl>
+<dt id="index-find_002dfile_002dname_002dhandler">Function: <strong>find-file-name-handler</strong> <em>file operation</em></dt>
+<dd><p>この関数は、<var>file</var>というファイル名にたいするハンドラー関数、それが存在しなければ<code>nil</code>をリターンする。引数<var>operation</var>は、そのファイルを処理する操作であること。これは、ハンドラー呼び出し時に1つ目の引数として渡すことになる値である。<var>operation</var>が<code>inhibit-file-name-operation</code>と等しい、またはそのハンドラーの<code>operations</code>内に存在しない場合、この関数は<code>nil</code>をリターンする。
+</p></dd></dl>
+
+<dl>
+<dt id="index-file_002dlocal_002dcopy">Function: <strong>file-local-copy</strong> <em>filename</em></dt>
+<dd><p>この関数は、ファイル<var>filename</var>がまだローカルマシン上にない場合は、それをローカルマシン上の通常の非magicファイルにコピーする。magicファイル名は、それらが他のマシン上のファイルを参照する場合は、<code>file-local-copy</code>操作を処理するべきである。リモートファイルアクセス以外の目的にたいして使用されるmagicファイル名は、<code>file-local-copy</code>を処理するべきではない。その場合、この関数はそのファイルをローカルファイルとして扱うだろう。
+</p>
+<p><var>filename</var>がローカルの場合、それがmagicか否かにかかわらず、この関数は何も行わずに、<code>nil</code>をリターンする。それ以外では、ローカルコピーファイルのファイル名をリターンする。
+</p></dd></dl>
+
+<dl>
+<dt id="index-file_002dremote_002dp">Function: <strong>file-remote-p</strong> <em>filename &amp;optional identification connected</em></dt>
+<dd><p>この関数は、<var>filename</var>がリモートファイルかどうかをテストする。<var>filename</var>がローカル(リモートではない)の場合、リターン値は<code>nil</code>である。<var>filename</var>が正にリモートの場合、リターン値はそのリモートシステムを識別する文字列である。
+</p>
+<p>この識別子文字列は、ホスト名とユーザー名、およびリモートシステムへのアクセスに使用されるメソッドを表す文字列も同様に含めることができる。たとえば、ファイル名<code>/sudo::/some/file</code>にたいするリモート識別子文字列は、<code>/sudo:root@localhost:</code>となる。
+</p>
+<p>2つの異なるファイルにたいして<code>file-remote-p</code>が同じ識別子をリターンした場合は、それらが同じファイルシステム上に格納されていて、互いに配慮しつつアクセス可能であることを意味する。これはたとえば、同時に両方のファイルにアクセスするリモートプロセスを開始することが可能なことを意味する。ファイルハンドラーの実装者は、この方式を保証する必要がある。
+</p>
+<p><var>identification</var>は、文字列としてリターンされるべき識別子の一部を指定する。<var>identification</var>には<code>method</code>、<code>user</code>、<code>host</code>のシンボルを指定できる。他の値はすべて<code>nil</code>のように扱われ、それは完全な識別子文字列をリターンすることを意味する。上記の例では、リモートの<code>user</code>識別子文字列は、<code>root</code>になるだろう。
+</p>
+<p><var>connected</var>が非<code>nil</code>の場合、たとえ<var>filename</var>がリモートであっても、Emacsがそのホストにたいする接続をもたない場合、この関数は<code>nil</code>をリターンする。これは、接続が存在しない際の接続の遅延を回避したいときに有用である。
+</p></dd></dl>
+
+<dl>
+<dt id="index-unhandled_002dfile_002dname_002ddirectory">Function: <strong>unhandled-file-name-directory</strong> <em>filename</em></dt>
+<dd><p>This function returns the name of a directory that is not magic.  For a
+non-magic <var>filename</var> it returns the corresponding directory name
+(see section <a href="Directory-Names.html#Directory-Names">ディレクトリーの名前</a>).  For a magic <var>filename</var>, it invokes the file
+name handler, which therefore decides what value to return.  If
+<var>filename</var> is not accessible from a local process, then the file name
+handler should indicate that by returning <code>nil</code>.
+</p>
+<p>これは、サブプロセスの実行に有用である。すべてのサブプロセスは、自身が属すカレントディレクトリーとして非magicディレクトリーをもたなければならず、この関数はそれを導出するよい手段である。
+</p></dd></dl>
+
+<dl>
+<dt id="index-remote_002dfile_002dname_002dinhibit_002dcache">User Option: <strong>remote-file-name-inhibit-cache</strong></dt>
+<dd><p>リモートファイルの属性は、よりよいパフォーマンスのためにキャッシュすることができる。キャッシュがEmacsの制御外で変更された場合、そのキャッシュ値は無効になり、再読込しなければならない。
+</p>
+<p>この変数が<code>nil</code>にセットされていると、キャッシュ値は決して失効しない。このセッティングは、Emacs以外にリモートファイルを変更するものがないことが確実な場合のみ、慎重に使用すること。これが<code>t</code>にセットされていると、キャッシュ値は決して使用されない。これはもっとも安全な値であるが、パフォーマンスは低下するかもしれない。
+</p>
+<p>折衷的な値としては、これを正の数字にセットする。これは、キャッシュされてからその数字の秒数の間は、キャッシュ値を使用することを意味する。リモートファイルが定期的にチェックされる場合には、この変数を定期的なチェックの間隔より小さい値にletバインドするのは、よい考えかもしれない。たとえば:
+</p>
+<div class="example">
+<pre class="example">(defun display-time-file-nonempty-p (file)
+  (let ((remote-file-name-inhibit-cache
+         (- display-time-interval 5)))
+    (and (file-exists-p file)
+         (&lt; 0 (nth 7 (file-attributes
+                       (file-chase-links file)))))))
+</pre></div>
+</dd></dl>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Format-Conversion.html#Format-Conversion" accesskey="n" rel="next">Format Conversion</a>, Previous: <a href="Create_002fDelete-Dirs.html#Create_002fDelete-Dirs" accesskey="p" rel="prev">Create/Delete Dirs</a>, Up: <a href="Files.html#Files" accesskey="u" rel="up">Files</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>
