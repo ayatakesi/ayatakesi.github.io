@@ -64,93 +64,50 @@ Next: <a href="Shell-Arguments.html#Shell-Arguments" accesskey="n" rel="next">Sh
 <span id="index-create-subprocess"></span>
 <span id="index-process-creation"></span>
 
-<p>There are three primitives that create a new subprocess in which to run a
-program.  One of them, <code>make-process</code>, creates an asynchronous process
-and returns a process object (see <a href="Asynchronous-Processes.html#Asynchronous-Processes">Asynchronous Processes</a>).  The other
-two, <code>call-process</code> and <code>call-process-region</code>, create a
-synchronous process and do not return a process object (see <a href="Synchronous-Processes.html#Synchronous-Processes">Synchronous Processes</a>).  There are various higher-level functions that make use of
-these primitives to run particular types of process.
+<p>内部でプログラムを実行するサブプロセスを作成するために3つのプリミティブが存在します。それらの1つは<code>make-process</code>であり、これは非同期プロセスを作成してプロセスオブジェクトをリターンします(<a href="Asynchronous-Processes.html#Asynchronous-Processes">Asynchronous Processes</a>を参照)。他の2つは<code>call-process</code>と<code>call-process-region</code>です。これらは同期プロセスを作成してプロセスオブジェクとをリターンしません(<a href="Synchronous-Processes.html#Synchronous-Processes">Synchronous Processes</a>を参照)。特定のタイプのプロセスを実行するために、これらのプリミティブを利用するさまざまな高レベル関数が存在します。
 </p>
-<p>同期プロセスと非同期プロセスについては、以降のセクションで説明します。この3つの関数はすべて類似した様式で呼び出されるので、ここでそれらに共通の引数について説明します。
+<p>同期プロセスと非同期プロセスについては、以降のセクションで説明します。この3つの関数はすべて類似した様式で呼び出されるので、ここではそれらに共通の引数について説明します。
 </p>
 <span id="index-execute-program"></span>
 <span id="index-PATH-environment-variable"></span>
 <span id="index-HOME-environment-variable"></span>
-<p>In all cases, the functions specify the program to be run.  An error is
-signaled if the file is not found or cannot be executed.  If the file name
-is relative, the variable <code>exec-path</code> contains a list of directories to
-search.  Emacs initializes <code>exec-path</code> when it starts up, based on the
-value of the environment variable <code>PATH</code>.  The standard file name
-constructs, &lsquo;<samp>~</samp>&rsquo;, &lsquo;<samp>.</samp>&rsquo;, and &lsquo;<samp>..</samp>&rsquo;, are interpreted as usual in
-<code>exec-path</code>, but environment variable substitutions (&lsquo;<samp>$HOME</samp>&rsquo;,
-etc.) are not recognized; use <code>substitute-in-file-name</code> to perform
-them (see <a href="File-Name-Expansion.html#File-Name-Expansion">File Name Expansion</a>).  <code>nil</code> in this list refers to
-<code>default-directory</code>.
+<p>すべての場合において、関数は実行するプログラムを指定します。ファイルが見つからなかったり実行できなければエラーがシグナルされます。ファイル名が相対的なら、検索するディレクトリーのリストは変数<code>exec-path</code>に格納されています。Emacsは起動の際に環境変数<code>PATH</code>の値にもとづいて<code>exec-path</code>を初期化します。<code>exec-path</code>内では標準的なファイル名構成要素&lsquo;<samp>~</samp>&rsquo;、&lsquo;<samp>.</samp>&rsquo;、&lsquo;<samp>..</samp>&rsquo;は通常どおりに解釈されますが、環境変数の置換(&lsquo;<samp>$HOME</samp>&rsquo;等)は認識されません。それらの置換を行うには<code>substitute-in-file-name</code>を使用してください(<a href="File-Name-Expansion.html#File-Name-Expansion">File Name Expansion</a>を参照)。このリスト内で<code>nil</code>は<code>default-directory</code>を参照します。
 </p>
-<p>プログラムの実行では、指定された名前にサフィックスの追加を試みることもできます:
+<p>プログラムの実行では指定された名前にサフィックスの追加を試みることもできます:
 </p>
 <dl>
 <dt id="index-exec_002dsuffixes">User Option: <strong>exec-suffixes</strong></dt>
-<dd><p>この変数は、指定されたプログラムファイル名への追加を試みるための、サフィックス(文字列)のリストである。指定されたとおりの名前を試みたいなら、このリストに<code>&quot;&quot;</code>を含めること。デフォルト値はシステムに依存する。
+<dd><p>この変数は指定されたプログラムファイル名への追加を試みるためのサフィックス(文字列)のリスト。指定されたとおりの名前を試みたいならリストに<code>&quot;&quot;</code>を含めること。デフォルト値はシステム依存。
 </p></dd></dl>
 
-<p><strong>Please note:</strong> The argument <var>program</var> contains only the name of
-the program file; it may not contain any command-line arguments.  You must
-use a separate argument, <var>args</var>, to provide those, as described below.
+<p><strong>注意してください:</strong>
+引数<var>program</var>にはプログラムのファイル名だけが含まれて、コマンドライン引数を含めることはできない。これらを提供するために以下で説明する別の引数<var>args</var>を使用しなければならない。
 </p>
-<p>Each of the subprocess-creating functions has a <var>buffer-or-name</var>
-argument that specifies where the output from the program will go.  It
-should be a buffer or a buffer name; if it is a buffer name, that will
-create the buffer if it does not already exist.  It can also be <code>nil</code>,
-which says to discard the output, unless a custom filter function handles
-it.  (See <a href="Filter-Functions.html#Filter-Functions">Filter Functions</a>, and <a href="Read-and-Print.html#Read-and-Print">Read and Print</a>.)  Normally, you
-should avoid having multiple processes send output to the same buffer
-because their output would be intermixed randomly.  For synchronous
-processes, you can send the output to a file instead of a buffer (and the
-corresponding argument is therefore more appropriately called
-<var>destination</var>).  By default, both standard output and standard error
-streams go to the same destination, but all the 3 primitives allow
-optionally to direct the standard error stream to a different destination.
+<p>サブプロセス作成関数にはそれぞれ<var>buffer-or-name</var>引数があります。これはプログラムの出力の行き先を指定します。これはバッファーかバッファー名であるべきです。バッファー名の場合には、もしそのバッファーがまだ作成されていなければバッファーを作成します。<code>nil</code>を指定することもでき、その場合にはカスタム製のフィルター関数が出力を処理するのでなければ出力を破棄するよう指示します(<a href="Filter-Functions.html#Filter-Functions">Filter Functions</a>と<a href="Read-and-Print.html#Read-and-Print">Read and Print</a>を参照)。通常は出力がランダムに混在してしまうために、同一バッファーに複数プロセスの出力を送信するのは避けるべきです。同期プロセスにたいしてはバッファーのかわりにファイルに出力を送信できます(したがって対応する引数はより適切な<var>destination</var>という名前で呼ばれる)。デフォルトでは標準出力と標準エラーの両ストリームの行き先(destination)は同じだが、3つのプリミティブはすべてオプションで標準エラーストリームに別の行き先を指定できる。
 </p>
 <span id="index-program-arguments"></span>
-<p>All three of the subprocess-creating functions allow to specify command-line
-arguments for the process to run. For <code>call-process</code> and
-<code>call-process-region</code>, these come in the form of a <code>&amp;rest</code>
-argument, <var>args</var>.  For <code>make-process</code>, both the program to run and
-its command-line arguments are specified as a list of strings.  The
-command-line arguments must all be strings, and they are supplied to the
-program as separate argument strings.  Wildcard characters and other shell
-constructs have no special meanings in these strings, since the strings are
-passed directly to the specified program.
+<p>これら3つのサブプロセス作成関数は、すべて実行するプロセスにコマンドライン引数を指定できます。<code>call-process</code>と<code>call-process-region</code>では、これらは<code>&amp;rest</code>形式の引数<var>args</var>で与えられます。<code>make-process</code>では実行するプログラムとコマンドライン引数はいずれも文字列のリストとして指定されます。コマンドライン引数はすべて文字列でなければならず、それらは別個の引数文字列としてプログラムに与えられます。文字列は指定されたプログラムに直接渡されるので、ワイルドカード文字やその他のshell構文はこれらの文字列内では特別な意味をもちません。
 </p>
 <span id="index-environment-variables_002c-subprocesses"></span>
-<p>サブプロセスはその環境をEmacsから継承しますが、<code>process-environment</code>でそれをオーバーラードするよう指定することができます。<a href="System-Environment.html#System-Environment">System Environment</a>を参照してください。サブプロセスは自身のカレントディレクトリーを、<code>default-directory</code>の値から取得します。
+<p>サブプロセスはその環境をEmacsから継承しますが、<code>process-environment</code>でそれをオーバーラードするよう指定することができます。<a href="System-Environment.html#System-Environment">System Environment</a>を参照してください。サブプロセスは自身のカレントディレクトリーを<code>default-directory</code>の値から取得します。
 </p>
 <dl>
 <dt id="index-exec_002ddirectory">Variable: <strong>exec-directory</strong></dt>
 <dd><span id="index-movemail"></span>
-<p>この変数の値は、GNU
-Emacsとともに配布され、Emacsにより呼び出されることを意図したプログラムを含むディレクトリーの名前(文字列)である。プログラム<code>movemail</code>はそのようなプログラムの例であり、Rmailはinboxから新しいメールを読み込むためにこのプログラムを使用する。
+<p>この変数の値はGNU
+Emacsとともに配布されて、Emacsにより呼び出されることを意図したプログラムを含むディレクトリーの名前(文字列)。プログラム<code>movemail</code>はそのようなプログラムの例であり、Rmailはinboxから新しいメールを読み込むためにこのプログラムを使用する。
 </p></dd></dl>
 
 <dl>
 <dt id="index-exec_002dpath">User Option: <strong>exec-path</strong></dt>
-<dd><p>The value of this variable is a list of directories to search for programs
-to run in subprocesses.  Each element is either the name of a directory
-(i.e., a string), or <code>nil</code>, which stands for the default directory
-(which is the value of <code>default-directory</code>).  See <a href="Locating-Files.html#Locating-Files">executable-find</a>, for the details of this search.
+<dd><p>この変数の値はサブプロセス内で実行するためのプログラムを検索するためのディレクトリーのリスト。要素はそれぞれディレクトリーの名前(文字列)、または<code>nil</code>のいずれか。<code>nil</code>はデフォルトディレクトリー(<code>default-directory</code>の値)を意味する。この検索の詳細は<a href="Locating-Files.html#Locating-Files">executable-find</a>を参照のこと。
 <span id="index-program-directories"></span>
 </p>
-<p><code>exec-path</code>の値は、<var>program</var>引数が絶対ファイル名でないとき、<code>call-process</code>および<code>start-process</code>により使用される。
+<p><code>exec-path</code>の値は、<var>program</var>引数が絶対ファイル名でないときに<code>call-process</code>と<code>start-process</code>により使用される。
 </p>
-<p>一般的には、<code>exec-path</code>を直接変更するべきではない。かわりにEmacs起動前に、環境変数<code>PATH</code>が適切にセットされているか確認すること。<code>PATH</code>とは独立に<code>exec-path</code>の変更を試みると、混乱した結果へと導かれ得る。
+<p>一般的には<code>exec-path</code>を直接変更するべきではない。かわりにEmacs起動前に環境変数<code>PATH</code>が適切にセットされているか確認すること。<code>PATH</code>とは独立に<code>exec-path</code>の変更を試みると混乱した結果へと導かれ得る。
 </p></dd></dl>
 
-<hr>
-<div class="header">
-<p>
-Next: <a href="Shell-Arguments.html#Shell-Arguments" accesskey="n" rel="next">Shell Arguments</a>, Up: <a href="Processes.html#Processes" accesskey="u" rel="up">Processes</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 
