@@ -63,66 +63,41 @@ Previous: <a href="Object-Internals.html#Object-Internals" accesskey="p" rel="pr
 <span id="CnoZheng-Shu-Xing-"></span><h3 class="section">E.9 Cの整数型</h3>
 <span id="index-integer-types-_0028C-programming-language_0029"></span>
 
-<p>以下はEmacsのCソースコード内で、整数タイプを使用する際のガイドラインです。これらのガイドラインはときに相反するアドバイスを与えることがありますが、一般的な常識に沿ったものがアドバイスです。
+<p>以下はEmacsのCソースコード内で整数タイプを使用する際のガイドラインです。これらのガイドラインはときに相反するアドバイスを与えることがありますが一般的な常識に沿ったものがアドバイスです。
 </p>
 <ul>
-<li> 任意の制限の使用を避ける。たとえば、<code>s</code>の長さを<code>int</code>の範囲に収めることが要求されるのでなければ、<code>int len
-= strlen (s);</code>を使用しないこと。
+<li> 任意の制限の使用を避ける。たとえば<code>s</code>の長さを<code>int</code>の範囲に収めることが要求されるのでなければ<code>int len =
+strlen (s);</code>を使用しないこと。
 
-</li><li> Do not assume that signed integer arithmetic wraps around on overflow.  This
-is no longer true of Emacs porting targets: signed integer overflow has
-undefined behavior in practice, and can dump core or even cause earlier or
-later code to behave illogically.  Unsigned overflow does wrap around
-reliably, modulo a power of two.
+</li><li> 符号付き整数の算術演算のオーバーフローのラップアラウンドを前提としてはならない。Emacsのポート対象先によっては成立しない。実際には符号付き整数のオーバーフローは未定義であり、コアダンプや早晩に非論理的な振る舞いさえ起こし得る。符号なし整数のオーバーフローは2のべき乗の剰余に確実にラップアラウンドされることが保証されている。
 
-</li><li> 符号なしタイプと符号付きタイプを組み合わせるとコードが混乱するので、符号なしタイプより符号付きタイプを優先すること。他のガイドラインの多くはタイプが符号付きだとみなしている。符号なしタイプを要する稀なケースでは、符号付きの符号なし版(<code>ptrdiff_t</code>のかわりに<code>size_t</code>、<code>intptr_t</code>のかわりに<code>uintptr_t</code>)にたいして同様のアドバイスを適用できる。
+</li><li> 符号なしタイプと符号付きタイプを組み合わせるとコードが混乱するので符号なしタイプより符号付きタイプを優先すること。他のガイドラインの多くはタイプが符号付きだとみなしている。符号なしタイプを要する稀なケースでは、符号付きの符号なし版(<code>ptrdiff_t</code>のかわりに<code>size_t</code>、<code>intptr_t</code>のかわりに<code>uintptr_t</code>)にたいして同様のアドバイスを適用できる。
 
-</li><li> Prefer <code>int</code> for Emacs character codes, in the range 0 .. 0x3FFFFF.
-More generally, prefer <code>int</code> for integers known to be in <code>int</code>
-range, e.g., screen column counts.
+</li><li> 0から0x3FFFFFまでの範囲ではEmacs文字コードには<code>int</code>を優先すること。より一般的には、たとえばスクリーン列数のように<code>int</code>範囲と既知である整数には<code>int</code>を優先すること。
 
-</li><li> サイズ(たとえばすべての個別のCオブジェクトの最大サイズや、すべてのC配列の最大要素数にバインドされる整数)にたいしては、<code>ptrdiff_t</code>を優先すること。これは符号付きタイプにたいする、Emacsの一般的な優先事項である。<code>ptrdiff_t</code>の使用によりオブジェクトは<code>PTRDIFF_MAX</code>に制限されるが、より大きいオブジェクトはポインター減算を破壊するかもしれず、結局のところ問題を起こす可能性があるので、これは一方的に制限を課すものではない。
+</li><li> サイズ(たとえばすべての個別のCオブジェクトの最大サイズや、すべてのC配列の最大要素数にバインドされる整数)にたいしては<code>ptrdiff_t</code>を優先すること。これは符号付きタイプにたいするEmacsの一般的な優先事項である。<code>ptrdiff_t</code>の使用によりオブジェクトは<code>PTRDIFF_MAX</code>に制限されるが、より大きいオブジェクトはポインター減算を破壊するかもしれず結局のところ問題を起こす可能性があるので、これは一方的に制限を課すものではない。
 
-</li><li> Avoid <code>ssize_t</code> except when communicating to low-level APIs that have
-<code>ssize_t</code>-related limitations.  Although it&rsquo;s equivalent to
-<code>ptrdiff_t</code> on typical platforms, <code>ssize_t</code> is occasionally
-narrower, so using it for size-related calculations could overflow.  Also,
-<code>ptrdiff_t</code> is more ubiquitous and better-standardized, has standard
-<code>printf</code> formats, and is the basis for Emacs&rsquo;s internal size-overflow
-checking.  When using <code>ssize_t</code>, please note that POSIX requires
-support only for values in the range -1 .. <code>SSIZE_MAX</code>.
+</li><li> <code>ssize_t</code>関連の制限をもつ低レベルAPIト対話する際を除いて<code>ssize_t</code>を避けること。これは典型的なプラトフォームでは<code>ptrdiff_t</code>と等価だとしても、<code>ssize_t</code>は範囲が狭いときがあり使用によりサイズ関連の計算がオーバーフローするかもしれない。同じく<code>ptrdiff_t</code>はより一般的で標準化されており、標準的な<code>printf</code>フォーマットをもち、Emacsの内部的なサイズオーバーフローのチェックの基礎である。<code>ssize_t</code>を使用する際にはPOSIXガ-から<code>SSIZE_MAX</code>の範囲の値にたいするサポートだけを要求することに注意してほしい。
 
-</li><li> ポインターの内部表現や、与えられた任意のタイミングで存在可能なオブジェクト数や割り当て可能な総バイト数にのみバインドされる整数には、<code>intptr_t</code>を優先すること。現在のことこEmacsは<code>intptr_t</code>の使用したほうがよいときに、別のタイプを使用する場合がある。現在のEmacsのカレント移植先にたいして未修正でコードが動作するので、これの修正の優先度は低い。
+</li><li> ポインターの内部表現や与えられた任意のタイミングで存在可能なオブジェクト数や割り当て可能な総バイト数にのみバインドされる整数には<code>intptr_t</code>を優先すること。現在のことこEmacsは<code>intptr_t</code>を使用したほうがよいときに別のタイプを使用する場合がある。現在のEmacsのカレント移植先にたいして未修正でコードが動作するので修正の優先度は低い。
 
 </li><li> Emacs
-Lispのfixnumへの変換や逆変換を表す値では、fixnum演算が<code>EMACS_INT</code>にもとづくので、Emacsで定義されたタイプ<code>EMACS_INT</code>を優先すること。
+Lispのfixnumへの変換や逆変換を表す値ではfixnum演算が<code>EMACS_INT</code>にもとづくのでEmacsで定義されたタイプ<code>EMACS_INT</code>を優先すること。
 
-</li><li> (ファイルサイズやエポック以降の経過秒数等の)システム値を表す際は、(<code>off_t</code>や<code>time_t</code>等の)システムタイプを優先すること。安全だと解っていなければ、システムタイプが符号付きだと仮定してはならない。たとえば<code>off_t</code>は常に符号付きだが、<code>time_t</code>は符号付きである必要はない。
+</li><li> (ファイルサイズやエポック以降の経過秒数等の)システム値を表す際には、(<code>off_t</code>や<code>time_t</code>等の)システムタイプを優先すること。安全だと解っていなければシステムタイプが符号付きだと仮定してはならない。たとえば<code>off_t</code>は常に符号付きだが<code>time_t</code>は符号付きである必要はない。
 
-</li><li> <code>printf</code>族の関数を使用してプリントされ得る任意の符号付き整数であるかもしれない値を表す場合は、Emacsの定義タイプ<code>printmax_t</code>を優先すること。
+</li><li> <code>printf</code>族の関数を使用してプリントされ得る任意の符号付き整数かもしれない値を表す場合にはEmacsの定義タイプ<code>printmax_t</code>を優先すること。
 
-</li><li> 任意の符号付き整数であるかもしれない値を表す場合は、<code>intmax_t</code>を優先すること。
+</li><li> 任意の符号付き整数かもしれない値を表す場合には<code>intmax_t</code>を優先すること。
 
-</li><li> Prefer <code>bool</code>, <code>false</code> and <code>true</code> for booleans.  Using
-<code>bool</code> can make programs easier to read and a bit faster than using
-<code>int</code>.  Although it is also OK to use <code>int</code>, <code>0</code> and
-<code>1</code>, this older style is gradually being phased out.  When using
-<code>bool</code>, respect the limitations of the replacement implementation of
-<code>bool</code>, as documented in the source file <samp>lib/stdbool.in.h</samp>.  In
-particular, boolean bitfields should be of type <code>bool_bf</code>, not
-<code>bool</code>, so that they work correctly even when compiling Objective C
-with standard GCC.
+</li><li> ブーリーンには<code>bool</code>、<code>false</code>、<code>true</code>を使用すること。<code>bool</code>の使用によりプログラムの可読性が増して、<code>int</code>を使用するより若干高速になる。<code>int</code>、<code>0</code>、<code>1</code>を使用しても大丈夫だが旧スタイルは段階的に廃止される。<code>bool</code>を使用する際にはソースファイル<samp>lib/stdbool.in.h</samp>に文書化されている<code>bool</code>の代替実装の制限を尊重すること。特にブーリーンのビットフィールドは<code>bool</code>ではなく<code>bool_bf</code>タイプであること。そうすれば標準のGCCでObjective
+Cをコンパイルするときでさえ正しく機能する。
 
-</li><li> ビットフィールドでは、<code>int</code>は可搬性に劣るので、<code>int</code>より<code>unsigned int</code>か<code>signed
-int</code>を優先すること。単一ビットのビットフィールドの値は0か1なので、<code>unsigned
+</li><li> ビットフィールドでは<code>int</code>は可搬性に劣るので、<code>int</code>より<code>unsigned int</code>か<code>signed
+int</code>を優先すること。単一ビットのビットフィールドの値は0か1なので<code>unsigned
 int</code>か<code>bool_bf</code>を使用すること。
 </li></ul>
 
-<hr>
-<div class="header">
-<p>
-Previous: <a href="Object-Internals.html#Object-Internals" accesskey="p" rel="prev">Object Internals</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 
