@@ -1,0 +1,227 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 25.1.
+
+Copyright (C) 1990-1996, 1998-2016 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU Emacs Lisp Reference Manual: Pattern matching case statement</title>
+
+<meta name="description" content="GNU Emacs Lisp Reference Manual: Pattern matching case statement">
+<meta name="keywords" content="GNU Emacs Lisp Reference Manual: Pattern matching case statement">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Conditionals.html#Conditionals" rel="up" title="Conditionals">
+<link href="Combining-Conditions.html#Combining-Conditions" rel="next" title="Combining Conditions">
+<link href="Conditionals.html#Conditionals" rel="prev" title="Conditionals">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+<link rel="stylesheet" type="text/css" href="info.css"/>
+<script src="modernizr.js" type="text/javascript"></script>
+<script src="info.js" type="text/javascript"></script>
+
+</head>
+
+<body lang="en">
+<a name="Pattern-matching-case-statement"></a>
+<div class="header">
+<p>
+Up: <a href="Conditionals.html#Conditionals" accesskey="u" rel="up">Conditionals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="patanmatutinguniyorucaseWen"></a>
+<h4 class="subsection">10.2.1 パターンマッチングによるcase文</h4>
+<a name="index-pcase"></a>
+<a name="index-pattern-matching"></a>
+
+<p><code>cond</code>フォームにより、あらかじめ記述された既知の特定の値と式の値を比較する述語条件を使用して選択肢を選択できます。しかし広範な値クラス間を区別する、より一般的な条件にもとづいて選択肢を選択するのが有用なこともあります。<code>pcase</code>マクロにより、一連のパターンにたいする式の値のマッチングにもとづいて選択肢を選択できます。パターンにはリテラル値(<code>cond</code>で使用した比較用のリテラル値)や、予想される式の値のより一般的な構造記述を使用できます。
+</p>
+<dl>
+<dt><a name="index-pcase-1"></a>Macro: <strong>pcase</strong> <em>expression &amp;rest clauses</em></dt>
+<dd><p><var>expression</var>を評価して、任意個数の選択肢の中から<var>expression</var>の値にもとづいた選択を行う。可能な選択肢は<var>clauses</var>で指定され、それぞれが<code>(<var>pattern</var>
+<var>body-forms</var>&hellip;)</code>という形式のリストでなければならない。<code>pcase</code>は<var>expression</var>の値と各clauseの<var>pattern</var>のマッチを試みる。値がマッチしたらそのclauseが成功となり、<code>pcase</code>はそれの<var>body-forms</var>を評価して、<var>body-forms</var>の最後の値をリターンする。残りの<var>clauses</var>はすべて無視される。
+</p>
+<p><var>pattern</var>パートはバッククォートでクォートされた<em>QPattern</em>と、クォートされていない<em>UPattern</em>のいずれかで指定できる。UPatternsのほうが単純なのでそれから説明する。
+</p>
+<p>注意:
+以下のパターンの記述では<code>pcase</code>の1つ目の引数となる<var>expression</var>の値を参照するために、&ldquo;マッチされる値&rdquo;という言葉を使用している。
+</p>
+<p>UPatternには以下の形式を指定できる:
+</p>
+<dl compact="compact">
+<dt><code>'<var>val</var></code></dt>
+<dd><p>マッチされる値が<var>val</var>と<code>equal</code>ならマッチ。
+</p></dd>
+<dt><code><var>atom</var></code></dt>
+<dd><p>任意の<var>atom</var>
+(キーワード、数字、文字列)にマッチする(これらは自己クォートされるのでこの種のUPatternは実際には<code>'<var>atom</var></code>の略記である)。文字列(浮動小数点数)は同じ内容(値)の任意の文字列(浮動小数点数)とマッチすることに注意。
+</p></dd>
+<dt><code>_</code></dt>
+<dd><p>任意の値にマッチする。これは<em>don&rsquo;t care</em>や<em>wildcard</em>として知られる。
+</p></dd>
+<dt><code><var>symbol</var></code></dt>
+<dd><p>任意の値にマッチする。さらにマッチした値を<var>symbol</var>にletバインドするので、<var>body-forms</var>や後続のパターンからそれを参照することができる。
+</p></dd>
+<dt><code>(pred <var>predfun</var>)</code></dt>
+<dd><p>マッチされる値を引数として述語関数<var>predfun</var>を呼び出して、非<code>nil</code>をリターンしたらマッチ。<var>predfun</var>は後述するフォームのいずれかを指定できる。
+</p></dd>
+<dt><code>(guard <var>boolean-expression</var>)</code></dt>
+<dd><p><var>boolean-expression</var>が非<code>nil</code>に評価されたらマッチ。これにより以前のUPatternで、値(マッチされる値を含む)にバインドされたシンボルを参照するブール条件をUPatternに含めることができる。典型的にはUPattern
+<code>and</code>内で使用される(以下参照)。たとえば<code>(and&nbsp;x&nbsp;(guard&nbsp;(&lt;&nbsp;x&nbsp;10)))</code><!-- /@w -->は10より小さい任意の数にマッチして、その数を変数<code>x</code>にletバインドする。
+</p></dd>
+<dt><code>(let <var>upattern</var> <var>expression</var>)</code></dt>
+<dd><p>指定された<var>expression</var>が指定された<var>upattern</var>にマッチしたらマッチ。これにより<code>pcase</code>の1つ目の引数だけでなく、<em>任意</em>の式の値にパターンをマッチできる(<var>upattern</var>はUPattern
+<var>symbol</var>を使用してシンボルを値にバインドできるので<code>let</code>と呼ばれる。たとえば<code>((or&nbsp;`(key&nbsp;.&nbsp;,val)&nbsp;(let&nbsp;val&nbsp;5))&nbsp;val)</code><!-- /@w -->)。
+</p></dd>
+<dt><code>(app <var>function</var> <var>upattern</var>)</code></dt>
+<dd><p>マッチされる値に<var>function</var>を適用して<var>upattern</var>にマッチする値がリターンされたらマッチ。これはUPattern
+<code>pred</code>と似ているが、これはブールの真値ではなく<var>UPattern</var>にたいして結果をテストする点が異なる。<var>function</var>呼び出しは後述のフォームのいずれかを使用できる。
+</p></dd>
+<dt><code>(or <var>upattern1</var> <var>upattern2</var>&hellip;)</code></dt>
+<dd><p>引数のUPatternのいずれかがマッチしたらマッチ。マッチする最初のUPatternが見つかったら残りはテストされない。この理由により、マッチされる値にシンボルをletバインドするすべてのUPatternは同じシンボルをバインドすること。
+</p></dd>
+<dt><code>(and <var>upattern1</var> <var>upattern2</var>&hellip;)</code></dt>
+<dd><p>引数のUPatternすべてがマッチしたらマッチ。
+</p></dd>
+</dl>
+
+<p><code>pred</code>と<code>app</code>のUPatternで使用される関数呼び出しは、以下のいずれかのフォームをもつことができる:
+</p>
+<dl compact="compact">
+<dt><code>integerp</code>のような関数シンボル</dt>
+<dd><p>この場合には、その名前つき関数がマッチされる値に適用される。
+</p></dd>
+<dt>ラムダ関数 <code>(lambda (<var>arg</var>) <var>body</var>)</code></dt>
+<dd><p>この場合には、そのラムダ関数がマッチされる値を単一の引数として呼び出される。
+</p></dd>
+<dt><code>(<var>func</var> <var>args</var>&hellip;)</code></dt>
+<dd><p>これは指定された<var>n</var>個の引数で呼び出される関数である。関数はこれら<var>n</var>個の引数と、マッチされる値である<var>n</var>+1番目の引数を追加して呼び出される。
+</p></dd>
+</dl>
+
+<p>以下はUPatternを使用した説明用の例です:
+</p>
+<div class="example">
+<pre class="example">(pcase (get-return-code x)
+  ('success       (message &quot;Done!&quot;))
+  ('would-block   (message &quot;Sorry, can't do it now&quot;))
+  ('read-only     (message &quot;The shmliblick is read-only&quot;))
+  ('access-denied (message &quot;You do not have the needed rights&quot;))
+  (code           (message &quot;Unknown return code %S&quot; code)))
+</pre></div>
+
+<p>加えてより強力なバッククォートされたパターンを使用できます。これらを使用すれば<code>pcase</code>の1つ目の引数の式の値を、その<em>構造(structure)</em>の仕様とマッチさせることができます。たとえば1つ目の要素が特定の文字列で、2つ目の要素が<code>`(&quot;first&quot;
+,second-elem)</code>のようなバッククォートされた任意の値であるような2要素のリストを、値として強制指定することができます。
+</p>
+<p>バッククォートされたパターンは<code>`<var>qpattern</var></code>という形式をもち、<var>qpattern</var>は以下の形式をもつことができます:
+</p>
+<dl compact="compact">
+<dt><code>(<var>qpattern1</var> . <var>qpattern2</var>)</code></dt>
+<dd><p>マッチされる値が、<code>car</code>が<var>qpattern1</var>、<code>cdr</code>が<var>qpattern2</var>にマッチするようなコンスセルならマッチ。これは<code>(<var>qpattern1</var>&nbsp;<var>qpattern2</var>&nbsp;&hellip;)</code><!-- /@w -->のように、容易にバッククォートされたリストに一般化できる。
+</p></dd>
+<dt><code>[<var>qpattern1</var> <var>qpattern2</var> &hellip; <var>qpatternm</var>]</code></dt>
+<dd><p>マッチされる値が、長さ<var>m</var>で<code>0</code>から<code>(<var>m</var>-1)</code>番目の要素がそれぞれ<var>qpattern1</var>、<var>qpattern2</var>、&hellip;、<var>qpatternm</var>にマッチするようなベクターならマッチ。
+</p></dd>
+<dt><code><var>atom</var></code></dt>
+<dd><p>マッチされる値の対応する要素が指定された<var>atom</var>と<code>equal</code>ならマッチ。
+</p></dd>
+<dt><code>,<var>upattern</var></code></dt>
+<dd><p>マッチされる値の対応する要素が指定された<var>upattern</var>とマッチすればマッチ。
+</p></dd>
+</dl>
+
+<p>QPatternは後述の<code>pcase-defmacro</code>を使用してUPatternのトップレベルで実装されているので、QPatternの使用はUPatternを使用することでのみ表現可能なことに注意。とはいえQPatternの使用により、多くの場合コードの可読性は向上するだろう。
+</p>
+</dd></dl>
+
+<p>以下は<code>pcase</code>を使用して、小さな式言語用のシンプルなインタープリターを実装する例です(この例にはレキシカルバインディングが必要なことに注意。)<a href="Lexical-Binding.html#Lexical-Binding">Lexical Binding</a>を参照のこと):
+</p>
+<div class="example">
+<pre class="example">(defun evaluate (exp env)
+  (pcase exp
+    (`(add ,x ,y)       (+ (evaluate x env) (evaluate y env)))
+    (`(call ,fun ,arg)  (funcall (evaluate fun env) (evaluate arg env)))
+    (`(fn ,arg ,body)   (lambda (val)
+                          (evaluate body (cons (cons arg val) env))))
+    ((pred numberp)     exp)
+    ((pred symbolp)     (cdr (assq exp env)))
+    (_                  (error &quot;Unknown expression %S&quot; exp))))
+</pre></div>
+
+<p>ここで<code>`(add ,x
+,y)</code>は、<code>exp</code>がリテラルシンボル<code>add</code>で始まる3要素のリストであることをチェックしてから、2つ目と3つ目の要素を抽出して変数<code>x</code>と<code>y</code>にバインドするパターンです。それから<code>x</code>と<code>y</code>を評価して結果を加算します。同様に<code>call</code>と<code>fn</code>のパターンは、関数呼び出しに相当するものを2つ実装します。<code>(pred
+numberp)</code>は<code>exp</code>が数であるかをチェックして、もしそうならそれを評価します。<code>(pred
+symbolp)</code>はシンボルにマッチして、その連想をリターンします。最後に<code>_</code>はすべてにマッチするcatch-allパターンなので、構文エラーの報告に適しています。
+</p>
+<p>以下は評価した結果を含む、この小さな言語のサンプルプログラムの例です:
+</p>
+<div class="example">
+<pre class="example">(evaluate '(add 1 2) nil)                 ;=&gt; 3
+(evaluate '(add x y) '((x . 1) (y . 2)))  ;=&gt; 3
+(evaluate '(call (fn x (add 1 x)) 2) nil) ;=&gt; 3
+(evaluate '(sub 1 2) nil)                 ;=&gt; error
+</pre></div>
+
+<p><code>pcase-defmacro</code>を使用することにより追加のUPatternを定義できます。
+</p>
+<dl>
+<dt><a name="index-pcase_002ddefmacro"></a>Macro: <strong>pcase-defmacro</strong> <em>name args &amp;rest body</em></dt>
+<dd><p><code>pcase</code>にたいして新たな種類のUPatternを定義する。新たなUPatternは<code>(<var>name</var>
+<var>actual-args</var>)</code>のように呼び出されるだろう。<var>body</var>には、UPattern
+<var>name</var>を他の何らかのUPatternに書き換える方法を記述すること。<var>args</var>が<var>actual-args</var>にバインドされる環境で<var>body</var>を評価した結果がこの書き換えとなる。
+</p></dd></dl>
+
+<hr>
+<div class="header">
+<p>
+Up: <a href="Conditionals.html#Conditionals" accesskey="u" rel="up">Conditionals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>
