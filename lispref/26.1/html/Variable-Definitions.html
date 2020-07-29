@@ -1,9 +1,9 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 26.1.
+corresponding to Emacs version 26.3.
 
-Copyright (C) 1990-1996, 1998-2018 Free Software Foundation, Inc.
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -95,6 +95,7 @@ option)</em>とも呼ばれ、これはCustomizeインターフェースを通�
 </p>
 <p><code>defcustom</code>が何も<code>:group</code>を指定しなければ、同じファイル内で<code>defgroup</code>によって最後に定義されたグループが使用される。この方法ではほとんどの<code>defcustom</code>は明示的な<code>:group</code>が不必要になる。
 </p>
+<a name="index-eval_002ddefun_002c-and-defcustom-forms"></a>
 <p>Emacs
 Lispモードで<kbd>C-M-x</kbd>(<code>eval-defun</code>)で<code>defcustom</code>フォームを評価するとき、<code>eval-defun</code>の特別な機能は変数の値がvoidかどうかテストせずに、無条件に変数をセットするよう段取りする(同じ機能は<code>defvar</code>にも適用される。<a href="Defining-Variables.html#Defining-Variables">Defining Variables</a>を参照)。すでに定義されたdefcustomで<code>eval-defun</code>を使用することにより、(もしあれば)<code>:set</code>関数(以下参照)が呼び出される。
 </p>
@@ -155,11 +156,8 @@ Lispモードで<kbd>C-M-x</kbd>(<code>eval-defun</code>)で<code>defcustom</cod
 <dd><p>変数がすでにセットされている、またはカスタマイズされているなら、変数の初期化のために<code>:set</code>関数を使用して、それ以外なら単に<code>set-default</code>を使用する。
 </p>
 </dd>
-<dt><code>custom-initialize-safe-set</code></dt>
-<dt><code>custom-initialize-safe-default</code></dt>
-<dd><p>これらのn関数は<code>custom-initialize-set</code>、<code>custom-initialize-default</code>と同様に振る舞うがエラーをcatchする。初期化中にエラーが発生したら、<code>set-default</code>を使用して変数を<code>nil</code>にセットして、エラーのシグナルはしない。
-</p>
-<p>これらの関数は事前ロードされたファイルで定義されたオプションのためのものである(requireされた変数や関数がまだ定義されていないため、<var>standard</var>式はエラーをシグナルするかもしれない)。その値は通常は<samp>startup.el</samp>で更新され、<code>defcustom</code>により計算された値は無視される。startup後にその値をunsetして<code>defcustom</code>を再評価すれば、エラーなしで<var>standard</var>は評価される。
+<dt><code>custom-initialize-delay</code></dt>
+<dd><p>この関数は<code>custom-initialize-set</code>と同様に振る舞うが、実際の初期化をEmacsの次回起動時に遅延させる。これはビルド時ではなく実行時のコンテキストで初期化を行わせるように、事前ロードされるファイル(やautoloadされる変数)で使用すること。これは(遅延された)初期化が<code>:set</code>関数で処理されるという副作用ももつ。<a href="Building-Emacs.html#Building-Emacs">Building Emacs</a>を参照のこと。
 </p></dd>
 </dl>
 
@@ -182,14 +180,14 @@ Lispモードで<kbd>C-M-x</kbd>(<code>eval-defun</code>)で<code>defcustom</cod
 </p></dd>
 </dl>
 
-<p>特定の機能をオンに切り替えるオプションにたいしては、<code>:require</code>キーワードを指定すると便利です。これはその機能がまだロードされていないときは、そのオプションがセットされるとEmacsがその機能をロードするようにします。<a href="Common-Keywords.html#Common-Keywords">Common Keywords</a>を参照してください。以下はライブラリー<samp>saveplace.el</samp>の例です:
+<p>特定の機能をオンに切り替えるオプションには、<code>:require</code>キーワードを指定すると便利です。これはその機能がまだロードされていないときには、そのオプションがセットされればEmacsがその機能をロードするようにします。<a href="Common-Keywords.html#Common-Keywords">Common Keywords</a>を参照してください。以下は例です:
 </p>
 <div class="example">
-<pre class="example">(defcustom save-place nil
-  &quot;Non-nil means automatically save place in each file...&quot;
+<pre class="example">(defcustom frobnicate-automatically nil
+  &quot;Non-nil means automatically frobnicate all buffers.&quot;
   :type 'boolean
-  :require 'saveplace
-  :group 'save-place)
+  :require 'frobnicate-mode
+  :group 'frobnicate)
 </pre></div>
 
 <p>あるカスタマイゼーションアイテムが<code>:options</code>がサポートする<code>hook</code>や<code>alist</code>のような型をもつなら、<code>custom-add-frequent-value</code>を呼び出すことによって<code>defcustom</code>宣言の外部から別途値を追加できます。たとえば<code>emacs-lisp-mode-hook</code>から呼び出されることを意図した関数<code>my-lisp-mode-initialization</code>を定義する場合は、<code>emacs-lisp-mode-hook</code>にたいする正当な値として、その定義を編集することなくその関数をリストに追加したいと思うかもしれません。これは以下のようにして行うことができます:

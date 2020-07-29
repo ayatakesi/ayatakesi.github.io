@@ -1,9 +1,9 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 26.1.
+corresponding to Emacs version 26.3.
 
-Copyright (C) 1990-1996, 1998-2018 Free Software Foundation, Inc.
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -30,7 +30,7 @@ and promoting software freedom." -->
 <link href="Index.html#Index" rel="index" title="Index">
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
 <link href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" rel="up" title="GNU Emacs Internals">
-<link href="Object-Internals.html#Object-Internals" rel="next" title="Object Internals">
+<link href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" rel="next" title="Writing Dynamic Modules">
 <link href="C-Dialect.html#C-Dialect" rel="prev" title="C Dialect">
 <style type="text/css">
 <!--
@@ -67,7 +67,7 @@ ul.no-bullet {list-style: none}
 <a name="Writing-Emacs-Primitives"></a>
 <div class="header">
 <p>
-Next: <a href="Object-Internals.html#Object-Internals" accesskey="n" rel="next">Object Internals</a>, Previous: <a href="C-Dialect.html#C-Dialect" accesskey="p" rel="prev">C Dialect</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" accesskey="n" rel="next">Writing Dynamic Modules</a>, Previous: <a href="C-Dialect.html#C-Dialect" accesskey="p" rel="prev">C Dialect</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
 <a name="EmacspurimiteibunoJi-Shu-"></a>
@@ -81,8 +81,8 @@ Next: <a href="Object-Internals.html#Object-Internals" accesskey="n" rel="next">
 </p>
 <div class="smallexample">
 <pre class="smallexample">DEFUN (&quot;or&quot;, For, Sor, 0, UNEVALLED, 0,
-  doc: /* Eval args until one of them yields non-nil, then return
-that value.
+       doc: /* Eval args until one of them yields non-nil,
+then return that value.
 The remaining args are not evalled at all.
 If all args return nil, return nil.
 </pre><pre class="smallexample">usage: (or CONDITIONS...)  */)
@@ -135,14 +135,15 @@ If all args return nil, return nil.
 <a name="index-interactive-specification-in-primitives"></a>
 </dd>
 <dt><var>interactive</var></dt>
-<dd><p>これはLisp関数で<code>interactive</code>の引数として使用されるようなインタラクティブ仕様(文字列)。<code>or</code>の場合は0(nullポインター)であり、それは<code>or</code>がインタラクティブに呼び出せないことを示す。値<code>&quot;&quot;</code>はインタラクティブに呼び出す際に関数が引数を引き受けるべきではないことを示す。値が&lsquo;<samp>&quot;(</samp>&rsquo;で始まる場合には、その文字列はLispフォームとして評価される。たとえば:
+<dd><p>これはLisp関数で<code>interactive</code>の引数として使用されるようなインタラクティブ仕様(文字列)である(<a href="Using-Interactive.html#Using-Interactive">Using Interactive</a>を参照)。<code>or</code>の場合は<code>0</code>
+(nullポインター)であり<code>or</code>がインタラクティブに呼び出せないことを示す。値<code>&quot;&quot;</code>はインタラクティブに呼び出し時に、関数が引数を受け取るべきではないことを示す。値が&lsquo;<samp>&quot;(</samp>&rsquo;で始まる場合には、その文字列はLispフォームとして評価される。たとえば:
 </p>
 <div class="example">
-<pre class="example">DEFUN (&quot;foo&quot;, Ffoo, Sfoo, 0, UNEVALLED, 0
+<pre class="example">DEFUN (&quot;foo&quot;, Ffoo, Sfoo, 0, 3,
        &quot;(list (read-char-by-name \&quot;Insert character: \&quot;)\
               (prefix-numeric-value current-prefix-arg)\
-              t))&quot;,
-  doc: /* &hellip; */)
+              t)&quot;,
+       doc: /* &hellip; */)
 </pre></div>
 
 </dd>
@@ -157,8 +158,8 @@ If all args return nil, return nil.
 </p>
 <div class="example">
 <pre class="example">DEFUN (&quot;bar&quot;, Fbar, Sbar, 0, UNEVALLED, 0
-  doc: /* &hellip; */
-  attributes: <var>attr1</var> <var>attr2</var> &hellip;)
+       doc: /* &hellip; */
+       attributes: <var>attr1</var> <var>attr2</var> &hellip;)
 </pre></div>
 
 <p>後に続けることにより複数の属性を指定できる。現在のところ以下の属性が認識される:
@@ -181,12 +182,12 @@ Compiler Collection</cite>を参照)。
 </dd>
 </dl>
 
-<p><code>DEFUN</code>マクロ呼び出しの後には、そのC関数にたいする引数リストを引数のタイプを含めて記述しなければなりません。そのプリミティブがLispで固定された最大個数をもつ引数を受け入れるならLisp引数それぞれにたいして1つのC引数をもち、各引数のタイプは<code>Lisp_Object</code>でなければなりません(ファイル<samp>lisp.h</samp>ではタイプ<code>Lisp_Object</code>の値を作成する種々のマクロと関数が宣言されている)。そのプリミティブのLispの最大引数個数に上限がなければ正確に2つのC引数をもたなければなりません。1つ目はLisp引数の個数で、2つ目はそれらの値を含むブロックのアドレスです。これらはそれぞれ<code>int</code>、<code><span class="nolinebreak">Lisp_Object</span>&nbsp;*</code><!-- /@w -->のタイプをもちます。<code>Lisp_Object</code>は任意のデータ型と任意のLispオブジェクトを保持できるので実行時のみ実際のデータ型を判断できます。特定のタイプの引数だけを受け入れるプリミティブを記述したければ適切な述語を使用してタイプを明確にチェックしなければなりません(<a href="Type-Predicates.html#Type-Predicates">Type Predicates</a>を参照)。
+<p><code>DEFUN</code>マクロ呼び出しの後には、そのC関数にたいする引数リストを引数のタイプを含めて記述しなければなりません。そのプリミティブがLispで固定された最大個数をもつ引数を受け入れるなら、Lisp引数それぞれにたいして1つのC引数をもち、各引数のタイプは<code>Lisp_Object</code>でなければなりません(ファイル<samp>lisp.h</samp>ではタイプ<code>Lisp_Object</code>の値を作成する種々のマクロと関数が宣言されている)。プリミティブがスペシャルフォームなら、評価されないタイプ<code>Lisp_Object</code>の単一のLisp引数を含むLispリストを受け取らなければなりません。プリミティブのLispの最大引数個数に上限がない場合には正確に2つのC引数をもたなければなりません。1つ目はLisp引数の個数、2つ目はそれらの値を含むブロックのアドレスです。これらはそれぞれ<code>ptrdiff_t</code>、<code><span class="nolinebreak">Lisp_Object</span>&nbsp;*</code><!-- /@w -->のタイプをもちます。<code>Lisp_Object</code>は任意のデータ型と任意のLispオブジェクトを保持できるので、実行時のみ実際のデータ型を判断できます。特定のタイプの引数だけを受け入れるプリミティブを記述したい場合は、適切な述語を使用してタイプを明確にチェックしなければなりません(<a href="Type-Predicates.html#Type-Predicates">Type Predicates</a>を参照)。
 <a name="index-type-checking-internals"></a>
 </p>
 <a name="index-garbage-collection-protection"></a>
 <a name="index-protect-C-variables-from-garbage-collection"></a>
-<p>関数<code>For</code>自体ではローカル変数<code>args</code>はEmacsのスタックマーキングによるガーベージコレクションで制御されるオブジェクトを参照します。たとえガーベージコレクターがCの<code>Lisp_Object</code>スタック変数から到達可能なオブジェクトは再利用しないとしても、文字列の内容のようなオブジェクトの非オブジェクトコンポーネントは移動するかもしれないので、非オブジェクトコンポーネントにアクセスする関数はLisp評価を処理した後にはそれらのアドレスを再取得するよう注意しなければなりません。Lisp評価は直接と間接を問わず<code>eval_sub</code>か<code>Feval</code>の呼び出しを通じて発生する可能性があります。
+<p>関数<code>For</code>自体ではローカル変数<code>args</code>はEmacsのスタックマーキングによるガーベージコレクターが制御するオブジェクトを参照します。ガーベージコレクターはたとえCの<code>Lisp_Object</code>スタック変数から到達可能なオブジェクトを回収しなくても、文字列コンテンツやバッファーのテキストのようなオブジェクトの何らかのコンポーネントを移動するかもしれません。したがってこれらのコンポーネントにアクセスする関数はLispの評価を行なった後に、それらのアドレスの再取得に留意しなければなりません。これはコードが文字列コンテンツやバッファーテキストにたいするCポインターを維持するかわりに、バッファーや文字列の位置を維持して、Lispの評価を行なった後にその位置からCポインターを再計算する必要があることを意味しています。Lisp評価は直接と間接を問わず、<code>eval_sub</code>や<code>Feval</code>の呼び出しを通じて発生する可能性があります。
 </p>
 <a name="index-maybe_005fquit_002c-use-in-Lisp-primitives"></a>
 <p>ループ内部の<code>maybe_quit</code>呼び出しに注意してください。この関数はユーザーが<kbd>C-g</kbd>を渡したかどうかをチェックして、もしそうなら処理をabortします。多数の繰り返しを要する可能性があるすべてのループ内でこれを行うべきです。この場合には引数のリストは非常に長くなるかもしれません。これはEmacsの応答性とユーザーエクスペリエンスを向上させます。
@@ -225,9 +226,9 @@ Compiler Collection</cite>を参照)。
 </p>
 <div class="smallexample">
 <pre class="smallexample">DEFUN (&quot;coordinates-in-window-p&quot;, Fcoordinates_in_window_p,
-  Scoordinates_in_window_p, 2, 2, 0,
-  doc: /* Return non-nil if COORDINATES are in WINDOW.
-  ...
+       Scoordinates_in_window_p, 2, 2, 0,
+       doc: /* Return non-nil if COORDINATES are in WINDOW.
+  &hellip;
 </pre><pre class="smallexample">  or `right-margin' is returned.  */)
   (register Lisp_Object coordinates, Lisp_Object window)
 {
@@ -237,16 +238,15 @@ Compiler Collection</cite>を参照)。
   Lisp_Object lx, ly;
 </pre><pre class="smallexample">
 
-</pre><pre class="smallexample">  CHECK_LIVE_WINDOW (window);
-  w = XWINDOW (window);
+</pre><pre class="smallexample">  w = decode_live_window (window);
   f = XFRAME (w-&gt;frame);
   CHECK_CONS (coordinates);
   lx = Fcar (coordinates);
   ly = Fcdr (coordinates);
-  CHECK_NUMBER_OR_FLOAT (lx);
-  CHECK_NUMBER_OR_FLOAT (ly);
-  x = FRAME_PIXEL_X_FROM_CANON_X (f, lx) + FRAME_INTERNAL_BORDER_WIDTH(f);
-  y = FRAME_PIXEL_Y_FROM_CANON_Y (f, ly) + FRAME_INTERNAL_BORDER_WIDTH(f);
+  CHECK_NUMBER (lx);
+  CHECK_NUMBER (ly);
+  x = FRAME_PIXEL_X_FROM_CANON_X (f, lx) + FRAME_INTERNAL_BORDER_WIDTH (f);
+  y = FRAME_PIXEL_Y_FROM_CANON_Y (f, ly) + FRAME_INTERNAL_BORDER_WIDTH (f);
 </pre><pre class="smallexample">
 
 </pre><pre class="smallexample">  switch (coordinates_in_window (w, x, y))
@@ -255,13 +255,13 @@ Compiler Collection</cite>を参照)。
       return Qnil;
 </pre><pre class="smallexample">
 
-    ...
+    &hellip;
 
 </pre><pre class="smallexample">    case ON_MODE_LINE:          /* In mode line of window.  */
       return Qmode_line;
 </pre><pre class="smallexample">
 
-    ...
+    &hellip;
 
 </pre><pre class="smallexample">    case ON_SCROLL_BAR:         /* On scroll-bar of window.  */
       /* Historically we are supposed to return nil in this case.  */
@@ -269,7 +269,7 @@ Compiler Collection</cite>を参照)。
 </pre><pre class="smallexample">
 
 </pre><pre class="smallexample">    default:
-      abort ();
+      emacs_abort ();
     }
 }
 </pre></div>
@@ -280,12 +280,12 @@ Compiler Collection</cite>を参照)。
 </p>
 <p><samp>eval.c</samp>は例を探すのに適したファイルです。<samp>lisp.h</samp>には重要なマクロと関数の定義がいくつか含まれています。
 </p>
-<p>副作用をもたない関数を定義する場合には、コンパイラーのオプティマイザーに知らせるために<code>side-effect-free-fns</code>と<code>side-effect-and-error-free-fns</code>をバインドする<samp>byte-opt.el</samp>内のコードを更新してください。
+<p>副作用がない関数や純粋関数を定義したら、<code>side-effect-free</code>や<code>pure</code>のプロパティに非<code>nil</code>を与えてください(<a href="Standard-Properties.html#Standard-Properties">Standard Properties</a>を参照)。
 </p>
 <hr>
 <div class="header">
 <p>
-Next: <a href="Object-Internals.html#Object-Internals" accesskey="n" rel="next">Object Internals</a>, Previous: <a href="C-Dialect.html#C-Dialect" accesskey="p" rel="prev">C Dialect</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Writing-Dynamic-Modules.html#Writing-Dynamic-Modules" accesskey="n" rel="next">Writing Dynamic Modules</a>, Previous: <a href="C-Dialect.html#C-Dialect" accesskey="p" rel="prev">C Dialect</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
 </div>
 
 

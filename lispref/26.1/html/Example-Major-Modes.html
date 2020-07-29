@@ -1,9 +1,9 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 26.1.
+corresponding to Emacs version 26.3.
 
-Copyright (C) 1990-1996, 1998-2018 Free Software Foundation, Inc.
+Copyright (C) 1990-1996, 1998-2019 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -76,25 +76,27 @@ Previous: <a href="Generic-Modes.html#Generic-Modes" accesskey="p" rel="prev">Ge
 <p>おそらくTextモードは、Fundamentalを除いてもっともシンプルなモードです。上述した慣習の多くを説明するために以下に<samp>text-mode.el</samp>の抜粋を示します:
 </p>
 <div class="smallexample">
-<pre class="smallexample">;; <span class="roman">このモード用に構文テーブルを作成</span>
+<pre class="smallexample">;; <span class="roman">Create the syntax table for this mode.</span>
 (defvar text-mode-syntax-table
   (let ((st (make-syntax-table)))
     (modify-syntax-entry ?\&quot; &quot;.   &quot; st)
     (modify-syntax-entry ?\\ &quot;.   &quot; st)
-    ;; M-cで'hello'が'hello'でなく'Hello'になるよう'p'を追加
+    ;; Add 'p' so M-c on 'hello' leads to 'Hello', not 'hello'.
     (modify-syntax-entry ?' &quot;w p&quot; st)
+    &hellip;
     st)
-  &quot;`text-mode'で使用される構文テーブル&quot;)
+  &quot;Syntax table used while in `text-mode'.&quot;)
 </pre><pre class="smallexample">
 
 ;; <span class="roman">このモード用にキーマップを作成</span>
 </pre><pre class="smallexample">(defvar text-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map &quot;\e\t&quot; 'ispell-complete-word)
+    &hellip;
     map)
-  &quot;`text-mode'のキーマップ
-`mail-mode'、`outline-mode'、`indented-text-mode'のような
-他の多くのモードはこのマップ内で定義した全コマンドを継承する&quot;)
+  &quot;Keymap for `text-mode'.
+Many other modes, such as `mail-mode', `outline-mode' and
+`indented-text-mode', inherit all the commands defined in this map.&quot;)
 </pre></div>
 
 <p>そして実際にモードコマンドが定義される方法が以下になります:
@@ -124,11 +126,11 @@ Interactionモード)はTextモードより多くの機能をもち、それに�
 <a name="index-syntax-table-example"></a>
 <div class="smallexample">
 <pre class="smallexample">;; <span class="roman">モード固有のテーブル変数の作成</span>
-(defvar lisp-mode-abbrev-table nil)
-(define-abbrev-table 'lisp-mode-abbrev-table ())
+(define-abbrev-table 'lisp-mode-abbrev-table ()
+  &quot;Abbrev table for Lisp mode.&quot;)
 
 (defvar lisp-mode-syntax-table
-  (let ((table (copy-syntax-table emacs-lisp-mode-syntax-table)))
+  (let ((table (make-syntax-table lisp--mode-syntax-table)))
     (modify-syntax-entry ?\[ &quot;_   &quot; table)
     (modify-syntax-entry ?\] &quot;_   &quot; table)
     (modify-syntax-entry ?# &quot;' 14&quot; table)
@@ -140,18 +142,16 @@ Interactionモード)はTextモードより多くの機能をもち、それに�
 <p>Lisp用の3つのモードは多くのコードを共有します。たとえば以下の関数呼び出しによってさまざまな変数がセットされます:
 </p>
 <div class="smallexample">
-<pre class="smallexample">(defun lisp-mode-variables (&amp;optional syntax keywords-case-insensitive)
+<pre class="smallexample">(defun lisp-mode-variables (&amp;optional syntax keywords-case-insensitive elisp)
   (when syntax
     (set-syntax-table lisp-mode-syntax-table))
-  (setq local-abbrev-table lisp-mode-abbrev-table)
   &hellip;
 </pre></div>
 
 <p>その中でも特に以下の関数はLispコメントを処理するために変数<code>comment-start</code>をセットアップします:
 </p>
 <div class="smallexample">
-<pre class="smallexample">  (make-local-variable 'comment-start)
-  (setq comment-start &quot;;&quot;)
+<pre class="smallexample">  (setq-local comment-start &quot;;&quot;)
   &hellip;
 </pre></div>
 
@@ -161,6 +161,7 @@ C-z</kbd>を<code>run-lisp</code>にバインドしますが、他のLisp用モ�
 <div class="smallexample">
 <pre class="smallexample">(defvar lisp-mode-shared-map
   (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map prog-mode-map)
     (define-key map &quot;\e\C-q&quot; 'indent-sexp)
     (define-key map &quot;\177&quot; 'backward-delete-char-untabify)
     map)
@@ -172,14 +173,14 @@ C-z</kbd>を<code>run-lisp</code>にバインドしますが、他のLisp用モ�
 <div class="smallexample">
 <pre class="smallexample">(defvar lisp-mode-map
   (let ((map (make-sparse-keymap))
-	(menu-map (make-sparse-keymap &quot;Lisp&quot;)))
+        (menu-map (make-sparse-keymap &quot;Lisp&quot;)))
     (set-keymap-parent map lisp-mode-shared-map)
     (define-key map &quot;\e\C-x&quot; 'lisp-eval-defun)
     (define-key map &quot;\C-c\C-z&quot; 'run-lisp)
     &hellip;
     map)
-  &quot;通常のLispモード用キーマップ
-`lisp-mode-shared-map'のすべてのコマンドはこのマップを継承する&quot;)
+  &quot;Keymap for ordinary Lisp mode.
+All commands in `lisp-mode-shared-map' are inherited by this map.&quot;)
 </pre></div>
 
 <p>最後はLispモードのためのメジャーモードコマンドです:
@@ -193,19 +194,19 @@ C-z</kbd>を<code>run-lisp</code>にバインドしますが、他のLisp用モ�
 
 \\{lisp-mode-map}
 `run-lisp'はinferior Lispジョブの開始と既存ジョブ
-から戻るための両方に使われるかもしれないことに注意
-</pre><pre class="smallexample">
-
-</pre><pre class="smallexample">このモードへのエントリーによって
-`lisp-mode-hook'の値が非nilならそれを呼び出す&quot;
-  (lisp-mode-variables nil t)
-  (set (make-local-variable 'find-tag-default-function)
-       'lisp-find-tag-default)
-  (set (make-local-variable 'comment-start-skip)
-       &quot;\\(\\(^\\|[^\\\\\n]\\)\\(\\\\\\\\\\)*\\)\\(;+\\|#|\\) *&quot;)
+から戻るための両方に使われるかもしれないことに注意&quot;
+</pre><pre class="smallexample">  (lisp-mode-variables nil t)
+  (setq-local find-tag-default-function 'lisp-find-tag-default)
+  (setq-local comment-start-skip
+              &quot;\\(\\(^\\|[^\\\\\n]\\)\\(\\\\\\\\\\)*\\)\\(;+\\|#|\\) *&quot;)
   (setq imenu-case-fold-search t))
 </pre></div>
 
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Generic-Modes.html#Generic-Modes" accesskey="p" rel="prev">Generic Modes</a>, Up: <a href="Major-Modes.html#Major-Modes" accesskey="u" rel="up">Major Modes</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
 
