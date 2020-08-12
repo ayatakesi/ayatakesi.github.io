@@ -1,0 +1,207 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2020 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Extending Rx (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Extending Rx (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Extending Rx (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Rx-Notation.html" rel="up" title="Rx Notation">
+<link href="Regexp-Functions.html" rel="next" title="Regexp Functions">
+<link href="Rx-Functions.html" rel="prev" title="Rx Functions">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Extending-Rx"></span><div class="header">
+<p>
+Previous: <a href="Rx-Functions.html" accesskey="p" rel="prev">Rx Functions</a>, Up: <a href="Rx-Notation.html" accesskey="u" rel="up">Rx Notation</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Defining-new-rx-forms"></span><h4 class="subsubsection">34.3.3.3 Defining new <code>rx</code> forms</h4>
+
+<p>The <code>rx</code> notation can be extended by defining new symbols and
+parameterized forms in terms of other <code>rx</code> expressions.  This is handy
+for sharing parts between several regexps, and for making complex ones
+easier to build and understand by putting them together from smaller pieces.
+</p>
+<p>For example, you could define <code>name</code> to mean <code>(one-or-more
+letter)</code>, and <code>(quoted <var>x</var>)</code> to mean <code>(seq ?' <var>x</var> ?')</code> for
+any <var>x</var>.  These forms could then be used in <code>rx</code> expressions like
+any other: <code>(rx (quoted name))</code> would match a nonempty sequence of
+letters inside single quotes.
+</p>
+<p>The Lisp macros below provide different ways of binding names to
+definitions.  Common to all of them are the following rules:
+</p>
+<ul>
+<li> Built-in <code>rx</code> forms, like <code>digit</code> and <code>group</code>, cannot be
+redefined.
+
+</li><li> The definitions live in a name space of their own, separate from that of
+Lisp variables.  There is thus no need to attach a suffix like
+<code>-regexp</code> to names; they cannot collide with anything else.
+
+</li><li> Definitions cannot refer to themselves recursively, directly or indirectly.
+If you find yourself needing this, you want a parser, not a regular
+expression.
+
+</li><li> Definitions are only ever expanded in calls to <code>rx</code> or
+<code>rx-to-string</code>, not merely by their presence in definition macros.
+This means that the order of definitions doesn&rsquo;t matter, even when they
+refer to each other, and that syntax errors only show up when they are used,
+not when they are defined.
+
+</li><li> User-defined forms are allowed wherever arbitrary <code>rx</code> expressions are
+expected; for example, in the body of a <code>zero-or-one</code> form, but not
+inside <code>any</code> or <code>category</code> forms.  They are also allowed inside
+<code>not</code> and <code>intersection</code> forms.
+</li></ul>
+
+<dl>
+<dt id="index-rx_002ddefine">Macro: <strong>rx-define</strong> <em>name [arglist] rx-form</em></dt>
+<dd><p>Define <var>name</var> globally in all subsequent calls to <code>rx</code> and
+<code>rx-to-string</code>.  If <var>arglist</var> is absent, then <var>name</var> is defined
+as a plain symbol to be replaced with <var>rx-form</var>.  Example:
+</p>
+<div class="example">
+<pre class="example">(rx-define haskell-comment (seq &quot;--&quot; (zero-or-more nonl)))
+(rx haskell-comment)
+     &rArr; &quot;--.*&quot;
+</pre></div>
+
+<p>If <var>arglist</var> is present, it must be a list of zero or more argument
+names, and <var>name</var> is then defined as a parameterized form.  When used in
+an <code>rx</code> expression as <code>(<var>name</var> <var>arg</var>&hellip;)</code>, each
+<var>arg</var> will replace the corresponding argument name inside <var>rx-form</var>.
+</p>
+<p><var>arglist</var> may end in <code>&amp;rest</code> and one final argument name, denoting
+a rest parameter.  The rest parameter will expand to all extra actual
+argument values not matched by any other parameter in <var>arglist</var>, spliced
+into <var>rx-form</var> where it occurs.  Example:
+</p>
+<div class="example">
+<pre class="example">(rx-define moan (x y &amp;rest r) (seq x (one-or-more y) r &quot;!&quot;))
+(rx (moan &quot;MOO&quot; &quot;A&quot; &quot;MEE&quot; &quot;OW&quot;))
+     &rArr; &quot;MOOA+MEEOW!&quot;
+</pre></div>
+
+<p>Since the definition is global, it is recommended to give <var>name</var> a
+package prefix to avoid name clashes with definitions elsewhere, as is usual
+when naming non-local variables and functions.
+</p></dd></dl>
+
+<dl>
+<dt id="index-rx_002dlet">Macro: <strong>rx-let</strong> <em>(bindings&hellip;) body&hellip;</em></dt>
+<dd><p>Make the <code>rx</code> definitions in <var>bindings</var> available locally for
+<code>rx</code> macro invocations in <var>body</var>, which is then evaluated.
+</p>
+<p>Each element of <var>bindings</var> is on the form <code>(<var>name</var>&nbsp;[<var>arglist</var>]&nbsp;<var><span class="nolinebreak">rx-form</span></var>)</code><!-- /@w -->, where the parts have the same meaning as
+in <code>rx-define</code> above.  Example:
+</p>
+<div class="example">
+<pre class="example">(rx-let ((comma-separated (item) (seq item (0+ &quot;,&quot; item)))
+         (number (1+ digit))
+         (numbers (comma-separated number)))
+  (re-search-forward (rx &quot;(&quot; numbers &quot;)&quot;)))
+</pre></div>
+
+<p>The definitions are only available during the macro-expansion of <var>body</var>,
+and are thus not present during execution of compiled code.
+</p>
+<p><code>rx-let</code> can be used not only inside a function, but also at top level
+to include global variable and function definitions that need to share a
+common set of <code>rx</code> forms.  Since the names are local inside <var>body</var>,
+there is no need for any package prefixes.  Example:
+</p>
+<div class="example">
+<pre class="example">(rx-let ((phone-number (seq (opt ?+) (1+ (any digit ?-)))))
+  (defun find-next-phone-number ()
+    (re-search-forward (rx phone-number)))
+  (defun phone-number-p (string)
+    (string-match-p (rx bos phone-number eos) string)))
+</pre></div>
+
+<p>The scope of the <code>rx-let</code> bindings is lexical, which means that they
+are not visible outside <var>body</var> itself, even in functions called from
+<var>body</var>.
+</p></dd></dl>
+
+<dl>
+<dt id="index-rx_002dlet_002deval">Macro: <strong>rx-let-eval</strong> <em>bindings body&hellip;</em></dt>
+<dd><p>Evaluate <var>bindings</var> to a list of bindings as in <code>rx-let</code>, and
+evaluate <var>body</var> with those bindings in effect for calls to
+<code>rx-to-string</code>.
+</p>
+<p>This macro is similar to <code>rx-let</code>, except that the <var>bindings</var>
+argument is evaluated (and thus needs to be quoted if it is a list literal),
+and the definitions are substituted at run time, which is required for
+<code>rx-to-string</code> to work.  Example:
+</p>
+<div class="example">
+<pre class="example">(rx-let-eval
+    '((ponder (x) (seq &quot;Where have all the &quot; x &quot; gone?&quot;)))
+  (looking-at (rx-to-string
+               '(ponder (or &quot;flowers&quot; &quot;young girls&quot;
+                            &quot;left socks&quot;)))))
+</pre></div>
+
+<p>Another difference from <code>rx-let</code> is that the <var>bindings</var> are
+dynamically scoped, and thus also available in functions called from
+<var>body</var>. However, they are not visible inside functions defined in
+<var>body</var>.
+</p></dd></dl>
+
+
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Rx-Functions.html" accesskey="p" rel="prev">Rx Functions</a>, Up: <a href="Rx-Notation.html" accesskey="u" rel="up">Rx Notation</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

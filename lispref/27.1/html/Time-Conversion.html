@@ -1,0 +1,302 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2020 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Time Conversion (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Time Conversion (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Time Conversion (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="System-Interface.html" rel="up" title="System Interface">
+<link href="Time-Parsing.html" rel="next" title="Time Parsing">
+<link href="Time-Zone-Rules.html" rel="prev" title="Time Zone Rules">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Time-Conversion"></span><div class="header">
+<p>
+Next: <a href="Time-Parsing.html" accesskey="n" rel="next">Time Parsing</a>, Previous: <a href="Time-Zone-Rules.html" accesskey="p" rel="prev">Time Zone Rules</a>, Up: <a href="System-Interface.html" accesskey="u" rel="up">System Interface</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Shi-Ke-noBian-Huan-"></span><h3 class="section">40.7 時刻の変換</h3>
+<span id="index-calendrical-information"></span>
+<span id="index-time-conversion"></span>
+
+<p>These functions convert time values (see <a href="Time-of-Day.html">Time of Day</a>) to Lisp
+timestamps, or into calendrical information and vice versa.
+</p>
+<p>32ビットオペレーティングシステムの多くは、秒数コンポーネントに32ビット情報を含んだシステム時刻に制限されます。これらのシステムは通常は万国標準時の1901-12-13
+20:45:52から2038-01-19
+03:14:07までの時刻だけを処理します。しかし64ビット、およびいくつかの32ビットオペレーティングシステムは、より大きな秒数コンポーネント値をもち、より遠い過去や未来の時刻を表現できます。
+</p>
+<p>Calendrical conversion functions always use the Gregorian calendar, even for
+dates before the Gregorian calendar was introduced.  Year numbers count the
+number of years since the year 1 BC, and do not skip zero as traditional
+Gregorian years do; for example, the year number -37 represents the
+Gregorian year 38 BC.
+</p>
+<dl>
+<dt id="index-time_002dconvert">Function: <strong>time-convert</strong> <em>time &amp;optional form</em></dt>
+<dd><p>This function converts a time value into a Lisp timestamp.
+</p>
+<p>The optional <var>form</var> argument specifies the timestamp form to be
+returned.  If <var>form</var> is the symbol <code>integer</code>, this function returns
+an integer count of seconds.  If <var>form</var> is a positive integer, it
+specifies a clock frequency and this function returns an integer-pair
+timestamp <code>(<var>ticks</var> . <var>form</var>)</code>.<a id="DOCF25" href="#FOOT25"><sup>25</sup></a> If
+<var>form</var> is <code>t</code>, this function treats it as a positive integer
+suitable for representing the timestamp; for example, it is treated as
+1000000000 if <var>time</var> is nil and the platform timestamp has nanosecond
+resolution.  If <var>form</var> is <code>list</code>, this function returns an integer
+list <code>(<var>high</var> <var>low</var> <var>micro</var> <var>pico</var>)</code>.  Although an
+omitted or <code>nil</code> <var>form</var> currently acts like <code>list</code>, this is
+planned to change in a future Emacs version, so callers requiring list
+timestamps should pass <code>list</code> explicitly.
+</p>
+<p>If <var>time</var> is infinite or a NaN, this function signals an error.
+Otherwise, if <var>time</var> cannot be represented exactly, conversion truncates
+it toward minus infinity.  When <var>form</var> is <code>t</code>, conversion is always
+exact so no truncation occurs, and the returned clock resolution is no less
+than that of <var>time</var>.  By way of contrast, <code>float-time</code> can convert
+any Lisp time value without signaling an error, although the result might
+not be exact.  See <a href="Time-of-Day.html">Time of Day</a>.
+</p>
+<p>For efficiency this function might return a value that is <code>eq</code> to
+<var>time</var>, or that otherwise shares structure with <var>time</var>.
+</p>
+<p>Although <code>(time-convert nil nil)</code> is equivalent to
+<code>(current-time)</code>, the latter may be a bit faster.
+</p>
+<div class="example">
+<pre class="example">(setq a (time-convert nil t))
+&rArr; (1564826753904873156 . 1000000000)
+</pre><pre class="example">(time-convert a 100000)
+&rArr; (156482675390487 . 100000)
+</pre><pre class="example">(time-convert a 'integer)
+&rArr; 1564826753
+</pre><pre class="example">(time-convert a 'list)
+&rArr; (23877 23681 904873 156000)
+</pre></div>
+</dd></dl>
+
+<dl>
+<dt id="index-decode_002dtime">Function: <strong>decode-time</strong> <em>&amp;optional time zone form</em></dt>
+<dd><p>This function converts a time value into calendrical information.  If you
+don&rsquo;t specify <var>time</var>, it decodes the current time, and similarly
+<var>zone</var> defaults to the current time zone rule.  See <a href="Time-Zone-Rules.html">Time Zone Rules</a>.
+The operating system limits the range of time and zone values.
+</p>
+<p>The <var>form</var> argument controls the form of the returned <var>seconds</var>
+element, as described below.  The return value is a list of nine elements,
+as follows:
+</p>
+<div class="example">
+<pre class="example">(<var>seconds</var> <var>minutes</var> <var>hour</var> <var>day</var> <var>month</var> <var>year</var> <var>dow</var> <var>dst</var> <var>utcoff</var>)
+</pre></div>
+
+<p>以下は各要素の意味:
+</p>
+<dl compact="compact">
+<dt><var>seconds</var></dt>
+<dd><p>The number of seconds past the minute, with form described below.
+</p></dd>
+<dt><var>minutes</var></dt>
+<dd><p>0から59までの整数で表した時を過ぎた時分秒の分。
+</p></dd>
+<dt><var>hour</var></dt>
+<dd><p>0から23までの整数で表した時分秒の時。
+</p></dd>
+<dt><var>day</var></dt>
+<dd><p>1から31までの整数で表した年月日の日。
+</p></dd>
+<dt><var>month</var></dt>
+<dd><p>1から12までの整数で表した年月日の月。
+</p></dd>
+<dt><var>year</var></dt>
+<dd><p>通常は1900より大きい整数で表した年月日の年。
+</p></dd>
+<dt><var>dow</var></dt>
+<dd><p>0から6までの整数で表した曜日であり0は日曜日を意味する。
+</p></dd>
+<dt><var>dst</var></dt>
+<dd><p><code>t</code> if daylight saving time is effect, <code>nil</code> if it is not in
+effect, and -1 if this information is not available.
+</p></dd>
+<dt><var>utcoff</var></dt>
+<dd><p>万国標準時からの秒数、すなわち東グリニッジの秒数を示す整数。
+</p></dd>
+</dl>
+
+<p>The <var>seconds</var> element is a Lisp timestamp that is nonnegative and less
+than 61; it is less than 60 except during positive leap seconds (assuming
+the operating system supports leap seconds).  If the optional <var>form</var>
+argument is <code>t</code>, <var>seconds</var> uses the same precision as <var>time</var>;
+if <var>form</var> is <code>integer</code>, <var>seconds</var> is truncated to an integer.
+For example, if <var>time</var> is the timestamp <code>(1566009571321 . 1000)</code>,
+which represents 2019-08-17 02:39:31.321 UTC on typical systems that lack
+leap seconds, then <code>(decode-time <var>time</var> t t)</code> returns <code>((31321
+. 1000)  39 2 17 8 2019 6 nil 0)</code>, whereas <code>(decode-time <var>time</var> t
+'integer)</code> returns <code>(31 39 2 17 8 2019 6 nil 0)</code>.  If <var>form</var> is
+omitted or <code>nil</code>, it currently defaults to <code>integer</code> but this
+default may change in future Emacs releases, so callers requiring a
+particular form should specify <var>form</var>.
+</p>
+<p><strong>Common Lisp Note:</strong> Common Lisp has different meanings for <var>dow</var>
+and <var>utcoff</var>, and its <var>second</var> is an integer between 0 and 59
+inclusive.
+</p>
+<p>To access (or alter) the elements in the time value, the
+<code>decoded-time-second</code>, <code>decoded-time-minute</code>,
+<code>decoded-time-hour</code>, <code>decoded-time-day</code>,
+<code>decoded-time-month</code>, <code>decoded-time-year</code>,
+<code>decoded-time-weekday</code>, <code>decoded-time-dst</code> and
+<code>decoded-time-zone</code> accessors can be used.
+</p>
+<p>For instance, to increase the year in a decoded time, you could say:
+</p>
+<div class="lisp">
+<pre class="lisp">(setf (decoded-time-year decoded-time)
+      (+ (decoded-time-year decoded-time) 4))
+</pre></div>
+
+<p>Also see the following function.
+</p>
+</dd></dl>
+
+<dl>
+<dt id="index-decoded_002dtime_002dadd">Function: <strong>decoded-time-add</strong> <em>time delta</em></dt>
+<dd><p>This function takes a decoded time structure and adds <var>delta</var> (also a
+decoded time structure) to it.  Elements in <var>delta</var> that are <code>nil</code>
+are ignored.
+</p>
+<p>For instance, if you want &ldquo;same time next month&rdquo;, you could say:
+</p>
+<div class="lisp">
+<pre class="lisp">(let ((time (decode-time nil nil t))
+      (delta (make-decoded-time :month 2)))
+   (encode-time (decoded-time-add time delta)))
+</pre></div>
+
+<p>If this date doesn&rsquo;t exist (if you&rsquo;re running this on January 31st, for
+instance), then the date will be shifted back until you get a valid date
+(which will be February 28th or 29th, depending).
+</p>
+<p>Fields are added in a most to least significant order, so if the adjustment
+described above happens, it happens before adding days, hours, minutes or
+seconds.
+</p>
+<p>The values in <var>delta</var> can be negative to subtract values instead.
+</p>
+<p>The return value is a decoded time structure.
+</p></dd></dl>
+
+<dl>
+<dt id="index-make_002ddecoded_002dtime">Function: <strong>make-decoded-time</strong> <em>&amp;key second minute hour day month year dst zone</em></dt>
+<dd><p>Return a decoded time structure with only the given keywords filled out,
+leaving the rest <code>nil</code>.  For instance, to get a structure that
+represents &ldquo;two months&rdquo;, you could say:
+</p>
+<div class="lisp">
+<pre class="lisp">(make-decoded-time :month 2)
+</pre></div>
+</dd></dl>
+
+<dl>
+<dt id="index-encode_002dtime">Function: <strong>encode-time</strong> <em>time &amp;rest obsolescent-arguments</em></dt>
+<dd><p>This function converts <var>time</var> to a Lisp timestamp.  It can act as the
+inverse of <code>decode-time</code>.
+</p>
+<p>Ordinarily the first argument is a list <code>(<var>second</var> <var>minute</var>
+<var>hour</var> <var>day</var> <var>month</var> <var>year</var> <var>ignored</var> <var>dst</var>
+<var>zone</var>)</code> that specifies a decoded time in the style of
+<code>decode-time</code>, so that <code>(encode-time (decode-time ...))</code> works.
+For the meanings of these list members, see the table under
+<code>decode-time</code>.
+</p>
+<p>As an obsolescent calling convention, this function can be given six or more
+arguments.  The first six arguments <var>second</var>, <var>minute</var>, <var>hour</var>,
+<var>day</var>, <var>month</var>, and <var>year</var> specify most of the components of a
+decoded time.  If there are more than six arguments the <em>last</em> argument
+is used as <var>zone</var> and any other extra arguments are ignored, so that
+<code>(apply #'encode-time (decode-time ...))</code> works.  In this obsolescent
+convention, <var>zone</var> defaults to the current time zone rule (see <a href="Time-Zone-Rules.html">Time Zone Rules</a>), and <var>dst</var> is treated as if it was -1.
+</p>
+<p>Year numbers less than 100 are not treated specially.  If you want them to
+stand for years above 1900, or years above 2000, you must alter them
+yourself before you call <code>encode-time</code>.  The operating system limits
+the range of time and zone values.
+</p>
+<p>The <code>encode-time</code> function acts as a rough inverse to
+<code>decode-time</code>.  For example, you can pass the output of the latter to
+the former as follows:
+</p>
+<div class="example">
+<pre class="example">(encode-time (decode-time &hellip;))
+</pre></div>
+
+<p>You can perform simple date arithmetic by using out-of-range values for
+<var>seconds</var>, <var>minutes</var>, <var>hour</var>, <var>day</var>, and <var>month</var>; for
+example, day 0 means the day preceding the given month.
+</p></dd></dl>
+
+<div class="footnote">
+<hr>
+<h4 class="footnotes-heading">Footnotes</h4>
+
+<h5><a id="FOOT25" href="#DOCF25">(25)</a></h3>
+<p>Currently a positive
+integer <var>form</var> should be at least 65536 if the returned value is
+intended to be given to standard functions expecting Lisp timestamps.</p>
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Time-Parsing.html" accesskey="n" rel="next">Time Parsing</a>, Previous: <a href="Time-Zone-Rules.html" accesskey="p" rel="prev">Time Zone Rules</a>, Up: <a href="System-Interface.html" accesskey="u" rel="up">System Interface</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

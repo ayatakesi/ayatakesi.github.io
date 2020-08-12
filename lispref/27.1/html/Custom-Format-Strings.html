@@ -1,0 +1,232 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2020 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Custom Format Strings (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Custom Format Strings (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Custom Format Strings (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Strings-and-Characters.html" rel="up" title="Strings and Characters">
+<link href="Case-Conversion.html" rel="next" title="Case Conversion">
+<link href="Formatting-Strings.html" rel="prev" title="Formatting Strings">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Custom-Format-Strings"></span><div class="header">
+<p>
+Next: <a href="Case-Conversion.html" accesskey="n" rel="next">Case Conversion</a>, Previous: <a href="Formatting-Strings.html" accesskey="p" rel="prev">Formatting Strings</a>, Up: <a href="Strings-and-Characters.html" accesskey="u" rel="up">Strings and Characters</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Custom-Format-Strings-1"></span><h3 class="section">4.8 Custom Format Strings</h3>
+<span id="index-custom-format-string"></span>
+<span id="index-custom-_0025_002dsequence-in-format"></span>
+
+<p>Sometimes it is useful to allow users and Lisp programs alike to control how
+certain text is generated via custom format control strings.  For example, a
+format string could control how to display someone&rsquo;s forename, surname, and
+email address.  Using the function <code>format</code> described in the previous
+section, the format string could be something like <code>&quot;%s&nbsp;%s&nbsp;&lt;%s&gt;&quot;</code><!-- /@w -->.
+This approach quickly becomes impractical, however, as it can be unclear
+which specification character corresponds to which piece of information.
+</p>
+<p>A more convenient format string for such cases would be something like
+<code>&quot;%f&nbsp;%l&nbsp;&lt;%e&gt;&quot;</code><!-- /@w -->, where each specification character carries more
+semantic information and can easily be rearranged relative to other
+specification characters, making such format strings more easily
+customizable by the user.
+</p>
+<p>The function <code>format-spec</code> described in this section performs a similar
+function to <code>format</code>, except it operates on format control strings that
+use arbitrary specification characters.
+</p>
+<dl>
+<dt id="index-format_002dspec">Function: <strong>format-spec</strong> <em>template spec-alist &amp;optional only-present</em></dt>
+<dd><p>This function returns a string produced from the format string
+<var>template</var> according to conversions specified in <var>spec-alist</var>, which
+is an alist (see <a href="Association-Lists.html">Association Lists</a>) of the form <code>(<var>letter</var>&nbsp;.&nbsp;<var>replacement</var>)</code><!-- /@w -->.  Each specification <code>%<var>letter</var></code> in
+<var>template</var> will be replaced by <var>replacement</var> when formatting the
+resulting string.
+</p>
+<p>The characters in <var>template</var>, other than the format specifications, are
+copied directly into the output, including their text properties, if any.
+Any text properties of the format specifications are copied to their
+replacements.
+</p>
+<p>Using an alist to specify conversions gives rise to some useful properties:
+</p>
+<ul>
+<li> If <var>spec-alist</var> contains more unique <var>letter</var> keys than there are
+unique specification characters in <var>template</var>, the unused keys are
+simply ignored.
+</li><li> If <var>spec-alist</var> contains more than one association with the same
+<var>letter</var>, the closest one to the start of the list is used.
+</li><li> If <var>template</var> contains the same specification character more than once,
+then the same <var>replacement</var> found in <var>spec-alist</var> is used as a basis
+for all of that character&rsquo;s substitutions.
+</li><li> The order of specifications in <var>template</var> need not correspond to the
+order of associations in <var>spec-alist</var>.
+</li></ul>
+
+<p>The optional argument <var>only-present</var> indicates how to handle
+specification characters in <var>template</var> that are not found in
+<var>spec-alist</var>.  If it is <code>nil</code> or omitted, the function signals an
+error.  Otherwise, those format specifications and any occurrences of
+&lsquo;<samp>%%</samp>&rsquo; in <var>template</var> are left verbatim in the output, including their
+text properties, if any.
+</p></dd></dl>
+
+<p>The syntax of format specifications accepted by <code>format-spec</code> is
+similar, but not identical, to that accepted by <code>format</code>.  In both
+cases, a format specification is a sequence of characters beginning with
+&lsquo;<samp>%</samp>&rsquo; and ending with an alphabetic letter such as &lsquo;<samp>s</samp>&rsquo;.
+</p>
+<p>Unlike <code>format</code>, which assigns specific meanings to a fixed set of
+specification characters, <code>format-spec</code> accepts arbitrary specification
+characters and treats them all equally.  For example:
+</p>
+<div class="example">
+<pre class="example">(setq my-site-info
+      (list (cons ?s system-name)
+            (cons ?t (symbol-name system-type))
+            (cons ?c system-configuration)
+            (cons ?v emacs-version)
+            (cons ?e invocation-name)
+            (cons ?p (number-to-string (emacs-pid)))
+            (cons ?a user-mail-address)
+            (cons ?n user-full-name)))
+
+(format-spec &quot;%e %v (%c)&quot; my-site-info)
+     &rArr; &quot;emacs 27.1 (x86_64-pc-linux-gnu)&quot;
+
+(format-spec &quot;%n &lt;%a&gt;&quot; my-site-info)
+     &rArr; &quot;Emacs Developers &lt;emacs-devel@gnu.org&gt;&quot;
+</pre></div>
+
+<p>A format specification can include any number of the following flag
+characters immediately after the &lsquo;<samp>%</samp>&rsquo; to modify aspects of the
+substitution.
+</p>
+<dl compact="compact">
+<dt>&lsquo;<samp>0</samp>&rsquo;</dt>
+<dd><p>This flag causes any padding specified by the width to consist of &lsquo;<samp>0</samp>&rsquo;
+characters instead of spaces.
+</p>
+</dd>
+<dt>&lsquo;<samp>-</samp>&rsquo;</dt>
+<dd><p>This flag causes any padding specified by the width to be inserted on the
+right rather than the left.
+</p>
+</dd>
+<dt>&lsquo;<samp>&lt;</samp>&rsquo;</dt>
+<dd><p>This flag causes the substitution to be truncated on the left to the given
+width, if specified.
+</p>
+</dd>
+<dt>&lsquo;<samp>&gt;</samp>&rsquo;</dt>
+<dd><p>This flag causes the substitution to be truncated on the right to the given
+width, if specified.
+</p>
+</dd>
+<dt>&lsquo;<samp>^</samp>&rsquo;</dt>
+<dd><p>This flag converts the substituted text to upper case (see <a href="Case-Conversion.html">Case Conversion</a>).
+</p>
+</dd>
+<dt>&lsquo;<samp>_</samp>&rsquo;</dt>
+<dd><p>This flag converts the substituted text to lower case (see <a href="Case-Conversion.html">Case Conversion</a>).
+</p></dd>
+</dl>
+
+<p>The result of using contradictory flags (for instance, both upper and lower
+case) is undefined.
+</p>
+<p>As is the case with <code>format</code>, a format specification can include a
+width, which is a decimal number that appears after any flags.  If a
+substitution contains fewer characters than its specified width, it is
+padded on the left:
+</p>
+<div class="example">
+<pre class="example">(format-spec &quot;%8a is padded on the left with spaces&quot;
+             '((?a . &quot;alpha&quot;)))
+     &rArr; &quot;   alpha is padded on the left with spaces&quot;
+</pre></div>
+
+<p>Here is a more complicated example that combines several aforementioned
+features:
+</p>
+<div class="example">
+<pre class="example">(setq my-battery-info
+      (list (cons ?p &quot;73&quot;)      ; Percentage
+            (cons ?L &quot;Battery&quot;) ; Status
+            (cons ?t &quot;2:23&quot;)    ; Remaining time
+            (cons ?c &quot;24330&quot;)   ; Capacity
+            (cons ?r &quot;10.6&quot;)))  ; Rate of discharge
+
+(format-spec &quot;%&gt;^-3L : %3p%% (%05t left)&quot; my-battery-info)
+     &rArr; &quot;BAT :  73% (02:23 left)&quot;
+
+(format-spec &quot;%&gt;^-3L : %3p%% (%05t left)&quot;
+             (cons (cons ?L &quot;AC&quot;)
+                   my-battery-info))
+     &rArr; &quot;AC  :  73% (02:23 left)&quot;
+</pre></div>
+
+<p>As the examples in this section illustrate, <code>format-spec</code> is often used
+for selectively formatting an assortment of different pieces of
+information.  This is useful in programs that provide user-customizable
+format strings, as the user can choose to format with a regular syntax and
+in any desired order only a subset of the information that the program makes
+available.
+</p>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Case-Conversion.html" accesskey="n" rel="next">Case Conversion</a>, Previous: <a href="Formatting-Strings.html" accesskey="p" rel="prev">Formatting Strings</a>, Up: <a href="Strings-and-Characters.html" accesskey="u" rel="up">Strings and Characters</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

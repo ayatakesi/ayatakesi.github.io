@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2020 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Time of Day (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Time of Day (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Time of Day (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="System-Interface.html" rel="up" title="System Interface">
+<link href="Time-Zone-Rules.html" rel="next" title="Time Zone Rules">
+<link href="User-Identification.html" rel="prev" title="User Identification">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Time-of-Day"></span><div class="header">
+<p>
+Next: <a href="Time-Zone-Rules.html" accesskey="n" rel="next">Time Zone Rules</a>, Previous: <a href="User-Identification.html" accesskey="p" rel="prev">User Identification</a>, Up: <a href="System-Interface.html" accesskey="u" rel="up">System Interface</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Shi-Ke-"></span><h3 class="section">40.5 時刻</h3>
+<span id="index-time-of-day"></span>
+
+<p>このセクションではカレント時刻とタイムゾーンを決定する方法を説明します。
+</p>
+<span id="index-Lisp-timestamp"></span>
+<span id="index-timestamp_002c-Lisp"></span>
+<p>Many functions like <code>current-time</code> and <code>file-attributes</code> return
+<em>Lisp timestamp</em> values that count seconds, and that can represent
+absolute time by counting seconds since the <em>epoch</em> of 1970-01-01
+00:00:00 UTC.
+</p>
+<p>Although traditionally Lisp timestamps were integer pairs, their form has
+evolved and programs ordinarily should not depend on the current default
+form.  If your program needs a particular timestamp form, you can use the
+<code>time-convert</code> function to convert it to the needed form.  See <a href="Time-Conversion.html">Time Conversion</a>.
+</p>
+<span id="index-epoch"></span>
+<p>There are currently three forms of Lisp timestamps, each of which represents
+a number of seconds:
+</p>
+<ul>
+<li> An integer.  Although this is the simplest form, it cannot represent
+subsecond timestamps.
+
+</li><li> A pair of integers <code>(<var>ticks</var> . <var>hz</var>)</code>, where <var>hz</var> is
+positive.  This represents <var>ticks</var>/<var>hz</var> seconds, which is the same
+time as plain <var>ticks</var> if <var>hz</var> is 1.  A common value for <var>hz</var> is
+1000000000, for a nanosecond-resolution clock.<a id="DOCF24" href="#FOOT24"><sup>24</sup></a>
+
+</li><li> A list of four integers <code>(<var>high</var> <var>low</var> <var>micro</var>
+<var>pico</var>)</code>, where 0&le;<var>low</var>&lt;65536, 0&le;<var>micro</var>&lt;1000000, and
+0&le;<var>pico</var>&lt;1000000.  This represents the number of seconds using the
+formula:
+<var>high</var> * 2**16 + <var>low</var> + <var>micro</var> * 10**-6 + <var>pico</var> *
+10**-12を使用して<em>epoch</em> (January 1, 1970 at 00:00 UTC)からの経過秒数を表します。
+In some cases, functions may default to returning two- or three-element
+lists, with omitted <var>micro</var> and <var>pico</var> components defaulting to
+zero.  On all current machines <var>pico</var> is a multiple of 1000, but this
+may change as higher-resolution clocks become available.
+</li></ul>
+
+<span id="index-time-value"></span>
+<p>Function arguments, e.g., the <var>time</var> argument to
+<code>current-time-string</code>, accept a more-general <em>time value</em> format,
+which can be a Lisp timestamp, <code>nil</code> for the current time, a single
+floating-point number for seconds, or a list <code>(<var>high</var> <var>low</var>
+<var>micro</var>)</code> or <code>(<var>high</var> <var>low</var>)</code> that is a truncated list
+timestamp with missing elements taken to be zero.
+</p>
+<span id="index-Specified-time-is-not-representable"></span>
+<p>Time values can be converted to and from calendrical and other forms.  Some
+of these conversions rely on operating system functions that limit the range
+of possible time values, and signal an error such as &lsquo;<samp>&quot;Specified time
+is not representable&quot;</samp>&rsquo; if the limits are exceeded.  For instance, a system
+may not support years before 1970, or years before 1901, or years far in the
+future.  You can convert a time value into a human-readable string using
+<code>format-time-string</code>, into a Lisp timestamp using <code>time-convert</code>,
+and into other forms using <code>decode-time</code> and <code>float-time</code>.  These
+functions are described in the following sections.
+</p>
+<dl>
+<dt id="index-current_002dtime_002dstring">Function: <strong>current-time-string</strong> <em>&amp;optional time zone</em></dt>
+<dd><p>This function returns the current time and date as a human-readable string.
+The format does not vary for the initial part of the string, which contains
+the day of week, month, day of month, and time of day in that order: the
+number of characters used for these fields is always the same, although
+(unless you require English weekday or month abbreviations regardless of
+locale) it is typically more convenient to use <code>format-time-string</code>
+than to extract fields from the output of <code>current-time-string</code>, as the
+year might not have exactly four digits, and additional information may some
+day be added at the end.
+</p>
+<p>The argument <var>time</var>, if given, specifies a time to format, instead of
+the current time.  The optional argument <var>zone</var> defaults to the current
+time zone rule.  See <a href="Time-Zone-Rules.html">Time Zone Rules</a>.  The operating system limits the
+range of time and zone values.
+</p>
+<div class="example">
+<pre class="example">(current-time-string)
+     &rArr; &quot;Fri Nov &nbsp;1 15:59:49 2019&quot;
+</pre></div>
+</dd></dl>
+
+<dl>
+<dt id="index-current_002dtime">Function: <strong>current-time</strong></dt>
+<dd><p>This function returns the current time as a Lisp timestamp.  Although the
+timestamp takes the form <code>(<var>high</var> <var>low</var> <var>micro</var>
+<var>pico</var>)</code> in the current Emacs release, this is planned to change in a
+future Emacs version.  You can use the <code>time-convert</code> function to
+convert a timestamp to some other form.  See <a href="Time-Conversion.html">Time Conversion</a>.
+</p></dd></dl>
+
+<dl>
+<dt id="index-float_002dtime">Function: <strong>float-time</strong> <em>&amp;optional time</em></dt>
+<dd><p>この関数はエポックからの経過秒数を浮動小数点数としてリターンする。オプション引数<var>time-value</var>が与えられた場合には、カレント時刻ではなく変換する時刻を指定する。
+</p>
+<p><em>Warning</em>: Since the result is floating point, it may not be exact.  Do
+not use this function if precise time stamps are required.  For example, on
+typical systems <code>(float-time '(1 . 10))</code> displays as &lsquo;<samp>0.1</samp>&rsquo; but is
+slightly greater than 1/10.
+</p>
+<p><code>time-to-seconds</code>はこの関数のエイリアス。
+</p></dd></dl>
+
+<div class="footnote">
+<hr>
+<h4 class="footnotes-heading">Footnotes</h4>
+
+<h5><a id="FOOT24" href="#DOCF24">(24)</a></h3>
+<p>Currently <var>hz</var>
+should be at least 65536 to avoid compatibility warnings when the timestamp
+is passed to standard functions, as previous versions of Emacs would
+interpret such a timestamps differently due to backward-compatibility
+concerns.  These warnings are intended to be removed in a future Emacs
+version.</p>
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Time-Zone-Rules.html" accesskey="n" rel="next">Time Zone Rules</a>, Previous: <a href="User-Identification.html" accesskey="p" rel="prev">User Identification</a>, Up: <a href="System-Interface.html" accesskey="u" rel="up">System Interface</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2020 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Deferred Eval (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Deferred Eval (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Deferred Eval (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Evaluation.html" rel="up" title="Evaluation">
+<link href="Control-Structures.html" rel="next" title="Control Structures">
+<link href="Eval.html" rel="prev" title="Eval">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Deferred-Eval"></span><div class="header">
+<p>
+Previous: <a href="Eval.html" accesskey="p" rel="prev">Eval</a>, Up: <a href="Evaluation.html" accesskey="u" rel="up">Evaluation</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Deferred-and-Lazy-Evaluation"></span><h3 class="section">10.6 Deferred and Lazy Evaluation</h3>
+
+<span id="index-deferred-evaluation"></span>
+<span id="index-lazy-evaluation"></span>
+
+
+<p>Sometimes it is useful to delay the evaluation of an expression, for example
+if you want to avoid performing a time-consuming calculation if it turns out
+that the result is not needed in the future of the program.  The
+<samp>thunk</samp> library provides the following functions and macros to support
+such <em>deferred evaluation</em>:
+</p>
+<span id="index-thunk"></span>
+<dl>
+<dt id="index-thunk_002ddelay">Macro: <strong>thunk-delay</strong> <em>forms&hellip;</em></dt>
+<dd><p>Return a <em>thunk</em> for evaluating the <var>forms</var>.  A thunk is a closure
+(see <a href="Closures.html">Closures</a>) that inherits the lexical environment of the
+<code>thunk-delay</code> call.  Using this macro requires <code>lexical-binding</code>.
+</p></dd></dl>
+
+<dl>
+<dt id="index-thunk_002dforce">Function: <strong>thunk-force</strong> <em>thunk</em></dt>
+<dd><p>Force <var>thunk</var> to perform the evaluation of the forms specified in the
+<code>thunk-delay</code> that created the thunk.  The result of the evaluation of
+the last form is returned.  The <var>thunk</var> also &ldquo;remembers&rdquo; that it has
+been forced: Any further calls of <code>thunk-force</code> with the same
+<var>thunk</var> will just return the same result without evaluating the forms
+again.
+</p></dd></dl>
+
+<dl>
+<dt id="index-thunk_002dlet">Macro: <strong>thunk-let</strong> <em>(bindings&hellip;) forms&hellip;</em></dt>
+<dd><p>This macro is analogous to <code>let</code> but creates &ldquo;lazy&rdquo; variable
+bindings.  Any binding has the form <code>(<var>symbol</var>&nbsp;<var><span class="nolinebreak">value-form</span></var>)</code><!-- /@w -->.  Unlike <code>let</code>, the evaluation of any
+<var>value-form</var> is deferred until the binding of the according <var>symbol</var>
+is used for the first time when evaluating the <var>forms</var>.  Any
+<var>value-form</var> is evaluated at most once.  Using this macro requires
+<code>lexical-binding</code>.
+</p></dd></dl>
+
+<p>Example:
+</p>
+<div class="example">
+<pre class="example">(defun f (number)
+  (thunk-let ((derived-number
+              (progn (message &quot;Calculating 1 plus 2 times %d&quot; number)
+                     (1+ (* 2 number)))))
+    (if (&gt; number 10)
+        derived-number
+      number)))
+</pre><pre class="example">
+
+</pre><pre class="example">(f 5)
+&rArr; 5
+</pre><pre class="example">
+
+</pre><pre class="example">(f 12)
+-| Calculating 1 plus 2 times 12
+&rArr; 25
+</pre><pre class="example">
+
+</pre></div>
+
+<p>Because of the special nature of lazily bound variables, it is an error to
+set them (e.g. with <code>setq</code>).
+</p>
+
+<dl>
+<dt id="index-thunk_002dlet_002a">Macro: <strong>thunk-let*</strong> <em>(bindings&hellip;) forms&hellip;</em></dt>
+<dd><p>This is like <code>thunk-let</code> but any expression in <var>bindings</var> is
+allowed to refer to preceding bindings in this <code>thunk-let*</code> form.
+Using this macro requires <code>lexical-binding</code>.
+</p></dd></dl>
+
+<div class="example">
+<pre class="example">(thunk-let* ((x (prog2 (message &quot;Calculating x...&quot;)
+                    (+ 1 1)
+                  (message &quot;Finished calculating x&quot;)))
+             (y (prog2 (message &quot;Calculating y...&quot;)
+                    (+ x 1)
+                  (message &quot;Finished calculating y&quot;)))
+             (z (prog2 (message &quot;Calculating z...&quot;)
+                    (+ y 1)
+                  (message &quot;Finished calculating z&quot;)))
+             (a (prog2 (message &quot;Calculating a...&quot;)
+                    (+ z 1)
+                  (message &quot;Finished calculating a&quot;))))
+  (* z x))
+
+-| Calculating z...
+-| Calculating y...
+-| Calculating x...
+-| Finished calculating x
+-| Finished calculating y
+-| Finished calculating z
+&rArr; 8
+
+</pre></div>
+
+<p><code>thunk-let</code> and <code>thunk-let*</code> use thunks implicitly: their
+expansion creates helper symbols and binds them to thunks wrapping the
+binding expressions.  All references to the original variables in the body
+<var>forms</var> are then replaced by an expression that calls <code>thunk-force</code>
+with the according helper variable as the argument.  So, any code using
+<code>thunk-let</code> or <code>thunk-let*</code> could be rewritten to use thunks, but
+in many cases using these macros results in nicer code than using thunks
+explicitly.
+</p>
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Eval.html" accesskey="p" rel="prev">Eval</a>, Up: <a href="Evaluation.html" accesskey="u" rel="up">Evaluation</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2020 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Parsing JSON (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Parsing JSON (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Parsing JSON (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Text.html" rel="up" title="Text">
+<link href="JSONRPC.html" rel="next" title="JSONRPC">
+<link href="Document-Object-Model.html" rel="prev" title="Document Object Model">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Parsing-JSON"></span><div class="header">
+<p>
+Next: <a href="JSONRPC.html" accesskey="n" rel="next">JSONRPC</a>, Previous: <a href="Parsing-HTML_002fXML.html" accesskey="p" rel="prev">Parsing HTML/XML</a>, Up: <a href="Text.html" accesskey="u" rel="up">Text</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Parsing-and-generating-JSON-values"></span><h3 class="section">32.29 Parsing and generating JSON values</h3>
+<span id="index-JSON"></span>
+<span id="index-JavaScript-Object-Notation"></span>
+
+<p>When Emacs is compiled with <acronym>JSON</acronym> (<em>JavaScript Object
+Notation</em>) support, it provides several functions to convert between Lisp
+objects and JSON values.  Any JSON value can be converted to a Lisp object,
+but not vice versa.  Specifically:
+</p>
+<ul>
+<li> JSON uses three keywords: <code>true</code>, <code>null</code>, <code>false</code>.
+<code>true</code> is represented by the symbol <code>t</code>.  By default, the
+remaining two are represented, respectively, by the symbols <code>:null</code> and
+<code>:false</code>.
+
+</li><li> JSON only has floating-point numbers.  They can represent both Lisp integers
+and Lisp floating-point numbers.
+
+</li><li> JSON strings are always Unicode strings encoded in UTF-8.  Lisp strings can
+contain non-Unicode characters.
+
+</li><li> JSON has only one sequence type, the array.  JSON arrays are represented
+using Lisp vectors.
+
+</li><li> JSON has only one map type, the object.  JSON objects are represented using
+Lisp hashtables, alists or plists.  When an alist or plist contains several
+elements with the same key, Emacs uses only the first element for
+serialization, in accordance with the behavior of <code>assq</code>.
+</li></ul>
+
+<p>Note that <code>nil</code>, being both a valid alist and a valid plist, represents
+<code>{}</code>, the empty JSON object; not <code>null</code>, <code>false</code>, or an
+empty array, all of which are different JSON values.
+</p>
+<p>If some Lisp object can&rsquo;t be represented in JSON, the serialization
+functions will signal an error of type <code>wrong-type-argument</code>.  The
+parsing functions can also signal the following errors:
+</p>
+<dl compact="compact">
+<dt><code>json-end-of-file</code></dt>
+<dd><p>Signaled when encountering a premature end of the input text.
+</p>
+</dd>
+<dt><code>json-trailing-content</code></dt>
+<dd><p>Signaled when encountering unexpected input after the first JSON object
+parsed.
+</p>
+</dd>
+<dt><code>json-parse-error</code></dt>
+<dd><p>Signaled when encountering invalid JSON syntax.
+</p></dd>
+</dl>
+
+<p>Only top-level values (arrays and objects) can be serialized to JSON.  The
+subobjects within these top-level values can be of any type.  Likewise, the
+parsing functions will only return vectors, hashtables, alists, and plists.
+</p>
+<dl>
+<dt id="index-json_002dserialize">Function: <strong>json-serialize</strong> <em>object &amp;rest args</em></dt>
+<dd><p>This function returns a new Lisp string which contains the JSON
+representation of <var>object</var>.  The argument <var>args</var> is a list of
+keyword/argument pairs.  The following keywords are accepted:
+</p>
+<dl compact="compact">
+<dt><code>:null-object</code></dt>
+<dd><p>The value decides which Lisp object to use to represent the JSON keyword
+<code>null</code>.  It defaults to the symbol <code>:null</code>.
+</p>
+</dd>
+<dt><code>:false-object</code></dt>
+<dd><p>The value decides which Lisp object to use to represent the JSON keyword
+<code>false</code>.  It defaults to the symbol <code>:false</code>.
+</p></dd>
+</dl>
+
+</dd></dl>
+
+<dl>
+<dt id="index-json_002dinsert">Function: <strong>json-insert</strong> <em>object &amp;rest args</em></dt>
+<dd><p>This function inserts the JSON representation of <var>object</var> into the
+current buffer before point.  The argument <var>args</var> are interpreted as in
+<code>json-parse-string</code>.
+</p></dd></dl>
+
+<dl>
+<dt id="index-json_002dparse_002dstring">Function: <strong>json-parse-string</strong> <em>string &amp;rest args</em></dt>
+<dd><p>This function parses the JSON value in <var>string</var>, which must be a Lisp
+string.  If <var>string</var> doesn&rsquo;t contain a valid JSON object, this function
+signals the <code>json-parse-error</code> error.
+</p>
+<p>The argument <var>args</var> is a list of keyword/argument pairs.  The following
+keywords are accepted:
+</p>
+<dl compact="compact">
+<dt><code>:object-type</code></dt>
+<dd><p>The value decides which Lisp object to use for representing the key-value
+mappings of a JSON object.  It can be either <code>hash-table</code>, the default,
+to make hashtables with strings as keys; <code>alist</code> to use alists with
+symbols as keys; or <code>plist</code> to use plists with keyword symbols as keys.
+</p>
+</dd>
+<dt><code>:array-type</code></dt>
+<dd><p>The value decides which Lisp object to use for representing a JSON array.
+It can be either <code>array</code>, the default, to use Lisp arrays; or
+<code>list</code> to use lists.
+</p>
+</dd>
+<dt><code>:null-object</code></dt>
+<dd><p>The value decides which Lisp object to use to represent the JSON keyword
+<code>null</code>.  It defaults to the symbol <code>:null</code>.
+</p>
+</dd>
+<dt><code>:false-object</code></dt>
+<dd><p>The value decides which Lisp object to use to represent the JSON keyword
+<code>false</code>.  It defaults to the symbol <code>:false</code>.
+</p></dd>
+</dl>
+
+</dd></dl>
+
+<dl>
+<dt id="index-json_002dparse_002dbuffer">Function: <strong>json-parse-buffer</strong> <em>&amp;rest args</em></dt>
+<dd><p>This function reads the next JSON value from the current buffer, starting at
+point.  It moves point to the position immediately after the value if
+contains a valid JSON object; otherwise it signals the
+<code>json-parse-error</code> error and doesn&rsquo;t move point.  The arguments
+<var>args</var> are interpreted as in <code>json-parse-string</code>.
+</p></dd></dl>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="JSONRPC.html" accesskey="n" rel="next">JSONRPC</a>, Previous: <a href="Parsing-HTML_002fXML.html" accesskey="p" rel="prev">Parsing HTML/XML</a>, Up: <a href="Text.html" accesskey="u" rel="up">Text</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>

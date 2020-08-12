@@ -1,0 +1,158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2020 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>JSONRPC Overview (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="JSONRPC Overview (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="JSONRPC Overview (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="JSONRPC.html" rel="up" title="JSONRPC">
+<link href="Process_002dbased-JSONRPC-connections.html" rel="next" title="Process-based JSONRPC connections">
+<link href="JSONRPC.html" rel="prev" title="JSONRPC">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="JSONRPC-Overview"></span><div class="header">
+<p>
+Next: <a href="Process_002dbased-JSONRPC-connections.html" accesskey="n" rel="next">Process-based JSONRPC connections</a>, Up: <a href="JSONRPC.html" accesskey="u" rel="up">JSONRPC</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Overview"></span><h4 class="subsection">32.30.1 Overview</h4>
+
+<p>Quoting from the <a href="https://www.jsonrpc.org/">spec</a>, JSONRPC &quot;is
+transport agnostic in that the concepts can be used within the same process,
+over sockets, over http, or in many various message passing environments.&quot;
+</p>
+<span id="index-jsonrpc_002dconnection"></span>
+<p>To model this agnosticism, the <code>jsonrpc</code> library uses objects of a
+<code>jsonrpc-connection</code> class, which represent a connection to a remote
+JSON endpoint (for details on Emacs&rsquo;s object system,
+see <a href="https://www.gnu.org/software/emacs/manual/html_node/eieio/index.html#Top">EIEIO</a> in <cite>EIEIO</cite>).  In modern object-oriented parlance, this
+class is &ldquo;abstract&rdquo;, i.e. the actual class of a useful connection object
+is always a subclass of <code>jsonrpc-connection</code>.  Nevertheless, we can
+define two distinct APIs around the <code>jsonrpc-connection</code> class:
+</p>
+<span id="index-JSONRPC-application-interfaces"></span>
+<ol>
+<li> A user interface for building JSONRPC applications
+
+<span id="index-_003arequest_002ddispatcher"></span>
+<span id="index-_003anotification_002ddispatcher"></span>
+<span id="index-jsonrpc_002dnotify"></span>
+<span id="index-jsonrpc_002drequest"></span>
+<span id="index-jsonrpc_002dasync_002drequest"></span>
+<p>In this scenario, the JSONRPC application selects a concrete subclass of
+<code>jsonrpc-connection</code>, and proceeds to create objects of that subclass
+using <code>make-instance</code>.  To initiate a contact to the remote endpoint,
+the JSONRPC application passes this object to the functions
+<code>jsonrpc-notify</code>, <code>jsonrpc-request</code>, and/or
+<code>jsonrpc-async-request</code>.  For handling remotely initiated contacts,
+which generally come in asynchronously, the instantiation should include
+<code>:request-dispatcher</code> and <code>:notification-dispatcher</code> initargs,
+which are both functions of 3 arguments: the connection object; a symbol
+naming the JSONRPC method invoked remotely; and a JSONRPC <code>params</code>
+object.
+</p>
+<span id="index-jsonrpc_002derror"></span>
+<p>The function passed as <code>:request-dispatcher</code> is responsible for
+handling the remote endpoint&rsquo;s requests, which expect a reply from the local
+endpoint (in this case, the program you&rsquo;re building).  Inside that function,
+you may either return locally (a normal return) or non-locally (an error
+return).  A local return value must be a Lisp object that can be serialized
+as JSON (see <a href="Parsing-JSON.html">Parsing JSON</a>).  This determines a success response, and the
+object is forwarded to the server as the JSONRPC <code>result</code> object.  A
+non-local return, achieved by calling the function <code>jsonrpc-error</code>,
+causes an error response to be sent to the server.  The details of the
+accompanying JSONRPC <code>error</code> are filled out with whatever was passed to
+<code>jsonrpc-error</code>.  A non-local return triggered by an unexpected error
+of any other type also causes an error response to be sent (unless you have
+set <code>debug-on-error</code>, in which case this calls the Lisp debugger,
+see <a href="Error-Debugging.html">Error Debugging</a>).
+</p>
+</li><li> A inheritance interface for building JSONRPC transport implementations
+
+<p>In this scenario, <code>jsonrpc-connection</code> is subclassed to implement a
+different underlying transport strategy (for details on how to subclass, see
+<a href="https://www.gnu.org/software/emacs/manual/html_node/eieio/Inheritance.html#Inheritance">(eieio)Inheritance</a>.).  Users of the application-building
+interface can then instantiate objects of this concrete class (using the
+<code>make-instance</code> function) and connect to JSONRPC endpoints using that
+strategy.
+</p>
+<p>This API has mandatory and optional parts.
+</p>
+<span id="index-jsonrpc_002dconnection_002dsend"></span>
+<p>To allow its users to initiate JSONRPC contacts (notifications or requests)
+or reply to endpoint requests, the subclass must have an implementation of
+the <code>jsonrpc-connection-send</code> method.
+</p>
+<span id="index-jsonrpc_002dconnection_002dreceive"></span>
+<p>Likewise, for handling the three types of remote contacts (requests,
+notifications, and responses to local requests), the transport
+implementation must arrange for the function
+<code>jsonrpc-connection-receive</code> to be called after noticing a new JSONRPC
+message on the wire (whatever that &quot;wire&quot; may be).
+</p>
+<span id="index-jsonrpc_002dshutdown"></span>
+<span id="index-jsonrpc_002drunning_002dp"></span>
+<p>Finally, and optionally, the <code>jsonrpc-connection</code> subclass should
+implement the <code>jsonrpc-shutdown</code> and <code>jsonrpc-running-p</code> methods
+if these concepts apply to the transport.  If they do, then any system
+resources (e.g. processes, timers, etc.) used to listen for messages on
+the wire should be released in <code>jsonrpc-shutdown</code>, i.e. they should
+only be needed while <code>jsonrpc-running-p</code> is non-nil.
+</p>
+</li></ol>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Process_002dbased-JSONRPC-connections.html" accesskey="n" rel="next">Process-based JSONRPC connections</a>, Up: <a href="JSONRPC.html" accesskey="u" rel="up">JSONRPC</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>
