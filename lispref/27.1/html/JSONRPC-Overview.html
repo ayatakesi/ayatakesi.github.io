@@ -60,97 +60,48 @@ ul.no-bullet {list-style: none}
 Next: <a href="Process_002dbased-JSONRPC-connections.html" accesskey="n" rel="next">Process-based JSONRPC connections</a>, Up: <a href="JSONRPC.html" accesskey="u" rel="up">JSONRPC</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="Overview"></span><h4 class="subsection">32.30.1 Overview</h4>
+<span id="Gai-Guan-"></span><h4 class="subsection">32.30.1 概観</h4>
 
-<p>Quoting from the <a href="https://www.jsonrpc.org/">spec</a>, JSONRPC &quot;is
-transport agnostic in that the concepts can be used within the same process,
-over sockets, over http, or in many various message passing environments.&quot;
+<p><a href="https://www.jsonrpc.org/">spec</a>から引用するとJSONRPCは、&quot;同一プロセス、ソケットやhttp、多くのさまざまなメッセージパッシング環境において使用可能という概念においてトランスポート非依存&quot;です。
 </p>
 <span id="index-jsonrpc_002dconnection"></span>
-<p>To model this agnosticism, the <code>jsonrpc</code> library uses objects of a
-<code>jsonrpc-connection</code> class, which represent a connection to a remote
-JSON endpoint (for details on Emacs&rsquo;s object system,
-see <a href="https://www.gnu.org/software/emacs/manual/html_node/eieio/index.html#Top">EIEIO</a> in <cite>EIEIO</cite>).  In modern object-oriented parlance, this
-class is &ldquo;abstract&rdquo;, i.e. the actual class of a useful connection object
-is always a subclass of <code>jsonrpc-connection</code>.  Nevertheless, we can
-define two distinct APIs around the <code>jsonrpc-connection</code> class:
+<p>この非依存性をモデル化するために、<code>jsonrpc</code>ライブラリーはリモートのJSONのエンドポイントへの接続の表現に<code>jsonrpc-connection</code>クラスのオブジェクトを使用します(Emacsのオブジェクトシステムの詳細は<a href="https://www.gnu.org/software/emacs/manual/html_node/eieio/index.html#Top">EIEIO</a> in <cite>EIEIO</cite>を参照)。このクラスはオブジェクト指向の現代的な用語では&ldquo;抽象的(abstract)&rdquo;、すなわち有用な接続オブジェクトの実クラスは常に<code>jsonrpc-connection</code>のサブクラスになります。それにも関わらず、<code>jsonrpc-connection</code>クラスを中心に2つのAPIを個別に定義できます。
 </p>
 <span id="index-JSONRPC-application-interfaces"></span>
 <ol>
-<li> A user interface for building JSONRPC applications
+<li> JSONRPCアプリケーション構築用のユーザーインターフェース
 
 <span id="index-_003arequest_002ddispatcher"></span>
 <span id="index-_003anotification_002ddispatcher"></span>
 <span id="index-jsonrpc_002dnotify"></span>
 <span id="index-jsonrpc_002drequest"></span>
 <span id="index-jsonrpc_002dasync_002drequest"></span>
-<p>In this scenario, the JSONRPC application selects a concrete subclass of
-<code>jsonrpc-connection</code>, and proceeds to create objects of that subclass
-using <code>make-instance</code>.  To initiate a contact to the remote endpoint,
-the JSONRPC application passes this object to the functions
-<code>jsonrpc-notify</code>, <code>jsonrpc-request</code>, and/or
-<code>jsonrpc-async-request</code>.  For handling remotely initiated contacts,
-which generally come in asynchronously, the instantiation should include
-<code>:request-dispatcher</code> and <code>:notification-dispatcher</code> initargs,
-which are both functions of 3 arguments: the connection object; a symbol
-naming the JSONRPC method invoked remotely; and a JSONRPC <code>params</code>
-object.
+<p>このシナリオにおいてはJSONRPCアプリケーションは<code>jsonrpc-connection</code>の具象サブクラスを選択して、<code>make-instance</code>を使用することによりサブクラスのオブジェクト作成を行う。JSONRPCアプリケーションはリモートのエンドポイントとの対話を開始するために、関数<code>jsonrpc-notify</code>、<code>jsonrpc-request</code>、および/または<code>jsonrpc-async-request</code>にこのオブジェクトを渡す。一般的には非同期に到達するリモートで開始された対話を処理するために、インスタンス化には<code>:request-dispatcher</code>と<code>:notification-dispatcher</code>の初期化引数(initarg)を含める必要があり、これらはいずれも接続オブジェクト、リモートで呼び出されたJSONRPCメソッドを命名するシンボル、JSONRPCの<code>params</code>オブジェクトという3つの引数を受け取る関数である。
 </p>
 <span id="index-jsonrpc_002derror"></span>
-<p>The function passed as <code>:request-dispatcher</code> is responsible for
-handling the remote endpoint&rsquo;s requests, which expect a reply from the local
-endpoint (in this case, the program you&rsquo;re building).  Inside that function,
-you may either return locally (a normal return) or non-locally (an error
-return).  A local return value must be a Lisp object that can be serialized
-as JSON (see <a href="Parsing-JSON.html">Parsing JSON</a>).  This determines a success response, and the
-object is forwarded to the server as the JSONRPC <code>result</code> object.  A
-non-local return, achieved by calling the function <code>jsonrpc-error</code>,
-causes an error response to be sent to the server.  The details of the
-accompanying JSONRPC <code>error</code> are filled out with whatever was passed to
-<code>jsonrpc-error</code>.  A non-local return triggered by an unexpected error
-of any other type also causes an error response to be sent (unless you have
-set <code>debug-on-error</code>, in which case this calls the Lisp debugger,
-see <a href="Error-Debugging.html">Error Debugging</a>).
+<p><code>:request-dispatcher</code>として渡された関数は、ローカルのエンドポイントからのリプライ(この場合では構築するプログラム)を除いた、リモートのエンドポイントのリクエストを処理する役目を担う。その関数の内部では局所的なリターン(通常のリターン)と非局所的なリターン(エラーによるリターン)が起こり得る。局所的なリターン値はJSONとしてシリアライズ可能なLispオブジェクトでなければならない(<a href="Parsing-JSON.html">Parsing JSON</a>を参照)。これは成功レスポンスを決定するとともに、オブジェクトはJSONRPCの<code>result</code>オブジェクトとしてサーバーにフォワードされる。関数<code>jsonrpc-error</code>の呼び出しにより達成される非局所的なリターンは、エラーレスポンスをサーバーに送信する。JSONRPCの<code>error</code>に付随する詳細には、<code>jsonrpc-error</code>に渡されるものすべてが含まれる。他のタイプの予期せぬエラーからトリガーされた非局所的なリターンでも、(
+<code>debug-on-error</code>をセットしていなければ)エラーレスポンスを送信して、この場合にはLispデバッガが呼び出される。<a href="Error-Debugging.html">Error Debugging</a>を参照のこと。
 </p>
-</li><li> A inheritance interface for building JSONRPC transport implementations
+</li><li> JSONRPCトランスポート実装構築用の継承インターフェース
 
-<p>In this scenario, <code>jsonrpc-connection</code> is subclassed to implement a
-different underlying transport strategy (for details on how to subclass, see
-<a href="https://www.gnu.org/software/emacs/manual/html_node/eieio/Inheritance.html#Inheritance">(eieio)Inheritance</a>.).  Users of the application-building
-interface can then instantiate objects of this concrete class (using the
-<code>make-instance</code> function) and connect to JSONRPC endpoints using that
-strategy.
+<p>このシナリオでは基盤として異なるトランスポートストラテジーを実装するために<code>jsonrpc-connection</code>をサブクラス化する(サブクラス化する方法についての詳細は<a href="https://www.gnu.org/software/emacs/manual/html_node/eieio/Inheritance.html#Inheritance">(eieio)Inheritance</a>を参照)。その後にアプリケーション構築インターフェースのユーザーは、(
+<code>make-instance</code>関数を使用して)その具象クラスのオブジェクトをインスタンス化して、そのストラテジーを使用してJSONRPCエンドポイントに接続できる。
 </p>
-<p>This API has mandatory and optional parts.
+<p>このAPIには必須部分とオプション部分がある。
 </p>
 <span id="index-jsonrpc_002dconnection_002dsend"></span>
-<p>To allow its users to initiate JSONRPC contacts (notifications or requests)
-or reply to endpoint requests, the subclass must have an implementation of
-the <code>jsonrpc-connection-send</code> method.
+<p>ユーザーがJSONRPCコンタクト(通知やリクエスト)を開始したり、エンドポイントにリプライできるようにするためには、そのサブクラスは<code>jsonrpc-connection-send</code>メソッドを実装しなければならない。
 </p>
 <span id="index-jsonrpc_002dconnection_002dreceive"></span>
-<p>Likewise, for handling the three types of remote contacts (requests,
-notifications, and responses to local requests), the transport
-implementation must arrange for the function
-<code>jsonrpc-connection-receive</code> to be called after noticing a new JSONRPC
-message on the wire (whatever that &quot;wire&quot; may be).
+<p>同様に3種類のリモートコンタクト(リクエスト、通知、ローカルリクエストへの応答)を処理するために、トランスポート実装はワイヤー(wire:
+通信ライン)上への新たなJSONRPCメッセージの通知後に、(その&quot;ワイヤー&quot;が何であれ)関数<code>jsonrpc-connection-receive</code>が呼び出されるように計らわなければならない。
 </p>
 <span id="index-jsonrpc_002dshutdown"></span>
 <span id="index-jsonrpc_002drunning_002dp"></span>
-<p>Finally, and optionally, the <code>jsonrpc-connection</code> subclass should
-implement the <code>jsonrpc-shutdown</code> and <code>jsonrpc-running-p</code> methods
-if these concepts apply to the transport.  If they do, then any system
-resources (e.g. processes, timers, etc.) used to listen for messages on
-the wire should be released in <code>jsonrpc-shutdown</code>, i.e. they should
-only be needed while <code>jsonrpc-running-p</code> is non-nil.
+<p>最後にオプジョンとして<code>jsonrpc-shutdown</code>メソッドと<code>jsonrpc-running-p</code>メソッドの概念をトランスポートに適用する場合には、<code>jsonrpc-connection</code>サブクラスはそれらのメソッドを実装する必要がある。それらを行う場合には、ワイヤー上でメッセージをリッスン(listen)するために使用するシステムリソース(プロセス、タイマー等)は<code>jsonrpc-shutdown</code>で解放する必要がある(それらのリソースは<code>jsonrpc-running-p</code>が非nilの間だけ必要なはずなので)。
 </p>
 </li></ol>
 
-<hr>
-<div class="header">
-<p>
-Next: <a href="Process_002dbased-JSONRPC-connections.html" accesskey="n" rel="next">Process-based JSONRPC connections</a>, Up: <a href="JSONRPC.html" accesskey="u" rel="up">JSONRPC</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
 
