@@ -25,7 +25,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="December 29, 2021">
+<meta name="date" content="December 30, 2021">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <link href="index.html#Top" rel="start" title="Top">
 <link href="Index.html#Index" rel="index" title="Index">
@@ -76,19 +76,35 @@ Next: <a href="Windows-and-Frames.html#Windows-and-Frames" accesskey="n" rel="ne
 <h3 class="section">29.1 Emacsウィンドウの基本概念</h3>
 <a name="index-window"></a>
 
-<p><em>ウィンドウ(window)</em>とは任意のバッファーを表示するために使用されるスクリーン領域です。Emacs
-LispではウィンドウはスペシャルLispオブジェクトとして表現されます。
-</p>
 <a name="index-multiple-windows"></a>
-<p>ウィンドウはフレームへとグループ化されます(<a href="Frames.html#Frames">Frames</a>を参照)。それぞれのフレームは最低でも1つのウィンドウを含みます。ユーザーは複数のバッファーを一度に閲覧するために、それを複数のオーバーラップしないウィンドウに分割することができます。Lispプログラムはさまざまな目的にたいして複数のウィンドウを使用できます。たとえばRmailでは1つのウィンドウでメッセージタイトル、もう一方のウィンドウで選択したメッセージのコンテンツを閲覧できます。
+<p>A <em>window</em> is an area of the screen that can be used to display a buffer
+(see <a href="Buffers.html#Buffers">Buffers</a>).  Windows are grouped into frames (see <a href="Frames.html#Frames">Frames</a>).  Each
+frame contains at least one window; the user can subdivide a frame into
+multiple, non-overlapping windows to view several buffers at once.  Lisp
+programs can use multiple windows for a variety of purposes.  In Rmail, for
+example, you can view a summary of message titles in one window, and the
+contents of the selected message in another window.
 </p>
 <a name="index-terminal-screen"></a>
 <a name="index-screen-of-terminal"></a>
-<p>Emacsはグラフィカルなデスクトップ環境やX Window
-Systemのようなウィンドウシステムとは異なる意味で&ldquo;ウィンドウ(window)&rdquo;という単語を使用します。EmacsがX上で実行されているときはXのグラフィカルなXウィンドウは、Emacsでの(1つ以上のEmacsウィンドウを含んだ)フレームになります。Emacsがテキスト端末上で実行されているときはフレームが端末スクリーン全体を占有します。
+<a name="index-window_002dsystem-window"></a>
+<p>Emacs uses the term &ldquo;window&rdquo; with a different meaning than in graphical
+desktop environments and window systems, such as the X Window System.  When
+Emacs is run on X, each graphical X window owned by the Emacs process
+corresponds to one Emacs frame.  When Emacs is run on a text terminal, each
+Emacs frame fills the entire terminal screen.  In either case, the frame may
+contain one or more Emacs windows.  For disambiguation, we use the term
+<em>window-system window</em> when we mean the window-system window
+corresponding to an Emacs frame.
 </p>
 <a name="index-tiled-windows"></a>
-<p>Xのウィンドウとは異なり、Emacsのウィンドウは<em>タイル表示(tiled)</em>されるので、フレームの領域内でオーバーラップされることは決してありません。あるウィンドウが作成、リサイズ、削除されるとき変更されたウィンドウスペースの変更は各ウィンドウの調整により取得・譲与されるので、そのフレームの総領域に変化はありません。
+<p>Unlike X windows, Emacs windows are <em>tiled</em>; they never overlap within
+the area of their frame.  When a window is created, resized, or deleted, the
+change in window space is taken from or given to other windows on the same
+frame, so that the total area of the frame is unchanged.
+</p>
+<p>In Emacs Lisp, windows are represented by a special Lisp object type
+(see <a href="Window-Type.html#Window-Type">Window Type</a>).
 </p>
 <dl>
 <dt><a name="index-windowp"></a>Function: <strong>windowp</strong> <em>object</em></dt>
@@ -120,31 +136,92 @@ configuration)をリストアすることにより再び有効にすることが
 <dd><p>この関数は<var>object</var>が生きたウィンドウかウィンドウツリー内の内部ウィンドウなら<code>t</code>をリターンする。それ以外(<var>object</var>が削除されたウィンドウの場合も含む)は<code>nil</code>をリターンする。
 </p></dd></dl>
 
-<a name="index-selected-window"></a>
-<a name="index-window-selected-within-a-frame"></a>
-<p>それぞれのフレーム内において、常にただ1つのEmacsウィンドウが<em>そのフレームで選択されている(selected within the
-frame)</em>として指定されます。選択されたフレームにたいしてそのウィンドウは<em>選択されたウィンドウ(selected
-window)</em>と呼ばれます。選択されたウィンドウは編集のほとんどが行われるウィンドウであり、選択されたウィンドウに表示されるカーソルがあるウィンドウです(<a href="Cursor-Parameters.html#Cursor-Parameters">Cursor Parameters</a>を参照)。テキストの挿入や削除を行うキーボード入力もそのウィンドウにたいして行われます。選択されたウィンドウのバッファーは、通常は<code>set-buffer</code>が使用された場合を除いてカレントバッファーでもあります(<a href="Current-Buffer.html#Current-Buffer">Current Buffer</a>を参照)。選択されていないフレームでは、そのフレームが選択されたときはフレームで選択されていたウィンドウが選択されたウィンドウになります。<a href="Selecting-Windows.html#Selecting-Windows">Selecting Windows</a>を参照してください。
+<p>以下の図は生きたウィンドウの構造を示しています:
 </p>
-<dl>
-<dt><a name="index-selected_002dwindow"></a>Function: <strong>selected-window</strong></dt>
-<dd><p>この関数は選択されたウィンドウをリターンする(これは常に生きたウィンドウ)。
-</p></dd></dl>
+<div class="smallexample">
+<pre class="smallexample">        ____________________________________________
+       |________________ Tab Line _______________|RD| ^
+       |______________ Header Line ______________|  | |
+     ^ |LS|LM|LF|                       |RF|RM|RS|  | |
+     | |  |  |  |                       |  |  |  |  | |
+Window |  |  |  |                       |  |  |  |  | Window
+Body | |  |  |  |      Window Body      |  |  |  |  | Total
+Height |  |  |  |                       |  |  |  |  | Height
+     | |  |  |  |&lt;- Window Body Width -&gt;|  |  |  |  | |
+     v |__|__|__|_______________________|__|__|__|  | |
+       |_________ Horizontal Scroll Bar _________|  | |
+       |_______________ Mode Line _______________|__| |
+       |_____________ Bottom Divider _______________| v
+        &lt;---------- Window Total Width ------------&gt;
 
-<a name="Window-Group"></a><p>たとえばFollowモード(<a href="http://www.gnu.org/software/emacs/manual/html_node/emacs/Follow-Mode.html#Follow-Mode">(emacs)Follow Mode</a>を参照)の管理下では、あるウィンドウが単独で表示可能な部分より大きい部分をそのウィンドウにまとめて表示するように、複数のウィンドウが集合かつ協調してバッファーを表示することがあります。そのような<em>ウィンドウグループ(window
-group)</em>を1つのエンティティーとしてとらえると便利なことがよくあります。<code>window-group-start</code>
-(<a href="Window-Start-and-End.html#Window-Start-and-End">Window Start and End</a>を参照)のようないくつかの関数では、グループ全体としてウィンドウの1つを引数に与えることにより、これを行うことができます。
+</pre></div>
+
+<a name="index-window-body"></a>
+<a name="index-body-of-a-window"></a>
+<a name="index-window-decorations"></a>
+<a name="index-left-and-right-window-decorations"></a>
+<a name="index-top-and-bottom-window-decorations"></a>
+<p>At the center of that window is the <em>body</em>, where the buffer text is
+displayed.  The body can be surrounded by a series of optional areas which
+we will call <em>window decorations</em>.  On the left and right, from
+innermost to outermost, these are the left and right fringes, denoted by LF
+and RF (see <a href="Fringes.html#Fringes">Fringes</a>); the left and right margins, denoted by LM and RM
+in the schematic (see <a href="Display-Margins.html#Display-Margins">Display Margins</a>); the left or right vertical
+scroll bar, only one of which is present at any time, denoted by LS and RS
+(see <a href="Scroll-Bars.html#Scroll-Bars">Scroll Bars</a>); and the right divider, denoted by RD (see <a href="Window-Dividers.html#Window-Dividers">Window Dividers</a>).  Together these are the window&rsquo;s <em>left and right
+decorations</em>.
 </p>
-<dl>
-<dt><a name="index-selected_002dwindow_002dgroup"></a>Function: <strong>selected-window-group</strong></dt>
-<dd><a name="index-selected_002dwindow_002dgroup_002dfunction"></a>
-<p>選択されたウィンドウがウィンドウグループのメンバーなら、この関数はそのバッファーの最前箇所を表示するウィンドウが先頭になる順序で、グループ内のウィンドウのリストをリターンする。それ以外なら、この関数は選択されたウィンドウだけを含むリストをリターンする。
+<a name="index-text-area-of-a-window"></a>
+<p>At the top of the window are the tab line and the header line (see <a href="Header-Lines.html#Header-Lines">Header Lines</a>).  The <em>text area</em> of the window includes the header line and the
+tab line, if they are present in the window.  At the bottom of the window
+are the horizontal scroll bar (see <a href="Scroll-Bars.html#Scroll-Bars">Scroll Bars</a>); the mode line
+(see <a href="Mode-Line-Format.html#Mode-Line-Format">Mode Line Format</a>); and the bottom divider (see <a href="Window-Dividers.html#Window-Dividers">Window Dividers</a>).  Together these form the window&rsquo;s <em>top and bottom
+decorations</em>.
 </p>
-<p>バッファーローカル変数<code>selected-window-group-function</code>が関数にセットされているときは、選択されたウィンドウはグループの一部とみなされる。この場合には、<code>selected-window-group</code>はその関数を引数なしで呼び出し、その結果をリターンする(これはそのグループ内のウィンドウのリストであること)。
-</p></dd></dl>
+<p>There are two special areas omitted in the schematic:
+</p>
+<ul>
+<li> When any of the fringes is missing, the display engine may use one character
+cell in its place for showing a continuation or truncation glyph provided a
+text line doesn&rsquo;t fit in a window.
+
+</li><li> When both, the vertical scroll bar and the right divider are missing, the
+display engine usurps one pixel for drawing a vertical divider line between
+this window and the window on its right, provided such a window exists.  On
+a text terminal, this divider always occupies an entire character cell.
+</li></ul>
+
+<p>In either case, the resulting artifact is considered part of the window&rsquo;s
+body although its screen space cannot be used for displaying buffer text.
+</p>
+<p>Note also, that line numbers (and their surrounding whitespace) as displayed
+by <code>display-line-numbers-mode</code> (see <a href="http://www.gnu.org/software/emacs/manual/html_node/emacs/Display-Custom.html#Display-Custom">Display Custom</a> in <cite>The GNU
+Emacs Manual</cite>) do not count as decorations either; they are part of the
+window&rsquo;s body too.
+</p>
+<p>Internal windows neither show any text nor do they have decorations.  Hence,
+the concept of &ldquo;body&rdquo; does not make sense for them.  In fact, most
+functions operating on the body of a window will yield an error when applied
+to an internal window.
+</p>
+<a name="index-minibuffer-window"></a>
+<a name="index-tooltip-window"></a>
+<p>By default, an Emacs frame exhibits one special live window that is used for
+displaying messages and accepting user input&mdash;the <em>minibuffer window</em>
+(see <a href="Minibuffer-Windows.html#Minibuffer-Windows">Minibuffer Windows</a>).  Since the minibuffer window is used for
+displaying text, it has a body but it does not have a tab or header line or
+any margins.  Finally, a <em>tooltip window</em> which is used for displaying a
+tooltip in a tooltip frame (see <a href="Tooltips.html#Tooltips">Tooltips</a>) has a body too but no
+decorations at all.
+</p>
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Windows-and-Frames.html#Windows-and-Frames" accesskey="n" rel="next">Windows and Frames</a>, Up: <a href="Windows.html#Windows" accesskey="u" rel="up">Windows</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
-
-This page has generated for branch:master, commit:9a53a1e14ae8977272ed94d780de39b5f42a9c64 to check Japanese translation.
+This page has generated for branch:work/translate_emacs-28_06545bc0cc533b1abd831dd521df5f3369675d61, commit:51daf5d8dcb453e7a044d304a838ebc50ab5478e to check Japanese translation.
 </body>
 </html>

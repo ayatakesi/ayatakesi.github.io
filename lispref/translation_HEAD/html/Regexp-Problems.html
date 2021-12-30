@@ -1,0 +1,139 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2021 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 5.2, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU Emacs Lisp Reference Manual: Regexp Problems</title>
+
+<meta name="description" content="GNU Emacs Lisp Reference Manual: Regexp Problems">
+<meta name="keywords" content="GNU Emacs Lisp Reference Manual: Regexp Problems">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="December 30, 2021">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Regular-Expressions.html#Regular-Expressions" rel="up" title="Regular Expressions">
+<link href="Regexp-Search.html#Regexp-Search" rel="next" title="Regexp Search">
+<link href="Regexp-Functions.html#Regexp-Functions" rel="prev" title="Regexp Functions">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.indentedblock {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smallindentedblock {margin-left: 3.2em; font-size: smaller}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style:oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nocodebreak {white-space:nowrap}
+span.nolinebreak {white-space:nowrap}
+span.roman {font-family:serif; font-weight:normal}
+span.sansserif {font-family:sans-serif; font-weight:normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="ja_JP" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
+<a name="Regexp-Problems"></a>
+<div class="header">
+<p>
+Previous: <a href="Regexp-Functions.html#Regexp-Functions" accesskey="p" rel="prev">Regexp Functions</a>, Up: <a href="Regular-Expressions.html#Regular-Expressions" accesskey="u" rel="up">Regular Expressions</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="Problems-with-Regular-Expressions"></a>
+<h4 class="subsection">35.3.5 Problems with Regular Expressions</h4>
+<a name="index-regular-expression-problems"></a>
+<a name="index-regexp-stack-overflow"></a>
+<a name="index-stack-overflow-in-regexp"></a>
+
+<p>The Emacs regexp implementation, like many of its kind, is generally robust
+but occasionally causes trouble in either of two ways: matching may run out
+of internal stack space and signal an error, and it can take a long time to
+complete.  The advice below will make these symptoms less likely and help
+alleviate problems that do arise.
+</p>
+<ul>
+<li> Anchor regexps at the beginning of a line, string or buffer using zero-width
+assertions (&lsquo;<samp>^</samp>&rsquo; and <code>\`</code>). This takes advantage of fast paths in
+the implementation and can avoid futile matching attempts.  Other zero-width
+assertions may also bring benefits by causing a match to fail early.
+
+</li><li> Avoid or-patterns in favour of character alternatives: write &lsquo;<samp>[ab]</samp>&rsquo;
+instead of &lsquo;<samp>a\|b</samp>&rsquo;.  Recall that &lsquo;<samp>\s-</samp>&rsquo; and &lsquo;<samp>\sw</samp>&rsquo; are
+equivalent to &lsquo;<samp>[[:space:]]</samp>&rsquo; and &lsquo;<samp>[[:word:]]</samp>&rsquo;, respectively.
+
+</li><li> Since the last branch of an or-pattern does not add a backtrack point on the
+stack, consider putting the most likely matched pattern last.  For example,
+&lsquo;<samp>^\(?:a\|.b\)*c</samp>&rsquo; will run out of stack if trying to match a very long
+string of &lsquo;<samp>a</samp>&rsquo;s, but the equivalent &lsquo;<samp>^\(?:.b\|a\)*c</samp>&rsquo; will not.
+
+<p>(It is a trade-off: successfully matched or-patterns run faster with the
+most frequently matched pattern first.)
+</p>
+</li><li> Try to ensure that any part of the text can only match in a single way.  For
+example, &lsquo;<samp>a*a*</samp>&rsquo; will match the same set of strings as &lsquo;<samp>a*</samp>&rsquo;, but
+the former can do so in many ways and will therefore cause slow backtracking
+if the match fails later on.  Make or-pattern branches mutually exclusive if
+possible, so that matching will not go far into more than one branch before
+failing.
+
+<p>Be especially careful with nested repetitions: they can easily result in
+very slow matching in the presence of ambiguities.  For example,
+&lsquo;<samp>\(?:a*b*\)+c</samp>&rsquo; will take a long time attempting to match even a
+moderately long string of &lsquo;<samp>a</samp>&rsquo;s before failing.  The equivalent
+&lsquo;<samp>\(?:a\|b\)*c</samp>&rsquo; is much faster, and &lsquo;<samp>[ab]*c</samp>&rsquo; better still.
+</p>
+</li><li> Don&rsquo;t use capturing groups unless they are really needed; that is, use
+&lsquo;<samp>\(?:&hellip;\)</samp>&rsquo; instead of &lsquo;<samp>\(&hellip;\)</samp>&rsquo; for bracketing purposes.
+
+</li><li> Consider using <code>rx</code> (see <a href="Rx-Notation.html#Rx-Notation">Rx Notation</a>); it can optimise some
+or-patterns automatically and will never introduce capturing groups unless
+explicitly requested.
+</li></ul>
+
+<p>If you run into regexp stack overflow despite following the above advice,
+don&rsquo;t be afraid of performing the matching in multiple function calls, each
+using a simpler regexp where backtracking can more easily be contained.
+</p>
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Regexp-Functions.html#Regexp-Functions" accesskey="p" rel="prev">Regexp Functions</a>, Up: <a href="Regular-Expressions.html#Regular-Expressions" accesskey="u" rel="up">Regular Expressions</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/translate_emacs-28_06545bc0cc533b1abd831dd521df5f3369675d61, commit:51daf5d8dcb453e7a044d304a838ebc50ab5478e to check Japanese translation.
+</body>
+</html>
