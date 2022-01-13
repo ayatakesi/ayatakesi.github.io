@@ -16,48 +16,38 @@ Documentation License."
 (a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
 this GNU manual.  Buying copies from the FSF supports it in developing GNU
 and promoting software freedom." -->
-<!-- Created by GNU Texinfo 5.2, http://www.gnu.org/software/texinfo/ -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
 <head>
-<title>GNU Emacs Lisp Reference Manual: Garbage Collection</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Garbage Collection (GNU Emacs Lisp Reference Manual)</title>
 
-<meta name="description" content="GNU Emacs Lisp Reference Manual: Garbage Collection">
-<meta name="keywords" content="GNU Emacs Lisp Reference Manual: Garbage Collection">
+<meta name="description" content="Garbage Collection (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Garbage Collection (GNU Emacs Lisp Reference Manual)">
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="December 31, 2021">
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<link href="index.html#Top" rel="start" title="Top">
-<link href="Index.html#Index" rel="index" title="Index">
+<meta name="date" content="January 13, 2022">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
-<link href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" rel="up" title="GNU Emacs Internals">
-<link href="Stack_002dallocated-Objects.html#Stack_002dallocated-Objects" rel="next" title="Stack-allocated Objects">
-<link href="Pure-Storage.html#Pure-Storage" rel="prev" title="Pure Storage">
+<link href="GNU-Emacs-Internals.html" rel="up" title="GNU Emacs Internals">
+<link href="Stack_002dallocated-Objects.html" rel="next" title="Stack-allocated Objects">
+<link href="Pure-Storage.html" rel="prev" title="Pure Storage">
 <style type="text/css">
 <!--
 a.summary-letter {text-decoration: none}
-blockquote.smallquotation {font-size: smaller}
+blockquote.indentedblock {margin-right: 0em}
 div.display {margin-left: 3.2em}
 div.example {margin-left: 3.2em}
-div.indentedblock {margin-left: 3.2em}
 div.lisp {margin-left: 3.2em}
-div.smalldisplay {margin-left: 3.2em}
-div.smallexample {margin-left: 3.2em}
-div.smallindentedblock {margin-left: 3.2em; font-size: smaller}
-div.smalllisp {margin-left: 3.2em}
-kbd {font-style:oblique}
+kbd {font-style: oblique}
 pre.display {font-family: inherit}
 pre.format {font-family: inherit}
 pre.menu-comment {font-family: serif}
 pre.menu-preformatted {font-family: serif}
-pre.smalldisplay {font-family: inherit; font-size: smaller}
-pre.smallexample {font-size: smaller}
-pre.smallformat {font-family: inherit; font-size: smaller}
-pre.smalllisp {font-size: smaller}
-span.nocodebreak {white-space:nowrap}
-span.nolinebreak {white-space:nowrap}
-span.roman {font-family:serif; font-weight:normal}
-span.sansserif {font-family:sans-serif; font-weight:normal}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
 ul.no-bullet {list-style: none}
 -->
 </style>
@@ -65,26 +55,24 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="ja_JP" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
-<a name="Garbage-Collection"></a>
-<div class="header">
+<body lang="en">
+<span id="Garbage-Collection"></span><div class="header">
 <p>
-Next: <a href="Stack_002dallocated-Objects.html#Stack_002dallocated-Objects" accesskey="n" rel="next">Stack-allocated Objects</a>, Previous: <a href="Pure-Storage.html#Pure-Storage" accesskey="p" rel="prev">Pure Storage</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Stack_002dallocated-Objects.html" accesskey="n" rel="next">Stack-allocated Objects</a>, Previous: <a href="Pure-Storage.html" accesskey="p" rel="prev">Pure Storage</a>, Up: <a href="GNU-Emacs-Internals.html" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<a name="gabezikorekusiyon"></a>
-<h3 class="section">E.3 ガーベージコレクション</h3>
+<span id="gabezikorekusiyon"></span><h3 class="section">E.3 ガーベージコレクション</h3>
 
-<a name="index-memory-allocation"></a>
+<span id="index-memory-allocation"></span>
 <p>プログラムがリストを作成するときや、(ライブライのロード等により)ユーザーが新しい関数を定義する際には、そのデータは通常ストレージに配置されます。通常ストレージが少なくなるとEmacsはもっとメモリーを割り当てるようにオペレーティングシステムに要求します。シンボル、コンスセル、小さいベクター、マーカー等のような別のタイプのLispオブジェクトはメモリー内の個別のブロックに隔離されます(大きいベクター、長い文字列、バッファー、および他の特定の編集タイプは非常に巨大であり1つのオブジェクトにたいして個別のブロックが割り当てられて、小さな文字列は8kバイトのブロック、小さいベクターは4kバイトのブロックにパックされる)。
 </p>
-<a name="index-vector_002dlike-objects_002c-storage"></a>
-<a name="index-storage-of-vector_002dlike-Lisp-objects"></a>
+<span id="index-vector_002dlike-objects_002c-storage"></span>
+<span id="index-storage-of-vector_002dlike-Lisp-objects"></span>
 <p>基本的なベクター以上のマーカー、オーバーレイ、バッファーのような多くのオブジェクトが、あたかもベクターであるかのように管理されています。対応するCデータ構造体には<code>union
 vectorlike_header</code>フィールドが含まれ、そのメンバー<code>size</code>には<code>enum
 pvec_type</code>で列挙されたサブタイプ、その構造体が含む<code>Lisp_Object</code>フィールドの数に関する情報、および残りのデータのサイズが含まれます。この情報は、オブジェクトのメモリーフットプリントの計算に必要であり、ベクターブロックの繰り返し処理の際のベクター割り当てコードにより使用されます。
 </p>
-<a name="index-garbage-collection"></a>
+<span id="index-garbage-collection"></span>
 <p>しばらくの間いくつかのストレージを使用して、(たとえば)バッファーのkillやあるオブジェクトを指す最後のポインターの削除によりそれを解放するのは非常に一般的です。この放棄されたストレージを再利用するためにEmacsは<em>ガーベージコレクター(garbage
 collector)</em>を提供します。ガーベージコレクターは本質的には、いまだにLispプログラムからアクセス可能なすべてのLispオブジェクトを検索、マークすることにより動作します。これを開始するにはすべてのシンボル、それらの値と関連付けられている関数定義、現在スタック上にあるすべてのデータをアクセス可能であると仮定します。別のアクセス可能オブジェクトを介して間接的に到達できるすべてのオブジェクトもアクセス可能とみなされますが計算は&ldquo;保守的&rdquo;に行われるので、アクセス可能なオブジェクトの個数はいくらか過大に評価されるかもしれません。
 accessible, but this calculation is done , so it may slightly overestimate
@@ -95,11 +83,11 @@ how many objects that are accessible.
 スイープ、一掃)ではそれらの再利用を計らいます(がマーキングは&ldquo;保守的&rdquo;に行われるのですべてのスイープが一度ですべての未使用オブジェクトをガーベージコレクトする保証はない)。
 </p>
 
-<a name="index-free-list"></a>
+<span id="index-free-list"></span>
 <p>スイープフェーズは将来の割り当て用に、シンボルやマーカーと同様に未使用のコンスセルを<em>フリーリスト(free
 list)</em>上に配置します。これはアクセス可能な文字列は少数の8kブロックを占有するように圧縮して、その後に他の8kブロックを解放します。ベクターブロックから到達不可能はベクターは可能なかぎり最大のフリーエリアを作成するために統合して、フリーエリアが完全な4kブロックに跨がるようならブロックは解放されます。それ以外ならフリーエリアはフリーリスト配列に記録されます。これは各エントリーが同サイズのエリアのフリーリストに対応します。巨大なベクター、バッファー、その他の巨大なオブジェクトは個別に割り当てと解放が行われます。
 </p>
-<a name="index-CL-note_002d_002d_002dallocate-more-storage"></a>
+<span id="index-CL-note_002d_002d_002dallocate-more-storage"></span>
 <blockquote>
 <p><b>Common Lispに関する注意:</b> 他のLispと異なりGNU Emacs
 Lispはフリーリストが空のときにガーベージコレクターを呼び出さない。かわりに単にオペレーティングシステムに更なるストレージの割り当てを要求して、<code>gc-cons-threshold</code>バイトを使い切るまで処理を継続する。
@@ -108,7 +96,7 @@ Lispはフリーリストが空のときにガーベージコレクターを呼�
 </p></blockquote>
 
 <dl>
-<dt><a name="index-garbage_002dcollect"></a>Command: <strong>garbage-collect</strong></dt>
+<dt id="index-garbage_002dcollect">Command: <strong>garbage-collect</strong></dt>
 <dd><p>このコマンドはガーベージコレクションを実行して使用中のスペース量の情報をリターンする(前回のガーベージコレクション以降に<code>gc-cons-threshold</code>バイトより多いLispデータを使用した場合には自然にガーベージコレクションが発生することもあり得る)。
 </p>
 <p><code>garbage-collect</code>は使用中のスペース量の情報をリストでリターンする。これの各エントリーは&lsquo;<samp>(<var>name</var>
@@ -254,21 +242,21 @@ buffer)</code>)。(<code>buffer-size</code>関数がリターンする値と混�
 </p></dd>
 </dl>
 
-<p>純粋スペース(<a href="Pure-Storage.html#Pure-Storage">Pure Storage</a>を参照)内にオーバーフローがあり、かつEmacsが(時代遅れとなった)<code>unexec</code>メソッド(<a href="Building-Emacs.html#Building-Emacs">Building Emacs</a>を参照)を使用してダンプされていたら、この場合は実際にガーベージコレクションを行うことは不可能なので<code>garbage-collect</code>は<code>nil</code>をリターンする。
+<p>純粋スペース(<a href="Pure-Storage.html">Pure Storage</a>を参照)内にオーバーフローがあり、かつEmacsが(時代遅れとなった)<code>unexec</code>メソッド(<a href="Building-Emacs.html">Building Emacs</a>を参照)を使用してダンプされていたら、この場合は実際にガーベージコレクションを行うことは不可能なので<code>garbage-collect</code>は<code>nil</code>をリターンする。
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-garbage_002dcollection_002dmessages"></a>User Option: <strong>garbage-collection-messages</strong></dt>
+<dt id="index-garbage_002dcollection_002dmessages">User Option: <strong>garbage-collection-messages</strong></dt>
 <dd><p>この変数が非<code>nil</code>ならEmacsはガーベージコレクションの最初と最後にメッセージを表示する。デフォルト値は<code>nil</code>。
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-post_002dgc_002dhook"></a>Variable: <strong>post-gc-hook</strong></dt>
+<dt id="index-post_002dgc_002dhook">Variable: <strong>post-gc-hook</strong></dt>
 <dd><p>これはガーベージコレクションの終わりに実行されるノーマルフック。ガーベージコレクションはこのフックの関数の実行中は抑制されるので慎重に記述すること。
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-gc_002dcons_002dthreshold"></a>User Option: <strong>gc-cons-threshold</strong></dt>
+<dt id="index-gc_002dcons_002dthreshold">User Option: <strong>gc-cons-threshold</strong></dt>
 <dd><p>この変数の値は別のガーベージコレクションをトリガーするために、ガーベージコレクション後にLispオブジェクト用に割り当てなければならないストレージのバイト数。特定のオブジェクトタイプに関する情報を取得するために、<code>garbage-collect</code>がリターンした結果を使用できる。バッファーのコンテンツに割り当てられたスペースは勘定に入らない。
 </p>
 <p>thresholdの初期値は<code>GC_DEFAULT_THRESHOLD</code>であり、これは<samp>alloc.c</samp>内で定義されている。これは<code>word_size</code>単位で定義されているので、デフォルトの32ビット設定では400,000、64ビット設定では800,000になる。大きい値を指定するとガーベージコレクションの頻度が下る。これはガーベージコレクションにより費やされる時間を減少させるがメモリーの総使用量は増大する。大量のLispデータを作成するプログラムの実行時にはこれを行いたいと思うかもしれない。
@@ -277,7 +265,7 @@ buffer)</code>)。(<code>buffer-size</code>関数がリターンする値と混�
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-gc_002dcons_002dpercentage"></a>User Option: <strong>gc-cons-percentage</strong></dt>
+<dt id="index-gc_002dcons_002dpercentage">User Option: <strong>gc-cons-percentage</strong></dt>
 <dd><p>この変数の値はガーベージコレクション発生するまでのコンス(訳注:
 これは<code>gc-cons-threshold</code>や<code>gc-cons-percentage</code>の&lsquo;<samp>-cons-</samp>&rsquo;のことで、これらの変数が定義されている<samp>alloc.c</samp>内ではLisp方言での&lsquo;<samp>cons</samp>&rsquo;をより一般化したメモリー割り当てプロセスのことを指す模様)の量をカレントヒープサイズにたいする割り合いで指定する。この条件と<code>gc-cons-threshold</code>を並行して適用して、条件が両方満足されたときだけガーベージコレクションが発生する。
 </p>
@@ -289,37 +277,37 @@ buffer)</code>)。(<code>buffer-size</code>関数がリターンする値と混�
 <p><code>garbage-collect</code>がリターンする値はデータ型に分類されたLispデータのメモリー使用量を記述します。それとは対照的に関数<code>memory-limit</code>はEmacsがカレントで使用中の総メモリー量の情報を提供します。
 </p>
 <dl>
-<dt><a name="index-memory_002dlimit"></a>Function: <strong>memory-limit</strong></dt>
+<dt id="index-memory_002dlimit">Function: <strong>memory-limit</strong></dt>
 <dd><p>この関数はEmacsがカレントで使用中の仮想メモリーの総バイト数を1024で除してリターンする。あるアクションがメモリー使用にどのよな効果を及ぼすかについて概観を得るためにこの関数を使用できる。
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-memory_002dfull"></a>Variable: <strong>memory-full</strong></dt>
+<dt id="index-memory_002dfull">Variable: <strong>memory-full</strong></dt>
 <dd><p>この変数はLispオブジェクト用のメモリーが不足に近い状態なら<code>t</code>、それ以外なら<code>nil</code>。
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-memory_002duse_002dcounts"></a>Function: <strong>memory-use-counts</strong></dt>
+<dt id="index-memory_002duse_002dcounts">Function: <strong>memory-use-counts</strong></dt>
 <dd><p>これはそのEmacsセッションで作成されたオブジェクト数をカウントしたリスト。これらのカウンターはそれぞれ特定の種類のオブジェクトを数える。詳細はドキュメント文字列を参照のこと。
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-memory_002dinfo"></a>Function: <strong>memory-info</strong></dt>
+<dt id="index-memory_002dinfo">Function: <strong>memory-info</strong></dt>
 <dd><p>この関数はシステムメモリーのトータル量とフリーな量をリターンする。サポートされないシステムでは値は<code>nil</code>かもしれない。
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-gcs_002ddone"></a>Variable: <strong>gcs-done</strong></dt>
+<dt id="index-gcs_002ddone">Variable: <strong>gcs-done</strong></dt>
 <dd><p>この変数はそのEmacsセッションでそれまでに行われたガーベージコレクションの合計回数。
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-gc_002delapsed"></a>Variable: <strong>gc-elapsed</strong></dt>
+<dt id="index-gc_002delapsed">Variable: <strong>gc-elapsed</strong></dt>
 <dd><p>この変数はそのEmacsセッションでガーベージコレクションの間に費やされた経過時間を浮動小数点数で表した総秒数。
 </p></dd></dl>
 
 <dl>
-<dt><a name="index-memory_002dreport"></a>Function: <strong>memory-report</strong></dt>
+<dt id="index-memory_002dreport">Function: <strong>memory-report</strong></dt>
 <dd><p>Emacsがどこでメモリーを使用(種々の変数、バッファー、キャッシュ)しているかが確認できれば便利なときがあるかもしれない。このコマンドはその概要を提供する(&lsquo;<samp>&quot;*Memory
 Report*&quot;</samp>&rsquo;という)バッファーを新たにオープンすることに加えて、&ldquo;最大&rdquo;のバッファーおよび変数をリストする。
 </p>
@@ -329,10 +317,10 @@ Report*&quot;</samp>&rsquo;という)バッファーを新たにオープンす�
 <hr>
 <div class="header">
 <p>
-Next: <a href="Stack_002dallocated-Objects.html#Stack_002dallocated-Objects" accesskey="n" rel="next">Stack-allocated Objects</a>, Previous: <a href="Pure-Storage.html#Pure-Storage" accesskey="p" rel="prev">Pure Storage</a>, Up: <a href="GNU-Emacs-Internals.html#GNU-Emacs-Internals" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Stack_002dallocated-Objects.html" accesskey="n" rel="next">Stack-allocated Objects</a>, Previous: <a href="Pure-Storage.html" accesskey="p" rel="prev">Pure Storage</a>, Up: <a href="GNU-Emacs-Internals.html" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:work/translate_emacs-28_06545bc0cc533b1abd831dd521df5f3369675d61, commit:25f2e329b2e55fc28e1935ca0b375dcb2196f402 to check Japanese translation.
+This page has generated for branch:, commit:b920f269f6a75fc997dc4590ed1a04d77bfaf243 to check Japanese translation.
 </body>
 </html>
