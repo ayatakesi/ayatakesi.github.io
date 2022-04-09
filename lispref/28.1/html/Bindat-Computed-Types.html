@@ -1,0 +1,135 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 28.1.
+
+Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU Emacs Lisp Reference Manual: Bindat Computed Types</title>
+
+<meta name="description" content="GNU Emacs Lisp Reference Manual: Bindat Computed Types">
+<meta name="keywords" content="GNU Emacs Lisp Reference Manual: Bindat Computed Types">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Byte-Packing.html#Byte-Packing" rel="up" title="Byte Packing">
+<link href="Display.html#Display" rel="next" title="Display">
+<link href="Bindat-Functions.html#Bindat-Functions" rel="prev" title="Bindat Functions">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="ja">
+<a name="Bindat-Computed-Types"></a>
+<div class="header">
+<p>
+Previous: <a href="Bindat-Functions.html#Bindat-Functions" accesskey="p" rel="prev">Bindat Functions</a>, Up: <a href="Byte-Packing.html#Byte-Packing" accesskey="u" rel="up">Byte Packing</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="Gao-Du-nadetareiautoShi-Yang-"></a>
+<h4 class="subsection">39.20.3 高度なデータレイアウト仕様</h4>
+<a name="index-bindat-computed-types"></a>
+
+<p>Bindatタイプ式は、これまでに説明したタイプに限定されません。Bindatタイプ式をリターンする、任意のLispフォームも可能です。たとえば以下のタイプは24ビットカラー、またはバイトのベクターのいずれかを含むことが可能なデータを記述します:
+</p>
+<div class="example">
+<pre class="example">(bindat-type
+  (len      u8)
+  (payload  . (if (zerop len) (uint 24) (vec (1- len)))))
+</pre></div>
+
+<a name="index-bindat-packing-and-unpacking-into-arbitrary-types"></a>
+<p>さらに複合タイプは通常は連想リストにunpack(または逆にpack)されませんが、以下のスペシャルキーワード引数を使用してこれを変更することができます:
+</p>
+<dl compact="compact">
+<dt><code>:unpack-val <var>exp</var></code></dt>
+<dd><p>フィールドのリストがこのキーワードで終わる場合には、unpack時リターンされる値は標準のalistではなく<var>exp</var>の値となる。<var>exp</var>は名前によって前のフィールドすべてを参照できる。
+</p>
+</dd>
+<dt><code>:pack-val <var>exp</var></code></dt>
+<dd><p>このキーワード引数がフィールドのタイプの後に続く場合には、このフィールドにはalistから抽出するかわりに<var>exp</var>がリターンした値がpackされる。
+</p>
+</dd>
+<dt><code>:pack-var <var>name</var></code></dt>
+<dd><p>このキーワード引数がフィールドのリストの前に前置されている場合には、後続するすべての<code>:pack-val</code>引数が<var>name</var>という名前の引数を介して、この複合タイプにpackされた全体値を参照できる。
+</p></dd>
+</dl>
+
+<p>たとえば以下のように16ビット符号付き整数を記述できます:
+</p>
+<div class="example">
+<pre class="example">(defconst sint16-bindat-spec
+  (let* ((max (ash 1 15))
+         (wrap (+ max max)))
+    (bindat-type :pack-var v
+                 (n uint 16 :pack-val (if (&lt; v 0) (+ v wrap) v))
+                 :unpack-val (if (&gt;= n max) (- n wrap) n))))
+</pre></div>
+
+<p>これは以下のようになります:
+</p><div class="example">
+<pre class="example">(bindat-pack sint16-bindat-spec -8)
+     &rArr; &quot;\377\370&quot;
+
+(bindat-unpack sint16-bindat-spec &quot;\300\100&quot;)
+     &rArr; -16320
+</pre></div>
+
+<a name="index-define-new-bindat-type-forms"></a>
+<a name="index-bindat_002c-define-new-type-forms"></a>
+<p>最後に<code>bindat-defmacro</code>でBindatタイプ式を使用することによって、Bindatタイプフォームを新たに定義できます:
+</p>
+<dl>
+<dt><a name="index-bindat_002ddefmacro"></a>Macro: <strong>bindat-defmacro</strong> <em>name args &amp;rest body</em></dt>
+<dd><p><var>args</var>を受け取る<var>name</var>という名前のBindatタイプ式を新たに定義する。これの挙動は<code>defmacro</code>に準ずるが、重要な違いは新たなフォームがBindatタイプ式でのみ使用できることである。
+</p></dd></dl>
+
+
+
+
+</body>
+</html>

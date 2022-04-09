@@ -1,0 +1,173 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 28.1.
+
+Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.1, http://www.gnu.org/software/texinfo/ -->
+<head>
+<title>GNU Emacs Lisp Reference Manual: Bindat Types</title>
+
+<meta name="description" content="GNU Emacs Lisp Reference Manual: Bindat Types">
+<meta name="keywords" content="GNU Emacs Lisp Reference Manual: Bindat Types">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link href="index.html#Top" rel="start" title="Top">
+<link href="Index.html#Index" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Byte-Packing.html#Byte-Packing" rel="up" title="Byte Packing">
+<link href="Bindat-Functions.html#Bindat-Functions" rel="next" title="Bindat Functions">
+<link href="Byte-Packing.html#Byte-Packing" rel="prev" title="Byte Packing">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+blockquote.smallindentedblock {margin-right: 0em; font-size: smaller}
+blockquote.smallquotation {font-size: smaller}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+div.smalldisplay {margin-left: 3.2em}
+div.smallexample {margin-left: 3.2em}
+div.smalllisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+pre.smalldisplay {font-family: inherit; font-size: smaller}
+pre.smallexample {font-size: smaller}
+pre.smallformat {font-family: inherit; font-size: smaller}
+pre.smalllisp {font-size: smaller}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="ja">
+<a name="Bindat-Types"></a>
+<div class="header">
+<p>
+Next: <a href="Bindat-Functions.html#Bindat-Functions" accesskey="n" rel="next">Bindat Functions</a>, Up: <a href="Byte-Packing.html#Byte-Packing" accesskey="u" rel="up">Byte Packing</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html#Index" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<a name="detareiautonoJi-Shu-"></a>
+<h4 class="subsection">39.20.1 データレイアウトの記述</h4>
+<a name="index-bindat-types"></a>
+
+<a name="index-data-layout-specification"></a>
+<a name="index-bindat-type-expression"></a>
+<a name="index-base-type_002c-in-bindat-specification"></a>
+<a name="index-composite-type_002c-in-bindat-specification"></a>
+<p>unpackとpackを制御するためには、<em>データレイアウト仕様(data layout
+specification)</em>を記述します(<em>Bindatタイプ式(Bindat type
+expression)</em>とも呼ばれる)。これには<em>ベースタイプ(base
+type)</em>と複数フィールドからなる<em>コンポジットタイプ(composite
+type)</em>があり、処理するフィールドそれぞれの長さ、packやunpackを行う方法をこの仕様が制御します。わたしたちはbindatタイプの値を、通常は<code>-bindat-spec</code>で終わる名前の変数に保持しています。このような種類の名前は、自動的に危険(risky)だと認識されます(<a href="File-Local-Variables.html#File-Local-Variables">File Local Variables</a>を参照)。
+</p>
+<dl>
+<dt><a name="index-bindat_002dtype"></a>Macro: <strong>bindat-type</strong> <em>&amp;rest type</em></dt>
+<dd><p>Bindatタイプの<em>式</em>である<var>type</var>に応じて、Bindatタイプの<em>値</em>オブジェクトを作成する。
+</p></dd></dl>
+
+<a name="index-endianness_002c-in-bindat-specification"></a>
+<a name="index-big-endian_002c-in-bindat-specification"></a>
+<a name="index-little-endian_002c-in-bindat-specification"></a>
+<a name="index-network-byte-ordering_002c-in-Bindat-specification"></a>
+<p>フィールドの<em>タイプ(type)</em>はフィールドが表すオブジェクトのサイズ(バイト単位)、およびそれがマルチバイトフィールドならフィールがバイトオーダーされる方法を記述します。可能なオーダーはビッグエンディアン(big
+endian。ネットワークバイトオーダーとも呼ばれる)、およびリトルエンディアン(little
+endian)の2つです。たとえば数字<code>#x23cd</code> (10進の9165)のビッグエンディアンは<code>#x23</code>
+<code>#xcd</code>の2バイト、リトルエンディアンは<code>#xcd</code> <code>#x23</code>になるでしょう。以下は可能なタイプの値です:
+</p>
+<dl compact="compact">
+<dt><code>u8</code></dt>
+<dt><code>byte</code></dt>
+<dd><p>長さ1の符号なしタイプ。
+</p>
+</dd>
+<dt><code>uint <var>bitlen</var></code></dt>
+<dd><p>長さ<var>bitlen</var>ビットのネットワークバイトオーダーによる符号なし整数。<var>bitlen</var>は8の倍数であること。
+</p>
+</dd>
+<dt><code>uintr <var>bitlen</var></code></dt>
+<dd><p>長さ<var>bitlen</var>ビットのネットワークバイトオーダーによる符号なし整数。リトルエンディアンオーダーによる符号なし整数。<var>bitlen</var>は8の倍数であること。
+</p>
+</dd>
+<dt><code>str <var>len</var></code></dt>
+<dd><p>長さ<var>len</var>のバイト文字列。
+</p>
+</dd>
+<dt><code>strz &amp;optional <var>len</var></code></dt>
+<dd><p>長さ<var>len</var>の固定長フィールド、または任意長さのNUL終端されたバイト文字列。
+</p>
+</dd>
+<dt><code>vec <var>len</var> [<var>type</var>]</code></dt>
+<dd><p><var>len</var>要素のベクター。要素のタイプは<var>type</var>により与えられる(デフォルトはバイト)。<var>type</var>は任意のBindatタイプ式を指定できる。
+</p>
+</dd>
+<dt><code>repeat <var>len</var> [<var>type</var>]</code></dt>
+<dd><p><code>vec</code>と同様だがリストから双方向にunpack/packする(<code>vec</code>はunpackするベクター)。
+</p>
+</dd>
+<dt><code>bits <var>len</var></code></dt>
+<dd><p><var>len</var>バイト内で1にセットされたビットのリスト。バイトはビッグエンディアンオーダーで、ビットは<code>8 * <var>len</var>
+- 1</code>で始まり0で終わるよう番号が付けされる。たとえば<code>bits 2</code>では、<code>#x28</code>
+<code>#x1c</code>は<code>(2 3 4 11 13)</code>、<code>#x1c</code> <code>#x28</code>は<code>(3 5 10 11
+12)</code>にunpackされる。
+</p>
+</dd>
+<dt><code>fill <var>len</var></code></dt>
+<dd><p><var>len</var>バイトは単なるフィラーとして使用される。これらのバイトはpack時には未変更のままとなり通常は0のままであることを、unpack時には単にnilをリターンすることを意味する。
+</p>
+</dd>
+<dt><code>align <var>len</var></code></dt>
+<dd><p><code>fill</code>と同様だが、次の<var>len</var>の倍数バイトまでスキップを要するバイト数である点が異なる。
+</p>
+</dd>
+<dt><code>type <var>exp</var></code></dt>
+<dd><p>これによりタイプを間接的に参照できる。<var>exp</var>はBindatタイプ<em>value</em>をリターンするLisp式であること。
+</p>
+</dd>
+<dt><code>unit <var>exp</var></code></dt>
+<dd><p>これは0ビットのスペースを使用する簡易タイプ。<var>exp</var>はそのようなフィールドの&ldquo;unpack&rdquo;を試みた際にリターンされる値を記述する。
+</p>
+</dd>
+<dt><code>struct <var>fields</var>...</code></dt>
+<dd><p>複数フィールドから構成されるコンポジットタイプ(composite typex: 複合型)。フィールドはそれぞれ<code>(<var>name</var>
+<var>type</var>)</code>という形式をもち、<var>type</var>には任意のBindatタイプ式を指定できる。<code>align</code>や<code>fill</code>のフィールドのように、そのフィールド値が命名に値しない場合には、<var>name</var>は<code>_</code>でもよい。コンテキストによりBindatタイプ式であることが明確なら、シンボル<code>struct</code>は省略可。
+</p></dd>
+</dl>
+
+<p>上述のタイプの中で、<var>len</var>と<var>bitlen</var>はフィールド内のバイト数(またはビット数)を指定する整数として与えられます。そのフィールドが固定長でなければ、通常は値は先行するフィールドの値に依存します。この理由により、<var>len</var>の長さは定数である必要がないので任意のLisp式を指定することができ、フィールド名から先行するフィールドの値を通じて参照することができるのです。
+</p>
+<p>たとえば先頭のバイトが16ビット整数の後続ベクターにサイズを与えるデータレイアウトの仕様は、以下のようになります:
+</p><div class="example">
+<pre class="example">(bindat-type
+  (len      u8)
+  (payload  vec (1+ len) uint 16))
+</pre></div>
+
+
+
+
+</body>
+</html>
