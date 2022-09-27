@@ -1,8 +1,5 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
-<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
 corresponding to Emacs version 28.2.
 
@@ -19,6 +16,9 @@ Documentation License."
 (a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
 this GNU manual.  Buying copies from the FSF supports it in developing GNU
 and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>Object Internals (GNU Emacs Lisp Reference Manual)</title>
 
 <meta name="description" content="Object Internals (GNU Emacs Lisp Reference Manual)">
@@ -26,21 +26,19 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="makeinfo">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-
 <link href="index.html" rel="start" title="Top">
 <link href="Index.html" rel="index" title="Index">
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
 <link href="GNU-Emacs-Internals.html" rel="up" title="GNU Emacs Internals">
-<link href="C-Integer-Types.html" rel="next" title="C Integer Types">
-<link href="Writing-Dynamic-Modules.html" rel="prev" title="Writing Dynamic Modules">
+<link href="Buffer-Internals.html" rel="next" title="Buffer Internals">
+<link href="Module-Nonlocal.html" rel="prev" title="Module Nonlocal">
 <style type="text/css">
 <!--
-a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
 a.summary-letter {text-decoration: none}
 blockquote.indentedblock {margin-right: 0em}
 div.display {margin-left: 3.2em}
 div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
 kbd {font-style: oblique}
 pre.display {font-family: inherit}
 pre.format {font-family: inherit}
@@ -49,7 +47,6 @@ pre.menu-preformatted {font-family: serif}
 span.nolinebreak {white-space: nowrap}
 span.roman {font-family: initial; font-weight: normal}
 span.sansserif {font-family: sans-serif; font-weight: normal}
-span:hover a.copiable-anchor {visibility: visible}
 ul.no-bullet {list-style: none}
 -->
 </style>
@@ -58,10 +55,9 @@ ul.no-bullet {list-style: none}
 </head>
 
 <body lang="ja">
-<div class="section" id="Object-Internals">
-<div class="header">
+<span id="Object-Internals"></span><div class="header">
 <p>
-Next: <a href="C-Integer-Types.html" accesskey="n" rel="next">Cの整数型</a>, Previous: <a href="Writing-Dynamic-Modules.html" accesskey="p" rel="prev">動的にロードされるモジュールの記述</a>, Up: <a href="GNU-Emacs-Internals.html" accesskey="u" rel="up">GNU Emacsの内部</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="C-Integer-Types.html" accesskey="n" rel="next">C Integer Types</a>, Previous: <a href="Writing-Dynamic-Modules.html" accesskey="p" rel="prev">Writing Dynamic Modules</a>, Up: <a href="GNU-Emacs-Internals.html" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
 <span id="obuziekutonoNei-Bu-"></span><h3 class="section">E.9 オブジェクトの内部</h3>
@@ -78,23 +74,23 @@ long</code>タイプを使用することにより、32ビットシステム上�
 <p>以下のCデータ構造体は整数ではない基本的なデータタイプを表すために<samp>lisp.h</samp>で定義されています:
 </p>
 <dl compact="compact">
-<dt><span><code>struct Lisp_Cons</code></span></dt>
+<dt><code>struct Lisp_Cons</code></dt>
 <dd><p>コンスセル。リストを構築するために使用されるオブジェクト。
 </p>
 </dd>
-<dt><span><code>struct Lisp_String</code></span></dt>
+<dt><code>struct Lisp_String</code></dt>
 <dd><p>文字列。文字シーケンスを表す基本的オブジェクト。
 </p>
 </dd>
-<dt><span><code>struct Lisp_Vector</code></span></dt>
+<dt><code>struct Lisp_Vector</code></dt>
 <dd><p>配列。インデックスによりアクセスできる固定サイズのLispオブジェクトのセット。
 </p>
 </dd>
-<dt><span><code>struct Lisp_Symbol</code></span></dt>
+<dt><code>struct Lisp_Symbol</code></dt>
 <dd><p>シンボル。一般的に識別子として使用される一意な名前のエンティティ。
 </p>
 </dd>
-<dt><span><code>struct Lisp_Float</code></span></dt>
+<dt><code>struct Lisp_Float</code></dt>
 <dd><p>Floating-point value.
 </p></dd>
 </dl>
@@ -105,13 +101,15 @@ pvec_type</code>により列挙されておりウィンドウ、バッファー�
 <p><code>Lisp_Vectorlike</code>のいくつかのサブタイプを説明します。バッファーオブジェクトは表示や編集を行うテキストを表します。ウィンドウはバッファーを表示したり、同一フレーム上で再帰的に他のウィンドウを配置するためのコンテナーとして使用される表示構造の一部です(Emacs
 Lispのウィンドウオブジェクトと、のようなユーザーインターフェースシステムに管理されるエンティティとしてのウィンドウを混同しないこと。Emacsの用語では後者はフレームと呼ばれる)。最後にプロセスオブジェクトはサブプロセスの管理に使用されます。
 </p>
+<table class="menu" border="0" cellspacing="0">
+<tr><td align="left" valign="top">&bull; <a href="Buffer-Internals.html" accesskey="1">Buffer Internals</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">バッファー構造体の構成子。
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="Window-Internals.html" accesskey="2">Window Internals</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">ウィンドウ構造体の構成子。
+</td></tr>
+<tr><td align="left" valign="top">&bull; <a href="Process-Internals.html" accesskey="3">Process Internals</a></td><td>&nbsp;&nbsp;</td><td align="left" valign="top">プロセス構造体の構成子。
+</td></tr>
+</table>
 
-<ul class="section-toc">
-<li><a href="Buffer-Internals.html" accesskey="1">バッファーの内部</a></li>
-<li><a href="Window-Internals.html" accesskey="2">ウィンドウの内部</a></li>
-<li><a href="Process-Internals.html" accesskey="3">プロセスの内部</a></li>
-</ul>
-</div>
 
 
 
