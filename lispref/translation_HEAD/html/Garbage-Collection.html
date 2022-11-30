@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.1.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="November 29, 2022">
+<meta name="date" content="November 30, 2022">
 <link href="index.html" rel="start" title="Top">
 <link href="Index.html" rel="index" title="Index">
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
@@ -55,7 +55,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <span id="Garbage-Collection"></span><div class="header">
 <p>
 Next: <a href="Stack_002dallocated-Objects.html" accesskey="n" rel="next">Stack-allocated Objects</a>, Previous: <a href="Pure-Storage.html" accesskey="p" rel="prev">Pure Storage</a>, Up: <a href="GNU-Emacs-Internals.html" accesskey="u" rel="up">GNU Emacs Internals</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
@@ -259,7 +259,17 @@ buffer)</code>)。(<code>buffer-size</code>関数がリターンする値と混�
 <dt id="index-gc_002dcons_002dthreshold">User Option: <strong>gc-cons-threshold</strong></dt>
 <dd><p>この変数の値は別のガーベージコレクションをトリガーするために、ガーベージコレクション後にLispオブジェクト用に割り当てなければならないストレージのバイト数。特定のオブジェクトタイプに関する情報を取得するために、<code>garbage-collect</code>がリターンした結果を使用できる。バッファーのコンテンツに割り当てられたスペースは勘定に入らない。
 </p>
-<p>thresholdの初期値は<code>GC_DEFAULT_THRESHOLD</code>であり、これは<samp>alloc.c</samp>内で定義されている。これは<code>word_size</code>単位で定義されているので、デフォルトの32ビット設定では400,000、64ビット設定では800,000になる。大きい値を指定するとガーベージコレクションの頻度が下る。これはガーベージコレクションにより費やされる時間を減少させるがメモリーの総使用量は増大する。大量のLispデータを作成するプログラムの実行時にはこれを行いたいと思うかもしれない。
+<p>The initial threshold value is <code>GC_DEFAULT_THRESHOLD</code>, defined in
+<samp>alloc.c</samp>.  Since it&rsquo;s defined in <code>word_size</code> units, the value is
+400,000 for the default 32-bit configuration and 800,000 for the 64-bit
+one.  If you specify a larger value, garbage collection will happen less
+often.  This reduces the amount of time spent garbage collecting, but
+increases total memory use.  You may want to do this when running a program
+that creates lots of Lisp data.  However, we recommend against increasing
+the threshold for prolonged periods of time, and advise that you never set
+it higher than needed for the program to run in reasonable time.  Using
+thresholds higher than necessary could potentially cause system-wide memory
+pressure, and should therefore be avoided.
 </p>
 <p><code>GC_DEFAULT_THRESHOLD</code>の1/10まで下げた小さな値を指定することにより、より頻繁にガーベージコレクションを発生させることができる。この最小値より小さい値は後続のガーベージコレクションで、<code>garbage-collect</code>がthresholdを最小値に戻すときまでしか効果をもたないだろう。
 </p></dd></dl>
@@ -270,6 +280,9 @@ buffer)</code>)。(<code>buffer-size</code>関数がリターンする値と混�
 これは<code>gc-cons-threshold</code>や<code>gc-cons-percentage</code>の&lsquo;<samp>-cons-</samp>&rsquo;のことで、これらの変数が定義されている<samp>alloc.c</samp>内ではLisp方言での&lsquo;<samp>cons</samp>&rsquo;をより一般化したメモリー割り当てプロセスのことを指す模様)の量をカレントヒープサイズにたいする割り合いで指定する。この条件と<code>gc-cons-threshold</code>を並行して適用して、条件が両方満足されたときだけガーベージコレクションが発生する。
 </p>
 <p>ヒープサイズ増加にともないガーベージコレクションの処理時間は増大する。したがってガーベージコレクションの頻度割合を減らすのが望ましいことがある。
+</p>
+<p>As with <code>gc-cons-threshold</code>, do not enlarge this more than necessary,
+and never for prolonged periods of time.
 </p></dd></dl>
 
 <p><code>gc-cons-threshold</code>および<code>gc-cons-percentage</code>を介した制御は単なる近似です。たとえEmacsが定期的にしきい値(threshold)の枯渇をチェックしていても、効率上の理由によりヒープ、または<code>gc-cons-threshold</code>や<code>gc-cons-percentage</code>の変更のそれぞれにたいして、その後即座にガーベージコレクターをトリガーする訳ではありません。更にしきい値計算の効率化のために、Emacsはヒープ内のカレントでアクセス可能なオブジェクトを計数してヒープサイズを近似します。
@@ -294,6 +307,9 @@ buffer)</code>)。(<code>buffer-size</code>関数がリターンする値と混�
 <dl>
 <dt id="index-memory_002dinfo">Function: <strong>memory-info</strong></dt>
 <dd><p>この関数はシステムメモリーのトータル量とフリーな量をリターンする。サポートされないシステムでは値は<code>nil</code>かもしれない。
+</p>
+<p>If <code>default-directory</code> points to a remote host, memory information of
+that host is returned.
 </p></dd></dl>
 
 <dl>
@@ -321,6 +337,6 @@ Next: <a href="Stack_002dallocated-Objects.html" accesskey="n" rel="next">Stack-
 </div>
 
 
-This page has generated for branch:work/add_lispintr, commit:65845cf60c073f2f3182d1d07483530e9bbe1d96 to check Japanese translation.
+This page has generated for branch:master, commit:e4d93f51bd24f225ba143bbc7eb59db2be8f2b0e to check Japanese translation.
 </body>
 </html>

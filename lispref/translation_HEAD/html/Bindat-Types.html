@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.1.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="November 29, 2022">
+<meta name="date" content="November 30, 2022">
 <link href="index.html" rel="start" title="Top">
 <link href="Index.html" rel="index" title="Index">
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
@@ -55,13 +55,13 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <span id="Bindat-Types"></span><div class="header">
 <p>
 Next: <a href="Bindat-Functions.html" accesskey="n" rel="next">Bindat Functions</a>, Up: <a href="Byte-Packing.html" accesskey="u" rel="up">Byte Packing</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="detareiautonoJi-Shu-"></span><h4 class="subsection">39.20.1 データレイアウトの記述</h4>
+<span id="detareiautonoJi-Shu-"></span><h4 class="subsection">40.20.1 データレイアウトの記述</h4>
 <span id="index-bindat-types"></span>
 
 <span id="index-data-layout-specification"></span>
@@ -94,21 +94,62 @@ endian)の2つです。たとえば数字<code>#x23cd</code> (10進の9165)の�
 <dd><p>長さ1の符号なしタイプ。
 </p>
 </dd>
-<dt><code>uint <var>bitlen</var></code></dt>
-<dd><p>長さ<var>bitlen</var>ビットのネットワークバイトオーダーによる符号なし整数。<var>bitlen</var>は8の倍数であること。
+<dt><code>uint <var>bitlen</var> &amp;optional <var>le</var></code></dt>
+<dd><p>Unsigned integer in network byte order (big-endian), with <var>bitlen</var>
+bits.  <var>bitlen</var> has to be a multiple of 8.  If <var>le</var> is
+non-<code>nil</code>, then use little-endian byte order.
 </p>
 </dd>
-<dt><code>uintr <var>bitlen</var></code></dt>
-<dd><p>長さ<var>bitlen</var>ビットのネットワークバイトオーダーによる符号なし整数。リトルエンディアンオーダーによる符号なし整数。<var>bitlen</var>は8の倍数であること。
+<dt><code>sint <var>bitlen</var> <var>le</var></code></dt>
+<dd><p>Signed integer in network byte order (big-endian), with <var>bitlen</var> bits.
+<var>bitlen</var> has to be a multiple of 8.  If <var>le</var> is non-<code>nil</code>, then
+use little-endian byte order.
 </p>
 </dd>
 <dt><code>str <var>len</var></code></dt>
-<dd><p>長さ<var>len</var>のバイト文字列。
+<dd><p>Unibyte string (see <a href="Text-Representations.html">Text Representations</a>) of length <var>len</var> bytes.
+When packing, the first <var>len</var> bytes of the input string are copied to
+the packed output.  If the input string is shorter than <var>len</var>, the
+remaining bytes will be null (zero) unless a pre-allocated string was
+provided to <code>bindat-pack</code>, in which case the remaining bytes are left
+unmodified.  If the input string is multibyte with only ASCII and
+<code>eight-bit</code> characters, it is converted to unibyte before it is packed;
+other multibyte strings signal an error.  When unpacking, any null bytes in
+the packed input string will appear in the unpacked output.
 </p>
 </dd>
 <dt><code>strz &amp;optional <var>len</var></code></dt>
-<dd><p>長さ<var>len</var>の固定長フィールド、または任意長さのNUL終端されたバイト文字列。
+<dd><p>If <var>len</var> is not provided, this is a variable-length null-terminated
+unibyte string (see <a href="Text-Representations.html">Text Representations</a>).  When packing into
+<code>strz</code>, the entire input string is copied to the packed output followed
+by a null (zero) byte.  (If pre-allocated string is provided for packing
+into <code>strz</code>, that pre-allocated string should have enough space for the
+additional null byte appended to the output string contents, see <a href="Bindat-Functions.html">Bindat Functions</a>).  The length of the packed output is the length of the input
+string plus one (for the null terminator).  The input string must not
+contain any null bytes.  If the input string is multibyte with only ASCII
+and <code>eight-bit</code> characters, it is converted to unibyte before it is
+packed; other multibyte strings signal an error.  When unpacking a
+<code>strz</code>, the resulting output string will contain all bytes up to (but
+excluding) the null byte that terminated the input string.
 </p>
+<p>If <var>len</var> is provided, <code>strz</code> behaves the same as <code>str</code>, but
+with a couple of differences:
+</p>
+<ul>
+<li> When packing, a null terminator is written after the packed input string if
+the number of characters in the input string is less than <var>len</var>.
+
+</li><li> When unpacking, the first null byte encountered in the packed string is
+interpreted as the terminating byte, and it and all subsequent bytes are
+excluded from the result of the unpacking.
+</li></ul>
+
+<blockquote>
+<p><b>Caution:</b> The packed output will not be null-terminated unless the input string is
+shorter than <var>len</var> bytes or it contains a null byte within the first
+<var>len</var> bytes.
+</p></blockquote>
+
 </dd>
 <dt><code>vec <var>len</var> [<var>type</var>]</code></dt>
 <dd><p><var>len</var>要素のベクター。要素のタイプは<var>type</var>により与えられる(デフォルトはバイト)。<var>type</var>は任意のBindatタイプ式を指定できる。
@@ -126,7 +167,9 @@ endian)の2つです。たとえば数字<code>#x23cd</code> (10進の9165)の�
 </p>
 </dd>
 <dt><code>fill <var>len</var></code></dt>
-<dd><p><var>len</var>バイトは単なるフィラーとして使用される。これらのバイトはpack時には未変更のままとなり通常は0のままであることを、unpack時には単にnilをリターンすることを意味する。
+<dd><p><var>len</var> bytes used as a mere filler.  In packing, these bytes are left
+unchanged, which normally means they remain zero.  When unpacking, this just
+returns nil.
 </p>
 </dd>
 <dt><code>align <var>len</var></code></dt>
@@ -156,8 +199,13 @@ endian)の2つです。たとえば数字<code>#x23cd</code> (10進の9165)の�
   (payload  vec (1+ len) uint 16))
 </pre></div>
 
+<hr>
+<div class="header">
+<p>
+Next: <a href="Bindat-Functions.html" accesskey="n" rel="next">Bindat Functions</a>, Up: <a href="Byte-Packing.html" accesskey="u" rel="up">Byte Packing</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
-This page has generated for branch:work/add_lispintr, commit:65845cf60c073f2f3182d1d07483530e9bbe1d96 to check Japanese translation.
+This page has generated for branch:master, commit:e4d93f51bd24f225ba143bbc7eb59db2be8f2b0e to check Japanese translation.
 </body>
 </html>

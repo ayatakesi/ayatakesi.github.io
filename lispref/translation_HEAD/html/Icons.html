@@ -1,0 +1,236 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Icons (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Icons (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Icons (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="November 30, 2022">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Display.html" rel="up" title="Display">
+<link href="Xwidgets.html" rel="next" title="Xwidgets">
+<link href="Image-Cache.html" rel="prev" title="Image Cache">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Icons"></span><div class="header">
+<p>
+Next: <a href="Xwidgets.html" accesskey="n" rel="next">Xwidgets</a>, Previous: <a href="Images.html" accesskey="p" rel="prev">Images</a>, Up: <a href="Display.html" accesskey="u" rel="up">Display</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Icons-1"></span><h3 class="section">41.18 Icons</h3>
+
+<p>Emacs sometimes uses buttons (for clicking on) or small graphics (to
+illustrate something).  Since Emacs is available on a wide variety of
+systems with different capabilities, and users have different preferences,
+Emacs provides a facility to handle this in a convenient way, allowing
+customization, graceful degradation, accessibility, as well as themability:
+<em>Icons</em>.
+</p>
+<p>The central macro here is <code>define-icon</code>, and here&rsquo;s a simple example:
+</p>
+<div class="lisp">
+<pre class="lisp">(define-icon outline-open button
+  '((image &quot;right.svg&quot; &quot;open.xpm&quot; &quot;open.pbm&quot; :height line)
+    (emoji &quot;▶️&quot;)
+    (symbol &quot;▶&quot; &quot;➤&quot;)
+    (text &quot;open&quot; :face icon-button))
+  &quot;Icon used for buttons for opening a section in outline buffers.&quot;
+  :version &quot;29.1&quot;
+  :help-echo &quot;Open this section&quot;)
+</pre></div>
+
+<p>Which alternative will actually be displayed depends on the value of the
+user option <code>icon-preference</code> (see <a href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Icons.html#Icons">Icons</a> in <cite>The GNU Emacs
+Manual</cite>) and on the results of run-time checks for what the current frame&rsquo;s
+terminal can actually display.
+</p>
+<p>The macro in the example above defines <code>outline-open</code> as an icon, and
+inherits properties from the icon called <code>button</code> (so this is meant as
+a clickable button to be inserted in a buffer).  It is followed by a list of
+<em>icon types</em> along with the actual icon shapes themselves.  In addition,
+there&rsquo;s a doc string and various keywords that contain additional
+information and properties.
+</p>
+<p>To instantiate an icon, you use <code>icon-string</code>, which will consult the
+current Customize theming, and the <code>icon-preference</code> user option, and
+finally what the Emacs is able to actually display.  If
+<code>icon-preference</code> is <code>(image emoji symbol text)</code> (i.e., allowing
+all of these forms of icons), in this case, <code>icon-string</code> will first
+check that Emacs is able to display images at all, and then whether it has
+support for each of those different image formats.  If that fails, Emacs
+will check whether Emacs can display emojis (in the current frame).  If that
+fails, it&rsquo;ll check whether it can display the symbol in question.  If that
+fails, it&rsquo;ll use the plain text version.
+</p>
+<p>For instance, if <code>icon-preference</code> doesn&rsquo;t contain <code>image</code> or
+<code>emoji</code>, it&rsquo;ll skip those entries.
+</p>
+<p>Code can confidently call <code>icon-string</code> in all circumstances and be
+sure that something readable will appear on the screen, no matter whether
+the user is on a graphical terminal or a text terminal, and no matter which
+features Emacs was built with.
+</p>
+<dl>
+<dt id="index-define_002dicon">Macro: <strong>define-icon</strong> <em>name parent specs doc &amp;rest keywords</em></dt>
+<dd><p>Define an icon <var>name</var>, a symbol, with the display alternatives in
+<var>spec</var>, that can be later instantiated using <code>icon-string</code>.  The
+<var>name</var> is the name of the resulting keyword.
+</p>
+<p>The resulting icon will inherit specs from <var>parent</var>, and from their
+parent&rsquo;s parents, and so on, and the lowest descendent element wins.
+</p>
+<p><var>specs</var> is a list of icon specifications.  The first element of each
+specification is the type, and the rest is something that can be used as an
+icon of that type, and then optionally followed by a keyword list.  The
+following icon types are available:
+</p>
+<span id="index-icon-types"></span>
+<dl compact="compact">
+<dt><code>image</code></dt>
+<dd><p>In this case, there may be many images listed as candidates.  Emacs will
+choose the first one that the current Emacs instance can show.  If an image
+is listed is an absolute file name, it&rsquo;s used as is, but it&rsquo;s otherwise
+looked up in the list <code>image-load-path</code> (see <a href="Defining-Images.html">Defining Images</a>).
+</p>
+</dd>
+<dt><code>emoji</code></dt>
+<dd><p>This should be a (possibly colorful) emoji.
+</p>
+</dd>
+<dt><code>symbol</code></dt>
+<dd><p>This should be a (monochrome) symbol character.
+</p>
+</dd>
+<dt><code>text</code></dt>
+<dd><p>Icons should also have a textual fallback.  This can also be used for the
+visually impaired: if <code>icon-preference</code> is just <code>(text)</code>, all
+icons will be replaced by text.
+</p></dd>
+</dl>
+
+<p>Various keywords may follow the list of icon specifications.  For instance:
+</p>
+<div class="example">
+<pre class="example">(symbol &quot;▶&quot; &quot;➤&quot; :face icon-button)
+</pre></div>
+
+<p>Unknown keywords are ignored.  The following keywords are allowed:
+</p>
+<span id="index-icon-keywords"></span>
+<dl compact="compact">
+<dt><code>:face</code></dt>
+<dd><p>The face to be used for the icon.
+</p>
+</dd>
+<dt><code>:height</code></dt>
+<dd><p>This is only valid for <code>image</code> icons, and can be either a number (which
+specifies the height in pixels), or the symbol <code>line</code>, which will use
+the default line height in the currently selected window.
+</p></dd>
+</dl>
+
+<p><var>doc</var> should be a doc string.
+</p>
+<p><var>keywords</var> is a list of keyword/value pairs.  The following keywords are
+allowed:
+</p>
+<dl compact="compact">
+<dt><code>:version</code></dt>
+<dd><p>The (approximate) Emacs version this button first appeared.  (This keyword
+is mandatory.)
+</p>
+</dd>
+<dt><code>:group</code></dt>
+<dd><p>The customization group this icon belongs in.  If not present, it is
+inferred.
+</p>
+</dd>
+<dt><code>:help-echo</code></dt>
+<dd><p>The help string shown when hovering over the icon with the mouse pointer.
+</p></dd>
+</dl>
+</dd></dl>
+
+<dl>
+<dt id="index-icon_002dstring">Function: <strong>icon-string</strong> <em>icon</em></dt>
+<dd><p>This function returns a string suitable for display in the current buffer
+for <var>icon</var>.
+</p></dd></dl>
+
+<dl>
+<dt id="index-icon_002delements">Function: <strong>icon-elements</strong> <em>icon</em></dt>
+<dd><p>Alternatively, you can get a &ldquo;deconstructed&rdquo; version of <var>icon</var> with
+this function.  It returns a plist (see <a href="Property-Lists.html">Property Lists</a>) where the keys
+are <code>string</code>, <code>face</code> and <var>image</var>.  (The latter is only present
+if the icon is represented by an image.)  This can be useful if the icon
+isn&rsquo;t to be inserted directly in the buffer, but needs some sort of
+pre-processing first.
+</p></dd></dl>
+
+<p>Icons can be customized with <kbd>M-x customize-icon</kbd>.  Themes can specify
+changes to icons with, for instance:
+</p>
+<div class="lisp">
+<pre class="lisp">(custom-theme-set-icons
+  'my-theme
+  '(outline-open ((image :height 100)
+                  (text &quot; OPEN &quot;)))
+  '(outline-close ((image :height 100)
+                   (text &quot; CLOSE &quot; :face warning))))
+</pre></div>
+
+
+<hr>
+<div class="header">
+<p>
+Next: <a href="Xwidgets.html" accesskey="n" rel="next">Xwidgets</a>, Previous: <a href="Images.html" accesskey="p" rel="prev">Images</a>, Up: <a href="Display.html" accesskey="u" rel="up">Display</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:master, commit:e4d93f51bd24f225ba143bbc7eb59db2be8f2b0e to check Japanese translation.
+</body>
+</html>

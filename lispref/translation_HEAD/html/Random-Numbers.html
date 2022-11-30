@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.1.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="November 29, 2022">
+<meta name="date" content="November 30, 2022">
 <link href="index.html" rel="start" title="Top">
 <link href="Index.html" rel="index" title="Index">
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
@@ -55,7 +55,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <span id="Random-Numbers"></span><div class="header">
 <p>
 Previous: <a href="Math-Functions.html" accesskey="p" rel="prev">Math Functions</a>, Up: <a href="Numbers.html" accesskey="u" rel="up">Numbers</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
@@ -68,8 +68,14 @@ Previous: <a href="Math-Functions.html" accesskey="p" rel="prev">Math Functions<
 numbers)</em>で充分です。一連の疑似乱数は決定論的な手法により生成されます。真の乱数ではありませんが、それらにはランダム列を模する特別な性質があります。たとえば疑似ランダム系では、すべての可能な値は均等に発生します。
 </p>
 <span id="index-seed_002c-for-random-number-generation"></span>
-<p>疑似乱数は<em>シード値(seed
-value)</em>から生成されます。与えられた任意のシードから開始することにより、<code>random</code>関数は常に同じ数列を生成します。デフォルトでは、Emacsは開始時に乱数シードを初期化することにより、それぞれのEmacsの実行において、<code>random</code>の値シーケンスは(ほとんど確実に)異なります。
+<p>Pseudo-random numbers are generated from a <em>seed value</em>.  Starting from
+any given seed, the <code>random</code> function always generates the same
+sequence of numbers.  By default, Emacs initializes the random seed at
+startup, in such a way that the sequence of values of <code>random</code> (with
+overwhelming likelihood) differs in each Emacs run.  The random seed is
+typically initialized from system entropy; however, on obsolescent platforms
+lacking entropy pools, the seed is taken from less-random volatile data such
+as the current time.
 </p>
 <p>再現可能な乱数シーケンスが欲しい場合もあります。たとえば乱数シーケンスに依存するプログラムをデバッグする場合、プログラムの各実行において同じ挙動を得ることが助けになります。再現可能なシーケンスを作成するには、<code>(random
 &quot;&quot;)</code>を実行します。これは特定のEmacsの実行可能ファイルにたいして、シードに定数値をセットします(しかしこの実行可能ファイルは、その他のEmacsビルドと異なるものになるであろう)。シード値として、他のさまざまな文字列を使用することができます。
@@ -80,13 +86,48 @@ value)</em>から生成されます。与えられた任意のシードから開
 </p>
 <p><var>limit</var>が正の整数なら、値は負ではない<var>limit</var>未満の値から選択される。それ以外なら値はLispで表現可能な任意のfixnum(<code>most-negative-fixnum</code>から<code>most-positive-fixnum</code>の間の任意の整数)となるだろう(<a href="Integer-Basics.html">Integer Basics</a>を参照)。
 </p>
-<p><var>limit</var>が<code>t</code>なら、あたかもEmacsが再起動されたかのように、通常はシステムのエントロピーから新たなシードが選択されることを意味する。エントロピープールを欠くシステムでは、カレント時刻のような若干揮発性が低い乱数からシードが選択される。
+<p>If <var>limit</var> is a string, it means to choose a new seed based on the
+string&rsquo;s contents.  This causes later calls to <code>random</code> to return a
+reproducible sequence of results.
 </p>
-<p><var>limit</var>が文字列なら、その文字列定数にもとづいた新しいシードを選択することを意味する。
+<p>If <var>limit</var> is <code>t</code>, it means to choose a new seed as if Emacs were
+restarting.  This causes later calls to <code>random</code> to return an
+unpredictable sequence of results.
 </p>
 </dd></dl>
 
+<p>If you need a random nonce for cryptographic purposes, using <code>random</code>
+is typically not the best approach, for several reasons:
+</p>
+<ul>
+<li> Although you can use <code>(random t)</code> to consult system entropy, doing so
+can adversely affect other parts of your program that benefit from
+reproducible results.
 
-This page has generated for branch:work/add_lispintr, commit:65845cf60c073f2f3182d1d07483530e9bbe1d96 to check Japanese translation.
+</li><li> The system-dependent pseudo-random number generator (PRNG) used by
+<code>random</code> is not necessarily suitable for cryptography.
+
+</li><li> A call to <code>(random t)</code> does not give direct access to system entropy;
+the entropy is passed through the system-dependent PRNG, thus possibly
+biasing the results.
+
+</li><li> On typical platforms the random seed contains only 32 bits, which is
+typically narrower than an Emacs fixnum, and is not nearly enough for
+cryptographic purposes.
+
+</li><li> A <code>(random t)</code> call leaves information about the nonce scattered about
+Emacs&rsquo;s internal state, increasing the size of the internal attack surface.
+
+</li><li> On obsolescent platforms lacking entropy pools, <code>(random t)</code> is seeded
+from a cryptographically weak source.
+</li></ul>
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Math-Functions.html" accesskey="p" rel="prev">Math Functions</a>, Up: <a href="Numbers.html" accesskey="u" rel="up">Numbers</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:master, commit:e4d93f51bd24f225ba143bbc7eb59db2be8f2b0e to check Japanese translation.
 </body>
 </html>

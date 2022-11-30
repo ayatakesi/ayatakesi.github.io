@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.1.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="November 29, 2022">
+<meta name="date" content="November 30, 2022">
 <link href="index.html" rel="start" title="Top">
 <link href="Index.html" rel="index" title="Index">
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
@@ -55,7 +55,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <span id="Setting-Generalized-Variables"></span><div class="header">
 <p>
 Next: <a href="Adding-Generalized-Variables.html" accesskey="n" rel="next">Adding Generalized Variables</a>, Up: <a href="Generalized-Variables.html" accesskey="u" rel="up">Generalized Variables</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
@@ -63,14 +63,20 @@ Next: <a href="Adding-Generalized-Variables.html" accesskey="n" rel="next">Addin
 <hr>
 <span id="setfmakuro"></span><h4 class="subsection">12.17.1 <code>setf</code>マクロ</h4>
 
-<p><code>setf</code>マクロはジェネリック変数を操作するもっとも基本的な方法です。<code>setf</code>フォームは<code>setq</code>と似ていますが、シンボルだけでなく左辺の任意のplace
-formを受け入れます。たとえば<code>(setf (car a)
-b)</code>は<code>a</code>のcarを<code>b</code>にセットして<code>(setcar a
-b)</code>と同じ操作を行いますが、このタイプのplaceにセットやアクセスするために2つの関数を個別に覚える必要はありません。
+<p>The <code>setf</code> macro is the most basic way to operate on generalized
+variables.  The <code>setf</code> form is like <code>setq</code>, except that it accepts
+arbitrary place forms in the first (left) argument of each pair rather than
+just symbols.  For example, <code>(setf (car a) b)</code> sets the car of <code>a</code>
+to <code>b</code>, doing the same operation as <code>(setcar a b)</code>, but without
+you having to use two separate functions for setting and accessing this type
+of place.
 </p>
 <dl>
 <dt id="index-setf">Macro: <strong>setf</strong> <em>[place form]&hellip;</em></dt>
-<dd><p>このマクロは<var>form</var>を評価して、それを<var>place</var>に格納する。<var>place</var>は有効なジェネリック変数フォームでなければならない。複数の<var>place</var>/<var>form</var>ペアーがある場合、割り当ては<code>setq</code>の場合と同様。<code>setf</code>は最後の<var>form</var>の値をリターンする。
+<dd><p>This macro evaluates <var>form</var> and stores its value in <var>place</var>, which
+must be a valid generalized variable form.  If there are several <var>place</var>
+and <var>form</var> pairs, the assignments are done sequentially just as with
+<code>setq</code>.  <code>setf</code> returns the value of the last <var>form</var>.
 </p></dd></dl>
 
 <p>以下のLispフォームはEmacsではジェネリック変数として機能するフォームなので、<code>setf</code>の<var>place</var>引数にすることができます:
@@ -94,16 +100,53 @@ cdar      nthcdr
 </li><li> 以下のEmacs特有な関数の呼び出し:
 
 <div class="example">
-<pre class="example">alist-get                     process-get
-frame-parameter               process-sentinel
-terminal-parameter            window-buffer
-keymap-parent                 window-display-table
-match-data                    window-dedicated-p
-overlay-get                   window-hscroll
-overlay-start                 window-parameter
-overlay-end                   window-point
-process-buffer                window-start
-process-filter                default-value
+<pre class="example">alist-get                     overlay-start
+default-value                 overlay-get
+face-background               process-buffer
+face-font                     process-filter
+face-foreground               process-get
+face-stipple                  process-sentinel
+face-underline-p              terminal-parameter
+file-modes                    window-buffer
+frame-parameter               window-dedicated-p
+frame-parameters              window-display-table
+get-register                  window-hscroll
+getenv                        window-parameter
+keymap-parent                 window-point
+match-data                    window-start
+overlay-end
+</pre></div>
+
+</li><li> A call of the form <code>(substring <var>subplace</var> <var>n</var> [<var>m</var>])</code>,
+where <var>subplace</var> is itself a valid generalized variable whose current
+value is a string, and where the value stored is also a string.  The new
+string is spliced into the specified part of the destination string.  For
+example:
+
+<div class="example">
+<pre class="example">(setq a (list &quot;hello&quot; &quot;world&quot;))
+     &rArr; (&quot;hello&quot; &quot;world&quot;)
+(cadr a)
+     &rArr; &quot;world&quot;
+(substring (cadr a) 2 4)
+     &rArr; &quot;rl&quot;
+(setf (substring (cadr a) 2 4) &quot;o&quot;)
+     &rArr; &quot;o&quot;
+(cadr a)
+     &rArr; &quot;wood&quot;
+a
+     &rArr; (&quot;hello&quot; &quot;wood&quot;)
+</pre></div>
+
+</li><li> The <code>if</code> and <code>cond</code> conditionals will work as generalized
+variables.  For instance, this will set either the <code>foo</code> or the
+<code>bar</code> variable to <code>zot</code>:
+
+<div class="example">
+<pre class="example">(setf (if (zerop (random 2))
+	  foo
+	bar)
+      'zot)
 </pre></div>
 </li></ul>
 
@@ -125,8 +168,13 @@ placeへの<code>push</code>と<code>pop</code>は、リスト内の任意の位
 placeを含む、ジェネリック変数にたいするさまざまな拡張が定義されています。<a href="https://www.gnu.org/software/emacs/manual/html_node/cl/Generalized-Variables.html#Generalized-Variables">Generalized Variables</a> in <cite>Common Lisp Extensions</cite>を参照してください。
 </p>
 
+<hr>
+<div class="header">
+<p>
+Next: <a href="Adding-Generalized-Variables.html" accesskey="n" rel="next">Adding Generalized Variables</a>, Up: <a href="Generalized-Variables.html" accesskey="u" rel="up">Generalized Variables</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
-This page has generated for branch:work/add_lispintr, commit:65845cf60c073f2f3182d1d07483530e9bbe1d96 to check Japanese translation.
+This page has generated for branch:master, commit:e4d93f51bd24f225ba143bbc7eb59db2be8f2b0e to check Japanese translation.
 </body>
 </html>

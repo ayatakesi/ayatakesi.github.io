@@ -1,0 +1,191 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<!-- Created by GNU Texinfo 6.7, http://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Applying Connection Local Variables (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Applying Connection Local Variables (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Applying Connection Local Variables (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="November 30, 2022">
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Connection-Local-Variables.html" rel="up" title="Connection Local Variables">
+<link href="Variable-Aliases.html" rel="next" title="Variable Aliases">
+<link href="Connection-Local-Profiles.html" rel="prev" title="Connection Local Profiles">
+<style type="text/css">
+<!--
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+div.lisp {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<span id="Applying-Connection-Local-Variables"></span><div class="header">
+<p>
+Previous: <a href="Connection-Local-Profiles.html" accesskey="p" rel="prev">Connection Local Profiles</a>, Up: <a href="Connection-Local-Variables.html" accesskey="u" rel="up">Connection Local Variables</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Applying-Connection-Local-Variables-1"></span><h4 class="subsection">12.14.2 Applying Connection Local Variables</h4>
+<span id="index-connection-local-variables_002c-applying"></span>
+
+<p>When writing connection-aware code, you&rsquo;ll need to collect, and possibly
+apply, any connection-local variables.  There are several ways to do this,
+as described below.
+</p>
+<dl>
+<dt id="index-hack_002dconnection_002dlocal_002dvariables">Function: <strong>hack-connection-local-variables</strong> <em>criteria</em></dt>
+<dd><p>この関数は<code>connection-local-variables-alist</code>内の<var>criteria</var>に関連する適用可能な接続ローカル変数を適用することなく収集する。たとえば:
+</p>
+<div class="example">
+<pre class="example">(hack-connection-local-variables
+  '(:application tramp :protocol &quot;ssh&quot; :machine &quot;localhost&quot;))
+</pre><pre class="example">
+
+</pre><pre class="example">connection-local-variables-alist
+     &rArr; ((null-device . &quot;/dev/null&quot;)
+        (shell-login-switch . &quot;-l&quot;)
+        (shell-interactive-switch . &quot;-i&quot;)
+        (shell-command-switch . &quot;-c&quot;)
+        (shell-file-name . &quot;/bin/bash&quot;))
+</pre></div>
+</dd></dl>
+
+<dl>
+<dt id="index-hack_002dconnection_002dlocal_002dvariables_002dapply">Function: <strong>hack-connection-local-variables-apply</strong> <em>criteria</em></dt>
+<dd><p>この関数は<var>criteria</var>に対応する接続ローカル変数を探してカレントバッファーに即座に適用する。
+</p></dd></dl>
+
+<dl>
+<dt id="index-with_002dconnection_002dlocal_002dapplication_002dvariables">Macro: <strong>with-connection-local-application-variables</strong> <em>application &amp;rest body</em></dt>
+<dd><p>Apply all connection-local variables for <code>application</code>, which are
+specified by <code>default-directory</code>.
+</p>
+<p>その後に<var>body</var>を実行して接続ローカル変数を非バインド化する。たとえば:
+</p>
+<div class="example">
+<pre class="example">(connection-local-set-profile-variables
+  'my-remote-perl
+  '((perl-command-name . &quot;/usr/local/bin/perl5&quot;)
+    (perl-command-switch . &quot;-e %s&quot;)))
+</pre><pre class="example">
+
+</pre><pre class="example">(connection-local-set-profiles
+  '(:application my-app :protocol &quot;ssh&quot; :machine &quot;remotehost&quot;)
+  'my-remote-perl)
+</pre><pre class="example">
+
+</pre><pre class="example">(let ((default-directory &quot;/ssh:remotehost:/working/dir/&quot;))
+  (with-connection-local-application-variables 'my-app
+    do something useful))
+</pre></div>
+</dd></dl>
+
+<dl>
+<dt id="index-connection_002dlocal_002ddefault_002dapplication">Variable: <strong>connection-local-default-application</strong></dt>
+<dd><p>The default application, a symbol, to be applied in
+<code>with-connection-local-variables</code>.  It defaults to <code>tramp</code>, but
+you can let-bind it to change the application temporarily (see <a href="Local-Variables.html">Local Variables</a>).
+</p>
+<p>This variable must not be changed globally.
+</p></dd></dl>
+
+<dl>
+<dt id="index-with_002dconnection_002dlocal_002dvariables">Macro: <strong>with-connection-local-variables</strong> <em>&amp;rest body</em></dt>
+<dd><p>This is equivalent to <code>with-connection-local-application-variables</code>,
+but uses <code>connection-local-default-application</code> for the application.
+</p></dd></dl>
+
+<dl>
+<dt id="index-setq_002dconnection_002dlocal">Macro: <strong>setq-connection-local</strong> <em>[symbol form]&hellip;</em></dt>
+<dd><p>This macro sets each <var>symbol</var> connection-locally to the result of
+evaluating the corresponding <var>form</var>, using the connection-local profile
+specified in <code>connection-local-profile-name-for-setq</code>; if the profile
+name is <code>nil</code>, this macro will just set the variables normally, as with
+<code>setq</code> (see <a href="Setting-Variables.html">Setting Variables</a>).
+</p>
+<p>For example, you can use this macro in combination with
+<code>with-connection-local-variables</code> or
+<code>with-connection-local-application-variables</code> to lazily initialize
+connection-local settings:
+</p>
+<div class="example">
+<pre class="example">(defvar my-app-variable nil)
+
+(connection-local-set-profile-variables
+ 'my-app-connection-default-profile
+ '((my-app-variable . nil)))
+
+(connection-local-set-profiles
+ '(:application my-app)
+ 'my-app-connection-default-profile)
+</pre><pre class="example">
+
+</pre><pre class="example">(defun my-app-get-variable ()
+  (with-connection-local-application-variables 'my-app
+    (or my-app-variable
+        (setq-connection-local my-app-variable
+                               do something useful))))
+</pre></div>
+</dd></dl>
+
+<dl>
+<dt id="index-connection_002dlocal_002dprofile_002dname_002dfor_002dsetq">Variable: <strong>connection-local-profile-name-for-setq</strong></dt>
+<dd><p>The connection-local profile name, a symbol, to use when setting variables
+via <code>setq-connection-local</code>.  This is let-bound in the body of
+<code>with-connection-local-variables</code>, but you can also let-bind it
+yourself if you&rsquo;d like to set variables on a different profile.
+</p>
+<p>This variable must not be changed globally.
+</p></dd></dl>
+
+<dl>
+<dt id="index-enable_002dconnection_002dlocal_002dvariables">Variable: <strong>enable-connection-local-variables</strong></dt>
+<dd><p><code>nil</code>なら接続ローカル変数を無視する。この変数は特殊なモード内でのみ一時的に変更されるべきである。
+</p></dd></dl>
+
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Connection-Local-Profiles.html" accesskey="p" rel="prev">Connection Local Profiles</a>, Up: <a href="Connection-Local-Variables.html" accesskey="u" rel="up">Connection Local Variables</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:master, commit:e4d93f51bd24f225ba143bbc7eb59db2be8f2b0e to check Japanese translation.
+</body>
+</html>
