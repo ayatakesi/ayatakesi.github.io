@@ -1,0 +1,363 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Drag and Drop (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Drag and Drop (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Drag and Drop (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="January 7, 2023">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Frames.html" rel="up" title="Frames">
+<link href="Color-Names.html" rel="next" title="Color Names">
+<link href="Yanking-Media.html" rel="prev" title="Yanking Media">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Drag-and-Drop">
+<div class="header">
+<p>
+Next: <a href="Color-Names.html" accesskey="n" rel="next">カラー名</a>, Previous: <a href="Yanking-Media.html" accesskey="p" rel="prev">Yanking Media</a>, Up: <a href="Frames.html" accesskey="u" rel="up">フレーム</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="doratuguandodorotupu"></span><h3 class="section">30.22 ドラッグアンドドロップ</h3>
+<span id="index-drag-and-drop"></span>
+
+<p>When the user drops something from another application over Emacs, Emacs
+will try to insert any text and open any URL that was dropped.  If text was
+dropped, then it will always be inserted at the location of the mouse
+pointer where the drop happened, or saved in the kill ring if insertion
+failed, which could happen if the buffer was read-only.  If a URL was
+dropped instead, then Emacs will first try to call an appropriate handler
+function by matching the URL against regexps defined in the variable
+<code>dnd-protocol-alist</code>, and then against those defined in the variables
+<code>browse-url-handlers</code> and <code>browse-url-default-handlers</code>.  Should
+no suitable handler be located, Emacs will fall back to inserting the URL as
+plain text.
+</p>
+<dl class="def">
+<dt id="index-dnd_002dprotocol_002dalist"><span class="category">Variable: </span><span><strong>dnd-protocol-alist</strong><a href='#index-dnd_002dprotocol_002dalist' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This variable is a list of cons cells of the form <code>(<var>pattern</var>&nbsp;.&nbsp;<var>action</var>)</code><!-- /@w -->.  <var>pattern</var> is a regexp that URLs are matched against
+after being dropped.  <var>action</var> is a function that is called with two
+arguments, should a URL being dropped match <var>pattern</var>: the URL being
+dropped, and the action being performed for the drop, which is one of the
+symbols <code>copy</code>, <code>move</code>, <code>link</code>, <code>private</code> or <code>ask</code>.
+</p>
+<p>If <var>action</var> is <var>private</var>, then it means the program that initiated
+the drop wants Emacs to perform an unspecified action with the URL; a
+reasonable action to perform in that case is to open the URL or copy its
+contents into the current buffer.  Otherwise, <var>action</var> has the same
+meaning as the <var>action</var> argument to <code>dnd-begin-file-drag</code>.
+</p></dd></dl>
+
+<span id="index-drag-and-drop_002c-X"></span>
+<span id="index-drag-and-drop_002c-other-formats"></span>
+<p>Emacs implements receiving text and URLs individually for each window
+system, and does not by default support receiving other kinds of data as
+drops.  To support receiving other kinds of data, use the X-specific
+interface described below:
+</p>
+<span id="index-x_002ddnd_002dtest_002dfunction"></span>
+<span id="index-x_002ddnd_002dknown_002dtypes"></span>
+<p>When a user drags something from another application over Emacs under the X
+Window System, that other application expects Emacs to tell it if Emacs
+understands the data being dragged.  The function in the variable
+<code>x-dnd-test-function</code> is called by Emacs to determine what to reply to
+any such inquiry.  The default value is <code>x-dnd-default-test-function</code>,
+which accepts drops if the type of the data to be dropped is present in
+<code>x-dnd-known-types</code>.  Changing the variables <code>x-dnd-test-function</code>
+and <code>x-dnd-known-types</code> can make Emacs accept or reject drops based on
+some other criteria.
+</p>
+<span id="index-x_002ddnd_002dtypes_002dalist"></span>
+<p>If you want to change the way Emacs receives drops of different data types,
+or you want to enable it to understand a new type, change the variable
+<code>x-dnd-types-alist</code>.  Doing so correctly requires detailed knowledge of
+what data types other applications use for drag and drop.
+</p>
+<p>These data types are typically implemented as special data types that can be
+obtained from an X selection provided by the other application.  In most
+cases, they are either the same data types that are typically accepted by
+<code>gui-set-selection</code>, or MIME types, depending on the specific
+drag-and-drop protocol being used.  For example, the data type used for
+plain text may be either <code>&quot;STRING&quot;</code> or <code>&quot;text/plain&quot;</code>.
+</p>
+<span id="index-x_002ddnd_002ddirect_002dsave_002dfunction"></span>
+<p>However, <code>x-dnd-types-alist</code> does not handle a special kind of drop
+sent by a program that wants Emacs to tell it where to save a file in a
+specific location determined by the user.  These drops are instead handled
+by a function that is the value of the variable
+<code>x-dnd-direct-save-function</code>.  This function should accept two
+arguments.  If the first argument is non-<code>nil</code>, then the second
+argument is a file name to save (with leading directories) that the other
+program recommends, and the function should return the full file name under
+which it should be saved.  After the function completes, Emacs will ask the
+other program to save the file under the name that was returned, and if the
+file was successfully saved, call the function again with the first argument
+set to a non-<code>nil</code> value and the second argument set to the file name
+that was returned.  The function should then perform whatever action is
+appropriate (i.e., opening the file or refreshing a directory listing.)
+</p>
+<span id="index-initiating-drag_002dand_002ddrop"></span>
+<p>On capable window systems, Emacs also supports dragging contents from its
+frames to windows of other applications.
+</p>
+<span id="index-drop-target_002c-in-drag_002dand_002ddrop-operations"></span>
+<dl class="def">
+<dt id="index-dnd_002dbegin_002dtext_002ddrag"><span class="category">Function: </span><span><strong>dnd-begin-text-drag</strong> <em>text &amp;optional frame action allow-same-frame</em><a href='#index-dnd_002dbegin_002dtext_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function begins dragging text from <var>frame</var> to another program
+(known as the <em>drop target</em>), and returns the result of drag-and-drop
+operation when the text is dropped or the drag-and-drop operation is
+canceled.  <var>text</var> is the text that will be inserted by the drop target.
+</p>
+<p><var>action</var> must be one of the symbols <code>copy</code> or <code>move</code>, where
+<code>copy</code> means that <var>text</var> should be inserted by the drop target, and
+<code>move</code> means the same as <code>copy</code>, but in addition the caller may
+have to delete <var>text</var> from its source as explained below.
+</p>
+<p><var>frame</var> is the frame where the mouse is currently held down, or
+<code>nil</code>, which means to use the selected frame.  This function may return
+immediately if no mouse buttons are held down, so it should be only called
+immediately after a <code>down-mouse-1</code> or similar event (see <a href="Mouse-Events.html">マウスイベント</a>), with <var>frame</var> set to the frame where that event was generated
+(see <a href="Click-Events.html">クリックイベント</a>).
+</p>
+<p><var>allow-same-frame</var> specifies whether or not drops on top of <var>frame</var>
+itself are to be ignored.
+</p>
+<p>The return value specifies the action that the drop target actually
+performed, and optionally what the caller should do.  It can be one of the
+following symbols:
+</p>
+<dl compact="compact">
+<dt><span><code>copy</code></span></dt>
+<dd><p>The drop target inserted the dropped text.
+</p>
+</dd>
+<dt><span><code>move</code></span></dt>
+<dd><p>The drop target inserted the dropped text, but in addition the caller should
+delete <var>text</var> from wherever it originated, such as its buffer.
+</p>
+</dd>
+<dt><span><code>private</code></span></dt>
+<dd><p>The drop target performed some other unspecified action.
+</p>
+</dd>
+<dt><span><code>nil</code></span></dt>
+<dd><p>The drag-and-drop operation was canceled.
+</p></dd>
+</dl>
+
+</dd></dl>
+
+<dl class="def">
+<dt id="index-dnd_002dbegin_002dfile_002ddrag"><span class="category">Function: </span><span><strong>dnd-begin-file-drag</strong> <em>file &amp;optional frame action allow-same-frame</em><a href='#index-dnd_002dbegin_002dfile_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function begins dragging <var>file</var> from <var>frame</var> to another
+program, and returns the result of the drag-and-drop operation when the file
+is dropped or the drag-and-drop operation is canceled.
+</p>
+<p>If <var>file</var> is a remote file, then a temporary copy will be made.
+</p>
+<p><var>action</var> must be one of the symbols <code>copy</code>, <code>move</code> or
+<code>link</code>, where <code>copy</code> means that <var>file</var> should be opened or
+copied by the drop target, <code>move</code> means the drop target should move the
+file to another location, and <code>link</code> means the drop target should
+create a symbolic link to <var>file</var>.  It is an error to specify <code>link</code>
+as the action if <var>file</var> is a remote file.
+</p>
+<p><var>frame</var> and <var>allow-same-frame</var> have the same meaning as in
+<code>dnd-begin-text-drag</code>.
+</p>
+<p>The return value is the action that the drop target actually performed,
+which can be one of the following symbols:
+</p>
+<dl compact="compact">
+<dt><span><code>copy</code></span></dt>
+<dd><p>The drop target opened or copied <var>file</var> to a different location.
+</p>
+</dd>
+<dt><span><code>move</code></span></dt>
+<dd><p>The drop target moved <var>file</var> to a different location.
+</p>
+</dd>
+<dt><span><code>link</code></span></dt>
+<dd><p>The drop target (usually a file manager) created a symbolic link to
+<var>file</var>.
+</p>
+</dd>
+<dt><span><code>private</code></span></dt>
+<dd><p>The drop target performed some other unspecified action.
+</p>
+</dd>
+<dt><span><code>nil</code></span></dt>
+<dd><p>The drag-and-drop operation was canceled.
+</p></dd>
+</dl>
+
+</dd></dl>
+
+<dl class="def">
+<dt id="index-dnd_002dbegin_002ddrag_002dfiles"><span class="category">Function: </span><span><strong>dnd-begin-drag-files</strong> <em>files &amp;optional frame action allow-same-frame</em><a href='#index-dnd_002dbegin_002ddrag_002dfiles' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function is like <code>dnd-begin-file-drag</code>, except that <var>files</var> is
+a list of files.  If the drop target doesn&rsquo;t support dropping multiple
+files, then the first file will be used instead.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-dnd_002ddirect_002dsave"><span class="category">Function: </span><span><strong>dnd-direct-save</strong> <em>file name &amp;optional frame allow-same-frame</em><a href='#index-dnd_002ddirect_002dsave' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function is similar to <code>dnd-begin-file-drag</code> (with the default
+action of copy), but instead of specifying the action you specify the name
+of the copy created by the target program in <code>name</code>.
+</p></dd></dl>
+
+<span id="index-initiating-drag_002dand_002ddrop_002c-low_002dlevel"></span>
+<p>The high-level interfaces described above are implemented on top of a
+lower-level primitive.  If you need to drag content other than files or
+text, use the low-level interface <code>x-begin-drag</code> instead.  However,
+using it will require detailed knowledge of the data types and actions used
+by the programs to transfer content via drag-and-drop on each platform you
+want to support.
+</p>
+<dl class="def">
+<dt id="index-x_002dbegin_002ddrag"><span class="category">Function: </span><span><strong>x-begin-drag</strong> <em>targets &amp;optional action frame return-frame allow-current-frame follow-tooltip</em><a href='#index-x_002dbegin_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function begins a drag from <var>frame</var>, and returns when the
+drag-and-drop operation ends, either because the drop was successful, or
+because the drop was rejected.  The drop occurs when all mouse buttons are
+released on top of an X window other than <var>frame</var> (the <em>drop
+target</em>), or any X window if <var>allow-current-frame</var> is non-<code>nil</code>.
+If no mouse buttons are held down when the drag-and-drop operation begins,
+this function may immediately return <code>nil</code>.
+</p>
+<p><var>targets</var> is a list of strings describing selection targets, much like
+the <var>data-type</var> argument to <code>gui-get-selection</code>, that the drop
+target can request from Emacs (see <a href="Window-System-Selections.html">ウィンドウシステムによる選択</a>).
+</p>
+<p><var>action</var> is a symbol describing the action recommended to the target.
+It can either be <code>XdndActionCopy</code>, which means to copy the contents of
+the selection <code>XdndSelection</code> to the drop target; or
+<code>XdndActionMove</code>, which means copy as with <code>XdndActionCopy</code>, and
+in addition the caller should delete whatever was stored in that selection
+after copying it.
+</p>
+<p><var>action</var> may also be an alist which associates between symbols
+describing the available actions, and strings that the drop target is
+expected to present to the user to choose between the available actions.
+</p>
+<p>If <var>return-frame</var> is non-<code>nil</code> and the mouse moves over an Emacs
+frame after first moving out of <var>frame</var>, then the frame to which the
+mouse moves will be returned immediately.  If <var>return-frame</var> is the
+symbol <code>now</code>, then any frame underneath the mouse pointer will be
+returned without waiting for the mouse to first move out of <var>frame</var>.
+<var>return-frame</var> is useful when you want to treat dragging content from
+one frame to another specially, while also being able to drag content to
+other programs, but it is not guaranteed to work on all systems and with all
+window managers.
+</p>
+<p>If <var>follow-tooltip</var> is non-<code>nil</code>, the position of any tooltip (such
+as one shown by <code>tooltip-show</code>) will follow the location of the mouse
+pointer whenever it moves during the drag-and-drop operation.  The tooltip
+will be hidden once all mouse buttons are released.
+</p>
+<p>If the drop was rejected or no drop target was found, this function returns
+<code>nil</code>.  Otherwise, it returns a symbol describing the action the target
+chose to perform, which can differ from <var>action</var> if that isn&rsquo;t supported
+by the drop target.  <code>XdndActionPrivate</code> is also a valid return value
+in addition to <code>XdndActionCopy</code> and <code>XdndActionMove</code>; it means
+that the drop target chose to perform an unspecified action, and no further
+processing is required by the caller.
+</p>
+<p>The caller must cooperate with the target to fully perform the action chosen
+by the target.  For example, callers should delete the buffer text that was
+dragged if this function returns <code>XdndActionMove</code>.
+</p></dd></dl>
+
+<span id="index-drag-and-drop-protocols_002c-X"></span>
+
+<p>On X Windows, several different drag-and-drop protocols are supported by
+<code>x-begin-drag</code>.  When dragging content that is known to not be
+supported by a specific drag-and-drop protocol, it might be desirable to
+turn that protocol off, by changing the values of the following variables:
+</p>
+<dl class="def">
+<dt id="index-x_002ddnd_002ddisable_002dmotif_002dprotocol"><span class="category">Variable: </span><span><strong>x-dnd-disable-motif-protocol</strong><a href='#index-x_002ddnd_002ddisable_002dmotif_002dprotocol' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>When this is non-<code>nil</code>, the Motif drag and drop protocols are disabled,
+and dropping onto programs that only understand them will not work.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-x_002ddnd_002duse_002doffix_002ddrop"><span class="category">Variable: </span><span><strong>x-dnd-use-offix-drop</strong><a href='#index-x_002ddnd_002duse_002doffix_002ddrop' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>When this is <code>nil</code>, the OffiX (old KDE) drag and drop protocol is
+disabled.  When this is the symbol <code>files</code>, the OffiX protocol will
+only be used if <code>&quot;FILE_NAME&quot;</code> is one of the targets given to
+<code>x-begin-drag</code>.  Any other value means to use the OffiX protocol to
+drop all supported content.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-x_002ddnd_002duse_002dunsupported_002ddrop"><span class="category">Variable: </span><span><strong>x-dnd-use-unsupported-drop</strong><a href='#index-x_002ddnd_002duse_002dunsupported_002ddrop' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>When one of the <code>&quot;STRING&quot;</code>, <code>&quot;UTF8_STRING&quot;</code>,
+<code>&quot;COMPOUND_TEXT&quot;</code> or <code>&quot;TEXT&quot;</code> targets is present in the list given
+to <code>x-begin-drag</code>, Emacs will try to use synthesized mouse events and
+the primary selection to insert the text if the drop target doesn&rsquo;t support
+any drag-and-drop protocol at all.
+</p>
+<p>A side effect is that Emacs will become the owner of the primary selection
+upon such a drop.  If that is not desired, then the drop emulation can be
+disabled by setting this variable to <code>nil</code>.
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Color-Names.html">カラー名</a>, Previous: <a href="Yanking-Media.html">Yanking Media</a>, Up: <a href="Frames.html">フレーム</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/emacs-29_edd64e64a389e0f0e6ce670846d4fae79a9d8b35, commit:0dc0a3f545c069bb6447c4e26cf32c31331b9e10 to check Japanese translation.
+</body>
+</html>
