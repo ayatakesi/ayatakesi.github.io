@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="February 3, 2023">
+<meta name="date" content="February 14, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -68,112 +68,57 @@ Previous: <a href="SMIE.html" accesskey="p" rel="prev">SMIE: 無邪気なイン�
 <span id="index-parser_002dbased-indentation"></span>
 
 
-<p>When built with the tree-sitter library (see <a href="Parsing-Program-Source.html">Parsing Program Source</a>),
-Emacs is capable of parsing the program source and producing a syntax tree.
-This syntax tree can be used for guiding the program source indentation
-commands.  For maximum flexibility, it is possible to write a custom
-indentation function that queries the syntax tree and indents accordingly
-for each language, but that is a lot of work.  It is more convenient to use
-the simple indentation engine described below: then the major mode needs
-only to write some indentation rules and the engine takes care of the rest.
+<p>tree-sitterライブラリー(<a href="Parsing-Program-Source.html">Parsing Program Source</a>を参照)とともにEmacsをビルドした場合には、Emacsによるプログラムソースのパースと構文ツリー(syntax
+tree)の生成が可能になります。プログラムソースのインデントコマンドにたいするガイド役としてこの構文ツリーを使用することができます。柔軟性を最大限発揮できるように構文ツリーに問い合わせを行うインデント用のカスタマイズ関数を記述して、それぞれの言語に応じたインデントを行うことも可能ですが、これには多くの作業が伴います。より使いやすいのは、この後に説明するシンプルなインデント用エンジンでしょう。そうすればメジャーモードに要求されるのはいくつかのインデントルールだけとなり、残りはこのエンジンが面倒を見てくれます。
 </p>
-<p>To enable the parser-based indentation engine, either set
-<var>treesit-simple-indent-rules</var> and call <code>treesit-major-mode-setup</code>,
-or equivalently, set the value of <code>indent-line-function</code> to
-<code>treesit-indent</code>.
+<p>パーサーベースのインデントエンジンを有効にするには<var>treesit-simple-indent-rules</var>をセットして<code>treesit-major-mode-setup</code>を呼び出すか、<code>indent-line-function</code>の値を<code>treesit-indent</code>にセットしてください(どちらを選んでも同じ)。
 </p>
 <dl class="def">
 <dt id="index-treesit_002dindent_002dfunction"><span class="category">Variable: </span><span><strong>treesit-indent-function</strong><a href='#index-treesit_002dindent_002dfunction' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This variable stores the actual function called by <code>treesit-indent</code>.
-By default, its value is <code>treesit-simple-indent</code>.  In the future we
-might add other, more complex indentation engines.
+<dd><p>この変数は<code>treesit-indent</code>によって呼び出される実際の関数が格納される。デフォルトの値は<code>treesit-simple-indent</code>。将来より複雑なエンジンが追加されるかもしれない。
 </p></dd></dl>
 
-<span id="Writing-indentation-rules"></span><h3 class="heading">Writing indentation rules</h3>
+<span id="indentorurunoJi-Shu-_002e-"></span><h3 class="heading">インデントルールの記述。</h3>
 <span id="index-indentation-rules_002c-for-parser_002dbased-indentation"></span>
 
 <dl class="def">
 <dt id="index-treesit_002dsimple_002dindent_002drules"><span class="category">Variable: </span><span><strong>treesit-simple-indent-rules</strong><a href='#index-treesit_002dsimple_002dindent_002drules' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This local variable stores indentation rules for every language.  It is a
-list of the form: <code>(<var>language</var>&nbsp;.&nbsp;<var>rules</var>)</code><!-- /@w -->, where
-<var>language</var> is a language symbol, and <var>rules</var> is a list of the form
-<code>(<var>matcher</var>&nbsp;<var>anchor</var>&nbsp;<var>offset</var>)</code><!-- /@w -->.
+<dd><p>このローカル変数にはすべての言語用のインデントルールが格納される。値は<code>(<var>language</var>&nbsp;.&nbsp;<var>rules</var>)</code><!-- /@w -->というフォームのリスト。ここで<var>language</var>は言語シンボル、<var>rules</var>は<code>(<var>matcher</var>&nbsp;<var>anchor</var>&nbsp;<var>offset</var>)</code><!-- /@w -->という形式のリスト。
 </p>
-<p>First, Emacs passes the smallest tree-sitter node at the beginning of the
-current line to <var>matcher</var>; if it returns non-<code>nil</code>, this rule is
-applicable.  Then Emacs passes the node to <var>anchor</var>, which returns a
-buffer position.  Emacs takes the column number of that position, adds
-<var>offset</var> to it, and the result is the indentation column for the current
-line.  <var>offset</var> can be an integer or a variable whose value is an
-integer.
+<p>最初にEmacsはカレント行の先頭にある最小のtree-sitterノードを<var>matcher</var>に渡して、非<code>nil</code>がリターンされればそのルールが適用できる。その後にEmacsはそのノードを<var>anchor</var>に渡して、バッファーの位置がリターンされる。Emacsがその位置の列番号を取得して<var>offset</var>を追加すると、、その結果がカレント行のインデント列となる。<var>offset</var>は整数、または値が整数であるような変数でもよい。
 </p>
-<p>The <var>matcher</var> and <var>anchor</var> are functions, and Emacs provides
-convenient defaults for them.
+<p><var>matcher</var>と<var>anchor</var>は関数。これらにたいしてEmacsは便利なデフォルトを提供している。
 </p>
-<p>Each <var>matcher</var> or <var>anchor</var> is a function that takes three arguments:
-<var>node</var>, <var>parent</var>, and <var>bol</var>.  The argument <var>bol</var> is the
-buffer position whose indentation is required: the position of the first
-non-whitespace character after the beginning of the line.  The argument
-<var>node</var> is the largest (highest-in-tree)  node that starts at that
-position; and <var>parent</var> is the parent of <var>node</var>.  However, when that
-position is in a whitespace or inside a multi-line string, no node can start
-at that position, so <var>node</var> is <code>nil</code>.  In that case, <var>parent</var>
-would be the smallest node that spans that position.
+<p><var>matcher</var>および<var>anchor</var>はそれぞれ<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数を受け取る関数。引数<var>bol</var>はインデントが要求されるバッファー位置(行頭の後の最初の非空白文字の位置)、引数<var>node</var>はその位置から開始されるもっとも大きい(構文ツリー中もっとも高いツリー)ノード、<var>parent</var>は<var>node</var>の親ノードである。ただしその位置にあるのが空白だったり、あるいは複数行文字列の内部の場合には、その位置から開始可能なノードは存在しないので、<var>node</var>は<code>nil</code>となる。このような場合には、その位置を跨ぐもっとも小さいノードが<var>parent</var>となる。
 </p>
-<p>Emacs finds <var>bol</var>, <var>node</var> and <var>parent</var> and passes them to each
-<var>matcher</var> and <var>anchor</var>.  <var>matcher</var> should return non-<code>nil</code>
-if the rule is applicable, and <var>anchor</var> should return a buffer position.
+<p>Emacsは<var>bol</var>、<var>node</var>、<var>parent</var>を見つけて、それらを<var>matcher</var>と<var>anchor</var>に渡す。ルールが適用可能なら<var>matcher</var>は非<code>nil</code>、<var>anchor</var>はバッファー位置をリターンすること。
 </p></dd></dl>
 
 <dl class="def">
 <dt id="index-treesit_002dsimple_002dindent_002dpresets"><span class="category">Variable: </span><span><strong>treesit-simple-indent-presets</strong><a href='#index-treesit_002dsimple_002dindent_002dpresets' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This is a list of defaults for <var>matcher</var>s and <var>anchor</var>s in
-<code>treesit-simple-indent-rules</code>.  Each of them represents a function that
-takes 3 arguments: <var>node</var>, <var>parent</var> and <var>bol</var>.  The available
-default functions are:
+<dd><p>これは<code>treesit-simple-indent-rules</code>の<var>matcher</var>と<var>anchor</var>にたいするデフォルトのリスト。これらはそれぞれ<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数を受け取る関数である。利用できるデフォルト関数は以下のとおり:
 </p>
 <dl compact="compact">
 <dt id='index-no_002dnode'><span><code>no-node</code><a href='#index-no_002dnode' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This matcher is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns non-<code>nil</code>, indicating a match,
-if <var>node</var> is <code>nil</code>, i.e., there is no node that starts at
-<var>bol</var>.  This is the case when <var>bol</var> is on an empty line or inside a
-multi-line string, etc.
+<dd><p>このmatcherは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数で呼び出されて、<var>node</var>が<code>nil</code>
+(<var>bol</var>で始まるノードが存在せず、<var>bol</var>が空行や複数行の内部に<var>bol</var>がある場合などが該当)の場合にはマッチを表す非<code>nil</code>をリターンする。
 </p>
 </dd>
 <dt id='index-parent_002dis'><span><code>parent-is</code><a href='#index-parent_002dis' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This matcher is a function of one argument, <var>type</var>; it returns a
-function that is called with 3 arguments: <var>node</var>, <var>parent</var>, and
-<var>bol</var>, and returns non-<code>nil</code> (i.e., a match) if <var>parent</var>&rsquo;s type
-matches regexp <var>type</var>.
+<dd><p>このmatcherは<var>type</var>という1つの引数で呼び出される関数をリターンする。この関数は<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、<var>parent</var>のタイプがregexpの<var>type</var>とマッチすれば非<code>nil</code>
+(マッチしたことを意味する)をリターンする。
 </p>
 </dd>
 <dt id='index-node_002dis'><span><code>node-is</code><a href='#index-node_002dis' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This matcher is a function of one argument, <var>type</var>; it returns a
-function that is called with 3 arguments: <var>node</var>, <var>parent</var>, and
-<var>bol</var>, and returns non-<code>nil</code> if <var>node</var>&rsquo;s type matches regexp
-<var>type</var>.
+<dd><p>このmatcherは<var>type</var>という1つの引数を受け取る関数。この関数は<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、<var>node</var>のタイプがregexpの<var>type</var>とマッチすれば非<code>nil</code>をリターンする。
 </p>
 </dd>
 <dt id='index-query'><span><code>query</code><a href='#index-query' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This matcher is a function of one argument, <var>query</var>; it returns a
-function that is called with 3 arguments: <var>node</var>, <var>parent</var>, and
-<var>bol</var>, and returns non-<code>nil</code> if querying <var>parent</var> with
-<var>query</var> captures <var>node</var> (see <a href="Pattern-Matching.html">Pattern Matching Tree-sitter Nodes</a>).
+<dd><p>このmatcherは<var>query</var>という1つの引数を受け取る関数。この関数は<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、<var>query</var>で<var>parent</var>に問い合わせた場合に<var>node</var>をキャプチャすれば非<code>nil</code>をリターンする(<a href="Pattern-Matching.html">Pattern Matching Tree-sitter Nodes</a>を参照)。
 </p>
 </dd>
 <dt id='index-match'><span><code>match</code><a href='#index-match' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This matcher is a function of 5 arguments: <var>node-type</var>,
-<var>parent-type</var>, <var>node-field</var>, <var>node-index-min</var>, and
-<var>node-index-max</var>).  It returns a function that is called with 3
-arguments: <var>node</var>, <var>parent</var>, and <var>bol</var>, and returns
-non-<code>nil</code> if <var>node</var>&rsquo;s type matches regexp <var>node-type</var>,
-<var>parent</var>&rsquo;s type matches regexp <var>parent-type</var>, <var>node</var>&rsquo;s field
-name in <var>parent</var> matches regexp <var>node-field</var>, and <var>node</var>&rsquo;s index
-among its siblings is between <var>node-index-min</var> and
-<var>node-index-max</var>.  If the value of an argument is <code>nil</code>, this
-matcher doesn&rsquo;t check that argument.  For example, to match the first child
-where parent is <code>argument_list</code>, use
+<dd><p>このmatcherは<var>node-type</var>、<var>parent-type</var>、<var>node-field</var>、<var>node-index-min</var>、<var>node-index-max</var>という5つの引数とともに呼び出される関数。ここでリターンされた関数は<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数で呼び出される関数をリターンする。ここでリターンされた関数は<var>node</var>のタイプがregexpの<var>node-type</var>、<var>parent</var>のタイプがregexpの<var>parent-type</var>、<var>parent</var>の<var>node</var>のフィールド名がregexpの<var>node-field</var>、<var>node</var>のインデックスが兄弟ノード<var>node-index-min</var>と<var>node-index-max</var>の間にあれば非<code>nil</code>をリターンする。このmatcherは引数の値が<code>nil</code>であれば、その引数はチェックしない。たとえば親ノードとして<code>argument_list</code>をもつ最初の子ノードにマッチさせるには、以下のようにすればよい
 </p>
 <div class="example">
 <pre class="example">(match nil &quot;argument_list&quot; nil nil 0 0)
@@ -181,95 +126,61 @@ where parent is <code>argument_list</code>, use
 
 </dd>
 <dt id='index-comment_002dend'><span><code>comment-end</code><a href='#index-comment_002dend' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This matcher is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns non-<code>nil</code> if point is before a
-comment ending token.  Comment ending tokens are defined by regular
-expression <code>treesit-comment-end</code> (see <a href="Tree_002dsitter-major-modes.html">treesit-comment-end</a>).
+<dd><p>この関数は<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、ポイントがコメント終了トークンの前にあれば非<code>nil</code>をリターンする関数。コメントの終了トークンは正規表現<code>treesit-comment-end</code>によって定義される(<a href="Tree_002dsitter-major-modes.html">treesit-comment-end</a>を参照)。
 </p>
 </dd>
 <dt id='index-first_002dsibling'><span><code>first-sibling</code><a href='#index-first_002dsibling' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This anchor is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns the start of the first child of
-<var>parent</var>.
+<dd><p>このanchorは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、<var>parent</var>の最初の子ノードの開始をリターンする関数。
 </p>
 </dd>
 <dt id='index-parent'><span><code>parent</code><a href='#index-parent' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This anchor is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns the start of <var>parent</var>.
+<dd><p>このanchorは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、<var>parent</var>の開始をリターンする関数。
 </p>
 </dd>
 <dt id='index-parent_002dbol'><span><code>parent-bol</code><a href='#index-parent_002dbol' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This anchor is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns the first non-space character on
-the line of <var>parent</var>.
+<dd><p>このanchorは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、<var>parent</var>の行にある最初の非スペース文字をリターンする関数。
 </p>
 </dd>
 <dt id='index-prev_002dsibling'><span><code>prev-sibling</code><a href='#index-prev_002dsibling' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This anchor is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns the start of the previous sibling
-of <var>node</var>.
+<dd><p>このanchorは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、<var>node</var>の前の兄弟ノードの開始をリターンする関数。
 </p>
 </dd>
 <dt id='index-no_002dindent'><span><code>no-indent</code><a href='#index-no_002dindent' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This anchor is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns the start of <var>node</var>.
+<dd><p>このanchorは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、<var>node</var>の開始をリターンする関数。
 </p>
 </dd>
 <dt id='index-prev_002dline'><span><code>prev-line</code><a href='#index-prev_002dline' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This anchor is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns the first non-whitespace character
-on the previous line.
+<dd><p>このanchorは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、前の行の最初の必要空白文字をリターンする関数。
 </p>
 </dd>
 <dt id='index-point_002dmin'><span><code>point-min</code><a href='#index-point_002dmin' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This anchor is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns the beginning of the buffer.  This
-is useful as the beginning of the buffer is always at column 0.
+<dd><p>このanchorは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、バッファーの先頭をリターンする関数。これはバッファー先頭が常に列0になる場合に役に立つ。
 </p>
 </dd>
 <dt id='index-comment_002dstart'><span><code>comment-start</code><a href='#index-comment_002dstart' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This anchor is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns the position right after the
-comment-start token.  Comment-start tokens are defined by regular expression
-<code>treesit-comment-start</code> (see <a href="Tree_002dsitter-major-modes.html">treesit-comment-start</a>).  This function assumes <var>parent</var> is the comment
-node.
+<dd><p>このanchorは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、コメント開始トークンの直後の位置をリターンする関数。コメント開始トークンは正規表現<code>treesit-comment-start</code>によって定義される(<a href="Tree_002dsitter-major-modes.html">treesit-comment-start</a>を参照)。この関数は<var>parent</var>がコメントノードであるとみなす。
 </p>
 </dd>
 <dt id='index-coment_002dstart_002dskip'><span><code>coment-start-skip</code><a href='#index-coment_002dstart_002dskip' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This anchor is a function that is called with 3 arguments: <var>node</var>,
-<var>parent</var>, and <var>bol</var>, and returns the position after the
-comment-start token and any whitespace characters following that token.
-Comment-start tokens are defined by regular expression
-<code>treesit-comment-start</code>.  This function assumes <var>parent</var> is the
-comment node.
+<dd><p>このanchorは<var>node</var>、<var>parent</var>、<var>bol</var>という3つの引数とともに呼び出されて、コメント開始トークンとそれに後続するすべてのの空白文字の後の位置をリターンする。コメント開始トークンは正規表現<code>treesit-comment-start</code>によって定義される。この関数は<var>parent</var>がコメントノードであるとみなす。
 </p></dd>
 </dl>
 </dd></dl>
 
-<span id="Indentation-utilities"></span><h3 class="heading">Indentation utilities</h3>
+<span id="indentoYong-noyuteiritei"></span><h3 class="heading">インデント用のユーティリティー</h3>
 <span id="index-utility-functions-for-parser_002dbased-indentation"></span>
 
-<p>Here are some utility functions that can help writing parser-based
-indentation rules.
+<p>以下にパーサーベースのインデントルールを記述する助けとなるユーティリティー関数をいくつか挙げます。
 </p>
 <dl class="def">
 <dt id="index-treesit_002dcheck_002dindent"><span class="category">Function: </span><span><strong>treesit-check-indent</strong> <em>mode</em><a href='#index-treesit_002dcheck_002dindent' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This function checks the current buffer&rsquo;s indentation against major mode
-<var>mode</var>.  It indents the current buffer according to <var>mode</var> and
-compares the results with the current indentation.  Then it pops up a buffer
-showing the differences.  Correct indentation (target) is shown in green
-color, current indentation is shown in red color.  </p></dd></dl>
+<dd><p>この関数はメジャーモード<var>mode</var>にたいするカレントバッファーのインデントをチェックする。この関数は<var>mode</var>に応じてカレントバッファーをインデントして、その結果をカレントのインデントと比較、その後に差分を表示するバッファーをポップアップする。(インデント対象の)正しいインデントはグリーン、カレントのインデントは赤のカラーで示される。  </p></dd></dl>
 
-<p>It is also helpful to use <code>treesit-inspect-mode</code> (see <a href="Language-Definitions.html">Tree-sitter Language Definitions</a>) when writing indentation rules.
+<p>インデントのルールを記述する際には、<code>treesit-inspect-mode</code>を使用するのも助けとなるでしょう(<a href="Language-Definitions.html">Tree-sitter Language Definitions</a>を参照)。
 </p>
 </div>
-<hr>
-<div class="header">
-<p>
-Previous: <a href="SMIE.html">SMIE: 無邪気なインデントエンジン</a>, Up: <a href="Auto_002dIndentation.html">コードの自動インデント</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
-This page has generated for branch:work/emacs-29_edd64e64a389e0f0e6ce670846d4fae79a9d8b35, commit:16dba5ffbf718d52b9ec297bc3bcf97134987432 to check Japanese translation.
+This page has generated for branch:work/emacs-29_edd64e64a389e0f0e6ce670846d4fae79a9d8b35, commit:06f37ec685b977e81a7e94f5218e1687dc31acf6 to check Japanese translation.
 </body>
 </html>
