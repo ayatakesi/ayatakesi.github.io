@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="April 3, 2023">
+<meta name="date" content="April 4, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -65,88 +65,62 @@ ul.no-bullet {list-style: none}
 Next: <a href="Multiple-Languages.html" accesskey="n" rel="next">Parsing Text in Multiple Languages</a>, Previous: <a href="Accessing-Node-Information.html" accesskey="p" rel="prev">Accessing Node Information</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">Parsing Program Source</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="Pattern-Matching-Tree_002dsitter-Nodes"></span><h3 class="section">37.5 Pattern Matching Tree-sitter Nodes</h3>
+<span id="tree_002dsitternodonitaisurupatanmatutingu"></span><h3 class="section">37.5 tree-sitterノードにたいするパターンマッチング</h3>
 <span id="index-pattern-matching-with-tree_002dsitter-nodes"></span>
 
 <span id="index-capturing_002c-tree_002dsitter-node"></span>
-<p>Tree-sitter lets Lisp programs match patterns using a small declarative
-language.  This pattern matching consists of two steps: first tree-sitter
-matches a <em>pattern</em> against nodes in the syntax tree, then it
-<em>captures</em> specific nodes that matched the pattern and returns the
-captured nodes.
+<p>tree-sitterでは小さな宣言型言語を用いてLispプログラムによるパターンのマッチングができます。このパターンマッチングは2つのステップから構成されています。まずtree-sitterが構文ツリーのノードにたいする<em>パターン(pattern)</em>のマッチを行い、その後にパターンにマッチした特定のノードを<em>キャプチャー(capture)</em>してそのノードをリターンするのです。
 </p>
-<p>We describe first how to write the most basic query pattern and how to
-capture nodes in a pattern, then the pattern-matching function, and finally
-the more advanced pattern syntax.
+<p>わたしたちはまずもっとも基本的なクエリーパターンを記述してパターン内のノードをキャプチャーする方法、それからパターンマッチング関数、そして最後により上級のパターン構文について説明していきます。
 </p>
-<span id="Basic-query-syntax"></span><h3 class="heading">Basic query syntax</h3>
+<span id="Ji-Ben-De-nakueriGou-Wen"></span><h3 class="heading">基本的なクエリー構文</h3>
 
 <span id="index-tree_002dsitter-query-pattern-syntax"></span>
 <span id="index-pattern-syntax_002c-tree_002dsitter-query"></span>
 <span id="index-query_002c-tree_002dsitter"></span>
-<p>A <em>query</em> consists of multiple <em>patterns</em>.  Each pattern is an
-s-expression that matches a certain node in the syntax node.  A pattern has
-the form <code>(<var>type</var>&nbsp;(<var>child</var>&hellip;))</code><!-- /@w -->
+<p><em>クエリー(query:
+問い合わせ)</em>は複数の<em>パターン(patterns)</em>によって構成されます。パターンはそれぞれ構文ノード内の特定ノードにマッチするS式です。パターンは<code>(<var>type</var>&nbsp;(<var>child</var>&hellip;))</code><!-- /@w -->という形式をもっています。
 </p>
-<p>For example, a pattern that matches a <code>binary_expression</code> node that
-contains <code>number_literal</code> child nodes would look like
+<p>たとえば子ノードを含んだノード<code>binary_expression</code>にマッチするのは以下のようなパターンでしょう
 </p>
 <div class="example">
 <pre class="example">(binary_expression (number_literal))
 </pre></div>
 
-<p>To <em>capture</em> a node using the query pattern above, append
-<code>@<var>capture-name</var></code> after the node pattern you want to capture.  For
-example,
+<p>上記のクエリーパターンを用いてノードを<em>キャプチャー(capture)</em>するためには、キャプチャーしたいノードパターンの後に<code>@<var>capture-name</var></code>を追加します。たとえば、
 </p>
 <div class="example">
 <pre class="example">(binary_expression (number_literal) @number-in-exp)
 </pre></div>
 
-<p>captures <code>number_literal</code> nodes that are inside a
-<code>binary_expression</code> node with the capture name <code>number-in-exp</code>.
+<p>これはノード<code>binary_expression</code>にあるノード<code>number_literal</code>をキャプチャー名でキャプチャーします。
 </p>
-<p>We can capture the <code>binary_expression</code> node as well, with, for example,
-the capture name <code>biexp</code>:
+<p>同じようにして、たとえばキャプチャー名<code>biexp</code>でノード<code>binary_expression</code>をキャプチャーできます:
 </p>
 <div class="example">
 <pre class="example">(binary_expression
  (number_literal) @number-in-exp) @biexp
 </pre></div>
 
-<span id="Query-function"></span><h3 class="heading">Query function</h3>
+<span id="kueriGuan-Shu-"></span><h3 class="heading">クエリー関数</h3>
 
 <span id="index-query-functions_002c-tree_002dsitter"></span>
-<p>Now we can introduce the <em>query functions</em>.
+<p>これで<em>クエリー関数(query functions)</em>を説明する準備ができました。
 </p>
 <dl class="def">
 <dt id="index-treesit_002dquery_002dcapture"><span class="category">Function: </span><span><strong>treesit-query-capture</strong> <em>node query &amp;optional beg end node-only</em><a href='#index-treesit_002dquery_002dcapture' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This function matches patterns in <var>query</var> within <var>node</var>.  The
-argument <var>query</var> can be either a string, a s-expression, or a compiled
-query object.  For now, we focus on the string syntax; s-expression syntax
-and compiled query are described at the end of the section.
+<dd><p>この関数は<var>query</var>のパターンを<var>node</var>とマッチする。引数<var>query</var>は文字列、S式、またはコンパイル済みクエリーオブジェクトのいずれか。ここでは文字列構文に焦点を当てる。S式構文およびコンパイル済みクエリーについては、このセクションの最後で説明しよう。
 </p>
-<p>The argument <var>node</var> can also be a parser or a language symbol.  A parser
-means using its root node, a language symbol means find or create a parser
-for that language in the current buffer, and use the root node.
+<p>引数<var>node</var>はパーサー、あるいは言語シンボルでもよい。パーサーの場合にはそのルートノードを、言語シンボルならまずカレントバッファーでその言語用のパーサーを探すか作成してそのルートノードう使用する。
 </p>
-<p>The function returns all the captured nodes in a list of the form
-<code>(<var><span class="nolinebreak">capture_name</span></var>&nbsp;.&nbsp;<var>node</var>)</code><!-- /@w -->.  If <var>node-only</var> is
-non-<code>nil</code>, it returns the list of nodes instead.  By default the entire
-text of <var>node</var> is searched, but if <var>beg</var> and <var>end</var> are both
-non-<code>nil</code>, they specify the region of buffer text where this function
-should match nodes.  Any matching node whose span overlaps with the region
-between <var>beg</var> and <var>end</var> are captured, it doesn&rsquo;t have to be
-completely in the region.
+<p>この関数はキャプチャーしたすべてのノードを、<code>(<var><span class="nolinebreak">capture_name</span></var>&nbsp;.&nbsp;<var>node</var>)</code><!-- /@w -->という形式のリストでリターンする。<var>node-only</var>が非<code>nil</code>の場合には、かわりにノードのリストをリターンする。デフォルトでは<var>node</var>のテキスト全体を検索するが、<var>beg</var>と<var>end</var>がいずれも非<code>nil</code>であれば、それはこの関数がノードをマッチするべきバッファーテキストのリージョンを指定する。<var>beg</var>と<var>end</var>の間のリージョンを跨いで重なるようなノードがマッチすればすべてキャプチャーされる(完全にそのリージョンの内部である必要はない)。
 </p>
 <span id="index-treesit_002dquery_002derror"></span>
 <span id="index-treesit_002dquery_002dvalidate"></span>
-<p>This function raises the <code>treesit-query-error</code> error if <var>query</var> is
-malformed.  The signal data contains a description of the specific error.
-You can use <code>treesit-query-validate</code> to validate and debug the query.
+<p>この関数は<var>query</var>が防ぎな形式であれば<code>treesit-query-error</code>エラーraiseする。シグナルデータには、その特定。エラーに関する説明が含まれている。クエリーの検証とデバッグには<code>treesit-query-validate</code>を使うことができる。
 </p></dd></dl>
 
-<p>For example, suppose <var>node</var>&rsquo;s text is <code>1 + 2</code>, and <var>query</var> is
+<p>たとえば<var>node</var>のテキストが<code>1 + 2</code>で、以下のクエリーを考えてみましょう
 </p>
 <div class="example">
 <pre class="example">(setq query
@@ -154,7 +128,7 @@ You can use <code>treesit-query-validate</code> to validate and debug the query.
         (number_literal) @number-in-exp) @biexp&quot;)
 </pre></div>
 
-<p>Matching that query would return
+<p>このクエリーをマッチングすると以下がリターンされます
 </p>
 <div class="example">
 <pre class="example">(treesit-query-capture node query)
@@ -163,8 +137,7 @@ You can use <code>treesit-query-validate</code> to validate and debug the query.
        (number-in-exp . <var>&lt;node for &quot;2&quot;&gt;</var>))
 </pre></div>
 
-<p>As mentioned earlier, <var>query</var> could contain multiple patterns.  For
-example, it could have two top-level patterns:
+<p>前に言及したように、<var>query</var>に複数のパターンを含めることができます。たとえば以下のようにトップレベルのパターンを2つもつことができます:
 </p>
 <div class="example">
 <pre class="example">(setq query
@@ -174,26 +147,22 @@ example, it could have two top-level patterns:
 
 <dl class="def">
 <dt id="index-treesit_002dquery_002dstring"><span class="category">Function: </span><span><strong>treesit-query-string</strong> <em>string query language</em><a href='#index-treesit_002dquery_002dstring' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This function parses <var>string</var> with <var>language</var>, matches its root node
-with <var>query</var>, and returns the result.
+<dd><p>この関数は<var>language</var>で<var>string</var>をパースして、そのルートノードにたいして<var>query</var>をマッチ、その結果をリターンする。
 </p></dd></dl>
 
-<span id="More-query-syntax"></span><h3 class="heading">More query syntax</h3>
+<span id="sonoTa-nokueriGou-Wen"></span><h3 class="heading">その他のクエリー構文</h3>
 
-<p>Besides node type and capture, tree-sitter&rsquo;s pattern syntax can express
-anonymous node, field name, wildcard, quantification, grouping, alternation,
-anchor, and predicate.
+<p>ノードのタイプとキャプチャー以外にも、tree-sitterのパターン構文ｗによって無名ノード、フィールド名、ワイルドカード、定量化、グルーピング、変更、アンカー、述語を表現することができます。
 </p>
-<span id="Anonymous-node"></span><h4 class="subheading">Anonymous node</h4>
+<span id="Wu-Ming-nodo"></span><h4 class="subheading">無名ノード</h4>
 
-<p>An anonymous node is written verbatim, surrounded by quotes.  A pattern
-matching (and capturing) keyword <code>return</code> would be
+<p>無名ノードｈクォートで括ることで逐語的に記述されます。キーワード<code>return</code>にマッチ(してキャプチャー)するパターンは以下のようになるでしょう 
 </p>
 <div class="example">
 <pre class="example">&quot;return&quot; @keyword
 </pre></div>
 
-<span id="Wild-card"></span><h4 class="subheading">Wild card</h4>
+<span id="wairudokado"></span><h4 class="subheading">ワイルドカード</h4>
 
 <p>In a pattern, &lsquo;<samp>(_)</samp>&rsquo; matches any named node, and &lsquo;<samp>_</samp>&rsquo; matches any
 named and anonymous node.  For example, to capture any named child of a
@@ -403,9 +372,7 @@ accepted.
 <dd><p>This function compiles <var>query</var> for <var>language</var> into a compiled query
 object and returns it.
 </p>
-<p>This function raises the <code>treesit-query-error</code> error if <var>query</var> is
-malformed.  The signal data contains a description of the specific error.
-You can use <code>treesit-query-validate</code> to validate and debug the query.
+<p>この関数は<var>query</var>が防ぎな形式であれば<code>treesit-query-error</code>エラーraiseする。シグナルデータには、その特定。エラーに関する説明が含まれている。クエリーの検証とデバッグには<code>treesit-query-validate</code>を使うことができる。
 </p></dd></dl>
 
 <dl class="def">
@@ -436,6 +403,6 @@ Next: <a href="Multiple-Languages.html">Parsing Text in Multiple Languages</a>, 
 </div>
 
 
-This page has generated for branch:work/a270d41fe90516c01eb14fb2a10baf40bf59ca29, commit:5dff27eba358451a5d8be96b054b70cd8f077261 to check Japanese translation.
+This page has generated for branch:work/a270d41fe90516c01eb14fb2a10baf40bf59ca29, commit:a4145c4e2d8315ae275e23a775d788514d9cd592 to check Japanese translation.
 </body>
 </html>
