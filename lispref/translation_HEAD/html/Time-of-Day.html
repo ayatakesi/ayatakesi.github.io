@@ -6,7 +6,7 @@
 <!-- This is the GNU Emacs Lisp Reference Manual
 corresponding to Emacs version 27.1.
 
-Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="April 10, 2023">
+<meta name="date" content="April 11, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -65,20 +65,17 @@ ul.no-bullet {list-style: none}
 Next: <a href="Time-Zone-Rules.html" accesskey="n" rel="next">タイムゾーンのルール</a>, Previous: <a href="User-Identification.html" accesskey="p" rel="prev">ユーザーの識別</a>, Up: <a href="System-Interface.html" accesskey="u" rel="up">オペレーティングシステムのインターフェース</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="Shi-Ke-"></span><h3 class="section">42.5 時刻</h3>
+<span id="Shi-Ke-"></span><h3 class="section">41.5 時刻</h3>
 <span id="index-time-of-day"></span>
 
 <p>このセクションではカレント時刻とタイムゾーンを決定する方法を説明します。
 </p>
 <span id="index-Lisp-timestamp"></span>
 <span id="index-timestamp_002c-Lisp"></span>
-<span id="index-Coordinated-Universal-Time"></span>
-<span id="index-Universal-Time"></span>
-<span id="index-UTC"></span>
-<span id="index-leap-seconds"></span>
-<p><code>current-time</code>や<code>file-attributes</code>のような多くの関数は秒をカウントする<em>Lispタイムスタンプ(Lisp
-timestamp)</em>値をリターンします。この値は1970-01-01 00:00:00 UTC(Coordinated Universal Time:
-協定世界時)という<em>エポック(epoch)</em>からの経過秒数をカウントすることにより絶対時刻を表すことができます。これらの秒数では通常だと閏秒は無視されますが、GNUや他の一部のオペレーティングシステムでは閏秒を数えるように構成することができます。
+<p>Many functions like <code>current-time</code> and <code>file-attributes</code> return
+<em>Lisp timestamp</em> values that count seconds, and that can represent
+absolute time by counting seconds since the <em>epoch</em> of 1970-01-01
+00:00:00 UTC.
 </p>
 <p>伝統的なLispタイムスタンプが整数のペアであったとしても、それらの形式は進化しており、プログラムは通常はカレントのデフォルト形式に依存するべきではありません。プログラムに特定のタイムスタンプ形式が必要なら、<code>time-convert</code>関数を使用して必要とする形式に変換できます。<a href="Time-Conversion.html">時刻の変換</a>を参照してください。
 </p>
@@ -88,25 +85,39 @@ timestamp)</em>値をリターンします。この値は1970-01-01 00:00:00 UTC
 <ul>
 <li> 整数。これがもっとも単純な形式だが、少数秒のタイムスタンプは表現できない。
 
-</li><li> 整数のペア<code>(<var>ticks</var> . <var>hz</var>)</code> (
-<var>hz</var>は正)。これは<var>ticks</var>/<var>hz</var>秒を表し、<var>hz</var>が1なら単なる<var>ticks</var>と同時刻。<var>hz</var>にたいして一般的な値はナノ秒解像度クロック用の1000000000。
+</li><li> A pair of integers <code>(<var>ticks</var> . <var>hz</var>)</code>, where <var>hz</var> is
+positive.  This represents <var>ticks</var>/<var>hz</var> seconds, which is the same
+time as plain <var>ticks</var> if <var>hz</var> is 1.  A common value for <var>hz</var> is
+1000000000, for a nanosecond-resolution clock.<a id="DOCF28" href="#FOOT28"><sup>28</sup></a>
 
 </li><li> 4つの整数からなるリスト<code>(<var>high</var> <var>low</var> <var>micro</var> <var>pico</var>)</code>
 (0&le;<var>low</var>&lt;65536、0&le;<var>micro</var>&lt;1000000、0&le;<var>pico</var>&lt;1000000)。これは次式を使用して秒数を表す:
 <var>high</var> * 2**16 + <var>low</var> + <var>micro</var> * 10**-6 + <var>pico</var> *
 10**-12。
-<code>current-time-list</code>が<code>t</code>の場合には、一部の関数がデフォルトで<var>micro</var>および<var>pico</var>を0に省略した2つ、または3つの要素のリストをリターンするかもしれない。現在のすべてのマシンでは<var>pico</var>は1000の倍数だが、より高精度のクロックが利用可能になったらこれは変更されるかもしれない。
+In some cases, functions may default to returning two- or three-element
+lists, with omitted <var>micro</var> and <var>pico</var> components defaulting to
+zero.  On all current machines <var>pico</var> is a multiple of 1000, but this
+may change as higher-resolution clocks become available.
 </li></ul>
 
 <span id="index-time-value"></span>
-<p>関数の引数(<code>format-time-string</code>の<var>time</var>引数)には、より一般的な<em>time値(time
-value)</em>のフォーマット(Lispタイムスタンプ、カレント時刻にたいする<code>nil</code>、秒にたいする有限の浮動小数点数、欠落要素を0に切り詰めたタイムスタンプリスト<code>(<var>high</var>
-<var>low</var> <var>micro</var>)</code> )が許されています。
+<p>Function arguments, e.g., the <var>time</var> argument to
+<code>current-time-string</code>, accept a more-general <em>time value</em> format,
+which can be a Lisp timestamp, <code>nil</code> for the current time, a single
+floating-point number for seconds, or a list <code>(<var>high</var> <var>low</var>
+<var>micro</var>)</code> or <code>(<var>high</var> <var>low</var>)</code> that is a truncated list
+timestamp with missing elements taken to be zero.
 </p>
 <span id="index-Specified-time-is-not-representable"></span>
-<p>time値は暦形式や他形式に相互に変換できます。これらの変換のいくつかは利用可能なtime値範囲を制限するオペレーティングシステム関数に依存しており、その制限を超えると&lsquo;<samp>&quot;Specified
-time is not
-representable&quot;</samp>&rsquo;のようなエラーをシグナルします。たとえばあるシステムではエポックより前のタイムスタンプや、遠い将来の年をサポートしないかもしれません。<code>format-time-string</code>を使用して可読性のある文字列、<code>time-convert</code>を使用してLispタイムスタンプ、<code>decode-time</code>や<code>float-time</code>を使用して別の形式にtime値を変換できます。これらの関数については以降のセクションで説明します。
+<p>Time values can be converted to and from calendrical and other forms.  Some
+of these conversions rely on operating system functions that limit the range
+of possible time values, and signal an error such as &lsquo;<samp>&quot;Specified time
+is not representable&quot;</samp>&rsquo; if the limits are exceeded.  For instance, a system
+may not support years before 1970, or years before 1901, or years far in the
+future.  You can convert a time value into a human-readable string using
+<code>format-time-string</code>, into a Lisp timestamp using <code>time-convert</code>,
+and into other forms using <code>decode-time</code> and <code>float-time</code>.  These
+functions are described in the following sections.
 </p>
 <dl class="def">
 <dt id="index-current_002dtime_002dstring"><span class="category">Function: </span><span><strong>current-time-string</strong> <em>&amp;optional time zone</em><a href='#index-current_002dtime_002dstring' class='copiable-anchor'> &para;</a></span></dt>
@@ -121,21 +132,12 @@ representable&quot;</samp>&rsquo;のようなエラーをシグナルします�
 </dd></dl>
 
 <dl class="def">
-<dt id="index-current_002dtime_002dlist"><span class="category">Variable: </span><span><strong>current-time-list</strong><a href='#index-current_002dtime_002dlist' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>これは移行支援用のブーリーン変数である。<code>t</code>なら<code>current-time</code>や関連する関数は<code>(<var>high</var>
-<var>low</var> <var>micro</var> <var>pico</var>)</code>)、それ以外なら<code>(<var>ticks</var>
-.
-<var>hz</var>)</code>という形式を用いてタイムスタンプをリターンする。現在のところ以前のバージョンのEmacsの挙動と互換性をとるために、この変数のデフォルトは<code>t</code>になっている。この変数のデフォルトはEmacsの将来のバージョンでは<code>nil</code>となり、その後いくつかのバージョンを経た後に削除されるので、開発者はこの変数を<code>nil</code>にセットしてタイムスタンプ関連のコードをテストするようお勧めする。
-</p></dd></dl>
-
-<dl class="def">
 <dt id="index-current_002dtime"><span class="category">Function: </span><span><strong>current-time</strong><a href='#index-current_002dtime' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数はカレント時刻をLispタイムスタンプとしてリターンする。<code>current-time-list</code>が<code>nil</code>の場合にはタイムスタンプは<code>(<var>ticks</var>
-.
-<var>hz</var>)</code>という形式になる。ここで<var>ticks</var>はクロックチック数、<var>hz</var>は秒当たりのクロックチック数。それ以外の場合にはタイムスタンプは<code>(<var>high</var>
-<var>low</var> <var>usec</var> <var>psec</var>)</code>という形式のリストになる。<code>(time-convert nil
-t)</code>や<code>(time-convert nil
-'list)</code>を使えば、<code>current-time-list</code>の値に関わらずに特定の形式で値を取得することができる。<a href="Time-Conversion.html">時刻の変換</a>を参照のこと。
+<dd><p>This function returns the current time as a Lisp timestamp.  Although the
+timestamp takes the form <code>(<var>high</var> <var>low</var> <var>micro</var>
+<var>pico</var>)</code> in the current Emacs release, this is planned to change in a
+future Emacs version.  You can use the <code>time-convert</code> function to
+convert a timestamp to some other form.  See <a href="Time-Conversion.html">時刻の変換</a>.
 </p></dd></dl>
 
 <dl class="def">
@@ -149,16 +151,26 @@ t)</code>や<code>(time-convert nil
 <p><code>time-to-seconds</code>はこの関数のエイリアス。
 </p></dd></dl>
 
-<dl class="def">
-<dt id="index-current_002dcpu_002dtime"><span class="category">Function: </span><span><strong>current-cpu-time</strong><a href='#index-current_002dcpu_002dtime' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>カレント<acronym>CPU</acronym>時間を解像度とともにリターンする。値は<code>(CPU-TICKS
-. TICKS-PER-SEC)</code>のようなペアーとしてリターンされる。<var>CPU-TICKS</var>カウンターはラップアラウンド(wrap
-around: 最後に達したら最初に戻る)するかもしれないので、時間が経過し過ぎると値の比較は無意味になるだろう。
-</p></dd></dl>
+</div>
+<div class="footnote">
+<hr>
+<h4 class="footnotes-heading">Footnotes</h4>
 
+<h5><a id="FOOT28" href="#DOCF28">(28)</a></h5>
+<p>Currently <var>hz</var>
+should be at least 65536 to avoid compatibility warnings when the timestamp
+is passed to standard functions, as previous versions of Emacs would
+interpret such a timestamps differently due to backward-compatibility
+concerns.  These warnings are intended to be removed in a future Emacs
+version.</p>
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Time-Zone-Rules.html">タイムゾーンのルール</a>, Previous: <a href="User-Identification.html">ユーザーの識別</a>, Up: <a href="System-Interface.html">オペレーティングシステムのインターフェース</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-29, commit:9588aec455ad4fedf2460365a9ec1e78ec0e6599 to check Japanese translation.
+This page has generated for branch:work/emacs-28_dec958258b133b4c21224c594da433919d852800, commit:2a91dc5da5396b1f9bd84d2bb55d74089db0af87 to check Japanese translation.
 </body>
 </html>
