@@ -127,8 +127,8 @@ Previous: <a href="Precedence-of-Action-Functions.html" accesskey="p" rel="prev"
 <p><code>display-buffer-alist</code>のアスタマイズでは以下のように使用できる:
 </p>
 <div class="example">
-<pre class="example">(customize-set-variable
- 'display-buffer-alist
+<pre class="example">(setopt
+ display-buffer-alist
  '((&quot;\\*foo\\*&quot;
     (display-buffer-below-selected display-buffer-at-bottom)
     (inhibit-same-window . t)
@@ -138,8 +138,8 @@ Previous: <a href="Precedence-of-Action-Functions.html" accesskey="p" rel="prev"
 <p>2つ目のバッファーへのカスタマイズを追加するには以下のように記述:
 </p>
 <div class="example">
-<pre class="example">(customize-set-variable
- 'display-buffer-alist
+<pre class="example">(setopt
+ display-buffer-alist
  '((&quot;\\*foo\\*&quot;
     (display-buffer-below-selected display-buffer-at-bottom)
     (inhibit-same-window . t)
@@ -174,29 +174,75 @@ Previous: <a href="Precedence-of-Action-Functions.html" accesskey="p" rel="prev"
 <p>したがってLispプログラムのいくつかは、たとえば新たなウィンドウに関して問いに答える場所として期待されるミニバッファーウィンドウの近傍にバッファーを表示するためにフレーム最下のウィンドウの選択を試みる。選択されたウィンドウは通常はすでにユーーザーの注意を喚起済みなので、入力とは無関係なアクション<code>display-buffer-below-selected</code>が好ましいかもしれない。
 </p>
 </dd>
-<dt><span><code>display-buffer</code>に後続する呼び出しの処理</span></dt>
-<dd><p><code>display-buffer</code>は複数のバッファーを順番に表示するのに最適ではないので、結果となるウィンドウ構成でこれらのバッファーのすべてが順に表示されているか確認すること。繰り返しになるが標準のアクション関数<code>display-buffer-pop-up-window</code>と<code>display-buffer-use-some-window</code>は、より複雑な構成における幾分混沌とした性質のために、この用途に最適とは言えない。
+<dt><span>Take care which window is selected</span></dt>
+<dd><p>Many applications call <code>display-buffer</code> from within window excursions
+produced by <code>with-selected-window</code> or <code>select-window</code> calls with a
+non-<code>nil</code> <var>norecord</var> argument.  This is almost always a bad idea
+because the window selected within such an excursion is usually not the
+window selected in the configuration presented to the user.
 </p>
-<p>同一の表示サイクル1つで複数バッファーを表示するウィンドウ構成を生成するためには、Lispプログラマーは自身でアクション関数を記述する必要を避けることはできないだろう。この問題において以下にリストしたいくつかのトリックが助けになるかもしれない。
+<p>If, for example, a user had added an <code>inhibit-same-window</code> alist entry,
+that entry would have avoided the window selected within the scope of the
+excursion and not the window selected in the resulting configuration.  Even
+if no such entry has been added, the resulting behavior might be strange.
+While in a frame containing one live window, evaluating the following form
 </p>
-<ul>
-<li> 新たなウィンドウのポップアップ時に既存のウィンドウ構成の破壊を回避するためにウィンドウをアトミックにする(<a href="Atomic-Windows.html">アトミックウィンドウ</a>を参照)。そうすれば新たなウィンドウは構成の外部にポップアップされる。
+<div class="example">
+<pre class="example">(progn
+  (split-window)
+  (display-buffer &quot;*Messages*&quot;))
+</pre></div>
 
-</li><li> 別のバッファーを表示中のウィンドウの使用を回避するために、一時的にウィンドウをバッファー専用にする(<a href="Dedicated-Windows.html">専用のウィンドウ</a>を参照)。そうすれば非専用のウィンドウが使用される。
+<p>will display a window showing the <samp>*Messages*</samp> buffer at the bottom and
+leave the other window selected.  Evaluating the next form
+</p>
+<div class="example">
+<pre class="example">(with-selected-window (split-window)
+  (display-buffer &quot;*Messages*&quot;))
+</pre></div>
 
-</li><li> <code>window-preserve-size</code>を呼び出すことにより新たなウィンドウのポップアップ時に引数のウィンドウのサイズの維持が試みられる(<a href="Preserving-Window-Sizes.html">ウィンドウサイズの保持</a>を参照)。ただし同一構成内の別ウィンドウのサイズが縮小されるかもしれないことに留意する必要がある。
+<p>will display <samp>*Messages*</samp> in a window on the top and select it which is
+usually not what <code>display-buffer</code> is supposed to do.
+</p>
+<p>On the other hand, while evaluating the following form
+</p>
+<div class="example">
+<pre class="example">(progn
+  (split-window)
+  (pop-to-buffer &quot;*Messages*&quot;))
+</pre></div>
 
-</li><li> 特定のバッファーをフレーム上の同一位置のウィンドウに常に表示するにはサイドウィンドウを使用できる(<a href="Side-Windows.html">サイドウィンドウ</a>を参照)。これによりフレーム上で同時に表示する際に競合しないバッファーをグループ化して、他のバッファーの表示を妨害せずに同一ウィンドウでグループ化したバッファーを表示することが可能になる。
+<p>will correctly select the <samp>*Messages*</samp> buffer, the next form
+</p>
+<div class="example">
+<pre class="example">(progn
+  (split-window)
+  (with-selected-window (selected-window)
+    (pop-to-buffer &quot;*Messages*&quot;)))
+</pre></div>
 
-</li><li> フレームのウィンドウ構成の破壊や<code>display-buffer-pop-up-frame</code>により課せられる完全なフレームに付加されるオーバーヘッドなしで、選択されたフレームのスクリーン領域内にバッファー表示するために子フレームを使用できる(<a href="Child-Frames.html">子フレーム</a>を参照)。
-</li></ul>
-</dd>
+<p>will not.
+</p>
+<p>Also, invocations of action functions like
+<code>display-buffer-use-some-window</code> and
+<code>display-buffer-use-least-recent-window</code> that expect the selected
+window to have the highest use time among all windows, may fail to produce a
+window according to their specifications.
+</p>
+<p>Hence, an application that relies on using a window excursion should try to
+postpone the <code>display-buffer</code> call until after the excursion has
+terminated.
+</p></dd>
 </dl>
 
-
+</div>
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Precedence-of-Action-Functions.html">アクション関数の優先順</a>, Up: <a href="Displaying-Buffers.html">適切なウィンドウへのバッファーの表示</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-29, commit:f815b9e90c30cbe5ac5d76a99a446b112372fb3b to check Japanese translation.
+This page has generated for branch:work/emacs-29_a24e9e3fee59435422af0473b7ec585de2c13b4e, commit:ee3e732b549d150d98aba8394e735b6f152138bf to check Japanese translation.
 </body>
 </html>

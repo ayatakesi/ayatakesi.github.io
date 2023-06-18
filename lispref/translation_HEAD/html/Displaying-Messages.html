@@ -64,7 +64,7 @@ ul.no-bullet {list-style: none}
 Next: <a href="Progress.html" accesskey="n" rel="next">処理の進捗レポート</a>, Up: <a href="The-Echo-Area.html" accesskey="u" rel="up">エコーエリア</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="ekoeriahenometusezinoBiao-Shi"></span><h4 class="subsection">40.4.1 エコーエリアへのメッセージの表示</h4>
+<span id="ekoeriahenometusezinoBiao-Shi"></span><h4 class="subsection">41.4.1 エコーエリアへのメッセージの表示</h4>
 <span id="index-display-message-in-echo-area"></span>
 
 <p>このセクションではエコーエリア内にメッセージを表示する標準的な関数を説明します。
@@ -101,28 +101,95 @@ Reverting ‘subr.el’...
 &quot;%s&quot; <var>string</var>)</code>を使用すること。
 </p></dd></dl>
 
+<p>The following facilities allow users and Lisp programs to control how
+echo-area messages are displayed.
+</p>
 <dl class="def">
 <dt id="index-set_002dmessage_002dfunction"><span class="category">Variable: </span><span><strong>set-message-function</strong><a href='#index-set_002dmessage_002dfunction' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この変数が非<code>nil</code>なら、エコーエリア内に表示するためのメッセージテキストを単一の引数とする関数であること。その関数は<code>message</code>および関連する関数から呼び出されることになる。その関数が<code>nil</code>をリターンすると、通常どおりメッセージはエコーエリアに表示される。関数が文字列をリターンすると、その文字列が元メッセージのかわりにエコーエリアに表示される。その関数が他の非<code>nil</code>値をリターンした場合にはメッセージが処理済みであることを意味するので、<code>message</code>はエコーエリアに何も表示しない。その関数で表示されたメッセージのクリアーに使用可能な<code>clear-message-function</code>も参照のこと。
+<dd><p>If this variable is non-<code>nil</code>, it should be a function of one argument,
+the text of a message to display in the echo area.  That function will be
+called by <code>message</code> and related functions.  If the function returns
+<code>nil</code>, the message is displayed in the echo area as usual.  If the
+function returns a string, that string is displayed in the echo area
+<em>instead</em> of the original message.  If the function returns any other
+non-<code>nil</code> value, that means the message was already handled, so
+<code>message</code> will not display anything in the echo area.
 </p>
-<p>デフォルト値はミニバッファーアクティブ時にミニバッファー終端にメッセージを表示する関数。しかしアクティブなミニバッファーに表示されるテキストの何らかの文字が<code>minibuffer-message</code>テキストプロパティ(<a href="Special-Properties.html">特殊な意味をもつプロパティ</a>を参照)をもつ場合には、メッセージはそのプロパティをもつ最初の文字の前に表示される。
+<p>The default value calls <code>set-minibuffer-message</code>, described below.
 </p></dd></dl>
 
 <dl class="def">
 <dt id="index-clear_002dmessage_002dfunction"><span class="category">Variable: </span><span><strong>clear-message-function</strong><a href='#index-clear_002dmessage_002dfunction' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この変数が非<code>nil</code>の場合には、<code>message</code>および関連する関数は引数となるメッセージが<code>nil</code>か空文字列なら、それを引数なしで呼び出す。
+<dd><p>If this variable is non-<code>nil</code>, it should be a function of no arguments;
+<code>message</code> and related functions call it when their argument message is
+<code>nil</code> or the empty string, to clear the echo area.
 </p>
-<p>Usually this function is called when the next input event arrives after
-displaying an echo-area message.  The function is expected to clear the
-message displayed by its counterpart function specified by
-<code>set-message-function</code>.
+<p>この関数は通常はエコーエリアメッセージの表示後、次の入力イベントの到着時に呼び出される。これは<code>set-message-function</code>により指定されたカウンターパートとなる関数が表示したメッセージのクリアーを期待される関数だが、クリアーが必要という訳ではない。エコーエリアをクリアーせずに残したければ、その関数はシンボル<code>dont-clear-message</code>をリターンすること。それ以外の値をリターンすると、エコーエリアはクリアーされる。
 </p>
 <p>デフォルト値はアクティブなミニバッファーに表示されたメッセージをクリアーする関数。
 </p></dd></dl>
 
 <dl class="def">
-<dt id="index-inhibit_002dmessage"><span class="category">Variable: </span><span><strong>inhibit-message</strong><a href='#index-inhibit_002dmessage' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この変数が非<code>nil</code>なら、<code>message</code>および関連する関数はメッセージの表示にエコーエリアを使用しない。
+<dt id="index-set_002dmessage_002dfunctions"><span class="category">User Option: </span><span><strong>set-message-functions</strong><a href='#index-set_002dmessage_002dfunctions' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>The value of this user option is a list of functions to be called for
+handling display of echo-area messages.  Each function is called with one
+argument, the text of the message to display.  If the function returns a
+string, that string replaces the original message, and the next function in
+the list is called with the new message text.  If the function returns
+<code>nil</code>, the next function in the list is called with the same text; if
+the last function in the list returns <code>nil</code>, the message text is
+displayed in the echo area.  If the function returns a non-<code>nil</code> value
+that is not a string, the message is considered to be handled, and no
+further functions in the list are called.
+</p>
+<p>The three useful functions to be put in the list that is the value of this
+option are described below.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-set_002dminibuffer_002dmessage"><span class="category">Function: </span><span><strong>set-minibuffer-message</strong> <em>message</em><a href='#index-set_002dminibuffer_002dmessage' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function displays <var>message</var> in the echo-area when the minibuffer is
+not active, and at the end of the minibuffer when the minibuffer is active.
+However, if the text shown in the active minibuffer has the
+<code>minibuffer-message</code> text property (see <a href="Special-Properties.html">特殊な意味をもつプロパティ</a>) on some
+character, the message will be displayed before the first character having
+that property.
+</p>
+<p>This function is by default the only member of the list in
+<code>set-message-functions</code>.
+</p></dd></dl>
+
+<span id="index-inhibit_002dmessage_002dregexps"></span>
+<dl class="def">
+<dt id="index-inhibit_002dmessage"><span class="category">Function: </span><span><strong>inhibit-message</strong> <em>message</em><a href='#index-inhibit_002dmessage' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>If an echo-area <var>message</var> matches any regexp in the list that is the
+value of the user option <code>inhibit-message-regexps</code>, this function
+suppresses the display of that message and returns a non-<code>nil</code> value
+that is not a string.  Thus, if this function is in the list
+<code>set-message-functions</code>, the rest of the functions in the list will not
+be called when <var>message</var> matches the regexps in
+<code>inhibit-message-regexps</code>.  To ensure a matching <var>message</var> will
+never be displayed, make this function be the first element of the list in
+<code>set-message-functions</code>.
+</p></dd></dl>
+
+<span id="index-multi_002dmessage_002dmax"></span>
+<span id="index-multi_002dmessage_002dtimeout"></span>
+<dl class="def">
+<dt id="index-set_002dmulti_002dmessage"><span class="category">Function: </span><span><strong>set-multi-message</strong> <em>message</em><a href='#index-set_002dmulti_002dmessage' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function accumulates several echo-area messages emitted one after
+another, and returns them as a single string in which individual messages
+are separated by newlines.  Up to <code>multi-message-max</code> recent messages
+can be accumulated.  The accumulated messages are discarded when more than
+<code>multi-message-timeout</code> seconds have elapsed since the time the first
+message was emitted.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-inhibit_002dmessage-1"><span class="category">Variable: </span><span><strong>inhibit-message</strong><a href='#index-inhibit_002dmessage-1' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>When this variable is non-<code>nil</code>, <code>message</code> and related functions
+will not display any messages in the Echo Area.  Echo-area messages are
+still logged in the <samp>*Messages*</samp> buffer, though.
 </p></dd></dl>
 
 <dl class="def">
@@ -160,8 +227,13 @@ message displayed by its counterpart function specified by
 </p></dd></dl>
 
 </div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Progress.html">処理の進捗レポート</a>, Up: <a href="The-Echo-Area.html">エコーエリア</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
-This page has generated for branch:emacs-29, commit:f815b9e90c30cbe5ac5d76a99a446b112372fb3b to check Japanese translation.
+This page has generated for branch:work/emacs-29_a24e9e3fee59435422af0473b7ec585de2c13b4e, commit:ee3e732b549d150d98aba8394e735b6f152138bf to check Japanese translation.
 </body>
 </html>

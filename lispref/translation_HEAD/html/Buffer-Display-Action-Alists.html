@@ -104,10 +104,10 @@ alist)</em>とはアクション関数が認識可能な事前定義されたシ
 </p>
 <ul>
 <li> <code>nil</code>は選択されたフレーム(実際にはミニバッファーフレーム以外の最後に使用されたフレーム)上のウィンドウだけを考慮することを意味する。
-</li><li> <code>t</code> means consider windows on all frames.
 </li><li> <code>visible</code>はすべての可視フレーム上のウィンドウを考慮することを意味する。
 </li><li> 0はすべての可視またはアイコン化されたフレーム上のウィンドウを考慮することを意味する。
 </li><li> フレームを指定すると、そのフレーム上のウィンドウだけを考慮することを意味する。
+</li><li> <code>t</code>はすべてのフレームのウィンドウを考慮することを意味する(ツールチップフレームがリターンされるかもしれないので、この値が使用に耐えることは稀であることに注意)。
 </li></ul>
 
 <p><code>nil</code>の意味は<code>next-window</code>にたいする<var>all-frames</var>引数の場合の意味とは若干異なることに注意(<a href="Cyclic-Window-Ordering.html">ウィンドウのサイクル順</a>を参照)。
@@ -124,10 +124,40 @@ alist)</em>とはアクション関数が認識可能な事前定義されたシ
 <dt><span><code>window-parameters</code></span></dt>
 <dd><p>値は選択したウィンドウに与えるウィンドウパラメーターのalist。ウィンドウを選択するすべてのアクション関数は、このエントリーを処理する必要がある。
 </p>
+<span id="index-window_002dmin_002dwidth_002c-a-buffer-display-action-alist-entry"></span>
+</dd>
+<dt><span><code>window-min-width</code></span></dt>
+<dd><p>The value specifies a minimum width of the window used, in canonical frame
+columns.  The special value <code>full-width</code> means the chosen window should
+be one that has no other windows on the left or right of it in its frame.
+</p>
+<p>This entry is currently honored by <code>display-buffer-use-some-window</code> and
+<code>display-buffer-use-least-recent-window</code>, which try hard to avoid
+returning a less recently used window that does not satisfy the entry.
+</p>
+<p>Note that providing such an entry alone does not necessarily make the window
+as wide as specified by its value.  To actually resize an existing window or
+make a new window as wide as specified by this entry&rsquo;s value, a
+<code>window-width</code> entry specifying that value should be provided as well.
+Such a <code>window-width</code> entry can, however, specify a completely
+different value, or ask the window width to fit that of its buffer, in which
+case the <code>window-min-width</code> entry provides the guaranteed minimum width
+of the window.
+</p>
 <span id="index-window_002dmin_002dheight_002c-a-buffer-display-action-alist-entry"></span>
 </dd>
 <dt><span><code>window-min-height</code></span></dt>
-<dd><p>値は使用するウィンドウの最小高さを行数で指定する。ウィンドウの高さがこのエントリーで指定した高さではない、あるいはできなければウィンドウの使用を考慮しない。このエントリーのクライアントは現在のところ<code>display-buffer-below-selected</code>のみ。
+<dd><p>The value specifies a minimum height of the window used, in canonical frame
+lines.  The special value <code>full-height</code> means the chosen window should
+be a full-height window, one that has no other windows above or below it in
+its frame.
+</p>
+<p>This entry is currently honored by <code>display-buffer-below-selected</code>
+which does not use a window that is not as high as specified by this entry.
+It&rsquo;s also honored by <code>display-buffer-use-some-window</code> and
+<code>display-buffer-use-least-recent-window</code> which try hard to avoid
+returning a less recently used window if it does not satisfy this
+constraint.
 </p>
 <p>このようなエントリーを単独で提供しても、ウィンドウがその値で指定した高さになるとは限らないことに注意。既存ウィンドウを実際にリサイズしたり新たなウィンドウの高さを指定した値にするためには、同様にこの値を指定する<code>window-height</code>エントリーを提供する必要がある。しかしこのような<code>window-height</code>エントリーでまったく異なる値を指定したり、ウィンドウ高さをバッファーにフィットするように要請することができる。そのような場合には<code>window-min-height</code>使用するウィンドウの最小高さにたいする保証を与える。
 </p>
@@ -142,6 +172,8 @@ alist)</em>とはアクション関数が認識可能な事前定義されたシ
 </li><li> 整数値は選択したウィンドウの望ましい高さを行数で指定する。
 
 </li><li> 浮動小数点値は選択したウィンドウの望ましい高さをフレームのルートウィンドウのトータル高さにたいする比率で指定する。
+
+</li><li> <small>CAR</small>が<code>body-lines</code>、<small>CDR</small>が選択されたウィンドウのボディー高さをフレーム行数で指定する整数であるようなコンスセル。
 
 </li><li> 値が関数を指定する場合には、その関数は選択したウィンドウを引数として呼び出される関数。この関数はそのウィンドウの高さを調整することを期待されておりリターン値は無視される。これに適した関数は<code>fit-window-to-buffer</code>と<code>shrink-window-if-larger-than-buffer</code>。<a href="Resizing-Windows.html">ウィンドウのリサイズ</a>を参照のこと。
 </li></ul>
@@ -160,19 +192,36 @@ alist)</em>とはアクション関数が認識可能な事前定義されたシ
 
 </li><li> 浮動小数点値は選択したウィンドウの望ましい幅をフレームのルートウィンドウのトータル幅にたいする比率で指定する。
 
+</li><li> <small>CAR</small>が<code>body-columns</code>、<small>CDR</small>が選択されたウィンドウのボディー幅をフレーム列数で指定する整数であるようなコンスセル。
+
 </li><li> 値が関数を指定する場合には、その関数は選択したウィンドウを引数として呼び出される関数。この関数はそのウィンドウの高さを調整することを期待されておりリターン値は無視される。
 </li></ul>
 
-<p>By convention, the width of the chosen window is adjusted only if the window
-is part of a horizontal combination (see <a href="Windows-and-Frames.html">ウィンドウとフレーム</a>) to avoid
-changing the width of other, unrelated windows.  Also, this entry should be
-processed under only certain conditions which are specified right below this
-list.
+<span id="index-window_002dsize_002c-a-buffer-display-action-alist-entry"></span>
+</dd>
+<dt><span><code>window-size</code></span></dt>
+<dd><p>これは前の2つを組み合わせたエントリーであり、選択したウィンドウの高さと幅の<em>両方</em>の調節に用いることができる。他のウィンドウに影響を与えずにウィンドウをリサイズできる方向は1つだけなので、<code>window-size</code>はフレーム上に単独で表示されるウィンドウのサイズのセットアップでのみ効果的である。値は以下のいずれか:
+</p>
+<ul>
+<li> <code>nil</code>は選択したウィンドウのサイズを変更しないことを意味する。
+
+</li><li> 選択したウィンドウの望ましいトータルの幅と高さを行数と列数で指定する2つの整数からなるコンスセル。これに応じてフレームのサイズを調節する効果がある。
+
+</li><li> <small>CAR</small>が<code>body-chars</code>、<small>CDR</small>が2つの整数からなるコンスセル(選択したウィンドウの望ましい幅と高さをフレームの行数と列数で指定)であるようなコンスセル。これに応じてフレームのサイズを調節する効果がある。
+
+</li><li> 値が関数を指定する場合には、その関数は選択したウィンドウを引数として呼び出される関数。この関数はそのウィンドウのフレームのサイズを調整することを期待されておりリターン値は無視される。
+</li></ul>
+
+<p>このエントリーはこのリストのすぐ下で指定されている特定の条件の下で処理される必要がある。
 </p>
 <span id="index-dedicated_002c-a-buffer-display-action-alist-entry"></span>
 </dd>
 <dt><span><code>dedicated</code></span></dt>
-<dd><p>このようなエントリーが非<code>nil</code>なら、<code>display-buffer</code>は作成するすべてのウィンドウをそのバッファー専用であるとマークする(<a href="Dedicated-Windows.html">専用のウィンドウ</a>を参照)。これは最初の引数に選択したウィンドウ、2つ目の引数にエントリーの値を指定して<code>set-window-dedicated-p</code>を呼び出すことにより行われる。サイドウィンドウはデフォルトでは値<code>side</code>で専用となる(<a href="Side-Window-Options-and-Functions.html">サイドウィンドウのオプションと関数</a>を参照)。
+<dd><p>If non-<code>nil</code>, such an entry tells <code>display-buffer</code> to mark any
+window it creates as dedicated to its buffer (see <a href="Dedicated-Windows.html">専用のウィンドウ</a>).
+It does that by calling <code>set-window-dedicated-p</code> with the chosen window
+as first argument and the entry&rsquo;s value as second.  Side windows are by
+default dedicated with the value <code>side</code> (see <a href="Side-Window-Options-and-Functions.html">サイドウィンドウのオプションと関数</a>).
 </p>
 <span id="index-preserve_002dsize_002c-a-buffer-display-action-alist-entry"></span>
 </dd>
@@ -180,6 +229,42 @@ list.
 <dd><p>このようなエントリーが非<code>nil</code>なら、選択したウィンドウのサイズを維持するようにEmacsに指示する(<a href="Preserving-Window-Sizes.html">ウィンドウサイズの保持</a>を参照)。値は<code>(t&nbsp;.&nbsp;nil)</code><!-- /@w --> (ウィンドウの幅を維持)、<code>(nil&nbsp;.&nbsp;t)</code><!-- /@w -->
 (高さを維持)、または<code>(t&nbsp;.&nbsp;t)</code><!-- /@w -->
 (幅と高さの両方を維持)のいずれか。このエントリーはこのリストの後に指定する特定の条件下でのみ処理される必要がある。
+</p>
+<span id="index-lru_002dframes_002c-a-buffer-display-action-alist-entry"></span>
+</dd>
+<dt><span><code>lru-frames</code></span></dt>
+<dd><p>The value specifies the set of frames to search for a window that can be
+used to display the buffer.  It is honored by
+<code>display-buffer-use-some-window</code> and
+<code>display-buffer-use-least-recent-window</code> when trying to find a less
+recently used window showing some other buffer.  Its values are the same as
+for the <code>reusable-frames</code> entry described above.
+</p>
+<span id="index-lru_002dtime_002c-a-buffer-display-action-alist-entry"></span>
+</dd>
+<dt><span><code>lru-time</code></span></dt>
+<dd><p>The value is supposed to specify a use time (see <a href="Selecting-Windows.html">ウィンドウの選択</a>).
+This entry is honored by <code>display-buffer-use-some-window</code> and
+<code>display-buffer-use-least-recent-window</code> when trying to find a less
+recently used window showing some other buffer.  If a window&rsquo;s use time is
+higher than the value specified by this option, these action functions will
+not consider such a window for displaying the buffer.
+</p>
+<span id="index-bump_002duse_002dtime_002c-a-buffer-display-action-alist-entry"></span>
+</dd>
+<dt><span><code>bump-use-time</code></span></dt>
+<dd><p>If non-<code>nil</code>, such an entry will cause <code>display-buffer</code> to bump
+the use time (see <a href="Selecting-Windows.html">ウィンドウの選択</a>) of the window it uses.  This should
+avoid later use of this window by action functions like
+<code>display-buffer-use-some-window</code> and
+<code>display-buffer-use-least-recent-window</code> for showing another buffer.
+</p>
+<p>There is a fine difference between using this entry and using the action
+function <code>display-buffer-use-least-recent-window</code>.  Calling the latter
+means to only bump the use times of windows that function uses for
+displaying the buffer.  The entry described here will cause
+<code>display-buffer</code> to bump the use time of <em>any</em> window used for
+displaying a buffer.
 </p>
 <span id="index-pop_002dup_002dframe_002dparameters_002c-a-buffer-display-action-alist-entry"></span>
 </dd>
@@ -230,10 +315,16 @@ list.
 
 <p>慣例によりエントリー<code>window-height</code>、<code>window-width</code>、<code>preserve-size</code>は選択したウィンドウのバッファーのセットアップ後、かつそのウィンドウが以前に他のバッファーを表示していない場合のみ適用されます。後者はより正確にはカレントの<code>display-buffer</code>呼び出しによりウィンドウが作成されたか、以前にそのバッファーを表示するために<code>display-buffer</code>によりウィンドウが作成されて、カレントの<code>display-buffer</code>呼び出しによる再利用まで他のバッファーの表示に使用されたことがないことを意味します。
 </p>
-
+<p><code>window-height</code>、<code>window-width</code>、あるいは<code>window-size</code>のエントリーが何も指定されていない場合でも、そのバッファーが一時的なバッファーであり、かつ<code>temp-buffer-resize-mode</code>有効ならウィンドウは依然としてリサイズされる可能性があります。<a href="Temporary-Displays.html">一時的な表示</a>を参照してください。このような場合には特定のバッファーや<code>display-buffer</code>呼び出しにたいする<code>temp-buffer-resize-mode</code>のデフォルトの挙動の抑制やオーバーライドに<code>window-height</code>、<code>window-width</code>、あるいは<code>window-size</code>といったエントリーの<small>CDR</small>を用いることができます。
+</p>
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Choosing-Window-Options.html">バッファー表示の追加オプション</a>, Previous: <a href="Buffer-Display-Action-Functions.html">バッファー表示用のアクション関数</a>, Up: <a href="Displaying-Buffers.html">適切なウィンドウへのバッファーの表示</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-29, commit:f815b9e90c30cbe5ac5d76a99a446b112372fb3b to check Japanese translation.
+This page has generated for branch:work/emacs-29_a24e9e3fee59435422af0473b7ec585de2c13b4e, commit:ee3e732b549d150d98aba8394e735b6f152138bf to check Japanese translation.
 </body>
 </html>
