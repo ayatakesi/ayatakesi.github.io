@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="June 15, 2023">
+<meta name="date" content="June 18, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -58,7 +58,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="section" id="Autoload">
 <div class="header">
 <p>
@@ -72,7 +72,15 @@ Next: <a href="Repeated-Loading.html" accesskey="n" rel="next">多重ロード</
 自動ロード)</em>の機能により、定義されているファイルをロードすることなく関数やマクロの存在を登録できます。関数の最初の呼び出しで実際の定義およびその他の関連するコードをインストールするために適切なライブラリーを自動的にロードして、すべてがすでにロードされていたかのように実際の定義を実行します。関数やマクロのドキュメントの参照(<a href="Documentation-Basics.html">ドキュメントの基礎</a>を参照)、変数名や関数名の補完(以下の<a href="Autoload-by-Prefix.html">プレフィックスによるautoload</a>を参照)によってもオートロードが発生します。
 </p>
 
-<p>オートロードされた関数をセットアップするには2つの方法があります。それは<code>autoload</code>を呼び出す方法と、ソースの実際の定義の前に&ldquo;マジック&rdquo;コメントを記述する方法です。<code>autoload</code>はオートロードのための低レベルのプリミティブです。任意のLispプログラムが、任意のタイミングで<code>autoload</code>を呼び出すことができます。Emacsとともにインストールされるパッケージにとって、マジックコメントは関数をオートロードできるようににするための一番便利な方法です。そのコメント自身は何も行いませんが、コマンド<code>update-file-autoloads</code>にたいするガイドの役目を果たします。このコマンドは<code>autoload</code>の呼び出しを構築して、Emacsビルド時に実行されるようにアレンジします。
+<p>There are two ways to set up an autoloaded function: by calling
+<code>autoload</code>, and by writing a &ldquo;magic&rdquo; comment in the source before the
+real definition.  <code>autoload</code> is the low-level primitive for
+autoloading; any Lisp program can call <code>autoload</code> at any time.  Magic
+comments are the most convenient way to make a function autoload, for
+packages installed along with Emacs.  These comments do nothing on their
+own, but they serve as a guide for the command <code>update-file-autoloads</code>,
+which constructs calls to <code>autoload</code> and arranges to execute them when
+Emacs is built.
 </p>
 <dl class="def">
 <dt id="index-autoload-1"><span class="category">Function: </span><span><strong>autoload</strong> <em>function filename &amp;optional docstring interactive type</em><a href='#index-autoload-1' class='copiable-anchor'> &para;</a></span></dt>
@@ -88,7 +96,12 @@ Next: <a href="Repeated-Loading.html" accesskey="n" rel="next">多重ロード</
 </p>
 <p>普通の関数と同様、マクロとキーマップをオートロードできる。<var>function</var>が実際にはマクロなら<var>type</var>に<code>macro</code>、キーマップのなら<var>type</var>に<code>keymap</code>を指定する。Emacsのさまざまな部分では、実際の定義をロードせずにこれらの情報を知ることが必要とされる。
 </p>
-<p>オートロードされたキーマップは、あるプレフィクスキーがシンボル<var>function</var>にバインドされているとき、キーを探す間に自動的にロードされる。そのキーマップにたいする他の類のアクセスではオートロードは発生しない。特にLispプログラムが変数の値からそのキーマップを取得して<code>define-key</code>を呼び出した場合には、たとえその変数の名前がシンボル<var>function</var>と同じであってもオートロードは発生しない。
+<p>An autoloaded keymap loads automatically during key lookup when a prefix
+key&rsquo;s binding is the symbol <var>function</var>.  Autoloading does not occur for
+other kinds of access to the keymap.  In particular, it does not happen when
+a Lisp program gets the keymap from the value of a variable and calls
+<code>define-key</code>; not even if the variable name is the same symbol
+<var>function</var>.
 </p>
 <span id="index-function-cell-in-autoload"></span>
 <p><var>function</var>が非voidのオートロードされたオブジェクトではない関数定義をもつなら、その関数は何も行わずに<code>nil</code>をリターンする。それ以外ならオートロードされたオブジェクト(<a href="Autoload-Type.html">autoload型</a>を参照)を作成して、それを<var>function</var>にたいする関数定義として格納する。オートロードされたオブジェクトは以下の形式をもつ:
@@ -126,11 +139,16 @@ define function <var>function-name</var>&quot;</code>とともにエラーがシ
 <span id="index-make_002ddirectory_002dautoloads"></span>
 <span id="index-magic-autoload-comment"></span>
 <span id="index-autoload-cookie"></span>
-<span id="autoload-cookie"></span><p>オートロードのマジックコメント(<em>autoload
-cookie</em>とも呼ばれる)は、オートロード可能なソースファイル内の実際の定義の直前にある、&lsquo;<samp>;;;###autoload</samp>&rsquo;だけの行から構成されます。コマンド<kbd>M-x
-update-file-autoloads</kbd>は、対応する<code>autoload</code>呼び出しを<samp>loaddefs.el</samp>内に書き込みます(autoload
-cookieとなる文字列と<code>update-file-autoloads</code>で生成されるファイルの名前は、上述のデフォルトから変更可能です。以下参照)。Emacsのビルドでは<samp>loaddefs.el</samp>をロードするために<code>autoload</code>を呼び出します。更に強力なのは<kbd>M-x
-make-directory-autoloads</kbd>です。このコマンドはカレントディレクトリーにあるすべてのファイルにたいするautoloadを更新します。
+<span id="autoload-cookie"></span><p>A magic autoload comment (often called an <em>autoload cookie</em>)  consists
+of &lsquo;<samp>;;;###autoload</samp>&rsquo;, on a line by itself, just before the real
+definition of the function in its autoloadable source file.  The command
+<kbd>M-x update-file-autoloads</kbd> writes a corresponding <code>autoload</code> call
+into <samp>loaddefs.el</samp>.  (The string that serves as the autoload cookie and
+the name of the file generated by <code>update-file-autoloads</code> can be
+changed from the above defaults, see below.)  Building Emacs loads
+<samp>loaddefs.el</samp> and thus calls <code>autoload</code>.  <kbd>M-x
+make-directory-autoloads</kbd> is even more powerful; it updates autoloads for
+all files in the current directory.
 </p>
 <p>このマジックコメントは任意の種類のフォームを<samp>loaddefs.el</samp>内にコピーできます。このマジックコメントに続くフォームはそのままコピーされます。しかしオートロード機能が特別に処理するフォームの場合は<em>除外</em>されます(たとえば<code>autoload</code>内への変換)。以下はそのままコピーされないフォームです:
 </p>
@@ -147,14 +165,18 @@ Extensions</cite>を参照)、および<code>define-overloadable-function</code>
 </p>
 </dd>
 <dt><span>その他のタイプの定義:</span></dt>
-<dd><p><code>defcustom</code>、<code>defgroup</code>、<code>defclass</code>
-(<a data-manual="eieio" href="https://www.gnu.org/software/emacs/manual/html_node/eieio/index.html#Top">EIEIO</a> in <cite>EIEIO</cite>を参照)、および<code>define-skeleton</code>
-(<a data-manual="autotype" href="https://www.gnu.org/software/emacs/manual/html_node/autotype/index.html#Top">Autotyping</a> in <cite>Autotyping</cite>を参照)。
+<dd><p><code>defcustom</code>, <code>defgroup</code>, <code>defclass</code>
+(see <a data-manual="eieio" href="https://www.gnu.org/software/emacs/manual/html_node/eieio/index.html#Top">EIEIO</a> in <cite>EIEIO</cite>), and <code>define-skeleton</code>
+(see <a data-manual="autotype" href="https://www.gnu.org/software/emacs/manual/html_node/autotype/index.html#Top">Autotyping</a> in <cite>Autotyping</cite>).
 </p></dd>
 </dl>
 
-<p>ビルド時にそのファイル自身をロードするときにフォームを<em>実行しない</em>ようにするためにマジックコメントを使用することもできます。これを行なうにはマジックコメントと<em>同じ行</em>にフォームを記述します。これはコメントなのでソースファイルをロードするときには何も行いません。ただしビルド時に実行されたEmacsでは、<kbd>M-x
-update-file-autoloads</kbd>が<samp>loaddefs.el</samp>にコピーします。
+<p>You can also use a magic comment to execute a form at build time
+<em>without</em> executing it when the file itself is loaded.  To do this,
+write the form <em>on the same line</em> as the magic comment.  Since it is in
+a comment, it does nothing when you load the source file; but <kbd>M-x
+update-file-autoloads</kbd> copies it to <samp>loaddefs.el</samp>, where it is executed
+while building Emacs.
 </p>
 <p>以下はマジックコメントによるオートロードのために<code>doctor</code>を準備する例です:
 </p>
@@ -177,8 +199,13 @@ Switch to *doctor* buffer and start giving psychotherapy.
 </pre></div>
 
 <p><span id="index-fn-in-function_0027s-documentation-string"></span>
-ダブルクォートの直後のバックスラッシュと改行は、<samp>loaddefs.el</samp>のように事前ロードされる未コンパイルのLispファイルだけに用いられる慣習です。これらは<samp>etc/DOC</samp>ファイルにドキュメント文字列を配置するよう指示する文字です。<a href="Building-Emacs.html">Emacsのビルド</a>、および<samp>lib-src/make-docfile.c</samp>のコメントもされるしてください。ドキュメント文字列の使い方(usage
-part)の中の&lsquo;<samp>(fn)</samp>&rsquo;は、種々のヘルプ関数(<a href="Help-Functions.html">ヘルプ関数</a>を参照)が表示するときにその関数の名前に置き換えられます。
+The backslash and newline immediately following the double-quote are a
+convention used only in the preloaded uncompiled Lisp files such as
+<samp>loaddefs.el</samp>; they tell <code>make-docfile</code> to put the documentation
+string in the <samp>etc/DOC</samp> file.  See <a href="Building-Emacs.html">Emacsのビルド</a>.  See also the
+commentary in <samp>lib-src/make-docfile.c</samp>.  &lsquo;<samp>(fn)</samp>&rsquo; in the usage part
+of the documentation string is replaced with the function&rsquo;s name when the
+various help functions (see <a href="Help-Functions.html">ヘルプ関数</a>) display it.
 </p>
 <p>関数定義手法として既知ではなく、認められてもいないような、通常とは異なるマクロにより関数定義を記述した場合、通常のオートロードのマジックコメントの使用によって定義全体が<code>loaddefs.el</code>内にコピーされるでしょう。これは期待した動作ではありません。かわりに以下を記述することにより、意図した<code>autoload</code>呼び出しを<code>loaddefs.el</code>内に配置することができます。
 </p>
@@ -193,8 +220,10 @@ cookieとしてデフォルト以外の文字列を使用して、デフォル�
 </p>
 <dl class="def">
 <dt id="index-generate_002dautoload_002dcookie"><span class="category">Variable: </span><span><strong>generate-autoload-cookie</strong><a href='#index-generate_002dautoload_002dcookie' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この変数の値はLispコメントの構文をもつ文字列であること。<kbd>M-x
-update-file-autoloads</kbd>はcookieの後にあるLispフォームを、cookieが生成するオートロードファイル内にコピーする。この変数のデフォルト値は<code>&quot;;;;###autoload&quot;</code>。
+<dd><p>The value of this variable should be a string whose syntax is a Lisp
+comment.  <kbd>M-x update-file-autoloads</kbd> copies the Lisp form that follows
+the cookie into the autoload file it generates.  The default value of this
+variable is <code>&quot;;;;###autoload&quot;</code>.
 </p></dd></dl>
 
 <dl class="def">
@@ -223,6 +252,6 @@ Next: <a href="Repeated-Loading.html">多重ロード</a>, Previous: <a href="Lo
 </div>
 
 
-This page has generated for branch:emacs-28, commit:cac8dfb1bd89b31e72553ac028e41743511e7485 to check Japanese translation.
+This page has generated for branch:emacs-29, commit:f815b9e90c30cbe5ac5d76a99a446b112372fb3b to check Japanese translation.
 </body>
 </html>
