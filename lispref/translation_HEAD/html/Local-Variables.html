@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="June 15, 2023">
+<meta name="date" content="June 21, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -58,7 +58,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="section" id="Local-Variables">
 <div class="header">
 <p>
@@ -87,11 +87,18 @@ bound)</em>されていると言い、その変数を<em>ローカル変数(loca
 <p>変数は同時に複数のローカルバインディングを持つことができます(たとえばその変数をバインドするネストされた<code>let</code>)。<em>カレントバインディング(current
 binding)</em>とは、実際に効果を持つローカルバインディングのことです。カレントバインディングは、その変数の評価によりリターンされる値を決定し、<code>setq</code>により影響を受けるバインディングです。
 </p>
-<p>ほとんどの用途において、最内(innermost)のローカルバインディングとローカルバインディングをもたないグローバルバインディングを、カレントバインディングと考えることができます。より正確に言うと、<em>スコープルール(scoping
-rule)</em>と呼ばれるルールは、プログラム内でローカルバインディングが効果を持つ任意の与えられた場所を決定します。Emacs
-Lispのスコープルールは<em>ダイナミックスコープ(dynamic
-scoping)</em>と呼ばれ、これは単に実行中のプログラム内の与えられた位置でのカレントバインディングを示しており、その変数がまだ存在すれば、その変数にたいしてもっとも最近作成されたバインディングです。ダイナミックスコープについての詳細、およびその代替である<em>レキシカルスコープ(lexical
-scoping)</em>と呼ばれるスコープルールについては、<a href="Variable-Scoping.html">変数のバインディングのスコーピングルール</a>を参照してください。
+<p>For most purposes, you can think of the current binding as the innermost
+local binding, or the global binding if there is no local binding.  To be
+more precise, a rule called the <em>scoping rule</em> determines where in a
+program a local binding takes effect.  The default scoping rule in Emacs
+Lisp is called <em>dynamic scoping</em>, which simply states that the current
+binding at any given point in the execution of a program is the most
+recently-created binding for that variable that still exists.  For details
+about dynamic scoping, and an alternative scoping rule called <em>lexical
+scoping</em>, see <a href="Variable-Scoping.html">変数のバインディングのスコーピングルール</a>.  Lately Emacs is moving towards using
+lexical binding in more and more places, with the goal of eventually making
+lexical binding the default.  In particular, all Emacs Lisp source files and
+the <samp>*scratch*</samp> buffer use lexical scoping.
 </p>
 <p>スペシャルフォーム<code>let</code>と<code>let*</code>は、ローカルバインディングを作成するために存在します:
 </p>
@@ -141,6 +148,16 @@ scoping)</em>と呼ばれるスコープルールについては、<a href="Vari
   (list y z))
      &rArr; (1 1)
 </pre></div>
+
+<p>Basically, the <code>let*</code> binding of <code>x</code> and <code>y</code> in the previous
+example is equivalent to using nested <code>let</code> bindings:
+</p>
+<div class="example">
+<pre class="example">(let ((y 1))
+  (let ((z y))
+    (list y z)))
+</pre></div>
+
 </dd></dl>
 
 <dl class="def">
@@ -201,19 +218,6 @@ calls)</em>としての最適化が保証される。これは再帰の実行深
 
 <p>変数はバッファーローカルなバインディングを持つこともできます(<a href="Buffer_002dLocal-Variables.html">バッファーローカル変数</a>を参照)。数は多くありませんが、端末ローカル(terminal-local)なバインディングをもつ変数もあります(<a href="Multiple-Terminals.html">複数の端末</a>を参照)。この種のバインディングは、通常のローカルバインディングのように機能することもありますが、これらはEmacs内のどこにいるかに依存してローカルになります。
 </p>
-<dl class="def">
-<dt id="index-max_002dspecpdl_002dsize"><span class="category">User Option: </span><span><strong>max-specpdl-size</strong><a href='#index-max_002dspecpdl_002dsize' class='copiable-anchor'> &para;</a></span></dt>
-<dd><span id="Definition-of-max_002dspecpdl_002dsize"></span><span id="index-variable-limit-error"></span>
-<span id="index-evaluation-error"></span>
-<span id="index-infinite-recursion"></span>
-<p>この変数はEmacsが(<code>&quot;Variable binding depth exceeds
-max-specpdl-size&quot;</code>というデータとともに)エラーをシグナルするまでに許容される、ローカル変数のバインディングと<code>unwind-protect</code>クリーンアップ(<a href="Cleanups.html">Cleaning Up from Nonlocal Exits</a>を参照)の合計数にたいする制限を定義する。
-</p>
-<p>不正に定義された関数における無限再帰をLispが回避するための1つの手段が、この制限およびそれを超過した際に関連付けられたエラーである。入れ子(nest)の深さにたいする別の制限として<code>max-lisp-eval-depth</code>が提供されている。<a href="Eval.html#Definition-of-max_002dlisp_002deval_002ddepth">Eval</a>を参照のこと。
-</p>
-<p>デフォルト値は1600。Lispデバッガにエントリーできるように、余裕が残り少なければデバッガ自体の実行を保証するために値は増加される。
-</p></dd></dl>
-
 </div>
 <hr>
 <div class="header">
@@ -222,6 +226,6 @@ Next: <a href="Void-Variables.html">変数がvoidのとき</a>, Previous: <a hre
 </div>
 
 
-This page has generated for branch:emacs-28, commit:cac8dfb1bd89b31e72553ac028e41743511e7485 to check Japanese translation.
+This page has generated for branch:work/emacs-29_a24e9e3fee59435422af0473b7ec585de2c13b4e, commit:23f22782c87cb57ea403759f1f46ed71b4528347 to check Japanese translation.
 </body>
 </html>

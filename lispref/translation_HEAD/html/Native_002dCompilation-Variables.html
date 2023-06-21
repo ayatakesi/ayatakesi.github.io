@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="June 15, 2023">
+<meta name="date" content="June 21, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -57,7 +57,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="section" id="Native_002dCompilation-Variables">
 <div class="header">
 <p>
@@ -128,16 +128,84 @@ Previous: <a href="Native_002dCompilation-Functions.html" accesskey="p" rel="pre
 
 <dl class="def">
 <dt id="index-native_002dcomp_002dasync_002dquery_002don_002dexit"><span class="category">User Option: </span><span><strong>native-comp-async-query-on-exit</strong><a href='#index-native_002dcomp_002dasync_002dquery_002don_002dexit' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この変数の値が非<code>nil</code>なら、Emacsはexitに際して実行中のネイティブコンパイルの非同期サブプロセスをすべてkillしてexitするかどうかを尋ねる(対応する<samp>.eln</samp>ファイルへの書き込みを防ぐため)。値が<code>nil</code>
-(デフォルト)なら、Emacsは問い合わせを行わずにそれらのサブプロセスをkillする。
+<dd><p>If this variable&rsquo;s value is non-<code>nil</code>, Emacs will query upon exiting
+whether to exit and kill any asynchronous native-compilation subprocesses
+that are still running, thus preventing the corresponding <samp>.eln</samp> files
+from being written.  If the value is <code>nil</code>, the default, Emacs will
+kill these subprocesses without querying.
 </p></dd></dl>
 
 <p>変数<code>native-comp-eln-load-path</code>はEmacsが<samp>*.eln</samp>ファイルを探すディレクトリーのリストを保持します(<a href="Library-Search.html">ライブラリー検索</a>を参照)。これは役割りの面では<samp>*.el</samp>や<samp>*.elc</samp>のファイルを探すために使用される<code>load-path</code>と同じです。このリストにあるディレクトリーは非同期のネイティブコンパイルによって生成された<samp>*.eln</samp>ファイルの書き込みにも使用されます。特にEmacsはこのリスト中の最初に書き込み可能なディレクトリーにファイルを書き込むでしょう。したがってこの変数の値を変更することで、ネイティブコンパイルが結果を格納する場所を制御することができます。
 </p>
+<span id="index-disable-asynchronous-native-compilation"></span>
+<span id="index-inhibit-asynchronous-native-compilation"></span>
+<span id="index-asynchronous-native-compilation_002c-disable"></span>
+<dl class="def">
+<dt id="index-native_002dcomp_002djit_002dcompilation"><span class="category">Variable: </span><span><strong>native-comp-jit-compilation</strong><a href='#index-native_002dcomp_002djit_002dcompilation' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This variable, if non-<code>nil</code>, enables asynchronous (a.k.a.
+<em>just-in-time</em>, or <acronym>JIT</acronym>) native compilation of the <samp>*.elc</samp>
+files loaded by Emacs for which the corresponding <samp>*.eln</samp> files do not
+already exist.  This JIT compilation uses separate Emacs sub-processes
+running in batch mode, according to the value of
+<code>native-comp-async-jobs-number</code>.  When the JIT compilation of a Lisp
+file finishes successfully, the resulting <samp>.eln</samp> file is loaded and its
+code replaces the definition of functions provided by the <samp>.elc</samp> file.
+</p></dd></dl>
 
+<span id="index-trampolines_002c-in-native-compilation"></span>
+<p>Setting the value of <code>native-comp-jit-compilation</code> to<code>nil</code>
+disables JIT native compilation.  However, even when JIT native compilation
+is disabled, Emacs might still need to start asynchronous native compilation
+subprocesses to produce <em>trampolines</em>.  To control this, use a separate
+variable, described below.
+</p>
+<dl class="def">
+<dt id="index-native_002dcomp_002denable_002dsubr_002dtrampolines"><span class="category">Variable: </span><span><strong>native-comp-enable-subr-trampolines</strong><a href='#index-native_002dcomp_002denable_002dsubr_002dtrampolines' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This variable controls generation of trampolines.  A trampoline is a small
+piece of native code required to allow calling Lisp primitives, which were
+advised or redefined, from Lisp code that was natively-compiled with
+<code>native-comp-speed</code> set to 2 or greater.  Emacs stores the generated
+trampolines on separate <samp>*.eln</samp> files.  By default, this variable&rsquo;s
+value is <code>t</code>, which enables the generation of trampoline files; setting
+it to <code>nil</code> disables the generation of trampolines.  Note that if a
+trampoline needed for advising or redefining a primitive is not available
+and cannot be generated, calls to that primitive from natively-compiled Lisp
+will ignore redefinitions and advices, and will behave as if the primitive
+was called directly from C.  Therefore, we don&rsquo;t recommend disabling the
+trampoline generation, unless you know that all the trampolines needed by
+your Lisp programs are already compiled and accessible to Emacs.
+</p>
+<p>The value of this variable can also be a string, in which case it specifies
+the name of a directory in which to store the generated trampoline
+<samp>*.eln</samp> files, overriding the directories in
+<code>native-comp-eln-load-path</code>.  This is useful if you want the
+trampolines to be generated as needed, but don&rsquo;t want to store them under
+the user&rsquo;s <code>HOME</code> directory or in the other public directories where
+<samp>*.eln</samp> files are kept.  However, unlike with directories in
+<code>native-comp-eln-load-path</code>, the trampolines will be stored in the
+directory given by the value of this variable, not in its version-specific
+subdirectory.  If the name of this directory is not absolute, it is
+interpreted relative to <code>invocation-directory</code> (see <a href="System-Environment.html">オペレーティングシステムの環境</a>)
+</p>
+<p>If this variable is non-<code>nil</code>, and Emacs needs to produce a trampoline,
+but it cannot find any writable directory to store the trampoline, it will
+store it inside <code>temporary-file-directory</code> (see <a href="Unique-File-Names.html">一意なファイル名の生成</a>).
+</p>
+<p>Trampolines produced when no writable directory is found to store them, or
+when this variable is a string, will only be available for the duration of
+the current Emacs session, because Emacs doesn&rsquo;t look for trampolines in
+either of these places.
+</p></dd></dl>
+
+
+</div>
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Native_002dCompilation-Functions.html">ネイティブコンパイル関数</a>, Up: <a href="Native-Compilation.html">Lispからネイティブコードへのコンパイル</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-28, commit:cac8dfb1bd89b31e72553ac028e41743511e7485 to check Japanese translation.
+This page has generated for branch:work/emacs-29_a24e9e3fee59435422af0473b7ec585de2c13b4e, commit:23f22782c87cb57ea403759f1f46ed71b4528347 to check Japanese translation.
 </body>
 </html>

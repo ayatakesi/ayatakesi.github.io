@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="June 15, 2023">
+<meta name="date" content="June 21, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -57,63 +57,98 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="subsection" id="Warning-Basics">
 <div class="header">
 <p>
 Next: <a href="Warning-Variables.html" accesskey="n" rel="next">警告のための変数</a>, Up: <a href="Warnings.html" accesskey="u" rel="up">警告のレポート</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="Jing-Gao-noJi-Chu-"></span><h4 class="subsection">40.5.1 警告の基礎</h4>
+<span id="Jing-Gao-noJi-Chu-"></span><h4 class="subsection">41.5.1 警告の基礎</h4>
 <span id="index-severity-level"></span>
 
-<p>すべての警告は、ユーザーに問題を説明するためのテキストのメッセージと、<em>重大レベル(severity
-level)</em>をもっています。重大レベルはシンボルです。以下は可能性のある重大レベルとその意味を、重大度の降順でリストしたものです:
+<p>Every warning is a textual message, which explains the problem for the user,
+with the associated <em>severity level</em> which is a symbol.  Here are the
+supported severity levels, in order of decreasing severity, and their
+meanings:
 </p>
 <dl compact="compact">
 <dt><span><code>:emergency</code></span></dt>
-<dd><p>直ちに対処しなければEmacs処理が間もなく深刻に害される問題。
+<dd><p>A problem that will seriously impair Emacs operation soon if the user does
+not attend to it promptly.
 </p></dd>
 <dt><span><code>:error</code></span></dt>
-<dd><p>本質的に悪いデータや状況のリポート。
+<dd><p>A report about data or circumstances that are inherently wrong.
 </p></dd>
 <dt><span><code>:warning</code></span></dt>
-<dd><p>本質的に悪くはないが、可能性のある問題を励起する恐れのあるデータや状況のリポート。
+<dd><p>A report about data or circumstances that are not inherently wrong, but
+raise suspicion of a possible problem.
 </p></dd>
 <dt><span><code>:debug</code></span></dt>
-<dd><p>デバッグ中なら有用かもしれない情報のリポート。
+<dd><p>A report of information that may be useful if the user is currently
+debugging the Lisp program which issues the warning.
 </p></dd>
 </dl>
 
-<p>あなたのプログラムが無効な入力データに遭遇した際には、<code>error</code>呼び出しによるLispエラーのシグナルするか、または重大度<code>:error</code>の警告をリポートすることができます。Lispエラーのシグナルはもっとも簡単に行えることですが、それはプログラムが処理を継続できないことを意味します。間違ったデータでも処理を継続するための方法を実装するためにトラブルを受け取めたい場合には、その問題をユーザーに知らせるために重大度<code>:error</code>の警告をリポートするのが正しい方法です。たとえばEmacs
-Lispバイトコンパイラーはこの方法によりエラーを報告して、他の関数のコンパイルを継続できます(プログラムがLispエラーをシグナルして<code>condition-case</code>でhandleしたならユーザーがそのエラーを確認することはないだろう。これは警告としてリポートすることによりユーザーにメッセージを示すことができる)。
+<p>When your program encounters invalid input data, it can either signal a Lisp
+error by calling <code>error</code> or <code>signal</code> (see <a href="Signaling-Errors.html">エラーをシグナルする方法</a>) or
+report a warning with severity <code>:error</code>.  Signaling a Lisp error is the
+easiest thing to do, but it means the signaling program cannot continue
+execution.  If you want to take the trouble of implementing a way to
+continue processing despite the invalid data, then reporting a warning of
+severity <code>:error</code> is the right way of informing the user of the
+problem.  For instance, the Emacs Lisp byte compiler can report an error
+that way and continue compiling other functions.  (If the program signals a
+Lisp error and then handles it with <code>condition-case</code>, the user won&rsquo;t
+see the error message; reporting that as a warning instead avoids that
+problem.)
 </p>
 <span id="index-warning-type"></span>
-<p>クラス分けのために警告にはそれぞれ<em>警告タイプ(warning
-type)</em>があります。このタイプはシンボルのリストです。最初のシンボルはそのプログラムのユーザーオプションとして使用するカスタムグループであるべきです。たとえばバイトコンパイラーの警告は警告タイプ<code>(bytecomp)</code>を使用します。もし望むなら、このリスト内で更にシンボルを使用することにより警告をサブカテゴリー化することもできます。
+<p>In addition to severity level, each warning has a <em>warning type</em> to
+classify it.  The warning type is either a symbol or a list of symbols.  If
+it is a symbol, it should be the custom group that you use for the program&rsquo;s
+user options; if it is a list, the first element of the list should be that
+custom group.  For example, byte compiler warnings use the warning type
+<code>(bytecomp)</code>.  If the warning type is a list, the elements of the list
+after the first one, which should be arbitrary symbols, represent
+subcategories of the warning: they will be displayed to the user to better
+explain the nature of the warning.
 </p>
 <dl class="def">
 <dt id="index-display_002dwarning"><span class="category">Function: </span><span><strong>display-warning</strong> <em>type message &amp;optional level buffer-name</em><a href='#index-display_002dwarning' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数はメッセージとして<var>message</var>、警告タイプとして<var>type</var>を使用して警告をリポートする。<var>level</var>は重大レベルであること。デフォルトは<code>:warning</code>。
+<dd><p>This function reports a warning, using the string <var>message</var> as the
+warning text and <var>type</var> as the warning type.  <var>level</var> should be the
+severity level, and defaults to <code>:warning</code> if omitted or <code>nil</code>.
 </p>
-<p><var>buffer-name</var>が非<code>nil</code>なら、それは警告をロギングするためのバッファー名を指定する。デフォルトは<samp>*Warnings*</samp>。
+<p><var>buffer-name</var>, if non-<code>nil</code>, specifies the name of the buffer for
+logging the warning message.  By default, it is <samp>*Warnings*</samp>.
 </p></dd></dl>
 
 <dl class="def">
 <dt id="index-lwarn"><span class="category">Function: </span><span><strong>lwarn</strong> <em>type level message &amp;rest args</em><a href='#index-lwarn' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数は<samp>*Warnings*</samp>バッファー内のメッセージとして<code>(format-message <var>message</var>
-<var>args</var>...)</code>の値を使用して警告をリポートする。他の点ではこれは<code>display-warning</code>と同じ。
+<dd><p>This function reports a warning using the value returned by
+<code><span class="nolinebreak">(format-message</span>&nbsp;<var>message</var>&nbsp;<var>args</var>&hellip;)</code><!-- /@w --> as the message
+text in the <samp>*Warnings*</samp> buffer.  In other respects it is equivalent to
+<code>display-warning</code>.
 </p></dd></dl>
 
 <dl class="def">
 <dt id="index-warn"><span class="category">Function: </span><span><strong>warn</strong> <em>message &amp;rest args</em><a href='#index-warn' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数はメッセージとして<code>(format-message <var>message</var>
-<var>args</var>...)</code>の値、タイプとして<code>(emacs)</code>、重大レベルとして<code>:warning</code>を使用して警告をリポートする。これは互換性のためだけに存在する。固有な警告タイプを指定するべきであり、この関数の使用は推奨しない。
+<dd><p>This function reports a warning using the value returned by
+<code><span class="nolinebreak">(format-message</span>&nbsp;<var>message</var>&nbsp;<var>args</var>&hellip;)</code><!-- /@w --> as the message
+text, <code>emacs</code> as the warning type, and <code>:warning</code> as the severity
+level.  It exists for compatibility only; we recommend not using it, because
+you should specify a specific warning type.
 </p></dd></dl>
 
 </div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Warning-Variables.html">警告のための変数</a>, Up: <a href="Warnings.html">警告のレポート</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
-This page has generated for branch:emacs-28, commit:cac8dfb1bd89b31e72553ac028e41743511e7485 to check Japanese translation.
+This page has generated for branch:work/emacs-29_a24e9e3fee59435422af0473b7ec585de2c13b4e, commit:23f22782c87cb57ea403759f1f46ed71b4528347 to check Japanese translation.
 </body>
 </html>

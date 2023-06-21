@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="June 15, 2023">
+<meta name="date" content="June 21, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -58,7 +58,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="section" id="Where-Defined">
 <div class="header">
 <p>
@@ -70,10 +70,12 @@ Next: <a href="Unloading.html" accesskey="n" rel="next">アンロード</a>, Pre
 <span id="index-where-was-a-symbol-defined"></span>
 
 <dl class="def">
-<dt id="index-symbol_002dfile"><span class="category">Function: </span><span><strong>symbol-file</strong> <em>symbol &amp;optional type</em><a href='#index-symbol_002dfile' class='copiable-anchor'> &para;</a></span></dt>
+<dt id="index-symbol_002dfile"><span class="category">Function: </span><span><strong>symbol-file</strong> <em>symbol &amp;optional type native-p</em><a href='#index-symbol_002dfile' class='copiable-anchor'> &para;</a></span></dt>
 <dd><p>この関数は<var>symbol</var>を定義しているファイルの名前をリターンする。<var>type</var>が<code>nil</code>なら、どのようなタイプの定義も受け入れる。<var>type</var>が<code>defun</code>なら関数定義、<code>defvar</code>は変数定義、<code>defface</code>はフェイス定義だけを指定する。
 </p>
 <p>値は通常は絶対ファイル名である。定義がどのファイルにも関係しなければ<code>nil</code>になることもある。<var>symbol</var>がオートロード関数を指定するなら、値が拡張子なしの相対ファイル名になることもある。
+</p>
+<p>オプションの3番目の引数<var>native-p</var>が非<code>nil</code>、かつネイティブコンパイルのサポートつき(<a href="Native-Compilation.html">Lispからネイティブコードへのコンパイル</a>を参照)でビルドされたEmacsの場合には、この関数は<samp>.elc</samp>や<samp>.el</samp>といったファイルではなく、<samp>.eln</samp>ファイルで定義された<var>symbol</var>を探そうと試みる。そのような<samp>.eln</samp>ファイルが見つかり古くなっていなければ、この関数は絶対ファイル名をリターンする。それ以外の場合にはソースファイルかバイトコンパイル済みファイルのいずれかの名前をリターンする。
 </p></dd></dl>
 
 <p><code>symbol-file</code>は変数<code>load-history</code>の値にもとづく。
@@ -89,14 +91,8 @@ Next: <a href="Unloading.html" accesskey="n" rel="next">アンロード</a>, Pre
 <dd><p>シンボル<var>var</var>が変数として定義された。
 </p></dd>
 <dt><span><code>(defun . <var>fun</var>)</code></span></dt>
-<dd><p>関数<var>fun</var>が定義された。
-</p></dd>
-<dt><span><code>(t . <var>fun</var>)</code></span></dt>
-<dd><p>関数<var>fun</var>は、このライブラリーが関数として再定義される前はautoloadだった。後続する要素は常に<code>(defun
-. <var>fun</var>)</code>であり、これは<var>fun</var>を関数として定義することを表す。
-</p></dd>
-<dt><span><code>(autoload . <var>fun</var>)</code></span></dt>
-<dd><p>関数<var>fun</var>はautoloadとして定義された。
+<dd><p>The function <var>fun</var> was defined.  <code>(defun . <var>fun</var>)</code>, which
+represents defining <var>fun</var> as a function.
 </p></dd>
 <dt><span><code>(defface . <var>face</var>)</code></span></dt>
 <dd><p>フェイス<var>face</var>が定義された。
@@ -120,9 +116,14 @@ Next: <a href="Unloading.html" accesskey="n" rel="next">アンロード</a>, Pre
 
 <p>コマンド<code>eval-region</code>は<code>load-history</code>を更新しますが、要素を置き換えずに、visitされているファイルの要素にたいして定義されたシンボルを追加します。<a href="Eval.html">evalについて</a>を参照してください。
 </p>
+<span id="index-function_002dhistory-_0028function-symbol-property_0029"></span>
+<p><code>load-history</code>に加えて、関数はそれぞれシンボルプロパティ<code>function-history</code>で自身のヒストリーを追跡します。この点において関数が特別扱いされる理由は、関数は2つの異なるファイルにおいて2段階で定義されることがよくある(典型的にはそのうちの一方がautoloadされる)ので、ファイルを正しい<em>unload</em>を可能にするために、そのファイルが関数定義に何を行ったかをより正確に知る必要があるのです。
+</p>
+<p>シンボルプロパティ<code>function-history</code>には<code>(<var>file1</var>&nbsp;<var>def2</var>&nbsp;<var>file2</var>&nbsp;<var>def3</var>&nbsp;...)</code><!-- /@w -->という形式のリストが保持されています。ここで<var>file1</var>は定義を最後に変更したファイル、<var>def2</var>は<var>file1</var>の前に<var>file2</var>によってセットされた定義、...となります。論理的にはこのリストの最後はその関数を最初に定義したファイルですが、容量削減のために通常は最後の要素は省略されます。
+</p>
 </div>
 
 
-This page has generated for branch:emacs-28, commit:cac8dfb1bd89b31e72553ac028e41743511e7485 to check Japanese translation.
+This page has generated for branch:work/emacs-29_a24e9e3fee59435422af0473b7ec585de2c13b4e, commit:23f22782c87cb57ea403759f1f46ed71b4528347 to check Japanese translation.
 </body>
 </html>

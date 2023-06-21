@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="June 15, 2023">
+<meta name="date" content="June 21, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -58,38 +58,55 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="section" id="Time-Conversion">
 <div class="header">
 <p>
 Next: <a href="Time-Parsing.html" accesskey="n" rel="next">時刻のパースとフォーマット</a>, Previous: <a href="Time-Zone-Rules.html" accesskey="p" rel="prev">タイムゾーンのルール</a>, Up: <a href="System-Interface.html" accesskey="u" rel="up">オペレーティングシステムのインターフェース</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="Shi-Ke-noBian-Huan-"></span><h3 class="section">41.7 時刻の変換</h3>
+<span id="Shi-Ke-noBian-Huan-"></span><h3 class="section">42.7 時刻の変換</h3>
 <span id="index-calendrical-information"></span>
 <span id="index-time-conversion"></span>
 
 <p>以下の関数はtime値(<a href="Time-of-Day.html">時刻</a>を参照)をLispタイムスタンプ暦情報に変換したり逆の変換を行います。
 </p>
-<p>32ビットオペレーティングシステムの多くでは、秒の要素に32ビット情報が含まれるシステム時刻に制限されています。これらのシステムが処理できるのは、通常は協定世界時の1901-12-13
-20:45:52から2038-01-19
-03:14:07までだけです。ただし64ビットのオペレーティングシステムや一部の32ビットのオペレーティングシステムではより大きな秒の要素をもつことができ、より遠い過去や将来の時刻を表すことができます。
+<p>秒を数えるために多くのオペレーティングシステムは64ビット符号付き整数を使用しており、過去や未来の時刻を表すことができます。しかしより制限されているオペレーティングシステムもいくつか存在します。たとえば32ビット符号付き整数を使用する旧式のオペレーティングシステムでは、通常は協定世界時で1901-12-13
+20:45:52から2038-01-19 03:14:07までの時刻しか扱うことができません。
 </p>
-<p>暦変換関数は、たとえグレゴリオ暦導入前の日付であっても常にグレゴリオ暦を使用します。伝統的なグレゴリオ年が行うように0年をスキップせずにBC.
-1年から年数を数えます。たとえば年数-37はグレゴリオ年のBC. 38年を表します。
+<p>Calendrical conversion functions use the Gregorian calendar even for dates
+before the Gregorian calendar was introduced, and for dates in the far
+distant past or future for which the Gregorian calendar is wildly inaccurate
+and disagrees with common practice in scientific fields like astronomy and
+paleontology, which use Julian-calendar year lengths.  Year numbers count
+since the year 1 BCE, and do not skip zero as traditional Gregorian years
+do; for example, the year number -37 represents the Gregorian year 38
+BCE.
 </p>
 <dl class="def">
-<dt id="index-time_002dconvert"><span class="category">Function: </span><span><strong>time-convert</strong> <em>time &amp;optional form</em><a href='#index-time_002dconvert' class='copiable-anchor'> &para;</a></span></dt>
+<dt id="index-time_002dconvert"><span class="category">Function: </span><span><strong>time-convert</strong> <em>time form</em><a href='#index-time_002dconvert' class='copiable-anchor'> &para;</a></span></dt>
 <dd><p>この関数はtime値をLispタイムスタンプに変換する。
 </p>
-<p>オプションの<var>form</var>引数はリターンするタイムスタンプ形式を指定する。この関数は<var>form</var>がシンボル<code>integer</code>なら整数でカウントした秒数をリターンする。正の整数の<var>form</var>はクロック周波数を指定する。その場合にはこの関数は<code>(<var>ticks</var>
-.
-<var>form</var>)</code>という整数ペアのタイムスタンプをリターンする<a id="DOCF29" href="#FOOT29"><sup>29</sup></a>。<var>form</var>が<code>t</code>なら、この関数はタイムスタンプを適切に表現するような正の整数としてそれを扱う。たとえば<var>time</var>が<code>nil</code>でプラットフォームのタイムスタンプがナノ秒の解像度をもつ場合には1000000000としてそれを扱う。<var>form</var>が<code>list</code>なら、この関数は整数のリスト<code>(<var>high</var>
-<var>low</var> <var>micro</var>
-<var>pico</var>)</code>をリターンする。現在のところ<var>form</var>が省略、あるいは<code>nil</code>の場合には<code>list</code>のように動作するとしても、Emacsの将来バージョンで変更が予定されているので、呼び出し側がリスト形式のタイムスタンプを必要とする場合には明示的に<code>list</code>を渡すこと。
+<p>The <var>form</var> argument specifies the timestamp form to be returned.  If
+<var>form</var> is the symbol <code>integer</code>, this function returns an integer
+count of seconds.  If <var>form</var> is a positive integer, it specifies a clock
+frequency and this function returns an integer-pair timestamp
+<code>(<var>ticks</var> . <var>form</var>)</code>.  If <var>form</var> is <code>t</code>, this function
+treats it as a positive integer suitable for representing the timestamp; for
+example, it is treated as 1000000000 if <var>time</var> is <code>nil</code> and the
+platform timestamp has nanosecond resolution.  If <var>form</var> is <code>list</code>,
+this function returns an integer list <code>(<var>high</var> <var>low</var>
+<var>micro</var> <var>pico</var>)</code>.  Although a <code>nil</code> <var>form</var> currently acts
+like <code>list</code>, this is planned to change in a future Emacs version, so
+callers requiring list timestamps should pass <code>list</code> explicitly.
 </p>
-<p><var>time</var>が無限値(infinite)や非数(NaN: not a
-number)なら、この関数はエラーをシグナルする。それ以外の場合には、<var>time</var>を正確に表せなければ負の無限大方向に切り詰めて変換する。<var>form</var>が<code>t</code>なら変換は常に正確なので切り詰めは発生せず、リターン値のクロック解像度が<var>time</var>の解像度より小さくなることはない。それとは対照的に<code>float-time</code>はLispのtime値すべてをエラーをシグナルせずに変換できるものの、結果は不正確かもしれない。<a href="Time-of-Day.html">時刻</a>を参照のこと。
+<p>If <var>time</var> is not a time value, this function signals an error.
+Otherwise, if <var>time</var> cannot be represented exactly, conversion truncates
+it toward minus infinity.  When <var>form</var> is <code>t</code>, conversion is always
+exact so no truncation occurs, and the returned clock resolution is no less
+than that of <var>time</var>.  By way of contrast, although <code>float-time</code> can
+also convert any time value without signaling an error, the result might not
+be exact.  See <a href="Time-of-Day.html">時刻</a>.
 </p>
 <p>この関数は効率化のために<var>time</var>と<code>eq</code>な値、あるいは<var>time</var>と構造を共有する値をリターンするかもしれない。
 </p>
@@ -156,67 +173,49 @@ number)なら、この関数はエラーをシグナルする。それ以外の�
 nil
 0)</code>をリターンする。<var>form</var>が省略か<code>nil</code>の場合のデフォルトは現在のところ<code>integer</code>だが、このデフォルトはEmacsの将来バージョンで変更されるかもしれないので、呼び出し側は特定の形式が必要なら<var>form</var>を指定すること。
 </p>
-<p><strong>Common Lispに関する注意:</strong> Common
-Lispでは<var>dow</var>、<var>utcoff</var>の意味が異なり、<var>second</var>は0から59(両端を含む)の整数である。
+<p><strong>Common Lisp Note:</strong> Common Lisp has different meanings for <var>dow</var>,
+<code>dst</code> and <var>utcoff</var>, and its <var>second</var> is an integer between 0
+and 59 inclusive.
 </p>
-<p>time値の要素にアクセス(や変更)するためのアクセッサとして<code>decoded-time-second</code>、<code>decoded-time-minute</code>、<code>decoded-time-hour</code>、<code>decoded-time-day</code>、<code>decoded-time-month</code>、<code>decoded-time-year</code>、<code>decoded-time-weekday</code>、<code>decoded-time-dst</code>、<code>decoded-time-zone</code>を使用できる。
-</p>
-<p>たとえばデコードしたtimeの年を増加させるには以下のようにすればよい:
-</p>
-<div class="example lisp">
-<pre class="lisp">(setf (decoded-time-year decoded-time)
-      (+ (decoded-time-year decoded-time) 4))
-</pre></div>
-
-<p>以下の関数も参照されたい。
-</p>
-</dd></dl>
-
-<dl class="def">
-<dt id="index-decoded_002dtime_002dadd"><span class="category">Function: </span><span><strong>decoded-time-add</strong> <em>time delta</em><a href='#index-decoded_002dtime_002dadd' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数はデコード済みtime構造体を受け取り、(同じくデコード済みtime構造体である)<var>delta</var>を加える。<var>delta</var>内の<code>nil</code>の要素は無視される。
-</p>
-<p>たとえば&ldquo;翌月同日&rdquo;を得たければ以下のようにする:
-</p>
-<div class="example lisp">
-<pre class="lisp">(let ((time (decode-time nil nil t))
-      (delta (make-decoded-time :month 2)))
-   (encode-time (decoded-time-add time delta)))
-</pre></div>
-
-<p>存在しない日付(たとえば1月31日に実行)の場合には、有効な日付が得られるまで後方にずらした日付(状況に応じて2月の28日か29日)となる。
-</p>
-<p>フィールドは重要度の高いものから低いもの順に追加されるので、上述の調整は日、時、分、秒を追加する前に発生する。
-</p>
-<p>値の減算を行えるように<var>delta</var>内に負の値を指定できる。
-</p>
-<p>リターン値はデコード済みtime構造体。
+<p>To access (or alter) the elements in the calendrical information, the
+<code>decoded-time-second</code>, <code>decoded-time-minute</code>,
+<code>decoded-time-hour</code>, <code>decoded-time-day</code>,
+<code>decoded-time-month</code>, <code>decoded-time-year</code>,
+<code>decoded-time-weekday</code>, <code>decoded-time-dst</code> and
+<code>decoded-time-zone</code> accessors can be used.
 </p></dd></dl>
-
-<dl class="def">
-<dt id="index-make_002ddecoded_002dtime"><span class="category">Function: </span><span><strong>make-decoded-time</strong> <em>&amp;key second minute hour day month year dst zone</em><a href='#index-make_002ddecoded_002dtime' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>与えられたキーワードだけを満たし、他は<code>nil</code>であるようなデコード済みtime構造体をリターンする。たとえば&ldquo;2ヶ月(two
-months)&rdquo;を表すデコード済みtime構造体を得るには以下のようにすればよい:
-</p>
-<div class="example lisp">
-<pre class="lisp">(make-decoded-time :month 2)
-</pre></div>
-</dd></dl>
 
 <dl class="def">
 <dt id="index-encode_002dtime"><span class="category">Function: </span><span><strong>encode-time</strong> <em>time &amp;rest obsolescent-arguments</em><a href='#index-encode_002dtime' class='copiable-anchor'> &para;</a></span></dt>
 <dd><p>これは<var>time</var>をLispタイムスタンプに変換する。これは<code>decode-time</code>の逆の関数として機能する。
 </p>
-<p>最初の要素は、通常は<code>(<var>second</var> <var>minute</var> <var>hour</var> <var>day</var> <var>month</var>
-<var>year</var> <var>ignored</var> <var>dst</var> <var>zone</var>)</code>のようなリスト。これは<code>(encode-time
-(decode-time
-...))</code>が機能するように、<code>decode-time</code>形式でデコード済みtimeを指定する。リストのこれらのメンバーについては<code>decode-time</code>にあるテーブルを参照のこと。
+<p>通常だと<code>decode-time</code>形式でデコードされた時刻を指定する<code>(<var>second</var> <var>minute</var>
+<var>hour</var> <var>day</var> <var>month</var> <var>year</var> <var>ignored</var> <var>dst</var>
+<var>zone</var>)</code>がリストの1つ目の引数となる。これらのリスト要素の意味については、<code>decode-time</code>のテーブルを参照のこと。特に<var>dst</var>はタイムスタンプが繰り返される夏時間(DST:
+daylight saving
+time)の期間中のフォールバックにおけるタイムスタンプの解釈法を指定する。<var>dst</var>が-1ならDSTを推測、<code>t</code>か<code>nil</code>の場合にはそのDST値をもつタイムスタンプをリターン、そのようなタイムスタンプが存在しなければエラーをシグナルする。残念なことに<code>t</code>や<code>nil</code>の<var>dst</var>値は、たとえば<var>zone</var>が&lsquo;<samp>&quot;Europe/Volgograd&quot;</samp>&rsquo;において、その日の02:00にグリニッジ東の標準時を+04:00から+03:00に変更した際の2020-12-27
+01:30にたいする2つの標準時タイムスタンプの不明確さといったような、TZDBタイムゾーンがグリニッジを更に超えて西に移動した際における重複したタイムスタンプの不明確さを解消するものではない。このような状況を処理するためには、不明確さを解消するために数値の<var>zone</var>を使用することができる。
 </p>
-<p>廃れた呼び出し規約として、この関数は6つ以上の引数を受け取ることができる。最初の6つの引数<var>second</var>、<var>minute</var>、<var>hour</var>、<var>day</var>、<var>month</var>、<var>year</var>はデコード済みtimeのほとんどの要素を指定する。7つ目以降の引数があれば、<em>最後</em>の引数は<var>zone</var>として使用されれるので、<code>(apply
-#'encode-time (decode-time
-...))</code>は機能する。この廃れた規約においては、<var>zone</var>のデフォルトはレントタイムゾーンルール(<a href="Time-Zone-Rules.html">タイムゾーンのルール</a>を参照)、<var>dst</var>に-1を指定したかのように処理される。
+<p>1つ目の引数は<code>(<var>second</var> <var>minute</var> <var>hour</var> <var>day</var> <var>month</var>
+<var>year</var>)</code>のようなリストでもよい。これは<code>(<var>second</var> <var>minute</var> <var>hour</var>
+<var>day</var> <var>month</var> <var>year</var> nil -1 nil)</code>のようなリストとして扱われる。
 </p>
-<p>100未満の年が特別に扱われることはない。これに1900や2000を超える年を意味させたい場合には、<code>encode-time</code>を呼び出す前に自身でこれらを修正しなければならない。timeの範囲およびzoneの値はオペレーティングシステムが制限する。
+<p>As an obsolescent calling convention, this function can be given six or more
+arguments.  The first six arguments <var>second</var>, <var>minute</var>, <var>hour</var>,
+<var>day</var>, <var>month</var>, and <var>year</var> specify most of the components of a
+decoded time.  If there are more than six arguments the <em>last</em> argument
+is used as <var>zone</var> and any other extra arguments are ignored, so that
+<code>(apply #'encode-time (decode-time ...))</code> works.  In this obsolescent
+convention, <var>dst</var> is -1 and <var>zone</var> defaults to the current
+time zone rule (see <a href="Time-Zone-Rules.html">タイムゾーンのルール</a>).  When modernizing an obsolescent
+caller, ensure that the more-modern list equivalent contains 9 elements with
+a <code>dst</code> element that is -1, not <code>nil</code>.
+</p>
+<p>Year numbers less than 100 are not treated specially.  If you want them to
+stand for years above 1900, or years above 2000, you must alter them
+yourself before you call <code>encode-time</code>.  The operating system limits
+the range of time and zone values.  However, timestamps ranging from the
+epoch to the near future are always supported.
 </p>
 <p><code>encode-time</code>関数は<code>decode-time</code>のラフな逆関数として動作する。たとえば以下のように後者の出力を前者に渡すことができる:
 </p>
@@ -224,16 +223,23 @@ months)&rdquo;を表すデコード済みtime構造体を得るには以下の�
 <pre class="example">(encode-time (decode-time &hellip;))
 </pre></div>
 
-<p><var>seconds</var>、<var>minutes</var>、<var>hour</var>、<var>day</var>、<var>month</var>に範囲外の値を使用することにより単純な日付計算ができる。たとえば<var>day</var>が0なら与えられた<var>month</var>の前月末日になる。
+<p>You can perform simple date arithmetic by using out-of-range values for
+<var>seconds</var>, <var>minutes</var>, <var>hour</var>, <var>day</var>, and <var>month</var>; for
+example, day 0 means the day preceding the given month.  Take care when
+doing so, as it is common for this to fail in some cases.  For example:
+</p>
+<div class="example lisp">
+<pre class="lisp">;; 現在から1ヶ月後を算出。
+;; 期待どおりに動かないかもしれないので注意
+(let ((time (decode-time)))
+  (setf (decoded-time-month time)
+        (+ (decoded-time-month time) 1))
+  time)
+</pre></div>
+
+<p>残念ながらこのコードは月の長さの違いによって結果時刻が不正になったり、夏時間への移行、タイムゾーン変更、閏日や閏秒を考慮しない等で期待どおり動作しないかもしれない。たとえばこのコードを1月30日に実行すれば、<code>encode-time</code>であれば3月初頭に調整するであろう2月30日という存在しない日付を得ることになる。同様に2096年2月29日に4年を加えた2100年2月29日は存在せず、ニューヨークで3月13日の01:30に1時間を加えるとタイムスタンプとして02:30を得るだろうが、ニューヨークではその日の02:00に03:00へ時刻が飛ぶのでこれも存在しないタイムスタンプを得ることになる。問題のいくつか(すべてではない)を回避するために影響を受ける単位の半ば、たとえば月の加算を行う際にはその月の15日で開始するといったような計算を基にすることができる。別の策としては<samp>calendar</samp>や<samp>time-date</samp>といったライブラリーを使うことができる。
 </p></dd></dl>
 
-</div>
-<div class="footnote">
-<hr>
-<h4 class="footnotes-heading">Footnotes</h4>
-
-<h5><a id="FOOT29" href="#DOCF29">(29)</a></h5>
-<p>現在のところ<var>form</var>が正の整数の場合、リターン値をLispタイムスタンプを期待する標準的な関数に渡すつもりなら少なくとも65536である必要があります。</p>
 </div>
 <hr>
 <div class="header">
@@ -242,6 +248,6 @@ Next: <a href="Time-Parsing.html">時刻のパースとフォーマット</a>, P
 </div>
 
 
-This page has generated for branch:emacs-28, commit:cac8dfb1bd89b31e72553ac028e41743511e7485 to check Japanese translation.
+This page has generated for branch:work/emacs-29_a24e9e3fee59435422af0473b7ec585de2c13b4e, commit:23f22782c87cb57ea403759f1f46ed71b4528347 to check Japanese translation.
 </body>
 </html>
