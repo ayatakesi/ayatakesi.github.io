@@ -1,0 +1,318 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>exec/mipsfpu.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4778.html'>exec</a>/mipsfpu.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L109'>[^]</a><a href='#L172'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L109' title='Defined at 109.'>valid_abi_p</a></li>
+<li><a href='#L132' title='Defined at 132.'>fp_mode_for_abi</a></li>
+<li><a href='#L150' title='Defined at 150.'>cpu_supports_fr0_p</a></li>
+<li><a href='#L172' title='Defined at 172.'>determine_fpu_mode</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Program execution for Emacs.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L22' name='L22'></a>    22 
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> "<a href='3035.html'>mipsfpu.h</a>"
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <em class='comment'>/* OABI MIPS systems support several different modes of execution.</em>
+<a id='L28' name='L28'></a>    28 <em class='comment'>   Each mode differs in the size and utilization of the hardware</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'>   floating-point registers.</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'></em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>   Linux normally sets the floating point mode to one appropriate for</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'>   execution, taking into account the floating point modes of the</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'>   interpreter and executable binaries.  However, this logic is</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>   forsaken when the `execve' system call is overwritten.</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'></em>
+<a id='L36' name='L36'></a>    36 <em class='comment'>   Thus, the correct floating point mode must be determined and set</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'>   within the loader binary.  */</em>
+<a id='L38' name='L38'></a>    38 
+<a id='L39' name='L39'></a>    39 
+<a id='L40' name='L40'></a>    40 
+<a id='L41' name='L41'></a>    41 <em class='comment'>/* Various constants used throughout this code.  */</em>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#define</em> <a href='../R/3743.html' title='Multiple referred from 6 places.'>MIPS_ABI_FP_ANY</a>         0       <em class='comment'>/* FP ABI doesn't matter */</em>
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#define</em> <a href='../R/3744.html' title='Multiple referred from 2 places.'>MIPS_ABI_FP_DOUBLE</a>      1       <em class='comment'>/* -mdouble-float */</em>
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#define</em> <a href='../R/3746.html' title='Multiple referred from 2 places.'>MIPS_ABI_FP_SINGLE</a>      2       <em class='comment'>/* -msingle-float */</em>
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#define</em> <a href='../R/3747.html' title='Multiple referred from 2 places.'>MIPS_ABI_FP_SOFT</a>        3       <em class='comment'>/* -msoft-float */</em>
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#define</em> <a href='../R/3745.html' title='Multiple referred from 4 places.'>MIPS_ABI_FP_OLD_64</a>      4       <em class='comment'>/* -mips32r2 -mfp64 */</em>
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#define</em> <a href='../R/3748.html' title='Multiple referred from 2 places.'>MIPS_ABI_FP_XX</a>          5       <em class='comment'>/* -mfpxx */</em>
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#define</em> <a href='../R/3741.html' title='Multiple referred from 2 places.'>MIPS_ABI_FP_64</a>          6       <em class='comment'>/* -mips32r2 -mfp64 */</em>
+<a id='L50' name='L50'></a>    50 <em class='sharp'>#define</em> <a href='../R/3742.html' title='Multiple referred from 2 places.'>MIPS_ABI_FP_64A</a>         7       <em class='comment'>/* -mips32r2 -mfp64 -mno-odd-spreg */</em>
+<a id='L51' name='L51'></a>    51 
+<a id='L52' name='L52'></a>    52 <em class='sharp'>#define</em> EF_MIPS_NOREORDER       1     <em class='comment'>/* A .noreorder directive was used.  */</em>
+<a id='L53' name='L53'></a>    53 <em class='sharp'>#define</em> EF_MIPS_PIC             2     <em class='comment'>/* Contains PIC code.  */</em>
+<a id='L54' name='L54'></a>    54 <em class='sharp'>#define</em> EF_MIPS_CPIC            4     <em class='comment'>/* Uses PIC calling sequence.  */</em>
+<a id='L55' name='L55'></a>    55 <em class='sharp'>#define</em> EF_MIPS_XGOT            8
+<a id='L56' name='L56'></a>    56 <em class='sharp'>#define</em> EF_MIPS_64BIT_WHIRL     16
+<a id='L57' name='L57'></a>    57 <em class='sharp'>#define</em> <a href='../S/3033.html#L265' title='Referred from 265 in exec/mipsfpu.c.'>EF_MIPS_ABI2</a>            32
+<a id='L58' name='L58'></a>    58 <em class='sharp'>#define</em> EF_MIPS_ABI_ON32        64
+<a id='L59' name='L59'></a>    59 <em class='sharp'>#define</em> <a href='../R/1553.html' title='Multiple referred from 2 places.'>EF_MIPS_FP64</a>            512  <em class='comment'>/* Uses FP64 (12 callee-saved).  */</em>
+<a id='L60' name='L60'></a>    60 <em class='sharp'>#define</em> EF_MIPS_NAN2008         1024  <em class='comment'>/* Uses IEEE 754-2008 NaN encoding.  */</em>
+<a id='L61' name='L61'></a>    61 <em class='sharp'>#define</em> EF_MIPS_ARCH            0xf0000000 <em class='comment'>/* MIPS architecture level.  */</em>
+<a id='L62' name='L62'></a>    62 
+<a id='L63' name='L63'></a>    63 
+<a id='L64' name='L64'></a>    64 
+<a id='L65' name='L65'></a>    65 <em class='comment'>/* Structure describing the requirements of a single floating-point</em>
+<a id='L66' name='L66'></a>    66 <em class='comment'>   ABI.  */</em>
+<a id='L67' name='L67'></a>    67 
+<a id='L68' name='L68'></a>    68 <strong class='reserved'>struct</strong> <a href='../R/13379.html' title='Multiple referred from 3 places.'>mode_description</a>
+<a id='L69' name='L69'></a>    69 <em class='brace'>{</em>
+<a id='L70' name='L70'></a>    70   <em class='comment'>/* Whether or not the ABI only executes single precision</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>     instructions, and can operate in both 32-bit or 64-bit floating</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>     point mode.  */</em>
+<a id='L73' name='L73'></a>    73   <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a> single;
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75   <em class='comment'>/* Whether or not the ABI performs floating point operations in</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>     software, using integer registers.  */</em>
+<a id='L77' name='L77'></a>    77   <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a> <a href='../S/3265.html#L125' title='Defined at 125 in src/textprop.c.'>soft</a>;
+<a id='L78' name='L78'></a>    78 
+<a id='L79' name='L79'></a>    79   <em class='comment'>/* Whether or not the ABI requires the use of 64-bit floating point</em>
+<a id='L80' name='L80'></a>    80 <em class='comment'>     registers.  */</em>
+<a id='L81' name='L81'></a>    81   <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a> fr1;
+<a id='L82' name='L82'></a>    82 
+<a id='L83' name='L83'></a>    83   <em class='comment'>/* Whether or not the ABI requires the use of 64-bit floating point</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>     registers on NABI systems, and 32-bit ones on OABI systems.  */</em>
+<a id='L85' name='L85'></a>    85   <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a> frdefault;
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87   <em class='comment'>/* Whether or not this ABI requires single precision floating point</em>
+<a id='L88' name='L88'></a>    88 <em class='comment'>     emulation.  */</em>
+<a id='L89' name='L89'></a>    89   <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a> fre;
+<a id='L90' name='L90'></a>    90 <em class='brace'>}</em>;
+<a id='L91' name='L91'></a>    91 
+<a id='L92' name='L92'></a>    92 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/3033.html#L68' title='Defined at 68 in exec/mipsfpu.c.'>mode_description</a> fpu_reqs[] =
+<a id='L93' name='L93'></a>    93   <em class='brace'>{</em>
+<a id='L94' name='L94'></a>    94     [<a href='../S/3033.html#L43' title='Defined at 43 in exec/mipsfpu.c.'>MIPS_ABI_FP_ANY</a>]    = <em class='brace'>{</em> <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <em class='brace'>}</em>,
+<a id='L95' name='L95'></a>    95     [<a href='../S/3033.html#L44' title='Defined at 44 in exec/mipsfpu.c.'>MIPS_ABI_FP_DOUBLE</a>] = <em class='brace'>{</em> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <em class='brace'>}</em>,
+<a id='L96' name='L96'></a>    96     [<a href='../S/3033.html#L45' title='Defined at 45 in exec/mipsfpu.c.'>MIPS_ABI_FP_SINGLE</a>] = <em class='brace'>{</em> <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <em class='brace'>}</em>,
+<a id='L97' name='L97'></a>    97     [<a href='../S/3033.html#L46' title='Defined at 46 in exec/mipsfpu.c.'>MIPS_ABI_FP_SOFT</a>]   = <em class='brace'>{</em> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <em class='brace'>}</em>,
+<a id='L98' name='L98'></a>    98     [<a href='../S/3033.html#L47' title='Defined at 47 in exec/mipsfpu.c.'>MIPS_ABI_FP_OLD_64</a>] = <em class='brace'>{</em> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <em class='brace'>}</em>,
+<a id='L99' name='L99'></a>    99     [<a href='../S/3033.html#L48' title='Defined at 48 in exec/mipsfpu.c.'>MIPS_ABI_FP_XX</a>]     = <em class='brace'>{</em> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <em class='brace'>}</em>,
+<a id='L100' name='L100'></a>   100     [<a href='../S/3033.html#L49' title='Defined at 49 in exec/mipsfpu.c.'>MIPS_ABI_FP_64</a>]     = <em class='brace'>{</em> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <em class='brace'>}</em>,
+<a id='L101' name='L101'></a>   101     [<a href='../S/3033.html#L50' title='Defined at 50 in exec/mipsfpu.c.'>MIPS_ABI_FP_64A</a>]    = <em class='brace'>{</em> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>,  <em class='brace'>}</em>,
+<a id='L102' name='L102'></a>   102   <em class='brace'>}</em>;
+<a id='L103' name='L103'></a>   103 
+<a id='L104' name='L104'></a>   104 
+<a id='L105' name='L105'></a>   105 
+<a id='L106' name='L106'></a>   106 <em class='comment'>/* Return whether or not the given floating-point ABI is valid.  */</em>
+<a id='L107' name='L107'></a>   107 
+<a id='L108' name='L108'></a>   108 <strong class='reserved'>static</strong> <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L109' name='L109'></a>   109 <a href='../R/17438.html' title='Multiple referred from 2 places.'>valid_abi_p</a> (<strong class='reserved'>int</strong> abi)
+<a id='L110' name='L110'></a>   110 <em class='brace'>{</em>
+<a id='L111' name='L111'></a>   111   <strong class='reserved'>switch</strong> (abi)
+<a id='L112' name='L112'></a>   112     <em class='brace'>{</em>
+<a id='L113' name='L113'></a>   113     <strong class='reserved'>case</strong> <a href='../S/3033.html#L43' title='Defined at 43 in exec/mipsfpu.c.'>MIPS_ABI_FP_ANY</a>:
+<a id='L114' name='L114'></a>   114     <strong class='reserved'>case</strong> <a href='../S/3033.html#L44' title='Defined at 44 in exec/mipsfpu.c.'>MIPS_ABI_FP_DOUBLE</a>:
+<a id='L115' name='L115'></a>   115     <strong class='reserved'>case</strong> <a href='../S/3033.html#L45' title='Defined at 45 in exec/mipsfpu.c.'>MIPS_ABI_FP_SINGLE</a>:
+<a id='L116' name='L116'></a>   116     <strong class='reserved'>case</strong> <a href='../S/3033.html#L46' title='Defined at 46 in exec/mipsfpu.c.'>MIPS_ABI_FP_SOFT</a>:
+<a id='L117' name='L117'></a>   117     <strong class='reserved'>case</strong> <a href='../S/3033.html#L47' title='Defined at 47 in exec/mipsfpu.c.'>MIPS_ABI_FP_OLD_64</a>:
+<a id='L118' name='L118'></a>   118     <strong class='reserved'>case</strong> <a href='../S/3033.html#L48' title='Defined at 48 in exec/mipsfpu.c.'>MIPS_ABI_FP_XX</a>:
+<a id='L119' name='L119'></a>   119     <strong class='reserved'>case</strong> <a href='../S/3033.html#L49' title='Defined at 49 in exec/mipsfpu.c.'>MIPS_ABI_FP_64</a>:
+<a id='L120' name='L120'></a>   120     <strong class='reserved'>case</strong> <a href='../S/3033.html#L50' title='Defined at 50 in exec/mipsfpu.c.'>MIPS_ABI_FP_64A</a>:
+<a id='L121' name='L121'></a>   121       <strong class='reserved'>return</strong> <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L122' name='L122'></a>   122 
+<a id='L123' name='L123'></a>   123     <strong class='reserved'>default</strong>:
+<a id='L124' name='L124'></a>   124       <strong class='reserved'>return</strong> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L125' name='L125'></a>   125     <em class='brace'>}</em>
+<a id='L126' name='L126'></a>   126 <em class='brace'>}</em>
+<a id='L127' name='L127'></a>   127 
+<a id='L128' name='L128'></a>   128 <em class='comment'>/* Return the floating point mode appropriate for the specified</em>
+<a id='L129' name='L129'></a>   129 <em class='comment'>   floating point ABI.  */</em>
+<a id='L130' name='L130'></a>   130 
+<a id='L131' name='L131'></a>   131 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L132' name='L132'></a>   132 <a href='../R/10650.html' title='Multiple referred from 4 places.'>fp_mode_for_abi</a> (<strong class='reserved'>int</strong> abi)
+<a id='L133' name='L133'></a>   133 <em class='brace'>{</em>
+<a id='L134' name='L134'></a>   134   <strong class='reserved'>struct</strong> <a href='../S/3033.html#L68' title='Defined at 68 in exec/mipsfpu.c.'>mode_description</a> *desc;
+<a id='L135' name='L135'></a>   135 
+<a id='L136' name='L136'></a>   136   desc = &amp;fpu_reqs[abi];
+<a id='L137' name='L137'></a>   137 
+<a id='L138' name='L138'></a>   138   <strong class='reserved'>if</strong> (desc-&gt;fre)
+<a id='L139' name='L139'></a>   139     <strong class='reserved'>return</strong> <a href='../S/3035.html#L69' title='Defined at 69 in exec/mipsfpu.h.'>FP_FRE</a>;
+<a id='L140' name='L140'></a>   140   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (desc-&gt;fr1)
+<a id='L141' name='L141'></a>   141     <strong class='reserved'>return</strong> <a href='../S/3035.html#L68' title='Defined at 68 in exec/mipsfpu.h.'>FP_FR1</a>;
+<a id='L142' name='L142'></a>   142 
+<a id='L143' name='L143'></a>   143   <strong class='reserved'>return</strong> <a href='../S/3035.html#L67' title='Defined at 67 in exec/mipsfpu.h.'>FP_FR0</a>;
+<a id='L144' name='L144'></a>   144 <em class='brace'>}</em>
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146 <em class='comment'>/* Determine whether or not the CPU is capable of operating in FR0</em>
+<a id='L147' name='L147'></a>   147 <em class='comment'>   floating point mode.  */</em>
+<a id='L148' name='L148'></a>   148 
+<a id='L149' name='L149'></a>   149 <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L150' name='L150'></a>   150 <a href='../R/9215.html' title='Multiple referred from 2 places.'>cpu_supports_fr0_p</a> (<strong class='reserved'>void</strong>)
+<a id='L151' name='L151'></a>   151 <em class='brace'>{</em>
+<a id='L152' name='L152'></a>   152 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> __mips_isa_rev &amp;&amp; __mips_isa_rev &gt;= 6
+<a id='L153' name='L153'></a>   153   <strong class='reserved'>return</strong> <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L154' name='L154'></a>   154 <em class='sharp'>#else</em> <em class='comment'>/* !defined __mips_isa_rev | mips_isa_rev &lt; 6 */</em>
+<a id='L155' name='L155'></a>   155   <strong class='reserved'>return</strong> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L156' name='L156'></a>   156 <em class='sharp'>#endif</em> <em class='comment'>/* defined __mips_isa_rev &amp;&amp; mips_isa_rev &gt;= 6 */</em>
+<a id='L157' name='L157'></a>   157 <em class='brace'>}</em>
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159 <em class='comment'>/* Determine the FPU mode for the executable whose ELF header is</em>
+<a id='L160' name='L160'></a>   160 <em class='comment'>   HEADER.  If INTERPRETER is non-NULL, also take an interpreter whose</em>
+<a id='L161' name='L161'></a>   161 <em class='comment'>   header is INTERPRETER into account.</em>
+<a id='L162' name='L162'></a>   162 <em class='comment'></em>
+<a id='L163' name='L163'></a>   163 <em class='comment'>   ABIFLAGS should be HEADER's corresponding PT_MIPS_ABIFLAGS program</em>
+<a id='L164' name='L164'></a>   164 <em class='comment'>   header, and ABIFLAGS1 should be that of INTERPRETER, if set.  Both</em>
+<a id='L165' name='L165'></a>   165 <em class='comment'>   fields may be NULL if no PT_MIPS_ABIFLAGS header is present; in</em>
+<a id='L166' name='L166'></a>   166 <em class='comment'>   that case, use HEADER-&gt;e_flags to determine the ABI instead.</em>
+<a id='L167' name='L167'></a>   167 <em class='comment'></em>
+<a id='L168' name='L168'></a>   168 <em class='comment'>   Return the FPU mode in *MODE.  Value is 0 upon success, 1</em>
+<a id='L169' name='L169'></a>   169 <em class='comment'>   otherwise, with errno set.  */</em>
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171 <strong class='reserved'>int</strong>
+<a id='L172' name='L172'></a>   172 <a href='../R/9498.html' title='Multiple referred from 2 places.'>determine_fpu_mode</a> (<a href='../D/10880.html' title='Multiple defined in 2 places.'>elf_header</a> *header, <a href='../D/10880.html' title='Multiple defined in 2 places.'>elf_header</a> *interpreter,
+<a id='L173' name='L173'></a>   173                     <strong class='reserved'>int</strong> *mode, <strong class='reserved'>struct</strong> <a href='../S/3035.html#L27' title='Defined at 27 in exec/mipsfpu.h.'>mips_elf_abi_flags</a> *abiflags,
+<a id='L174' name='L174'></a>   174                     <strong class='reserved'>struct</strong> <a href='../S/3035.html#L27' title='Defined at 27 in exec/mipsfpu.h.'>mips_elf_abi_flags</a> *abiflags1)
+<a id='L175' name='L175'></a>   175 <em class='brace'>{</em>
+<a id='L176' name='L176'></a>   176   <strong class='reserved'>int</strong> exec_abi, interpreter_abi;
+<a id='L177' name='L177'></a>   177   <strong class='reserved'>struct</strong> <a href='../S/3033.html#L68' title='Defined at 68 in exec/mipsfpu.c.'>mode_description</a> *exec_desc, *interpreter_desc, common;
+<a id='L178' name='L178'></a>   178 
+<a id='L179' name='L179'></a>   179   <em class='comment'>/* Figure out the executable's floating point ABI.  First, consult</em>
+<a id='L180' name='L180'></a>   180 <em class='comment'>     header-&gt;e_flags, and use the old 64-bit floating point ABI if it</em>
+<a id='L181' name='L181'></a>   181 <em class='comment'>     is specified.  */</em>
+<a id='L182' name='L182'></a>   182 
+<a id='L183' name='L183'></a>   183   exec_abi = <a href='../S/3033.html#L43' title='Defined at 43 in exec/mipsfpu.c.'>MIPS_ABI_FP_ANY</a>;
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185   <em class='comment'>/* First, check HEADER-&gt;e_flags.  */</em>
+<a id='L186' name='L186'></a>   186 
+<a id='L187' name='L187'></a>   187   <strong class='reserved'>if</strong> (header-&gt;e_flags &amp; <a href='../S/3033.html#L59' title='Defined at 59 in exec/mipsfpu.c.'>EF_MIPS_FP64</a>)
+<a id='L188' name='L188'></a>   188     exec_abi = <a href='../S/3033.html#L47' title='Defined at 47 in exec/mipsfpu.c.'>MIPS_ABI_FP_OLD_64</a>;
+<a id='L189' name='L189'></a>   189 
+<a id='L190' name='L190'></a>   190   <em class='comment'>/* Next, use ABIFLAGS if it exists.  */</em>
+<a id='L191' name='L191'></a>   191 
+<a id='L192' name='L192'></a>   192   <strong class='reserved'>if</strong> (abiflags &amp;&amp; <a href='../S/3033.html#L109' title='Defined at 109 in exec/mipsfpu.c.'>valid_abi_p</a> (abiflags-&gt;fp_abi))
+<a id='L193' name='L193'></a>   193     exec_abi = abiflags-&gt;fp_abi;
+<a id='L194' name='L194'></a>   194   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (abiflags)
+<a id='L195' name='L195'></a>   195     <em class='brace'>{</em>
+<a id='L196' name='L196'></a>   196       errno = ENOEXEC;
+<a id='L197' name='L197'></a>   197       <strong class='reserved'>return</strong> 1;
+<a id='L198' name='L198'></a>   198     <em class='brace'>}</em>
+<a id='L199' name='L199'></a>   199 
+<a id='L200' name='L200'></a>   200   <em class='comment'>/* Now determine that of the interpreter.  */</em>
+<a id='L201' name='L201'></a>   201 
+<a id='L202' name='L202'></a>   202   interpreter_abi = <a href='../S/3033.html#L43' title='Defined at 43 in exec/mipsfpu.c.'>MIPS_ABI_FP_ANY</a>;
+<a id='L203' name='L203'></a>   203 
+<a id='L204' name='L204'></a>   204   <strong class='reserved'>if</strong> (interpreter)
+<a id='L205' name='L205'></a>   205     <em class='brace'>{</em>
+<a id='L206' name='L206'></a>   206       <strong class='reserved'>if</strong> (interpreter-&gt;e_flags &amp; <a href='../S/3033.html#L59' title='Defined at 59 in exec/mipsfpu.c.'>EF_MIPS_FP64</a>)
+<a id='L207' name='L207'></a>   207         interpreter_abi = <a href='../S/3033.html#L47' title='Defined at 47 in exec/mipsfpu.c.'>MIPS_ABI_FP_OLD_64</a>;
+<a id='L208' name='L208'></a>   208 
+<a id='L209' name='L209'></a>   209       <strong class='reserved'>if</strong> (abiflags1 &amp;&amp; <a href='../S/3033.html#L109' title='Defined at 109 in exec/mipsfpu.c.'>valid_abi_p</a> (abiflags-&gt;fp_abi))
+<a id='L210' name='L210'></a>   210         interpreter_abi = abiflags-&gt;fp_abi;
+<a id='L211' name='L211'></a>   211       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (abiflags1)
+<a id='L212' name='L212'></a>   212         <em class='brace'>{</em>
+<a id='L213' name='L213'></a>   213           errno = ELIBBAD;
+<a id='L214' name='L214'></a>   214           <strong class='reserved'>return</strong> 1;
+<a id='L215' name='L215'></a>   215         <em class='brace'>}</em>
+<a id='L216' name='L216'></a>   216     <em class='brace'>}</em>
+<a id='L217' name='L217'></a>   217 
+<a id='L218' name='L218'></a>   218   <em class='comment'>/* If no interpreter flag is set, just return that of the</em>
+<a id='L219' name='L219'></a>   219 <em class='comment'>     executable.  */</em>
+<a id='L220' name='L220'></a>   220 
+<a id='L221' name='L221'></a>   221   <strong class='reserved'>if</strong> (!interpreter)
+<a id='L222' name='L222'></a>   222     <em class='brace'>{</em>
+<a id='L223' name='L223'></a>   223       *mode = <a href='../S/3033.html#L132' title='Defined at 132 in exec/mipsfpu.c.'>fp_mode_for_abi</a> (exec_abi);
+<a id='L224' name='L224'></a>   224       <strong class='reserved'>return</strong> 0;
+<a id='L225' name='L225'></a>   225     <em class='brace'>}</em>
+<a id='L226' name='L226'></a>   226 
+<a id='L227' name='L227'></a>   227   <em class='comment'>/* Otherwise, compare both ABIs and try to find one which will run</em>
+<a id='L228' name='L228'></a>   228 <em class='comment'>     both kinds of code.</em>
+<a id='L229' name='L229'></a>   229 <em class='comment'></em>
+<a id='L230' name='L230'></a>   230 <em class='comment'>     First, see if there's an easy way out: both ABIs are identical,</em>
+<a id='L231' name='L231'></a>   231 <em class='comment'>     or one ABI is MIPS_ABI_FP_ANY.  */</em>
+<a id='L232' name='L232'></a>   232 
+<a id='L233' name='L233'></a>   233   <strong class='reserved'>if</strong> (exec_abi == interpreter_abi)
+<a id='L234' name='L234'></a>   234     <em class='brace'>{</em>
+<a id='L235' name='L235'></a>   235       *mode = <a href='../S/3033.html#L132' title='Defined at 132 in exec/mipsfpu.c.'>fp_mode_for_abi</a> (exec_abi);
+<a id='L236' name='L236'></a>   236       <strong class='reserved'>return</strong> 0;
+<a id='L237' name='L237'></a>   237     <em class='brace'>}</em>
+<a id='L238' name='L238'></a>   238   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (exec_abi == <a href='../S/3033.html#L43' title='Defined at 43 in exec/mipsfpu.c.'>MIPS_ABI_FP_ANY</a>)
+<a id='L239' name='L239'></a>   239     <em class='brace'>{</em>
+<a id='L240' name='L240'></a>   240       *mode = <a href='../S/3033.html#L132' title='Defined at 132 in exec/mipsfpu.c.'>fp_mode_for_abi</a> (interpreter_abi);
+<a id='L241' name='L241'></a>   241       <strong class='reserved'>return</strong> 0;
+<a id='L242' name='L242'></a>   242     <em class='brace'>}</em>
+<a id='L243' name='L243'></a>   243   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (interpreter_abi == <a href='../S/3033.html#L43' title='Defined at 43 in exec/mipsfpu.c.'>MIPS_ABI_FP_ANY</a>)
+<a id='L244' name='L244'></a>   244     <em class='brace'>{</em>
+<a id='L245' name='L245'></a>   245       *mode = <a href='../S/3033.html#L132' title='Defined at 132 in exec/mipsfpu.c.'>fp_mode_for_abi</a> (exec_abi);
+<a id='L246' name='L246'></a>   246       <strong class='reserved'>return</strong> 0;
+<a id='L247' name='L247'></a>   247     <em class='brace'>}</em>
+<a id='L248' name='L248'></a>   248 
+<a id='L249' name='L249'></a>   249   <em class='comment'>/* If that doesn't work, compare various characteristics of both</em>
+<a id='L250' name='L250'></a>   250 <em class='comment'>     ABIs and select an appropriate floating point mode.  */</em>
+<a id='L251' name='L251'></a>   251 
+<a id='L252' name='L252'></a>   252   exec_desc = &amp;fpu_reqs[exec_abi];
+<a id='L253' name='L253'></a>   253   interpreter_desc = &amp;fpu_reqs[interpreter_abi];
+<a id='L254' name='L254'></a>   254 
+<a id='L255' name='L255'></a>   255   <em class='comment'>/* Merge both sets of requirements.  */</em>
+<a id='L256' name='L256'></a>   256   common.single = exec_desc-&gt;single &amp;&amp; interpreter_desc-&gt;single;
+<a id='L257' name='L257'></a>   257   common.<a href='../S/3265.html#L125' title='Defined at 125 in src/textprop.c.'>soft</a> = exec_desc-&gt;<a href='../S/3265.html#L125' title='Defined at 125 in src/textprop.c.'>soft</a> &amp;&amp; interpreter_desc-&gt;<a href='../S/3265.html#L125' title='Defined at 125 in src/textprop.c.'>soft</a>;
+<a id='L258' name='L258'></a>   258   common.fr1 = exec_desc-&gt;fr1 &amp;&amp; interpreter_desc-&gt;fr1;
+<a id='L259' name='L259'></a>   259   common.frdefault = exec_desc-&gt;frdefault &amp;&amp; interpreter_desc-&gt;frdefault;
+<a id='L260' name='L260'></a>   260   common.fre = exec_desc-&gt;fre &amp;&amp; interpreter_desc-&gt;fre;
+<a id='L261' name='L261'></a>   261 
+<a id='L262' name='L262'></a>   262   <em class='comment'>/* Default to a mode capable of running code expecting 32-bit</em>
+<a id='L263' name='L263'></a>   263 <em class='comment'>     registers.  */</em>
+<a id='L264' name='L264'></a>   264 
+<a id='L265' name='L265'></a>   265   <strong class='reserved'>if</strong> (!(header-&gt;e_flags &amp; <a href='../S/3033.html#L57' title='Defined at 57 in exec/mipsfpu.c.'>EF_MIPS_ABI2</a>))
+<a id='L266' name='L266'></a>   266     *mode = <a href='../S/3035.html#L67' title='Defined at 67 in exec/mipsfpu.h.'>FP_FR0</a>;
+<a id='L267' name='L267'></a>   267   <strong class='reserved'>else</strong>
+<a id='L268' name='L268'></a>   268     <em class='comment'>/* But in this case, use FR1.  */</em>
+<a id='L269' name='L269'></a>   269     *mode = <a href='../S/3035.html#L68' title='Defined at 68 in exec/mipsfpu.h.'>FP_FR1</a>;
+<a id='L270' name='L270'></a>   270 
+<a id='L271' name='L271'></a>   271   <strong class='reserved'>if</strong> (common.fre &amp;&amp; !common.frdefault &amp;&amp; !common.fr1)
+<a id='L272' name='L272'></a>   272     <em class='comment'>/* Floating point emulation mode is required.  */</em>
+<a id='L273' name='L273'></a>   273     *mode = <a href='../S/3035.html#L69' title='Defined at 69 in exec/mipsfpu.h.'>FP_FRE</a>;
+<a id='L274' name='L274'></a>   274   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> ((common.fr1 &amp;&amp; common.frdefault)
+<a id='L275' name='L275'></a>   275            || (common.single &amp;&amp; !common.frdefault)
+<a id='L276' name='L276'></a>   276            || common.fr1)
+<a id='L277' name='L277'></a>   277     <em class='comment'>/* 64-bit mode is required.  */</em>
+<a id='L278' name='L278'></a>   278     *mode = <a href='../S/3035.html#L68' title='Defined at 68 in exec/mipsfpu.h.'>FP_FR1</a>;
+<a id='L279' name='L279'></a>   279   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!common.fre &amp;&amp; !common.frdefault
+<a id='L280' name='L280'></a>   280            &amp;&amp; !common.fr1 &amp;&amp; !common.single
+<a id='L281' name='L281'></a>   281            &amp;&amp; !common.<a href='../S/3265.html#L125' title='Defined at 125 in src/textprop.c.'>soft</a>)
+<a id='L282' name='L282'></a>   282     <em class='brace'>{</em>
+<a id='L283' name='L283'></a>   283       <em class='comment'>/* The floating point modes specified are incompatible.  */</em>
+<a id='L284' name='L284'></a>   284       errno = ELIBBAD;
+<a id='L285' name='L285'></a>   285       <strong class='reserved'>return</strong> -1;
+<a id='L286' name='L286'></a>   286     <em class='brace'>}</em>
+<a id='L287' name='L287'></a>   287 
+<a id='L288' name='L288'></a>   288   <strong class='reserved'>return</strong> 0;
+<a id='L289' name='L289'></a>   289 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L109'>[^]</a><a href='#L172'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

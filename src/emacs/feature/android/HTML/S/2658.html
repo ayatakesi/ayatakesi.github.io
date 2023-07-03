@@ -1,0 +1,890 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>lwlib/lwlib-Xaw.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4786.html'>lwlib</a>/lwlib-Xaw.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L80'>[^]</a><a href='#L828'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L80' title='Defined at 80.'>lw_xaw_widget_p</a></li>
+<li><a href='#L89' title='Defined at 89.'>fill_xft_data</a></li>
+<li><a href='#L122' title='Defined at 122.'>destroy_xft_data</a></li>
+<li><a href='#L139' title='Defined at 139.'>openFont</a></li>
+<li><a href='#L162' title='Defined at 162.'>get_text_width_and_height</a></li>
+<li><a href='#L187' title='Defined at 187.'>draw_text</a></li>
+<li><a href='#L226' title='Defined at 226.'>set_text</a></li>
+<li><a href='#L245' title='Defined at 245.'>find_xft_data</a></li>
+<li><a href='#L268' title='Defined at 268.'>command_press</a></li>
+<li><a href='#L286' title='Defined at 286.'>command_reset</a></li>
+<li><a href='#L310' title='Defined at 310.'>xaw_update_one_widget</a></li>
+<li><a href='#L377' title='Defined at 377.'>xaw_update_one_value</a></li>
+<li><a href='#L387' title='Defined at 387.'>xaw_destroy_instance</a></li>
+<li><a href='#L397' title='Defined at 397.'>xaw_popup_menu</a></li>
+<li><a href='#L404' title='Defined at 404.'>xaw_pop_instance</a></li>
+<li><a href='#L497' title='Defined at 497.'>make_dialog</a></li>
+<li><a href='#L677' title='Defined at 677.'>xaw_create_dialog</a></li>
+<li><a href='#L741' title='Defined at 741.'>xaw_generic_callback</a></li>
+<li><a href='#L782' title='Defined at 782.'>wm_delete_window</a></li>
+<li><a href='#L828' title='Defined at 828.'>xaw_create_main</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* The lwlib interface to Athena widgets.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 1993 Chuck Thompson &lt;cthomp@cs.uiuc.edu&gt;</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>Copyright (C) 1994, 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>This file is part of the Lucid Widget Library.</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'></em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>The Lucid Widget Library is free software; you can redistribute it and/or</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>modify it under the terms of the GNU General Public License as published by</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>the Free Software Foundation; either version 1, or (at your option)</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>any later version.</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'></em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>The Lucid Widget Library is distributed in the hope that it will be useful,</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'></em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L19' name='L19'></a>    19 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L22' name='L22'></a>    22 
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;setjmp.h&gt;
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;<a href='../I/531.html'>lisp.h</a>&gt;
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> "<a href='2657.html'>lwlib-Xaw.h</a>"
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;X11/StringDefs.h&gt;
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;X11/IntrinsicP.h&gt;
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;X11/CoreP.h&gt;
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#include</em> &lt;X11/Shell.h&gt;
+<a id='L34' name='L34'></a>    34 
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#ifdef</em> HAVE_XAW3D
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#include</em> &lt;X11/Xaw3d/Scrollbar.h&gt;
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#include</em> &lt;X11/Xaw3d/Paned.h&gt;
+<a id='L38' name='L38'></a>    38 <em class='sharp'>#include</em> &lt;X11/Xaw3d/Dialog.h&gt;
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> &lt;X11/Xaw3d/Form.h&gt;
+<a id='L40' name='L40'></a>    40 <em class='sharp'>#include</em> &lt;X11/Xaw3d/Command.h&gt;
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#include</em> &lt;X11/Xaw3d/Label.h&gt;
+<a id='L42' name='L42'></a>    42 <em class='sharp'>#else</em> <em class='comment'>/* !HAVE_XAW3D */</em>
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#include</em> &lt;X11/Xaw/Scrollbar.h&gt;
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#include</em> &lt;X11/Xaw/Paned.h&gt;
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#include</em> &lt;X11/Xaw/Dialog.h&gt;
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#include</em> &lt;X11/Xaw/Form.h&gt;
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#include</em> &lt;X11/Xaw/Command.h&gt;
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#include</em> &lt;X11/Xaw/Label.h&gt;
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_XAW3D */</em>
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51 <em class='sharp'>#include</em> &lt;X11/Xatom.h&gt;
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L54' name='L54'></a>    54 <em class='sharp'>#ifdef</em> USE_CAIRO
+<a id='L55' name='L55'></a>    55 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L56' name='L56'></a>    56 <em class='sharp'>#include</em> "<a href='2672.html'>lwlib-utils.h</a>"
+<a id='L57' name='L57'></a>    57 <em class='sharp'>#else</em>  <em class='comment'>/* HAVE_XFT */</em>
+<a id='L58' name='L58'></a>    58 <em class='sharp'>#include</em> &lt;X11/Xft/Xft.h&gt;
+<a id='L59' name='L59'></a>    59 <em class='sharp'>#endif</em>
+<a id='L60' name='L60'></a>    60 
+<a id='L61' name='L61'></a>    61 <strong class='reserved'>struct</strong> <a href='../R/17907.html' title='Multiple referred from 10 places.'>widget_xft_data</a>
+<a id='L62' name='L62'></a>    62 <em class='brace'>{</em>
+<a id='L63' name='L63'></a>    63   Widget widget;
+<a id='L64' name='L64'></a>    64   <a href='../S/2672.html#L26' title='Defined at 26 in lwlib/lwlib-utils.h.'>XftFont</a> *xft_font;
+<a id='L65' name='L65'></a>    65   <a href='../S/2672.html#L28' title='Defined at 28 in lwlib/lwlib-utils.h.'>XftDraw</a> *xft_draw;
+<a id='L66' name='L66'></a>    66   <a href='../S/2672.html#L33' title='Defined at 33 in lwlib/lwlib-utils.h.'>XftColor</a> xft_fg, xft_bg;
+<a id='L67' name='L67'></a>    67   <strong class='reserved'>int</strong> p_width, p_height;
+<a id='L68' name='L68'></a>    68   <a href='../D/5058.html' title='Multiple defined in 2 places.'>Pixmap</a> p;
+<a id='L69' name='L69'></a>    69 <em class='brace'>}</em>;
+<a id='L70' name='L70'></a>    70 
+<a id='L71' name='L71'></a>    71 
+<a id='L72' name='L72'></a>    72 <em class='sharp'>#endif</em>
+<a id='L73' name='L73'></a>    73 
+<a id='L74' name='L74'></a>    74 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2658.html#L741' title='Defined at 741 in lwlib/lwlib-Xaw.c.'>xaw_generic_callback</a> (Widget widget,
+<a id='L75' name='L75'></a>    75                                   XtPointer closure,
+<a id='L76' name='L76'></a>    76                                   XtPointer call_data);
+<a id='L77' name='L77'></a>    77 
+<a id='L78' name='L78'></a>    78 
+<a id='L79' name='L79'></a>    79 Boolean
+<a id='L80' name='L80'></a>    80 <a href='../R/12924.html' title='Multiple referred from 6 places.'>lw_xaw_widget_p</a> (Widget widget)
+<a id='L81' name='L81'></a>    81 <em class='brace'>{</em>
+<a id='L82' name='L82'></a>    82   <strong class='reserved'>return</strong> (XtIsSubclass (widget, scrollbarWidgetClass) ||
+<a id='L83' name='L83'></a>    83           XtIsSubclass (widget, dialogWidgetClass));
+<a id='L84' name='L84'></a>    84 <em class='brace'>}</em>
+<a id='L85' name='L85'></a>    85 
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L88' name='L88'></a>    88 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L89' name='L89'></a>    89 <a href='../R/10392.html' title='Multiple referred from 3 places.'>fill_xft_data</a> (<strong class='reserved'>struct</strong> <a href='../S/2658.html#L61' title='Defined at 61 in lwlib/lwlib-Xaw.c.'>widget_xft_data</a> *data, Widget widget, <a href='../S/2672.html#L26' title='Defined at 26 in lwlib/lwlib-utils.h.'>XftFont</a> *<a href='../S/3069.html#L277' title='Defined at 277 in src/font.h.'>font</a>)
+<a id='L90' name='L90'></a>    90 <em class='brace'>{</em>
+<a id='L91' name='L91'></a>    91   <a href='../S/2981.html#L65' title='Defined at 65 in oldXMenu/XMenuInt.h.'>Pixel</a> bg, fg;
+<a id='L92' name='L92'></a>    92   <a href='../D/7037.html' title='Multiple defined in 2 places.'>XColor</a> colors[2];
+<a id='L93' name='L93'></a>    93 
+<a id='L94' name='L94'></a>    94   data-&gt;widget = widget;
+<a id='L95' name='L95'></a>    95   data-&gt;xft_font = <a href='../S/3069.html#L277' title='Defined at 277 in src/font.h.'>font</a>;
+<a id='L96' name='L96'></a>    96   XtVaGetValues (widget,
+<a id='L97' name='L97'></a>    97                  XtNbackground, &amp;bg,
+<a id='L98' name='L98'></a>    98                  <a href='../S/3339.html#L42' title='Defined at 42 in src/widget.h.'>XtNforeground</a>, &amp;fg,
+<a id='L99' name='L99'></a>    99                  <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L100' name='L100'></a>   100 
+<a id='L101' name='L101'></a>   101   colors[0].pixel = data-&gt;xft_fg.pixel = fg;
+<a id='L102' name='L102'></a>   102   colors[1].pixel = data-&gt;xft_bg.pixel = bg;
+<a id='L103' name='L103'></a>   103   XQueryColors (XtDisplay (widget),
+<a id='L104' name='L104'></a>   104                 DefaultColormapOfScreen (XtScreen (widget)),
+<a id='L105' name='L105'></a>   105                 colors, 2);
+<a id='L106' name='L106'></a>   106 
+<a id='L107' name='L107'></a>   107   data-&gt;xft_fg.color.alpha = 0xFFFF;
+<a id='L108' name='L108'></a>   108   data-&gt;xft_fg.color.red = colors[0].red;
+<a id='L109' name='L109'></a>   109   data-&gt;xft_fg.color.green = colors[0].green;
+<a id='L110' name='L110'></a>   110   data-&gt;xft_fg.color.blue = colors[0].blue;
+<a id='L111' name='L111'></a>   111   data-&gt;xft_bg.color.alpha = 0xFFFF;
+<a id='L112' name='L112'></a>   112   data-&gt;xft_bg.color.red = colors[1].red;
+<a id='L113' name='L113'></a>   113   data-&gt;xft_bg.color.green = colors[1].green;
+<a id='L114' name='L114'></a>   114   data-&gt;xft_bg.color.blue = colors[1].blue;
+<a id='L115' name='L115'></a>   115 
+<a id='L116' name='L116'></a>   116   data-&gt;p = None;
+<a id='L117' name='L117'></a>   117   data-&gt;xft_draw = 0;
+<a id='L118' name='L118'></a>   118   data-&gt;p_width = data-&gt;p_height = 0;
+<a id='L119' name='L119'></a>   119 <em class='brace'>}</em>
+<a id='L120' name='L120'></a>   120 
+<a id='L121' name='L121'></a>   121 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L122' name='L122'></a>   122 <a href='../S/2658.html#L601' title='Referred from 601 in lwlib/lwlib-Xaw.c.'>destroy_xft_data</a> (Widget widget, XtPointer closure, XtPointer call_data)
+<a id='L123' name='L123'></a>   123 <em class='brace'>{</em>
+<a id='L124' name='L124'></a>   124   <strong class='reserved'>struct</strong> <a href='../S/2658.html#L61' title='Defined at 61 in lwlib/lwlib-Xaw.c.'>widget_xft_data</a> *xft_data = closure;
+<a id='L125' name='L125'></a>   125 
+<a id='L126' name='L126'></a>   126   <strong class='reserved'>for</strong> (<strong class='reserved'>int</strong> i = 0; xft_data[i].widget; ++i)
+<a id='L127' name='L127'></a>   127     <em class='brace'>{</em>
+<a id='L128' name='L128'></a>   128       <strong class='reserved'>if</strong> (xft_data[i].xft_draw)
+<a id='L129' name='L129'></a>   129         <a href='../S/2672.html#L51' title='Defined at 51 in lwlib/lwlib-utils.h.'>XftDrawDestroy</a> (xft_data[i].xft_draw);
+<a id='L130' name='L130'></a>   130       <strong class='reserved'>if</strong> (xft_data[i].p != None)
+<a id='L131' name='L131'></a>   131         XFreePixmap (XtDisplay (widget), xft_data[i].p);
+<a id='L132' name='L132'></a>   132     <em class='brace'>}</em>
+<a id='L133' name='L133'></a>   133   <strong class='reserved'>if</strong> (xft_data[0].xft_font)
+<a id='L134' name='L134'></a>   134     <a href='../S/2672.html#L46' title='Defined at 46 in lwlib/lwlib-utils.h.'>XftFontClose</a> (XtDisplay (widget), xft_data[0].xft_font);
+<a id='L135' name='L135'></a>   135   <a href='../D/19808.html' title='Multiple defined in 3 places.'>xfree</a> (xft_data);
+<a id='L136' name='L136'></a>   136 <em class='brace'>}</em>
+<a id='L137' name='L137'></a>   137 
+<a id='L138' name='L138'></a>   138 <strong class='reserved'>static</strong> <a href='../S/2672.html#L26' title='Defined at 26 in lwlib/lwlib-utils.h.'>XftFont</a>*
+<a id='L139' name='L139'></a>   139 <a href='../S/2658.html#L587' title='Referred from 587 in lwlib/lwlib-Xaw.c.'>openFont</a> (Widget widget, <strong class='reserved'>char</strong> *<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>)
+<a id='L140' name='L140'></a>   140 <em class='brace'>{</em>
+<a id='L141' name='L141'></a>   141   <strong class='reserved'>char</strong> *fname = <a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>;
+<a id='L142' name='L142'></a>   142   <strong class='reserved'>int</strong> screen = <a href='../S/3072.html#L7400' title='Defined at 7400 in src/xfns.c.'>XScreenNumberOfScreen</a> (XtScreen (widget));
+<a id='L143' name='L143'></a>   143   <strong class='reserved'>int</strong> len = strlen (fname), i = len-1;
+<a id='L144' name='L144'></a>   144   <a href='../S/2672.html#L26' title='Defined at 26 in lwlib/lwlib-utils.h.'>XftFont</a> *fn;
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146   <em class='comment'>/* Try to convert Gtk-syntax (Sans 9) to Xft syntax Sans-9.  */</em>
+<a id='L147' name='L147'></a>   147   <strong class='reserved'>while</strong> (i &gt; 0 &amp;&amp; '0' &lt;= fname[i] &amp;&amp; fname[i] &lt;= '9')
+<a id='L148' name='L148'></a>   148     --i;
+<a id='L149' name='L149'></a>   149   <strong class='reserved'>if</strong> (fname[i] == ' ')
+<a id='L150' name='L150'></a>   150     <em class='brace'>{</em>
+<a id='L151' name='L151'></a>   151       fname = <a href='../D/20115.html' title='Multiple defined in 3 places.'>xstrdup</a> (<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L152' name='L152'></a>   152       fname[i] = '-';
+<a id='L153' name='L153'></a>   153     <em class='brace'>}</em>
+<a id='L154' name='L154'></a>   154 
+<a id='L155' name='L155'></a>   155   fn = <a href='../S/2672.html#L44' title='Defined at 44 in lwlib/lwlib-utils.h.'>XftFontOpenName</a> (XtDisplay (widget), screen, fname);
+<a id='L156' name='L156'></a>   156   <strong class='reserved'>if</strong> (fname != <a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>) <a href='../D/19808.html' title='Multiple defined in 3 places.'>xfree</a> (fname);
+<a id='L157' name='L157'></a>   157 
+<a id='L158' name='L158'></a>   158   <strong class='reserved'>return</strong> fn;
+<a id='L159' name='L159'></a>   159 <em class='brace'>}</em>
+<a id='L160' name='L160'></a>   160 
+<a id='L161' name='L161'></a>   161 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L162' name='L162'></a>   162 <a href='../S/2658.html#L230' title='Referred from 230 in lwlib/lwlib-Xaw.c.'>get_text_width_and_height</a> (Widget widget, <strong class='reserved'>char</strong> *text,
+<a id='L163' name='L163'></a>   163                            <a href='../S/2672.html#L26' title='Defined at 26 in lwlib/lwlib-utils.h.'>XftFont</a> *xft_font,
+<a id='L164' name='L164'></a>   164                            <strong class='reserved'>int</strong> *height)
+<a id='L165' name='L165'></a>   165 <em class='brace'>{</em>
+<a id='L166' name='L166'></a>   166   <strong class='reserved'>int</strong> w = 0, h = 0;
+<a id='L167' name='L167'></a>   167   <strong class='reserved'>char</strong> *<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> = text;
+<a id='L168' name='L168'></a>   168 
+<a id='L169' name='L169'></a>   169   <strong class='reserved'>while</strong> (<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> &amp;&amp; *<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> != '\0')
+<a id='L170' name='L170'></a>   170     <em class='brace'>{</em>
+<a id='L171' name='L171'></a>   171       <a href='../S/2672.html#L41' title='Defined at 41 in lwlib/lwlib-utils.h.'>XGlyphInfo</a> gi;
+<a id='L172' name='L172'></a>   172       <strong class='reserved'>char</strong> *cp = <a href='../S/1857.html#L505' title='Defined at 505 in lib/string.in.h.'>strchr</a> (<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a>, '\n');
+<a id='L173' name='L173'></a>   173       <a href='../S/2672.html#L58' title='Defined at 58 in lwlib/lwlib-utils.h.'>XftTextExtentsUtf8</a> (XtDisplay (widget), xft_font,
+<a id='L174' name='L174'></a>   174                           (FcChar8 *) <a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a>,
+<a id='L175' name='L175'></a>   175                           cp ? cp - <a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> : strlen (<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a>),
+<a id='L176' name='L176'></a>   176                           &amp;gi);
+<a id='L177' name='L177'></a>   177       <a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> = cp ? cp + 1 : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L178' name='L178'></a>   178       h += xft_font-&gt;height;
+<a id='L179' name='L179'></a>   179       <strong class='reserved'>if</strong> (w &lt; gi.xOff) w = gi.xOff;
+<a id='L180' name='L180'></a>   180     <em class='brace'>}</em>
+<a id='L181' name='L181'></a>   181 
+<a id='L182' name='L182'></a>   182   *height = h;
+<a id='L183' name='L183'></a>   183   <strong class='reserved'>return</strong> w;
+<a id='L184' name='L184'></a>   184 <em class='brace'>}</em>
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L187' name='L187'></a>   187 <a href='../R/9654.html' title='Multiple referred from 4 places.'>draw_text</a> (<strong class='reserved'>struct</strong> <a href='../S/2658.html#L61' title='Defined at 61 in lwlib/lwlib-Xaw.c.'>widget_xft_data</a> *data, <strong class='reserved'>char</strong> *lbl, <strong class='reserved'>int</strong> inverse)
+<a id='L188' name='L188'></a>   188 <em class='brace'>{</em>
+<a id='L189' name='L189'></a>   189   Screen *<a href='../S/4737.html#L192' title='Defined at 192 in lib-src/ebrowse.c.'>sc</a> = XtScreen (data-&gt;widget);
+<a id='L190' name='L190'></a>   190   <strong class='reserved'>int</strong> screen = <a href='../S/3072.html#L7400' title='Defined at 7400 in src/xfns.c.'>XScreenNumberOfScreen</a> (<a href='../S/4737.html#L192' title='Defined at 192 in lib-src/ebrowse.c.'>sc</a>);
+<a id='L191' name='L191'></a>   191   <strong class='reserved'>int</strong> y = data-&gt;xft_font-&gt;ascent;
+<a id='L192' name='L192'></a>   192   <strong class='reserved'>int</strong> <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> = inverse ? 0 : 2;
+<a id='L193' name='L193'></a>   193   <strong class='reserved'>char</strong> *<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> = lbl;
+<a id='L194' name='L194'></a>   194 
+<a id='L195' name='L195'></a>   195   <strong class='reserved'>if</strong> (!data-&gt;xft_draw)
+<a id='L196' name='L196'></a>   196     data-&gt;xft_draw = <a href='../S/2672.html#L48' title='Defined at 48 in lwlib/lwlib-utils.h.'>XftDrawCreate</a> (XtDisplay (data-&gt;widget),
+<a id='L197' name='L197'></a>   197                                     data-&gt;p,
+<a id='L198' name='L198'></a>   198                                     DefaultVisual (XtDisplay (data-&gt;widget),
+<a id='L199' name='L199'></a>   199                                                    screen),
+<a id='L200' name='L200'></a>   200                                     DefaultColormapOfScreen (<a href='../S/4737.html#L192' title='Defined at 192 in lib-src/ebrowse.c.'>sc</a>));
+<a id='L201' name='L201'></a>   201   <a href='../S/2672.html#L52' title='Defined at 52 in lwlib/lwlib-utils.h.'>XftDrawRect</a> (data-&gt;xft_draw,
+<a id='L202' name='L202'></a>   202                inverse ? &amp;data-&gt;xft_fg : &amp;data-&gt;xft_bg,
+<a id='L203' name='L203'></a>   203                0, 0, data-&gt;p_width, data-&gt;p_height);
+<a id='L204' name='L204'></a>   204 
+<a id='L205' name='L205'></a>   205   <strong class='reserved'>if</strong> (!inverse) y += 2;
+<a id='L206' name='L206'></a>   206   <strong class='reserved'>while</strong> (<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> &amp;&amp; *<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> != '\0')
+<a id='L207' name='L207'></a>   207     <em class='brace'>{</em>
+<a id='L208' name='L208'></a>   208       <strong class='reserved'>char</strong> *cp = <a href='../S/1857.html#L505' title='Defined at 505 in lib/string.in.h.'>strchr</a> (<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a>, '\n');
+<a id='L209' name='L209'></a>   209       <a href='../S/2672.html#L55' title='Defined at 55 in lwlib/lwlib-utils.h.'>XftDrawStringUtf8</a> (data-&gt;xft_draw,
+<a id='L210' name='L210'></a>   210                          inverse ? &amp;data-&gt;xft_bg : &amp;data-&gt;xft_fg,
+<a id='L211' name='L211'></a>   211                          data-&gt;xft_font, <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y,
+<a id='L212' name='L212'></a>   212                          (FcChar8 *) <a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a>,
+<a id='L213' name='L213'></a>   213                          cp ? cp - <a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> : strlen (<a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a>));
+<a id='L214' name='L214'></a>   214       <a href='../S/3112.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> = cp ? cp + 1 : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L215' name='L215'></a>   215       <em class='comment'>/* 1.2 gives reasonable line spacing.  */</em>
+<a id='L216' name='L216'></a>   216       y += data-&gt;xft_font-&gt;height * 1.2;
+<a id='L217' name='L217'></a>   217     <em class='brace'>}</em>
+<a id='L218' name='L218'></a>   218 <em class='sharp'>#ifdef</em> USE_CAIRO
+<a id='L219' name='L219'></a>   219   cairo_surface_flush (cairo_get_target (data-&gt;xft_draw));
+<a id='L220' name='L220'></a>   220 <em class='sharp'>#endif</em>
+<a id='L221' name='L221'></a>   221 
+<a id='L222' name='L222'></a>   222 <em class='brace'>}</em>
+<a id='L223' name='L223'></a>   223 
+<a id='L224' name='L224'></a>   224 
+<a id='L225' name='L225'></a>   225 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L226' name='L226'></a>   226 <a href='../R/15625.html' title='Multiple referred from 2 places.'>set_text</a> (<strong class='reserved'>struct</strong> <a href='../S/2658.html#L61' title='Defined at 61 in lwlib/lwlib-Xaw.c.'>widget_xft_data</a> *data, Widget toplevel, <strong class='reserved'>char</strong> *lbl, <strong class='reserved'>int</strong> margin)
+<a id='L227' name='L227'></a>   227 <em class='brace'>{</em>
+<a id='L228' name='L228'></a>   228   <strong class='reserved'>int</strong> width, height;
+<a id='L229' name='L229'></a>   229 
+<a id='L230' name='L230'></a>   230   width = <a href='../S/2658.html#L162' title='Defined at 162 in lwlib/lwlib-Xaw.c.'>get_text_width_and_height</a> (data-&gt;widget, lbl, data-&gt;xft_font,
+<a id='L231' name='L231'></a>   231                                      &amp;height);
+<a id='L232' name='L232'></a>   232   data-&gt;p_width = width + margin;
+<a id='L233' name='L233'></a>   233   data-&gt;p_height = height + margin;
+<a id='L234' name='L234'></a>   234 
+<a id='L235' name='L235'></a>   235   data-&gt;p = XCreatePixmap (XtDisplay (data-&gt;widget),
+<a id='L236' name='L236'></a>   236                            XtWindow (toplevel),
+<a id='L237' name='L237'></a>   237                            data-&gt;p_width,
+<a id='L238' name='L238'></a>   238                            data-&gt;p_height,
+<a id='L239' name='L239'></a>   239                            DefaultDepthOfScreen (XtScreen (data-&gt;widget)));
+<a id='L240' name='L240'></a>   240   <a href='../S/2658.html#L187' title='Defined at 187 in lwlib/lwlib-Xaw.c.'>draw_text</a> (data, lbl, 0);
+<a id='L241' name='L241'></a>   241   XtVaSetValues (data-&gt;widget, XtNbitmap, data-&gt;p, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L242' name='L242'></a>   242 <em class='brace'>}</em>
+<a id='L243' name='L243'></a>   243 
+<a id='L244' name='L244'></a>   244 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2658.html#L61' title='Defined at 61 in lwlib/lwlib-Xaw.c.'>widget_xft_data</a> *
+<a id='L245' name='L245'></a>   245 <a href='../R/10472.html' title='Multiple referred from 2 places.'>find_xft_data</a> (Widget widget)
+<a id='L246' name='L246'></a>   246 <em class='brace'>{</em>
+<a id='L247' name='L247'></a>   247   <a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *inst = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L248' name='L248'></a>   248   Widget <a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a> = XtParent (widget);
+<a id='L249' name='L249'></a>   249   <strong class='reserved'>struct</strong> <a href='../S/2658.html#L61' title='Defined at 61 in lwlib/lwlib-Xaw.c.'>widget_xft_data</a> *data = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L250' name='L250'></a>   250   <strong class='reserved'>int</strong> nr;
+<a id='L251' name='L251'></a>   251   <strong class='reserved'>while</strong> (<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a> &amp;&amp; !inst)
+<a id='L252' name='L252'></a>   252     <em class='brace'>{</em>
+<a id='L253' name='L253'></a>   253       inst = <a href='../S/2669.html#L295' title='Defined at 295 in lwlib/lwlib.c.'>lw_get_widget_instance</a> (<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>);
+<a id='L254' name='L254'></a>   254       <a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a> = XtParent (<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>);
+<a id='L255' name='L255'></a>   255     <em class='brace'>}</em>
+<a id='L256' name='L256'></a>   256   <strong class='reserved'>if</strong> (!inst || !inst-&gt;xft_data || !inst-&gt;xft_data[0].xft_font) <strong class='reserved'>return</strong> 0;
+<a id='L257' name='L257'></a>   257 
+<a id='L258' name='L258'></a>   258   <strong class='reserved'>for</strong> (nr = 0; data == <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a> &amp;&amp; inst-&gt;xft_data[nr].widget; ++nr)
+<a id='L259' name='L259'></a>   259     <em class='brace'>{</em>
+<a id='L260' name='L260'></a>   260       <strong class='reserved'>if</strong> (inst-&gt;xft_data[nr].widget == widget)
+<a id='L261' name='L261'></a>   261         data = &amp;inst-&gt;xft_data[nr];
+<a id='L262' name='L262'></a>   262     <em class='brace'>}</em>
+<a id='L263' name='L263'></a>   263 
+<a id='L264' name='L264'></a>   264   <strong class='reserved'>return</strong> data;
+<a id='L265' name='L265'></a>   265 <em class='brace'>}</em>
+<a id='L266' name='L266'></a>   266 
+<a id='L267' name='L267'></a>   267 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L268' name='L268'></a>   268 <a href='../S/2658.html#L488' title='Referred from 488 in lwlib/lwlib-Xaw.c.'>command_press</a> (Widget widget,
+<a id='L269' name='L269'></a>   269                XEvent* event,
+<a id='L270' name='L270'></a>   270                String *params,
+<a id='L271' name='L271'></a>   271                Cardinal *num_params)
+<a id='L272' name='L272'></a>   272 <em class='brace'>{</em>
+<a id='L273' name='L273'></a>   273   <strong class='reserved'>struct</strong> <a href='../S/2658.html#L61' title='Defined at 61 in lwlib/lwlib-Xaw.c.'>widget_xft_data</a> *data = <a href='../S/2658.html#L245' title='Defined at 245 in lwlib/lwlib-Xaw.c.'>find_xft_data</a> (widget);
+<a id='L274' name='L274'></a>   274   <strong class='reserved'>if</strong> (data)
+<a id='L275' name='L275'></a>   275     <em class='brace'>{</em>
+<a id='L276' name='L276'></a>   276       <strong class='reserved'>char</strong> *lbl;
+<a id='L277' name='L277'></a>   277       <em class='comment'>/* Since this isn't used for rectangle buttons, use it to for armed.  */</em>
+<a id='L278' name='L278'></a>   278       XtVaSetValues (widget, XtNcornerRoundPercent, 1, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L279' name='L279'></a>   279 
+<a id='L280' name='L280'></a>   280       XtVaGetValues (widget, XtNlabel, &amp;lbl, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L281' name='L281'></a>   281       <a href='../S/2658.html#L187' title='Defined at 187 in lwlib/lwlib-Xaw.c.'>draw_text</a> (data, lbl, 1);
+<a id='L282' name='L282'></a>   282     <em class='brace'>}</em>
+<a id='L283' name='L283'></a>   283 <em class='brace'>}</em>
+<a id='L284' name='L284'></a>   284 
+<a id='L285' name='L285'></a>   285 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L286' name='L286'></a>   286 <a href='../S/2658.html#L487' title='Referred from 487 in lwlib/lwlib-Xaw.c.'>command_reset</a> (Widget widget,
+<a id='L287' name='L287'></a>   287                XEvent* event,
+<a id='L288' name='L288'></a>   288                String *params,
+<a id='L289' name='L289'></a>   289                Cardinal *num_params)
+<a id='L290' name='L290'></a>   290 <em class='brace'>{</em>
+<a id='L291' name='L291'></a>   291   <strong class='reserved'>struct</strong> <a href='../S/2658.html#L61' title='Defined at 61 in lwlib/lwlib-Xaw.c.'>widget_xft_data</a> *data = <a href='../S/2658.html#L245' title='Defined at 245 in lwlib/lwlib-Xaw.c.'>find_xft_data</a> (widget);
+<a id='L292' name='L292'></a>   292   <strong class='reserved'>if</strong> (data)
+<a id='L293' name='L293'></a>   293     <em class='brace'>{</em>
+<a id='L294' name='L294'></a>   294       Dimension cr;
+<a id='L295' name='L295'></a>   295       XtVaGetValues (widget, XtNcornerRoundPercent, &amp;cr, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L296' name='L296'></a>   296       <strong class='reserved'>if</strong> (cr == 1)
+<a id='L297' name='L297'></a>   297         <em class='brace'>{</em>
+<a id='L298' name='L298'></a>   298           <strong class='reserved'>char</strong> *lbl;
+<a id='L299' name='L299'></a>   299           XtVaSetValues (widget, XtNcornerRoundPercent, 0, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L300' name='L300'></a>   300           XtVaGetValues (widget, XtNlabel, &amp;lbl, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L301' name='L301'></a>   301           <a href='../S/2658.html#L187' title='Defined at 187 in lwlib/lwlib-Xaw.c.'>draw_text</a> (data, lbl, 0);
+<a id='L302' name='L302'></a>   302         <em class='brace'>}</em>
+<a id='L303' name='L303'></a>   303     <em class='brace'>}</em>
+<a id='L304' name='L304'></a>   304 <em class='brace'>}</em>
+<a id='L305' name='L305'></a>   305 
+<a id='L306' name='L306'></a>   306 
+<a id='L307' name='L307'></a>   307 <em class='sharp'>#endif</em>
+<a id='L308' name='L308'></a>   308 
+<a id='L309' name='L309'></a>   309 <strong class='reserved'>void</strong>
+<a id='L310' name='L310'></a>   310 <a href='../R/18381.html' title='Multiple referred from 2 places.'>xaw_update_one_widget</a> (<a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *instance,
+<a id='L311' name='L311'></a>   311                        Widget widget,
+<a id='L312' name='L312'></a>   312                        <a href='../S/2674.html#L103' title='Defined at 103 in lwlib/lwlib-widget.h.'>widget_value</a> *val,
+<a id='L313' name='L313'></a>   313                        Boolean deep_p)
+<a id='L314' name='L314'></a>   314 <em class='brace'>{</em>
+<a id='L315' name='L315'></a>   315   <strong class='reserved'>if</strong> (XtIsSubclass (widget, dialogWidgetClass))
+<a id='L316' name='L316'></a>   316     <em class='brace'>{</em>
+<a id='L317' name='L317'></a>   317 
+<a id='L318' name='L318'></a>   318 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L319' name='L319'></a>   319       <strong class='reserved'>if</strong> (instance-&gt;xft_data &amp;&amp; instance-&gt;xft_data[0].xft_font)
+<a id='L320' name='L320'></a>   320         <em class='brace'>{</em>
+<a id='L321' name='L321'></a>   321           <a href='../S/2658.html#L226' title='Defined at 226 in lwlib/lwlib-Xaw.c.'>set_text</a> (&amp;instance-&gt;xft_data[0], instance-&gt;<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>,
+<a id='L322' name='L322'></a>   322                     val-&gt;contents-&gt;<a href='../S/3055.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>, 10);
+<a id='L323' name='L323'></a>   323         <em class='brace'>}</em>
+<a id='L324' name='L324'></a>   324 <em class='sharp'>#endif</em>
+<a id='L325' name='L325'></a>   325       XtVaSetValues (widget, XtNlabel, val-&gt;contents-&gt;<a href='../S/3055.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L326' name='L326'></a>   326     <em class='brace'>}</em>
+<a id='L327' name='L327'></a>   327   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (XtIsSubclass (widget, commandWidgetClass))
+<a id='L328' name='L328'></a>   328     <em class='brace'>{</em>
+<a id='L329' name='L329'></a>   329       Dimension bw = 0;
+<a id='L330' name='L330'></a>   330       Arg al[10];
+<a id='L331' name='L331'></a>   331       <strong class='reserved'>int</strong> ac = 0;
+<a id='L332' name='L332'></a>   332 
+<a id='L333' name='L333'></a>   333       XtVaGetValues (widget, XtNborderWidth, &amp;bw, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L334' name='L334'></a>   334       <strong class='reserved'>if</strong> (bw == 0)
+<a id='L335' name='L335'></a>   335         <em class='comment'>/* Don't let buttons end up with 0 borderwidth, that's ugly...</em>
+<a id='L336' name='L336'></a>   336 <em class='comment'>           Yeah, all this should really be done through app-defaults files</em>
+<a id='L337' name='L337'></a>   337 <em class='comment'>           or fallback resources, but that's a whole different can of worms</em>
+<a id='L338' name='L338'></a>   338 <em class='comment'>           that I don't feel like opening right now.  Making Athena widgets</em>
+<a id='L339' name='L339'></a>   339 <em class='comment'>           not look like shit is just entirely too much work.</em>
+<a id='L340' name='L340'></a>   340 <em class='comment'>         */</em>
+<a id='L341' name='L341'></a>   341         <em class='brace'>{</em>
+<a id='L342' name='L342'></a>   342           XtSetArg (al[0], XtNborderWidth, 1);
+<a id='L343' name='L343'></a>   343           XtSetValues (widget, al, 1);
+<a id='L344' name='L344'></a>   344         <em class='brace'>}</em>
+<a id='L345' name='L345'></a>   345 
+<a id='L346' name='L346'></a>   346       XtSetSensitive (widget, val-&gt;enabled);
+<a id='L347' name='L347'></a>   347       XtSetArg (al[ac], XtNlabel, val-&gt;<a href='../S/3055.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);ac++;
+<a id='L348' name='L348'></a>   348       <em class='comment'>/* Force centered button text.  Se above. */</em>
+<a id='L349' name='L349'></a>   349       XtSetArg (al[ac], XtNjustify, XtJustifyCenter);ac++;
+<a id='L350' name='L350'></a>   350 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L351' name='L351'></a>   351       <strong class='reserved'>if</strong> (instance-&gt;xft_data &amp;&amp; instance-&gt;xft_data[0].xft_font)
+<a id='L352' name='L352'></a>   352         <em class='brace'>{</em>
+<a id='L353' name='L353'></a>   353           <strong class='reserved'>int</strong> th;
+<a id='L354' name='L354'></a>   354           <strong class='reserved'>int</strong> nr;
+<a id='L355' name='L355'></a>   355           <strong class='reserved'>for</strong> (nr = 0; instance-&gt;xft_data[nr].widget; ++nr)
+<a id='L356' name='L356'></a>   356             <strong class='reserved'>if</strong> (instance-&gt;xft_data[nr].widget == widget)
+<a id='L357' name='L357'></a>   357               <strong class='reserved'>break</strong>;
+<a id='L358' name='L358'></a>   358           <strong class='reserved'>if</strong> (instance-&gt;xft_data[nr].widget)
+<a id='L359' name='L359'></a>   359             <em class='brace'>{</em>
+<a id='L360' name='L360'></a>   360               <a href='../S/2658.html#L226' title='Defined at 226 in lwlib/lwlib-Xaw.c.'>set_text</a> (&amp;instance-&gt;xft_data[nr], instance-&gt;<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>,
+<a id='L361' name='L361'></a>   361                         val-&gt;<a href='../S/3055.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>, 6);
+<a id='L362' name='L362'></a>   362 
+<a id='L363' name='L363'></a>   363               <em class='comment'>/* Must set internalHeight to twice the highlight thickness,</em>
+<a id='L364' name='L364'></a>   364 <em class='comment'>                 or else it gets overwritten by our pixmap.  Probably a bug.  */</em>
+<a id='L365' name='L365'></a>   365               XtVaGetValues (widget, XtNhighlightThickness, &amp;th, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L366' name='L366'></a>   366               XtSetArg (al[ac], XtNinternalHeight, 2*th);ac++;
+<a id='L367' name='L367'></a>   367             <em class='brace'>}</em>
+<a id='L368' name='L368'></a>   368         <em class='brace'>}</em>
+<a id='L369' name='L369'></a>   369 <em class='sharp'>#endif</em>
+<a id='L370' name='L370'></a>   370       XtSetValues (widget, al, ac);
+<a id='L371' name='L371'></a>   371       XtRemoveAllCallbacks (widget, XtNcallback);
+<a id='L372' name='L372'></a>   372       XtAddCallback (widget, XtNcallback, <a href='../S/2658.html#L741' title='Defined at 741 in lwlib/lwlib-Xaw.c.'>xaw_generic_callback</a>, instance);
+<a id='L373' name='L373'></a>   373     <em class='brace'>}</em>
+<a id='L374' name='L374'></a>   374 <em class='brace'>}</em>
+<a id='L375' name='L375'></a>   375 
+<a id='L376' name='L376'></a>   376 <strong class='reserved'>void</strong>
+<a id='L377' name='L377'></a>   377 <a href='../R/18380.html' title='Multiple referred from 2 places.'>xaw_update_one_value</a> (<a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *instance,
+<a id='L378' name='L378'></a>   378                       Widget widget,
+<a id='L379' name='L379'></a>   379                       <a href='../S/2674.html#L103' title='Defined at 103 in lwlib/lwlib-widget.h.'>widget_value</a> *val)
+<a id='L380' name='L380'></a>   380 <em class='brace'>{</em>
+<a id='L381' name='L381'></a>   381   <em class='comment'>/* This function is not used by the scrollbars and those are the only</em>
+<a id='L382' name='L382'></a>   382 <em class='comment'>     Athena widget implemented at the moment so do nothing. */</em>
+<a id='L383' name='L383'></a>   383   <strong class='reserved'>return</strong>;
+<a id='L384' name='L384'></a>   384 <em class='brace'>}</em>
+<a id='L385' name='L385'></a>   385 
+<a id='L386' name='L386'></a>   386 <strong class='reserved'>void</strong>
+<a id='L387' name='L387'></a>   387 <a href='../R/18376.html' title='Multiple referred from 2 places.'>xaw_destroy_instance</a> (<a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *instance)
+<a id='L388' name='L388'></a>   388 <em class='brace'>{</em>
+<a id='L389' name='L389'></a>   389   <strong class='reserved'>if</strong> (XtIsSubclass (instance-&gt;widget, dialogWidgetClass))
+<a id='L390' name='L390'></a>   390     <em class='comment'>/* Need to destroy the Shell too. */</em>
+<a id='L391' name='L391'></a>   391     XtDestroyWidget (XtParent (instance-&gt;widget));
+<a id='L392' name='L392'></a>   392   <strong class='reserved'>else</strong>
+<a id='L393' name='L393'></a>   393     XtDestroyWidget (instance-&gt;widget);
+<a id='L394' name='L394'></a>   394 <em class='brace'>}</em>
+<a id='L395' name='L395'></a>   395 
+<a id='L396' name='L396'></a>   396 <strong class='reserved'>void</strong>
+<a id='L397' name='L397'></a>   397 <a href='../R/18379.html' title='Multiple referred from 2 places.'>xaw_popup_menu</a> (Widget widget, XEvent *event)
+<a id='L398' name='L398'></a>   398 <em class='brace'>{</em>
+<a id='L399' name='L399'></a>   399   <em class='comment'>/* An Athena menubar has not been implemented. */</em>
+<a id='L400' name='L400'></a>   400   <strong class='reserved'>return</strong>;
+<a id='L401' name='L401'></a>   401 <em class='brace'>}</em>
+<a id='L402' name='L402'></a>   402 
+<a id='L403' name='L403'></a>   403 <strong class='reserved'>void</strong>
+<a id='L404' name='L404'></a>   404 <a href='../R/18378.html' title='Multiple referred from 2 places.'>xaw_pop_instance</a> (<a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *instance, Boolean up)
+<a id='L405' name='L405'></a>   405 <em class='brace'>{</em>
+<a id='L406' name='L406'></a>   406   Widget widget = instance-&gt;widget;
+<a id='L407' name='L407'></a>   407 
+<a id='L408' name='L408'></a>   408   <strong class='reserved'>if</strong> (up)
+<a id='L409' name='L409'></a>   409     <em class='brace'>{</em>
+<a id='L410' name='L410'></a>   410       <strong class='reserved'>if</strong> (XtIsSubclass (widget, dialogWidgetClass))
+<a id='L411' name='L411'></a>   411         <em class='brace'>{</em>
+<a id='L412' name='L412'></a>   412           <em class='comment'>/* For dialogs, we need to call XtPopup on the parent instead</em>
+<a id='L413' name='L413'></a>   413 <em class='comment'>             of calling XtManageChild on the widget.</em>
+<a id='L414' name='L414'></a>   414 <em class='comment'>             Also we need to hack the shell's WM_PROTOCOLS to get it to</em>
+<a id='L415' name='L415'></a>   415 <em class='comment'>             understand what the close box is supposed to do!!</em>
+<a id='L416' name='L416'></a>   416 <em class='comment'>           */</em>
+<a id='L417' name='L417'></a>   417           <a href='../D/1640.html' title='Multiple defined in 6 places.'>Display</a> *dpy = XtDisplay (widget);
+<a id='L418' name='L418'></a>   418           Widget shell = XtParent (widget);
+<a id='L419' name='L419'></a>   419           Atom <a href='../S/3348.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a> [2];
+<a id='L420' name='L420'></a>   420           <strong class='reserved'>int</strong> i = 0;
+<a id='L421' name='L421'></a>   421           <a href='../S/3348.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a> [i++] = XInternAtom (dpy, "WM_DELETE_WINDOW", False);
+<a id='L422' name='L422'></a>   422           XChangeProperty (dpy, XtWindow (shell),
+<a id='L423' name='L423'></a>   423                            XInternAtom (dpy, "WM_PROTOCOLS", False),
+<a id='L424' name='L424'></a>   424                            XA_ATOM, 32, PropModeAppend,
+<a id='L425' name='L425'></a>   425                            (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) <a href='../S/3348.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a>, i);
+<a id='L426' name='L426'></a>   426 
+<a id='L427' name='L427'></a>   427           <em class='comment'>/* Center the widget in its parent.  Why isn't this kind of crap</em>
+<a id='L428' name='L428'></a>   428 <em class='comment'>             done automatically?  I thought toolkits were supposed to make</em>
+<a id='L429' name='L429'></a>   429 <em class='comment'>             life easier?</em>
+<a id='L430' name='L430'></a>   430 <em class='comment'>           */</em>
+<a id='L431' name='L431'></a>   431           <em class='brace'>{</em>
+<a id='L432' name='L432'></a>   432             <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, w, h;
+<a id='L433' name='L433'></a>   433             Widget topmost = instance-&gt;<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>;
+<a id='L434' name='L434'></a>   434             Arg <a href='../S/4428.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[2];
+<a id='L435' name='L435'></a>   435 
+<a id='L436' name='L436'></a>   436             w = shell-&gt;core.width;
+<a id='L437' name='L437'></a>   437             h = shell-&gt;core.height;
+<a id='L438' name='L438'></a>   438             <strong class='reserved'>while</strong> (topmost-&gt;core.<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a> &amp;&amp; XtIsRealized (topmost-&gt;core.<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>))
+<a id='L439' name='L439'></a>   439               topmost = topmost-&gt;core.<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>;
+<a id='L440' name='L440'></a>   440             <strong class='reserved'>if</strong> (topmost-&gt;core.width &lt; w) <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> = topmost-&gt;core.<a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>;
+<a id='L441' name='L441'></a>   441             <strong class='reserved'>else</strong> <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> = topmost-&gt;core.<a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + ((topmost-&gt;core.width - w) / 2);
+<a id='L442' name='L442'></a>   442             <strong class='reserved'>if</strong> (topmost-&gt;core.height &lt; h) y = topmost-&gt;core.y;
+<a id='L443' name='L443'></a>   443             <strong class='reserved'>else</strong> y = topmost-&gt;core.y + ((topmost-&gt;core.height - h) / 2);
+<a id='L444' name='L444'></a>   444             <em class='comment'>/* Using XtMoveWidget caused the widget to come</em>
+<a id='L445' name='L445'></a>   445 <em class='comment'>               out in the wrong place with vtwm.</em>
+<a id='L446' name='L446'></a>   446 <em class='comment'>               Question of virtual vs real coords, perhaps.  */</em>
+<a id='L447' name='L447'></a>   447             XtSetArg (<a href='../S/4428.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[0], XtNx, <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>);
+<a id='L448' name='L448'></a>   448             XtSetArg (<a href='../S/4428.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[1], XtNy, y);
+<a id='L449' name='L449'></a>   449             XtSetValues (shell, <a href='../S/4428.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>, 2);
+<a id='L450' name='L450'></a>   450           <em class='brace'>}</em>
+<a id='L451' name='L451'></a>   451 
+<a id='L452' name='L452'></a>   452           <em class='comment'>/* Finally, pop it up. */</em>
+<a id='L453' name='L453'></a>   453           XtPopup (shell, XtGrabNonexclusive);
+<a id='L454' name='L454'></a>   454         <em class='brace'>}</em>
+<a id='L455' name='L455'></a>   455       <strong class='reserved'>else</strong>
+<a id='L456' name='L456'></a>   456         XtManageChild (widget);
+<a id='L457' name='L457'></a>   457     <em class='brace'>}</em>
+<a id='L458' name='L458'></a>   458   <strong class='reserved'>else</strong>
+<a id='L459' name='L459'></a>   459     <em class='brace'>{</em>
+<a id='L460' name='L460'></a>   460       <strong class='reserved'>if</strong> (XtIsSubclass (widget, dialogWidgetClass))
+<a id='L461' name='L461'></a>   461         XtUnmanageChild (XtParent (widget));
+<a id='L462' name='L462'></a>   462       <strong class='reserved'>else</strong>
+<a id='L463' name='L463'></a>   463         XtUnmanageChild (widget);
+<a id='L464' name='L464'></a>   464     <em class='brace'>}</em>
+<a id='L465' name='L465'></a>   465 <em class='brace'>}</em>
+<a id='L466' name='L466'></a>   466 
+<a id='L467' name='L467'></a>   467 
+<a id='L468' name='L468'></a>   468 <em class='comment'>/* Dialog boxes */</em>
+<a id='L469' name='L469'></a>   469 
+<a id='L470' name='L470'></a>   470 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> overrideTrans[] =
+<a id='L471' name='L471'></a>   471         "&lt;Message&gt;WM_PROTOCOLS: lwlib_delete_dialog()";
+<a id='L472' name='L472'></a>   472 <em class='comment'>/* Dialogs pop down on any key press */</em>
+<a id='L473' name='L473'></a>   473 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> dialogOverride[] =
+<a id='L474' name='L474'></a>   474        "&lt;KeyPress&gt;Escape:       lwlib_delete_dialog()";
+<a id='L475' name='L475'></a>   475 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2658.html#L782' title='Defined at 782 in lwlib/lwlib-Xaw.c.'>wm_delete_window</a> (Widget w,
+<a id='L476' name='L476'></a>   476                               XEvent *event,
+<a id='L477' name='L477'></a>   477                               String *params,
+<a id='L478' name='L478'></a>   478                               Cardinal *num_params);
+<a id='L479' name='L479'></a>   479 <strong class='reserved'>static</strong> XtActionsRec xaw_actions [] = <em class='brace'>{</em>
+<a id='L480' name='L480'></a>   480   <em class='brace'>{</em>"lwlib_delete_dialog", <a href='../S/2658.html#L782' title='Defined at 782 in lwlib/lwlib-Xaw.c.'>wm_delete_window</a><em class='brace'>}</em>
+<a id='L481' name='L481'></a>   481 <em class='brace'>}</em>;
+<a id='L482' name='L482'></a>   482 <strong class='reserved'>static</strong> Boolean actions_initted = False;
+<a id='L483' name='L483'></a>   483 
+<a id='L484' name='L484'></a>   484 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L485' name='L485'></a>   485 <strong class='reserved'>static</strong> XtActionsRec button_actions[] =
+<a id='L486' name='L486'></a>   486   <em class='brace'>{</em>
+<a id='L487' name='L487'></a>   487     <em class='brace'>{</em> "my_reset", <a href='../S/2658.html#L286' title='Defined at 286 in lwlib/lwlib-Xaw.c.'>command_reset</a> <em class='brace'>}</em>,
+<a id='L488' name='L488'></a>   488     <em class='brace'>{</em> "my_press", <a href='../S/2658.html#L268' title='Defined at 268 in lwlib/lwlib-Xaw.c.'>command_press</a> <em class='brace'>}</em>,
+<a id='L489' name='L489'></a>   489   <em class='brace'>}</em>;
+<a id='L490' name='L490'></a>   490 <strong class='reserved'>char</strong> buttonTrans[] =
+<a id='L491' name='L491'></a>   491   "&lt;Leave&gt;: reset() my_reset()\n"
+<a id='L492' name='L492'></a>   492   "&lt;Btn1Down&gt;: set() my_press()\n"
+<a id='L493' name='L493'></a>   493   "&lt;Btn1Up&gt;:  my_reset() notify() unset()\n";
+<a id='L494' name='L494'></a>   494 <em class='sharp'>#endif</em>
+<a id='L495' name='L495'></a>   495 
+<a id='L496' name='L496'></a>   496 <strong class='reserved'>static</strong> Widget
+<a id='L497' name='L497'></a>   497 <a href='../R/12961.html' title='Multiple referred from 3 places.'>make_dialog</a> (<strong class='reserved'>char</strong>* <a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>,
+<a id='L498' name='L498'></a>   498              Widget <a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>,
+<a id='L499' name='L499'></a>   499              Boolean pop_up_p,
+<a id='L500' name='L500'></a>   500              <strong class='reserved'>char</strong>* shell_title,
+<a id='L501' name='L501'></a>   501              <strong class='reserved'>char</strong>* icon_name,
+<a id='L502' name='L502'></a>   502              Boolean text_input_slot,
+<a id='L503' name='L503'></a>   503              Boolean radio_box,
+<a id='L504' name='L504'></a>   504              Boolean <a href='../D/13845.html' title='Multiple defined in 5 places.'>list</a>,
+<a id='L505' name='L505'></a>   505              <strong class='reserved'>int</strong> left_buttons,
+<a id='L506' name='L506'></a>   506              <strong class='reserved'>int</strong> right_buttons,
+<a id='L507' name='L507'></a>   507              <a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *instance)
+<a id='L508' name='L508'></a>   508 <em class='brace'>{</em>
+<a id='L509' name='L509'></a>   509   Arg av [20];
+<a id='L510' name='L510'></a>   510   <strong class='reserved'>int</strong> ac = 0;
+<a id='L511' name='L511'></a>   511   <strong class='reserved'>int</strong> i, bc;
+<a id='L512' name='L512'></a>   512   <strong class='reserved'>char</strong> button_name [255];
+<a id='L513' name='L513'></a>   513   Widget shell;
+<a id='L514' name='L514'></a>   514   Widget dialog;
+<a id='L515' name='L515'></a>   515   Widget button;
+<a id='L516' name='L516'></a>   516   XtTranslations override;
+<a id='L517' name='L517'></a>   517 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L518' name='L518'></a>   518   <a href='../S/2672.html#L26' title='Defined at 26 in lwlib/lwlib-utils.h.'>XftFont</a> *xft_font = 0;
+<a id='L519' name='L519'></a>   519   XtTranslations button_override;
+<a id='L520' name='L520'></a>   520 <em class='sharp'>#endif</em>
+<a id='L521' name='L521'></a>   521 
+<a id='L522' name='L522'></a>   522   <strong class='reserved'>if</strong> (! pop_up_p) <a href='../D/10888.html' title='Multiple defined in 6 places.'>emacs_abort</a> (); <em class='comment'>/* not implemented */</em>
+<a id='L523' name='L523'></a>   523   <strong class='reserved'>if</strong> (text_input_slot) <a href='../D/10888.html' title='Multiple defined in 6 places.'>emacs_abort</a> (); <em class='comment'>/* not implemented */</em>
+<a id='L524' name='L524'></a>   524   <strong class='reserved'>if</strong> (radio_box) <a href='../D/10888.html' title='Multiple defined in 6 places.'>emacs_abort</a> (); <em class='comment'>/* not implemented */</em>
+<a id='L525' name='L525'></a>   525   <strong class='reserved'>if</strong> (<a href='../D/13845.html' title='Multiple defined in 5 places.'>list</a>) <a href='../D/10888.html' title='Multiple defined in 6 places.'>emacs_abort</a> (); <em class='comment'>/* not implemented */</em>
+<a id='L526' name='L526'></a>   526 
+<a id='L527' name='L527'></a>   527   <strong class='reserved'>if</strong> (! actions_initted)
+<a id='L528' name='L528'></a>   528     <em class='brace'>{</em>
+<a id='L529' name='L529'></a>   529       XtAppContext app = XtWidgetToApplicationContext (<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>);
+<a id='L530' name='L530'></a>   530       XtAppAddActions (app, xaw_actions,
+<a id='L531' name='L531'></a>   531                        <strong class='reserved'>sizeof</strong> (xaw_actions) / <strong class='reserved'>sizeof</strong> (xaw_actions[0]));
+<a id='L532' name='L532'></a>   532 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L533' name='L533'></a>   533       XtAppAddActions (app, button_actions,
+<a id='L534' name='L534'></a>   534                        <strong class='reserved'>sizeof</strong> (button_actions) / <strong class='reserved'>sizeof</strong> (button_actions[0]));
+<a id='L535' name='L535'></a>   535 <em class='sharp'>#endif</em>
+<a id='L536' name='L536'></a>   536       actions_initted = True;
+<a id='L537' name='L537'></a>   537     <em class='brace'>}</em>
+<a id='L538' name='L538'></a>   538 
+<a id='L539' name='L539'></a>   539   override = XtParseTranslationTable (overrideTrans);
+<a id='L540' name='L540'></a>   540 
+<a id='L541' name='L541'></a>   541   ac = 0;
+<a id='L542' name='L542'></a>   542   XtSetArg (av[ac], XtNtitle, shell_title); ac++;
+<a id='L543' name='L543'></a>   543   XtSetArg (av[ac], XtNallowShellResize, True); ac++;
+<a id='L544' name='L544'></a>   544 
+<a id='L545' name='L545'></a>   545   <em class='comment'>/* Don't allow any geometry request from the user.  */</em>
+<a id='L546' name='L546'></a>   546   XtSetArg (av[ac], <a href='../S/3339.html#L70' title='Defined at 70 in src/widget.h.'>XtNgeometry</a>, 0); ac++;
+<a id='L547' name='L547'></a>   547 
+<a id='L548' name='L548'></a>   548   shell = XtCreatePopupShell ("dialog", transientShellWidgetClass,
+<a id='L549' name='L549'></a>   549                               <a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>, av, ac);
+<a id='L550' name='L550'></a>   550   XtOverrideTranslations (shell, override);
+<a id='L551' name='L551'></a>   551 
+<a id='L552' name='L552'></a>   552   ac = 0;
+<a id='L553' name='L553'></a>   553   dialog = XtCreateManagedWidget (<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>, dialogWidgetClass, shell, av, ac);
+<a id='L554' name='L554'></a>   554   override = XtParseTranslationTable (dialogOverride);
+<a id='L555' name='L555'></a>   555   XtOverrideTranslations (dialog, override);
+<a id='L556' name='L556'></a>   556 
+<a id='L557' name='L557'></a>   557 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L558' name='L558'></a>   558   <em class='brace'>{</em>
+<a id='L559' name='L559'></a>   559     <strong class='reserved'>int</strong> num;
+<a id='L560' name='L560'></a>   560     Widget *ch = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L561' name='L561'></a>   561     Widget w = 0;
+<a id='L562' name='L562'></a>   562     XtVaGetValues (dialog,
+<a id='L563' name='L563'></a>   563                    XtNnumChildren, &amp;num,
+<a id='L564' name='L564'></a>   564                    XtNchildren, &amp;ch, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L565' name='L565'></a>   565     <strong class='reserved'>for</strong> (i = 0; i &lt; num; ++i)
+<a id='L566' name='L566'></a>   566       <em class='brace'>{</em>
+<a id='L567' name='L567'></a>   567         <strong class='reserved'>if</strong> (!XtIsSubclass (ch[i], commandWidgetClass)
+<a id='L568' name='L568'></a>   568             &amp;&amp; XtIsSubclass (ch[i], labelWidgetClass))
+<a id='L569' name='L569'></a>   569           <em class='brace'>{</em>
+<a id='L570' name='L570'></a>   570             w = ch[i];
+<a id='L571' name='L571'></a>   571             <strong class='reserved'>break</strong>;
+<a id='L572' name='L572'></a>   572           <em class='brace'>}</em>
+<a id='L573' name='L573'></a>   573       <em class='brace'>}</em>
+<a id='L574' name='L574'></a>   574     instance-&gt;xft_data = 0;
+<a id='L575' name='L575'></a>   575     <strong class='reserved'>if</strong> (w)
+<a id='L576' name='L576'></a>   576       <em class='brace'>{</em>
+<a id='L577' name='L577'></a>   577         XtResource rec[] =
+<a id='L578' name='L578'></a>   578           <em class='brace'>{</em> <em class='brace'>{</em> "font", "Font", XtRString, <strong class='reserved'>sizeof</strong>(String), 0, XtRString,
+<a id='L579' name='L579'></a>   579               (XtPointer)"Sans-10" <em class='brace'>}</em><em class='brace'>}</em>;
+<a id='L580' name='L580'></a>   580         <strong class='reserved'>char</strong> *fontName = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L581' name='L581'></a>   581         XtVaGetSubresources (dialog, &amp;fontName, "Dialog", "dialog",
+<a id='L582' name='L582'></a>   582                              rec, 1, (String)<a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L583' name='L583'></a>   583         <strong class='reserved'>if</strong> (fontName)
+<a id='L584' name='L584'></a>   584           <em class='brace'>{</em>
+<a id='L585' name='L585'></a>   585             <a href='../S/3345.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfn = XLoadQueryFont (XtDisplay (dialog), fontName);
+<a id='L586' name='L586'></a>   586             <strong class='reserved'>if</strong> (!xfn)
+<a id='L587' name='L587'></a>   587               xft_font = <a href='../D/15128.html' title='Multiple defined in 3 places.'>openFont</a> (dialog, fontName);
+<a id='L588' name='L588'></a>   588             <strong class='reserved'>else</strong>
+<a id='L589' name='L589'></a>   589               XFreeFont (XtDisplay (dialog), xfn);
+<a id='L590' name='L590'></a>   590           <em class='brace'>}</em>
+<a id='L591' name='L591'></a>   591 
+<a id='L592' name='L592'></a>   592         <strong class='reserved'>if</strong> (xft_font)
+<a id='L593' name='L593'></a>   593           <em class='brace'>{</em>
+<a id='L594' name='L594'></a>   594             <strong class='reserved'>int</strong> nr_xft_data = left_buttons + right_buttons + 1;
+<a id='L595' name='L595'></a>   595             instance-&gt;xft_data = <a href='../D/9499.html' title='Multiple defined in 15 places.'>calloc</a> (nr_xft_data + 1,
+<a id='L596' name='L596'></a>   596                                          <strong class='reserved'>sizeof</strong>(*instance-&gt;xft_data));
+<a id='L597' name='L597'></a>   597             <strong class='reserved'>if</strong> (!instance-&gt;xft_data)
+<a id='L598' name='L598'></a>   598               <a href='../D/14394.html' title='Multiple defined in 3 places.'>memory_full</a> ((nr_xft_data + 1) * <strong class='reserved'>sizeof</strong> *instance-&gt;xft_data);
+<a id='L599' name='L599'></a>   599 
+<a id='L600' name='L600'></a>   600             <a href='../S/2658.html#L89' title='Defined at 89 in lwlib/lwlib-Xaw.c.'>fill_xft_data</a> (&amp;instance-&gt;xft_data[0], w, xft_font);
+<a id='L601' name='L601'></a>   601             XtAddCallback (dialog, XtNdestroyCallback, <a href='../S/2658.html#L122' title='Defined at 122 in lwlib/lwlib-Xaw.c.'>destroy_xft_data</a>,
+<a id='L602' name='L602'></a>   602                            instance-&gt;xft_data);
+<a id='L603' name='L603'></a>   603           <em class='brace'>}</em>
+<a id='L604' name='L604'></a>   604       <em class='brace'>}</em>
+<a id='L605' name='L605'></a>   605 
+<a id='L606' name='L606'></a>   606     button_override = XtParseTranslationTable (buttonTrans);
+<a id='L607' name='L607'></a>   607   <em class='brace'>}</em>
+<a id='L608' name='L608'></a>   608 <em class='sharp'>#endif</em>
+<a id='L609' name='L609'></a>   609 
+<a id='L610' name='L610'></a>   610   bc = 0;
+<a id='L611' name='L611'></a>   611   button = 0;
+<a id='L612' name='L612'></a>   612   <strong class='reserved'>for</strong> (i = 0; i &lt; left_buttons; i++)
+<a id='L613' name='L613'></a>   613     <em class='brace'>{</em>
+<a id='L614' name='L614'></a>   614       ac = 0;
+<a id='L615' name='L615'></a>   615       XtSetArg (av [ac], XtNfromHoriz, button); ac++;
+<a id='L616' name='L616'></a>   616       XtSetArg (av [ac], XtNleft, XtChainLeft); ac++;
+<a id='L617' name='L617'></a>   617       XtSetArg (av [ac], XtNright, XtChainLeft); ac++;
+<a id='L618' name='L618'></a>   618       XtSetArg (av [ac], XtNtop, XtChainBottom); ac++;
+<a id='L619' name='L619'></a>   619       XtSetArg (av [ac], XtNbottom, XtChainBottom); ac++;
+<a id='L620' name='L620'></a>   620       XtSetArg (av [ac], XtNresizable, True); ac++;
+<a id='L621' name='L621'></a>   621 <em class='sharp'>#ifdef</em> HAVE_XAW3D
+<a id='L622' name='L622'></a>   622       <strong class='reserved'>if</strong> (DefaultDepthOfScreen (XtScreen (dialog)) &gt;= 16)
+<a id='L623' name='L623'></a>   623         <em class='brace'>{</em>
+<a id='L624' name='L624'></a>   624           <em class='comment'>/* Turn of dithered shadow if we can.  Looks bad */</em>
+<a id='L625' name='L625'></a>   625           XtSetArg (av [ac], "beNiceToColormap", False); ac++;
+<a id='L626' name='L626'></a>   626         <em class='brace'>}</em>
+<a id='L627' name='L627'></a>   627 <em class='sharp'>#endif</em>
+<a id='L628' name='L628'></a>   628       <a href='../D/17577.html' title='Multiple defined in 3 places.'>sprintf</a> (button_name, "button%d", ++bc);
+<a id='L629' name='L629'></a>   629       button = XtCreateManagedWidget (button_name, commandWidgetClass,
+<a id='L630' name='L630'></a>   630                                       dialog, av, ac);
+<a id='L631' name='L631'></a>   631 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L632' name='L632'></a>   632       <strong class='reserved'>if</strong> (xft_font)
+<a id='L633' name='L633'></a>   633         <em class='brace'>{</em>
+<a id='L634' name='L634'></a>   634           <a href='../S/2658.html#L89' title='Defined at 89 in lwlib/lwlib-Xaw.c.'>fill_xft_data</a> (&amp;instance-&gt;xft_data[bc], button, xft_font);
+<a id='L635' name='L635'></a>   635           XtOverrideTranslations (button, button_override);
+<a id='L636' name='L636'></a>   636         <em class='brace'>}</em>
+<a id='L637' name='L637'></a>   637 <em class='sharp'>#endif</em>
+<a id='L638' name='L638'></a>   638     <em class='brace'>}</em>
+<a id='L639' name='L639'></a>   639 
+<a id='L640' name='L640'></a>   640   <strong class='reserved'>for</strong> (i = 0; i &lt; right_buttons; i++)
+<a id='L641' name='L641'></a>   641     <em class='brace'>{</em>
+<a id='L642' name='L642'></a>   642       ac = 0;
+<a id='L643' name='L643'></a>   643       XtSetArg (av [ac], XtNfromHoriz, button); ac++;
+<a id='L644' name='L644'></a>   644       <strong class='reserved'>if</strong> (i == 0)
+<a id='L645' name='L645'></a>   645         <em class='brace'>{</em>
+<a id='L646' name='L646'></a>   646           <em class='comment'>/* Separator to the other buttons. */</em>
+<a id='L647' name='L647'></a>   647           XtSetArg (av [ac], XtNhorizDistance, 30); ac++;
+<a id='L648' name='L648'></a>   648         <em class='brace'>}</em>
+<a id='L649' name='L649'></a>   649       XtSetArg (av [ac], XtNleft, XtChainRight); ac++;
+<a id='L650' name='L650'></a>   650       XtSetArg (av [ac], XtNright, XtChainRight); ac++;
+<a id='L651' name='L651'></a>   651       XtSetArg (av [ac], XtNtop, XtChainBottom); ac++;
+<a id='L652' name='L652'></a>   652       XtSetArg (av [ac], XtNbottom, XtChainBottom); ac++;
+<a id='L653' name='L653'></a>   653       XtSetArg (av [ac], XtNresizable, True); ac++;
+<a id='L654' name='L654'></a>   654 <em class='sharp'>#ifdef</em> HAVE_XAW3D
+<a id='L655' name='L655'></a>   655       <strong class='reserved'>if</strong> (DefaultDepthOfScreen (XtScreen (dialog)) &gt;= 16)
+<a id='L656' name='L656'></a>   656         <em class='brace'>{</em>
+<a id='L657' name='L657'></a>   657           <em class='comment'>/* Turn of dithered shadow if we can.  Looks bad */</em>
+<a id='L658' name='L658'></a>   658           XtSetArg (av [ac], "beNiceToColormap", False); ac++;
+<a id='L659' name='L659'></a>   659         <em class='brace'>}</em>
+<a id='L660' name='L660'></a>   660 <em class='sharp'>#endif</em>
+<a id='L661' name='L661'></a>   661       <a href='../D/17577.html' title='Multiple defined in 3 places.'>sprintf</a> (button_name, "button%d", ++bc);
+<a id='L662' name='L662'></a>   662       button = XtCreateManagedWidget (button_name, commandWidgetClass,
+<a id='L663' name='L663'></a>   663                                       dialog, av, ac);
+<a id='L664' name='L664'></a>   664 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L665' name='L665'></a>   665       <strong class='reserved'>if</strong> (xft_font)
+<a id='L666' name='L666'></a>   666         <em class='brace'>{</em>
+<a id='L667' name='L667'></a>   667           <a href='../S/2658.html#L89' title='Defined at 89 in lwlib/lwlib-Xaw.c.'>fill_xft_data</a> (&amp;instance-&gt;xft_data[bc], button, xft_font);
+<a id='L668' name='L668'></a>   668           XtOverrideTranslations (button, button_override);
+<a id='L669' name='L669'></a>   669         <em class='brace'>}</em>
+<a id='L670' name='L670'></a>   670 <em class='sharp'>#endif</em>
+<a id='L671' name='L671'></a>   671     <em class='brace'>}</em>
+<a id='L672' name='L672'></a>   672 
+<a id='L673' name='L673'></a>   673   <strong class='reserved'>return</strong> dialog;
+<a id='L674' name='L674'></a>   674 <em class='brace'>}</em>
+<a id='L675' name='L675'></a>   675 
+<a id='L676' name='L676'></a>   676 Widget
+<a id='L677' name='L677'></a>   677 <a href='../R/18374.html' title='Multiple referred from 2 places.'>xaw_create_dialog</a> (<a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *instance)
+<a id='L678' name='L678'></a>   678 <em class='brace'>{</em>
+<a id='L679' name='L679'></a>   679   <strong class='reserved'>char</strong> *<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a> = instance-&gt;<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>-&gt;type;
+<a id='L680' name='L680'></a>   680   Widget <a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a> = instance-&gt;<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>;
+<a id='L681' name='L681'></a>   681   Widget widget;
+<a id='L682' name='L682'></a>   682   Boolean pop_up_p = instance-&gt;pop_up_p;
+<a id='L683' name='L683'></a>   683   <strong class='reserved'>char</strong> *shell_name = 0;
+<a id='L684' name='L684'></a>   684   <strong class='reserved'>char</strong> *icon_name = 0;
+<a id='L685' name='L685'></a>   685   Boolean text_input_slot = False;
+<a id='L686' name='L686'></a>   686   Boolean radio_box = False;
+<a id='L687' name='L687'></a>   687   Boolean <a href='../D/13845.html' title='Multiple defined in 5 places.'>list</a> = False;
+<a id='L688' name='L688'></a>   688   <strong class='reserved'>int</strong> total_buttons;
+<a id='L689' name='L689'></a>   689   <strong class='reserved'>int</strong> left_buttons = 0;
+<a id='L690' name='L690'></a>   690   <strong class='reserved'>int</strong> right_buttons = 1;
+<a id='L691' name='L691'></a>   691 
+<a id='L692' name='L692'></a>   692   <strong class='reserved'>switch</strong> (<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a> [0]) <em class='brace'>{</em>
+<a id='L693' name='L693'></a>   693   <strong class='reserved'>case</strong> 'E': <strong class='reserved'>case</strong> 'e':
+<a id='L694' name='L694'></a>   694     icon_name = "dbox-error";
+<a id='L695' name='L695'></a>   695     shell_name = "Error";
+<a id='L696' name='L696'></a>   696     <strong class='reserved'>break</strong>;
+<a id='L697' name='L697'></a>   697 
+<a id='L698' name='L698'></a>   698   <strong class='reserved'>case</strong> 'I': <strong class='reserved'>case</strong> 'i':
+<a id='L699' name='L699'></a>   699     icon_name = "dbox-info";
+<a id='L700' name='L700'></a>   700     shell_name = "Information";
+<a id='L701' name='L701'></a>   701     <strong class='reserved'>break</strong>;
+<a id='L702' name='L702'></a>   702 
+<a id='L703' name='L703'></a>   703   <strong class='reserved'>case</strong> 'L': <strong class='reserved'>case</strong> 'l':
+<a id='L704' name='L704'></a>   704     <a href='../D/13845.html' title='Multiple defined in 5 places.'>list</a> = True;
+<a id='L705' name='L705'></a>   705     icon_name = "dbox-question";
+<a id='L706' name='L706'></a>   706     shell_name = "Prompt";
+<a id='L707' name='L707'></a>   707     <strong class='reserved'>break</strong>;
+<a id='L708' name='L708'></a>   708 
+<a id='L709' name='L709'></a>   709   <strong class='reserved'>case</strong> 'P': <strong class='reserved'>case</strong> 'p':
+<a id='L710' name='L710'></a>   710     text_input_slot = True;
+<a id='L711' name='L711'></a>   711     icon_name = "dbox-question";
+<a id='L712' name='L712'></a>   712     shell_name = "Prompt";
+<a id='L713' name='L713'></a>   713     <strong class='reserved'>break</strong>;
+<a id='L714' name='L714'></a>   714 
+<a id='L715' name='L715'></a>   715   <strong class='reserved'>case</strong> 'Q': <strong class='reserved'>case</strong> 'q':
+<a id='L716' name='L716'></a>   716     icon_name = "dbox-question";
+<a id='L717' name='L717'></a>   717     shell_name = "Question";
+<a id='L718' name='L718'></a>   718     <strong class='reserved'>break</strong>;
+<a id='L719' name='L719'></a>   719   <em class='brace'>}</em>
+<a id='L720' name='L720'></a>   720 
+<a id='L721' name='L721'></a>   721   total_buttons = <a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a> [1] - '0';
+<a id='L722' name='L722'></a>   722 
+<a id='L723' name='L723'></a>   723   <strong class='reserved'>if</strong> (<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a> [3] == 'T' || <a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a> [3] == 't')
+<a id='L724' name='L724'></a>   724     <em class='brace'>{</em>
+<a id='L725' name='L725'></a>   725       text_input_slot = False;
+<a id='L726' name='L726'></a>   726       radio_box = True;
+<a id='L727' name='L727'></a>   727     <em class='brace'>}</em>
+<a id='L728' name='L728'></a>   728   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a> [3])
+<a id='L729' name='L729'></a>   729     right_buttons = <a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a> [4] - '0';
+<a id='L730' name='L730'></a>   730 
+<a id='L731' name='L731'></a>   731   left_buttons = total_buttons - right_buttons;
+<a id='L732' name='L732'></a>   732 
+<a id='L733' name='L733'></a>   733   widget = <a href='../D/14083.html' title='Multiple defined in 2 places.'>make_dialog</a> (<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>, <a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>, pop_up_p,
+<a id='L734' name='L734'></a>   734                         shell_name, icon_name, text_input_slot, radio_box,
+<a id='L735' name='L735'></a>   735                         <a href='../D/13845.html' title='Multiple defined in 5 places.'>list</a>, left_buttons, right_buttons, instance);
+<a id='L736' name='L736'></a>   736   <strong class='reserved'>return</strong> widget;
+<a id='L737' name='L737'></a>   737 <em class='brace'>}</em>
+<a id='L738' name='L738'></a>   738 
+<a id='L739' name='L739'></a>   739 
+<a id='L740' name='L740'></a>   740 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L741' name='L741'></a>   741 <a href='../R/18377.html' title='Multiple referred from 2 places.'>xaw_generic_callback</a> (Widget widget, XtPointer closure, XtPointer call_data)
+<a id='L742' name='L742'></a>   742 <em class='brace'>{</em>
+<a id='L743' name='L743'></a>   743   <a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *instance = (<a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *) closure;
+<a id='L744' name='L744'></a>   744   Widget instance_widget;
+<a id='L745' name='L745'></a>   745   <a href='../S/2663.html#L47' title='Defined at 47 in lwlib/lwlib.h.'>LWLIB_ID</a> id;
+<a id='L746' name='L746'></a>   746   XtPointer user_data;
+<a id='L747' name='L747'></a>   747 
+<a id='L748' name='L748'></a>   748   <a href='../S/2669.html#L1076' title='Defined at 1076 in lwlib/lwlib.c.'>lw_internal_update_other_instances</a> (widget, closure, call_data);
+<a id='L749' name='L749'></a>   749 
+<a id='L750' name='L750'></a>   750   <strong class='reserved'>if</strong> (! instance)
+<a id='L751' name='L751'></a>   751     <strong class='reserved'>return</strong>;
+<a id='L752' name='L752'></a>   752   <strong class='reserved'>if</strong> (widget-&gt;core.being_destroyed)
+<a id='L753' name='L753'></a>   753     <strong class='reserved'>return</strong>;
+<a id='L754' name='L754'></a>   754 
+<a id='L755' name='L755'></a>   755   instance_widget = instance-&gt;widget;
+<a id='L756' name='L756'></a>   756   <strong class='reserved'>if</strong> (!instance_widget)
+<a id='L757' name='L757'></a>   757     <strong class='reserved'>return</strong>;
+<a id='L758' name='L758'></a>   758 
+<a id='L759' name='L759'></a>   759   id = instance-&gt;<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>-&gt;id;
+<a id='L760' name='L760'></a>   760 
+<a id='L761' name='L761'></a>   761   <em class='comment'>/* Damn!  Athena doesn't give us a way to hang our own data on the</em>
+<a id='L762' name='L762'></a>   762 <em class='comment'>     buttons, so we have to go find it...  I guess this assumes that</em>
+<a id='L763' name='L763'></a>   763 <em class='comment'>     all instances of a button have the same call data. */</em>
+<a id='L764' name='L764'></a>   764   <em class='brace'>{</em>
+<a id='L765' name='L765'></a>   765     <a href='../S/2674.html#L103' title='Defined at 103 in lwlib/lwlib-widget.h.'>widget_value</a> *val = instance-&gt;<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>-&gt;val-&gt;contents;
+<a id='L766' name='L766'></a>   766     <strong class='reserved'>char</strong> *<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a> = XtName (widget);
+<a id='L767' name='L767'></a>   767     <strong class='reserved'>while</strong> (val)
+<a id='L768' name='L768'></a>   768       <em class='brace'>{</em>
+<a id='L769' name='L769'></a>   769         <strong class='reserved'>if</strong> (val-&gt;<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a> &amp;&amp; !strcmp (val-&gt;<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>, <a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>))
+<a id='L770' name='L770'></a>   770           <strong class='reserved'>break</strong>;
+<a id='L771' name='L771'></a>   771         val = val-&gt;next;
+<a id='L772' name='L772'></a>   772       <em class='brace'>}</em>
+<a id='L773' name='L773'></a>   773     <strong class='reserved'>if</strong> (! val) <a href='../D/10888.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L774' name='L774'></a>   774     user_data = val-&gt;call_data;
+<a id='L775' name='L775'></a>   775   <em class='brace'>}</em>
+<a id='L776' name='L776'></a>   776 
+<a id='L777' name='L777'></a>   777   <strong class='reserved'>if</strong> (instance-&gt;<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>-&gt;selection_cb)
+<a id='L778' name='L778'></a>   778     instance-&gt;<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>-&gt;selection_cb (widget, id, user_data);
+<a id='L779' name='L779'></a>   779 <em class='brace'>}</em>
+<a id='L780' name='L780'></a>   780 
+<a id='L781' name='L781'></a>   781 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L782' name='L782'></a>   782 <a href='../R/17974.html' title='Multiple referred from 2 places.'>wm_delete_window</a> (Widget w,
+<a id='L783' name='L783'></a>   783                   XEvent *event,
+<a id='L784' name='L784'></a>   784                   String *params,
+<a id='L785' name='L785'></a>   785                   Cardinal *num_params)
+<a id='L786' name='L786'></a>   786 <em class='brace'>{</em>
+<a id='L787' name='L787'></a>   787   <a href='../S/2663.html#L47' title='Defined at 47 in lwlib/lwlib.h.'>LWLIB_ID</a> id;
+<a id='L788' name='L788'></a>   788   Cardinal nkids;
+<a id='L789' name='L789'></a>   789   <strong class='reserved'>int</strong> i;
+<a id='L790' name='L790'></a>   790   Widget *kids = 0;
+<a id='L791' name='L791'></a>   791   Widget widget = 0, shell;
+<a id='L792' name='L792'></a>   792 
+<a id='L793' name='L793'></a>   793   <strong class='reserved'>if</strong> (XtIsSubclass (w, dialogWidgetClass))
+<a id='L794' name='L794'></a>   794     shell = XtParent (w);
+<a id='L795' name='L795'></a>   795   <strong class='reserved'>else</strong>
+<a id='L796' name='L796'></a>   796     shell = w;
+<a id='L797' name='L797'></a>   797 
+<a id='L798' name='L798'></a>   798   <strong class='reserved'>if</strong> (! XtIsSubclass (shell, shellWidgetClass))
+<a id='L799' name='L799'></a>   799     <a href='../D/10888.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L800' name='L800'></a>   800   XtVaGetValues (shell, XtNnumChildren, &amp;nkids, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L801' name='L801'></a>   801   XtVaGetValues (shell, XtNchildren, &amp;kids, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L802' name='L802'></a>   802   <strong class='reserved'>if</strong> (!kids || !*kids)
+<a id='L803' name='L803'></a>   803     <a href='../D/10888.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L804' name='L804'></a>   804   <strong class='reserved'>for</strong> (i = 0; i &lt; nkids; i++)
+<a id='L805' name='L805'></a>   805     <em class='brace'>{</em>
+<a id='L806' name='L806'></a>   806       widget = kids[i];
+<a id='L807' name='L807'></a>   807       <strong class='reserved'>if</strong> (XtIsSubclass (widget, dialogWidgetClass))
+<a id='L808' name='L808'></a>   808         <strong class='reserved'>break</strong>;
+<a id='L809' name='L809'></a>   809     <em class='brace'>}</em>
+<a id='L810' name='L810'></a>   810   <strong class='reserved'>if</strong> (! widget) <strong class='reserved'>return</strong>;
+<a id='L811' name='L811'></a>   811 
+<a id='L812' name='L812'></a>   812   id = <a href='../S/2669.html#L1115' title='Defined at 1115 in lwlib/lwlib.c.'>lw_get_widget_id</a> (widget);
+<a id='L813' name='L813'></a>   813   <strong class='reserved'>if</strong> (! id) <a href='../D/10888.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L814' name='L814'></a>   814 
+<a id='L815' name='L815'></a>   815   <em class='brace'>{</em>
+<a id='L816' name='L816'></a>   816     <a href='../S/2659.html#L53' title='Defined at 53 in lwlib/lwlib-int.h.'>widget_info</a> *<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a> = <a href='../S/2669.html#L262' title='Defined at 262 in lwlib/lwlib.c.'>lw_get_widget_info</a> (id);
+<a id='L817' name='L817'></a>   817     <strong class='reserved'>if</strong> (! <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>) <a href='../D/10888.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L818' name='L818'></a>   818     <strong class='reserved'>if</strong> (<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>-&gt;selection_cb)
+<a id='L819' name='L819'></a>   819       <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>-&gt;selection_cb (widget, id, (XtPointer) -1);
+<a id='L820' name='L820'></a>   820   <em class='brace'>}</em>
+<a id='L821' name='L821'></a>   821 
+<a id='L822' name='L822'></a>   822   <a href='../S/2669.html#L851' title='Defined at 851 in lwlib/lwlib.c.'>lw_destroy_all_widgets</a> (id);
+<a id='L823' name='L823'></a>   823 <em class='brace'>}</em>
+<a id='L824' name='L824'></a>   824 
+<a id='L825' name='L825'></a>   825 
+<a id='L826' name='L826'></a>   826 
+<a id='L827' name='L827'></a>   827 <strong class='reserved'>static</strong> Widget
+<a id='L828' name='L828'></a>   828 <a href='../S/2658.html#L843' title='Referred from 843 in lwlib/lwlib-Xaw.c.'>xaw_create_main</a> (<a href='../S/2659.html#L38' title='Defined at 38 in lwlib/lwlib-int.h.'>widget_instance</a> *instance)
+<a id='L829' name='L829'></a>   829 <em class='brace'>{</em>
+<a id='L830' name='L830'></a>   830   Arg al[1];
+<a id='L831' name='L831'></a>   831   <strong class='reserved'>int</strong> ac;
+<a id='L832' name='L832'></a>   832 
+<a id='L833' name='L833'></a>   833   <em class='comment'>/* Create a vertical Paned to hold menubar */</em>
+<a id='L834' name='L834'></a>   834   ac = 0;
+<a id='L835' name='L835'></a>   835   XtSetArg (al[ac], XtNborderWidth, 0); ac++;
+<a id='L836' name='L836'></a>   836   <strong class='reserved'>return</strong> XtCreateWidget (instance-&gt;<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>-&gt;<a href='../D/14921.html' title='Multiple defined in 4 places.'>name</a>, panedWidgetClass,
+<a id='L837' name='L837'></a>   837                          instance-&gt;<a href='../D/15231.html' title='Multiple defined in 2 places.'>parent</a>, al, ac);
+<a id='L838' name='L838'></a>   838 <em class='brace'>}</em>
+<a id='L839' name='L839'></a>   839 
+<a id='L840' name='L840'></a>   840 <a href='../S/2659.html#L61' title='Defined at 61 in lwlib/lwlib-int.h.'>widget_creation_entry</a>
+<a id='L841' name='L841'></a>   841 xaw_creation_table [] =
+<a id='L842' name='L842'></a>   842 <em class='brace'>{</em>
+<a id='L843' name='L843'></a>   843   <em class='brace'>{</em>"main",                      <a href='../S/2658.html#L828' title='Defined at 828 in lwlib/lwlib-Xaw.c.'>xaw_create_main</a><em class='brace'>}</em>,
+<a id='L844' name='L844'></a>   844   <em class='brace'>{</em><a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a><em class='brace'>}</em>
+<a id='L845' name='L845'></a>   845 <em class='brace'>}</em>;
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L80'>[^]</a><a href='#L828'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

@@ -1,0 +1,727 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>sym</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<pre>
+<span class='curline'><a href='../S/4453.html#L266'>sym</a>               266 lib-src/ebrowse.c   struct sym *sym;		/* The super or subclass.  */</span>
+<span class='curline'><a href='../S/4453.html#L275'>sym</a>               275 lib-src/ebrowse.c   struct sym *namesp;		/* Namespace in which defined.  */</span>
+<span class='curline'><a href='../S/4453.html#L287'>sym</a>               287 lib-src/ebrowse.c   struct sym *next;             /* Hash collision list.  */</span>
+<span class='curline'><a href='../S/4453.html#L300'>sym</a>               300 lib-src/ebrowse.c   struct sym *namesp;		/* Namespace in which defined. .  */</span>
+<span class='curline'><a href='../S/4453.html#L311'>sym</a>               311 lib-src/ebrowse.c static struct sym *info_cls = NULL;</span>
+<span class='curline'><a href='../S/4453.html#L409'>sym</a>               409 lib-src/ebrowse.c static struct sym *class_table[TABLE_SIZE];</span>
+<span class='curline'><a href='../S/4453.html#L424'>sym</a>               424 lib-src/ebrowse.c static struct sym *global_symbols;</span>
+<span class='curline'><a href='../S/4453.html#L428'>sym</a>               428 lib-src/ebrowse.c static struct sym *current_namespace;</span>
+<span class='curline'><a href='../S/4453.html#L432'>sym</a>               432 lib-src/ebrowse.c static struct sym *all_namespaces;</span>
+<span class='curline'><a href='../S/4453.html#L436'>sym</a>               436 lib-src/ebrowse.c static struct sym **namespace_stack;</span>
+<span class='curline'><a href='../S/4453.html#L472'>sym</a>               472 lib-src/ebrowse.c static struct sym *add_sym (const char *, struct sym *);</span>
+<span class='curline'><a href='../S/4453.html#L475'>sym</a>               475 lib-src/ebrowse.c static struct member *add_member (struct sym *, char *, int, int, unsigned);</span>
+<span class='curline'><a href='../S/4453.html#L476'>sym</a>               476 lib-src/ebrowse.c static void class_definition (struct sym *, const char *, int, int, int);</span>
+<span class='curline'><a href='../S/4453.html#L561'>sym</a>               561 lib-src/ebrowse.c static struct sym *</span>
+<span class='curline'><a href='../S/4453.html#L562'>sym</a>               562 lib-src/ebrowse.c add_sym (const char *name, struct sym *nested_in_class)</span>
+<span class='curline'><a href='../S/4453.html#L564'>sym</a>               564 lib-src/ebrowse.c   struct sym *sym;</span>
+<span class='curline'><a href='../S/4453.html#L567'>sym</a>               567 lib-src/ebrowse.c   struct sym *scope = nested_in_class ? nested_in_class : current_namespace;</span>
+<span class='curline'><a href='../S/4453.html#L573'>sym</a>               573 lib-src/ebrowse.c   for (sym = class_table[h]; sym; sym = sym-&gt;next)</span>
+<span class='curline'><a href='../S/4453.html#L574'>sym</a>               574 lib-src/ebrowse.c     if (streq (name, sym-&gt;name)</span>
+<span class='curline'><a href='../S/4453.html#L575'>sym</a>               575 lib-src/ebrowse.c 	&amp;&amp; ((!sym-&gt;namesp &amp;&amp; !scope)</span>
+<span class='curline'><a href='../S/4453.html#L576'>sym</a>               576 lib-src/ebrowse.c 	    || (sym-&gt;namesp &amp;&amp; scope</span>
+<span class='curline'><a href='../S/4453.html#L577'>sym</a>               577 lib-src/ebrowse.c 		&amp;&amp; streq (sym-&gt;namesp-&gt;name, scope-&gt;name))))</span>
+<span class='curline'><a href='../S/4453.html#L580'>sym</a>               580 lib-src/ebrowse.c   if (sym == NULL)</span>
+<span class='curline'><a href='../S/4453.html#L588'>sym</a>               588 lib-src/ebrowse.c       sym = xmalloc (FLEXSIZEOF (struct sym, name, strlen (name) + 1));</span>
+<span class='curline'><a href='../S/4453.html#L589'>sym</a>               589 lib-src/ebrowse.c       memset (sym, 0, offsetof (struct sym, name));</span>
+<span class='curline'><a href='../S/4453.html#L590'>sym</a>               590 lib-src/ebrowse.c       strcpy (sym-&gt;name, name);</span>
+<span class='curline'><a href='../S/4453.html#L591'>sym</a>               591 lib-src/ebrowse.c       sym-&gt;namesp = scope;</span>
+<span class='curline'><a href='../S/4453.html#L592'>sym</a>               592 lib-src/ebrowse.c       sym-&gt;next = class_table[h];</span>
+<span class='curline'><a href='../S/4453.html#L593'>sym</a>               593 lib-src/ebrowse.c       class_table[h] = sym;</span>
+<span class='curline'><a href='../S/4453.html#L596'>sym</a>               596 lib-src/ebrowse.c   return sym;</span>
+<span class='curline'><a href='../S/4453.html#L603'>sym</a>               603 lib-src/ebrowse.c add_link (struct sym *super, struct sym *sub)</span>
+<span class='curline'><a href='../S/4453.html#L609'>sym</a>               609 lib-src/ebrowse.c        p &amp;&amp; strcmp (sub-&gt;name, p-&gt;sym-&gt;name) &gt; 0;</span>
+<span class='curline'><a href='../S/4453.html#L614'>sym</a>               614 lib-src/ebrowse.c   if (p == NULL || p-&gt;sym != sub)</span>
+<span class='curline'><a href='../S/4453.html#L619'>sym</a>               619 lib-src/ebrowse.c       lnk-&gt;sym = sub;</span>
+<span class='curline'><a href='../S/4453.html#L627'>sym</a>               627 lib-src/ebrowse.c       lnk2-&gt;sym = super;</span>
+<span class='curline'><a href='../S/4453.html#L643'>sym</a>               643 lib-src/ebrowse.c find_member (struct sym *cls, char *name, int var, int sc, unsigned int hash)</span>
+<span class='curline'><a href='../S/4453.html#L693'>sym</a>               693 lib-src/ebrowse.c add_member_decl (struct sym *cls, char *name, char *regexp, int pos, unsigned int hash, int var, int sc, int vis, int flags)</span>
+<span class='curline'><a href='../S/4453.html#L741'>sym</a>               741 lib-src/ebrowse.c add_member_defn (struct sym *cls, char *name, char *regexp, int pos, unsigned int hash, int var, int sc, int flags)</span>
+<span class='curline'><a href='../S/4453.html#L804'>sym</a>               804 lib-src/ebrowse.c   struct sym *sym;</span>
+<span class='curline'><a href='../S/4453.html#L810'>sym</a>               810 lib-src/ebrowse.c       for (sym = class_table[i]; sym; sym = sym-&gt;next)</span>
+<span class='curline'><a href='../S/4453.html#L811'>sym</a>               811 lib-src/ebrowse.c 	if (sym != global_symbols &amp;&amp; sym-&gt;friends)</span>
+<span class='curline'><a href='../S/4453.html#L812'>sym</a>               812 lib-src/ebrowse.c 	  if (find_member (sym, name, 0, SC_FRIEND, hash))</span>
+<span class='curline'><a href='../S/4453.html#L813'>sym</a>               813 lib-src/ebrowse.c 	    add_member_defn (sym, name, regexp, pos, hash, 0,</span>
+<span class='curline'><a href='../S/4453.html#L871'>sym</a>               871 lib-src/ebrowse.c add_member (struct sym *cls, char *name, int var, int sc, unsigned int hash)</span>
+<span class='curline'><a href='../S/4453.html#L943'>sym</a>               943 lib-src/ebrowse.c mark_virtual (struct sym *r)</span>
+<span class='curline'><a href='../S/4453.html#L953'>sym</a>               953 lib-src/ebrowse.c             for (m2 = p-&gt;sym-&gt;fns; m2; m2 = m2-&gt;next)</span>
+<span class='curline'><a href='../S/4453.html#L958'>sym</a>               958 lib-src/ebrowse.c       mark_virtual (p-&gt;sym);</span>
+<span class='curline'><a href='../S/4453.html#L969'>sym</a>               969 lib-src/ebrowse.c   struct sym *r;</span>
+<span class='curline'><a href='../S/4453.html#L981'>sym</a>               981 lib-src/ebrowse.c static struct sym *</span>
+<span class='curline'><a href='../S/4453.html#L982'>sym</a>               982 lib-src/ebrowse.c make_namespace (char *name, struct sym *context)</span>
+<span class='curline'><a href='../S/4453.html#L984'>sym</a>               984 lib-src/ebrowse.c   struct sym *s = xmalloc (FLEXSIZEOF (struct sym, name, strlen (name) + 1));</span>
+<span class='curline'><a href='../S/4453.html#L985'>sym</a>               985 lib-src/ebrowse.c   memset (s, 0, offsetof (struct sym, name));</span>
+<span class='curline'><a href='../S/4453.html#L996'>sym</a>               996 lib-src/ebrowse.c static struct sym *</span>
+<span class='curline'><a href='../S/4453.html#L997'>sym</a>               997 lib-src/ebrowse.c check_namespace (char *name, struct sym *context)</span>
+<span class='curline'><a href='../S/4453.html#L999'>sym</a>               999 lib-src/ebrowse.c   struct sym *p = NULL;</span>
+<span class='curline'><a href='../S/4453.html#L1013'>sym</a>              1013 lib-src/ebrowse.c static struct sym *</span>
+<span class='curline'><a href='../S/4453.html#L1014'>sym</a>              1014 lib-src/ebrowse.c find_namespace (char *name, struct sym *context)</span>
+<span class='curline'><a href='../S/4453.html#L1016'>sym</a>              1016 lib-src/ebrowse.c   struct sym *p = check_namespace (name, context);</span>
+<span class='curline'><a href='../S/4453.html#L1082'>sym</a>              1082 lib-src/ebrowse.c   struct sym *p = find_namespace (name, current_namespace);</span>
+<span class='curline'><a href='../S/4453.html#L1088'>sym</a>              1088 lib-src/ebrowse.c 	= (struct sym **) xrealloc ((void *)namespace_stack,</span>
+<span class='curline'><a href='../S/4453.html#L1160'>sym</a>              1160 lib-src/ebrowse.c sym_scope_1 (struct sym *p)</span>
+<span class='curline'><a href='../S/4453.html#L1194'>sym</a>              1194 lib-src/ebrowse.c sym_scope (struct sym *p)</span>
+<span class='curline'><a href='../S/4453.html#L1245'>sym</a>              1245 lib-src/ebrowse.c dump_sym (FILE *fp, struct sym *root)</span>
+<span class='curline'><a href='../S/4453.html#L1270'>sym</a>              1270 lib-src/ebrowse.c dump_tree (FILE *fp, struct sym *root)</span>
+<span class='curline'><a href='../S/4453.html#L1285'>sym</a>              1285 lib-src/ebrowse.c       dump_tree (fp, lk-&gt;sym);</span>
+<span class='curline'><a href='../S/4453.html#L1339'>sym</a>              1339 lib-src/ebrowse.c     for (struct sym *r = class_table[i]; r; r = r-&gt;next)</span>
+<span class='curline'><a href='../S/4453.html#L2393'>sym</a>              2393 lib-src/ebrowse.c           tmp-&gt;sym = find_namespace (yytext, cur ? cur-&gt;sym : NULL);</span>
+<span class='curline'><a href='../S/4453.html#L2558'>sym</a>              2558 lib-src/ebrowse.c member (struct sym *cls, int vis)</span>
+<span class='curline'><a href='../S/4453.html#L2786'>sym</a>              2786 lib-src/ebrowse.c class_body (struct sym *cls, int tag)</span>
+<span class='curline'><a href='../S/4453.html#L2846'>sym</a>              2846 lib-src/ebrowse.c static struct sym *</span>
+<span class='curline'><a href='../S/4453.html#L2849'>sym</a>              2849 lib-src/ebrowse.c   struct sym *last_class = NULL;</span>
+<span class='curline'><a href='../S/4453.html#L2969'>sym</a>              2969 lib-src/ebrowse.c static struct sym *</span>
+<span class='curline'><a href='../S/4453.html#L2972'>sym</a>              2972 lib-src/ebrowse.c   struct sym *cls = NULL;</span>
+<span class='curline'><a href='../S/4453.html#L2993'>sym</a>              2993 lib-src/ebrowse.c 	  struct sym *pcn = NULL;</span>
+<span class='curline'><a href='../S/4453.html#L2999'>sym</a>              2999 lib-src/ebrowse.c 		  enter_namespace (pna-&gt;sym-&gt;name);</span>
+<span class='curline'><a href='../S/4453.html#L3037'>sym</a>              3037 lib-src/ebrowse.c   struct sym *cls = NULL;</span>
+<span class='curline'><a href='../S/4453.html#L3080'>sym</a>              3080 lib-src/ebrowse.c class_definition (struct sym *containing, const char *class_name, int tag, int flags, int nested)</span>
+<span class='curline'><a href='../S/4453.html#L3082'>sym</a>              3082 lib-src/ebrowse.c   struct sym *current;</span>
+<span class='curline'><a href='../S/4453.html#L3083'>sym</a>              3083 lib-src/ebrowse.c   struct sym *base_class;</span>
+<span class='curline'><a href='../S/4453.html#L3176'>sym</a>              3176 lib-src/ebrowse.c add_declarator (struct sym **cls, char **id, int flags, int sc)</span>
+<span class='curline'><a href='../S/4453.html#L3222'>sym</a>              3222 lib-src/ebrowse.c   struct sym *cls = NULL;</span>
+<span class='curline'><a href='../S/2531.html#L1012'>sym</a>              1012 lwlib/lwlib-Xm.c   KeySym sym = 0;</span>
+<span class='curline'><a href='../S/2531.html#L1016'>sym</a>              1016 lwlib/lwlib-Xm.c                       &amp;modif_ret, &amp;sym);</span>
+<span class='curline'><a href='../S/2531.html#L1018'>sym</a>              1018 lwlib/lwlib-Xm.c   if (sym == osfXK_Cancel)</span>
+<span class='curline'><a href='../S/3007.html#L3630'>sym</a>              3630 src/alloc.c    set_symbol_name (Lisp_Object sym, Lisp_Object name)</span>
+<span class='curline'><a href='../S/3007.html#L3632'>sym</a>              3632 src/alloc.c      XBARE_SYMBOL (sym)-&gt;u.s.name = name;</span>
+<span class='curline'><a href='../S/3007.html#L3710'>sym</a>              3710 src/alloc.c      p-&gt;sym = symbol;</span>
+<span class='curline'><a href='../S/3007.html#L5929'>sym</a>              5929 src/alloc.c          struct Lisp_Symbol *sym = sblk-&gt;symbols, *end = sym + lim;</span>
+<span class='curline'><a href='../S/3007.html#L5930'>sym</a>              5930 src/alloc.c          for (; sym &lt; end; ++sym)</span>
+<span class='curline'><a href='../S/3007.html#L5931'>sym</a>              5931 src/alloc.c    	if (sym-&gt;u.s.pinned)</span>
+<span class='curline'><a href='../S/3007.html#L5932'>sym</a>              5932 src/alloc.c    	  mark_object (make_lisp_symbol (sym));</span>
+<span class='curline'><a href='../S/3007.html#L7334'>sym</a>              7334 src/alloc.c          struct Lisp_Symbol *sym = sblk-&gt;symbols;</span>
+<span class='curline'><a href='../S/3007.html#L7335'>sym</a>              7335 src/alloc.c          struct Lisp_Symbol *end = sym + lim;</span>
+<span class='curline'><a href='../S/3007.html#L7337'>sym</a>              7337 src/alloc.c          for (; sym &lt; end; ++sym)</span>
+<span class='curline'><a href='../S/3007.html#L7339'>sym</a>              7339 src/alloc.c              if (!sym-&gt;u.s.gcmarkbit)</span>
+<span class='curline'><a href='../S/3007.html#L7341'>sym</a>              7341 src/alloc.c                  if (sym-&gt;u.s.redirect == SYMBOL_LOCALIZED)</span>
+<span class='curline'><a href='../S/3007.html#L7343'>sym</a>              7343 src/alloc.c                      xfree (SYMBOL_BLV (sym));</span>
+<span class='curline'><a href='../S/3007.html#L7349'>sym</a>              7349 src/alloc.c                      sym-&gt;u.s.redirect = SYMBOL_PLAINVAL;</span>
+<span class='curline'><a href='../S/3007.html#L7351'>sym</a>              7351 src/alloc.c                  sym-&gt;u.s.next = symbol_free_list;</span>
+<span class='curline'><a href='../S/3007.html#L7352'>sym</a>              7352 src/alloc.c                  symbol_free_list = sym;</span>
+<span class='curline'><a href='../S/3007.html#L7359'>sym</a>              7359 src/alloc.c                  sym-&gt;u.s.gcmarkbit = 0;</span>
+<span class='curline'><a href='../S/3007.html#L7361'>sym</a>              7361 src/alloc.c                  eassert (valid_lisp_object_p (sym-&gt;u.s.function));</span>
+<span class='curline'><a href='../S/3007.html#L7566'>sym</a>              7566 src/alloc.c      struct Lisp_Symbol *sym = XBARE_SYMBOL (symbol);</span>
+<span class='curline'><a href='../S/3007.html#L7569'>sym</a>              7569 src/alloc.c    	  || EQ (sym-&gt;u.s.function, obj)</span>
+<span class='curline'><a href='../S/3007.html#L7570'>sym</a>              7570 src/alloc.c    	  || (!NILP (sym-&gt;u.s.function)</span>
+<span class='curline'><a href='../S/3007.html#L7571'>sym</a>              7571 src/alloc.c    	      &amp;&amp; COMPILEDP (sym-&gt;u.s.function)</span>
+<span class='curline'><a href='../S/3007.html#L7572'>sym</a>              7572 src/alloc.c    	      &amp;&amp; EQ (AREF (sym-&gt;u.s.function, COMPILED_BYTECODE), obj))</span>
+<span class='curline'><a href='../S/3007.html#L7592'>sym</a>              7592 src/alloc.c    	   Lisp_Object sym = builtin_lisp_symbol (i);</span>
+<span class='curline'><a href='../S/3007.html#L7593'>sym</a>              7593 src/alloc.c    	   if (symbol_uses_obj (sym, obj))</span>
+<span class='curline'><a href='../S/3007.html#L7595'>sym</a>              7595 src/alloc.c    	       found = Fcons (sym, found);</span>
+<span class='curline'><a href='../S/3007.html#L7611'>sym</a>              7611 src/alloc.c    	       Lisp_Object sym = make_lisp_symbol (asym);</span>
+<span class='curline'><a href='../S/3007.html#L7612'>sym</a>              7612 src/alloc.c    	       if (symbol_uses_obj (sym, obj))</span>
+<span class='curline'><a href='../S/3007.html#L7614'>sym</a>              7614 src/alloc.c    		   found = Fcons (sym, found);</span>
+<span class='curline'><a href='../S/2882.html#L122'>sym</a>               122 src/buffer.c   static Lisp_Object buffer_local_variables_1 (struct buffer *buf, int offset, Lisp_Object sym);</span>
+<span class='curline'><a href='../S/2882.html#L1121'>sym</a>              1121 src/buffer.c             Lisp_Object sym = local_var;</span>
+<span class='curline'><a href='../S/2882.html#L1128'>sym</a>              1128 src/buffer.c             eassert (XSYMBOL (sym)-&gt;u.s.redirect == SYMBOL_LOCALIZED);</span>
+<span class='curline'><a href='../S/2882.html#L1131'>sym</a>              1131 src/buffer.c             if (BASE_EQ (SYMBOL_BLV (XSYMBOL (sym))-&gt;where, buffer))</span>
+<span class='curline'><a href='../S/2882.html#L1135'>sym</a>              1135 src/buffer.c   	      swap_in_global_binding (XSYMBOL (sym));</span>
+<span class='curline'><a href='../S/2882.html#L1300'>sym</a>              1300 src/buffer.c     struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2882.html#L1305'>sym</a>              1305 src/buffer.c     sym = XSYMBOL (variable);</span>
+<span class='curline'><a href='../S/2882.html#L1308'>sym</a>              1308 src/buffer.c     switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2882.html#L1310'>sym</a>              1310 src/buffer.c       case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2882.html#L1311'>sym</a>              1311 src/buffer.c       case SYMBOL_PLAINVAL: result = SYMBOL_VAL (sym); break;</span>
+<span class='curline'><a href='../S/2882.html#L1314'>sym</a>              1314 src/buffer.c   	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2882.html#L1315'>sym</a>              1315 src/buffer.c   	XSETSYMBOL (variable, sym); /* Update In case of aliasing.  */</span>
+<span class='curline'><a href='../S/2882.html#L1340'>sym</a>              1340 src/buffer.c   	lispfwd fwd = SYMBOL_FWD (sym);</span>
+<span class='curline'><a href='../S/2882.html#L1395'>sym</a>              1395 src/buffer.c   buffer_local_variables_1 (struct buffer *buf, int offset, Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2882.html#L1401'>sym</a>              1401 src/buffer.c         sym = NILP (sym) ? PER_BUFFER_SYMBOL (offset) : sym;</span>
+<span class='curline'><a href='../S/2882.html#L1403'>sym</a>              1403 src/buffer.c         return BASE_EQ (val, Qunbound) ? sym : Fcons (sym, val);</span>
+<span class='curline'><a href='../S/2882.html#L2294'>sym</a>              2294 src/buffer.c   	  struct Lisp_Symbol *sym = XSYMBOL (var);</span>
+<span class='curline'><a href='../S/2882.html#L2295'>sym</a>              2295 src/buffer.c   	  if (sym-&gt;u.s.redirect == SYMBOL_LOCALIZED /* Just to be sure.  */</span>
+<span class='curline'><a href='../S/2882.html#L2296'>sym</a>              2296 src/buffer.c   	      &amp;&amp; SYMBOL_BLV (sym)-&gt;fwd.fwdptr)</span>
+<span class='curline'><a href='../S/2882.html#L4958'>sym</a>              4958 src/buffer.c     struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2882.html#L4961'>sym</a>              4961 src/buffer.c     sym = XSYMBOL (intern (namestring));</span>
+<span class='curline'><a href='../S/2882.html#L4967'>sym</a>              4967 src/buffer.c     sym-&gt;u.s.declared_special = true;</span>
+<span class='curline'><a href='../S/2882.html#L4968'>sym</a>              4968 src/buffer.c     sym-&gt;u.s.redirect = SYMBOL_FORWARDED;</span>
+<span class='curline'><a href='../S/2882.html#L4969'>sym</a>              4969 src/buffer.c     SET_SYMBOL_FWD (sym, bo_fwd);</span>
+<span class='curline'><a href='../S/2882.html#L4970'>sym</a>              4970 src/buffer.c     XSETSYMBOL (PER_BUFFER_SYMBOL (offset), sym);</span>
+<span class='curline'><a href='../S/2842.html#L692'>sym</a>               692 src/bytecode.c 	    Lisp_Object sym = vectorp[op];</span>
+<span class='curline'><a href='../S/2842.html#L696'>sym</a>               696 src/bytecode.c 	    if (SYMBOLP (sym)</span>
+<span class='curline'><a href='../S/2842.html#L698'>sym</a>               698 src/bytecode.c 		&amp;&amp; XSYMBOL (sym)-&gt;u.s.redirect == SYMBOL_PLAINVAL</span>
+<span class='curline'><a href='../S/2842.html#L699'>sym</a>               699 src/bytecode.c 		&amp;&amp; !SYMBOL_TRAPPED_WRITE_P (sym))</span>
+<span class='curline'><a href='../S/2842.html#L700'>sym</a>               700 src/bytecode.c 	      SET_SYMBOL_VAL (XSYMBOL (sym), val);</span>
+<span class='curline'><a href='../S/2842.html#L702'>sym</a>               702 src/bytecode.c               set_internal (sym, val, Qnil, SET_INTERNAL_SET);</span>
+<span class='curline'><a href='../S/2955.html#L419'>sym</a>               419 src/cmds.c           Lisp_Object sym;</span>
+<span class='curline'><a href='../S/2955.html#L421'>sym</a>               421 src/cmds.c           sym = call0 (Qexpand_abbrev);</span>
+<span class='curline'><a href='../S/2955.html#L426'>sym</a>               426 src/cmds.c           if (SYMBOLP (sym) &amp;&amp; ! NILP (sym)</span>
+<span class='curline'><a href='../S/2955.html#L427'>sym</a>               427 src/cmds.c     	  &amp;&amp; ! NILP (XSYMBOL (sym)-&gt;u.s.function)</span>
+<span class='curline'><a href='../S/2955.html#L428'>sym</a>               428 src/cmds.c     	  &amp;&amp; SYMBOLP (XSYMBOL (sym)-&gt;u.s.function))</span>
+<span class='curline'><a href='../S/2955.html#L431'>sym</a>               431 src/cmds.c     	  prop = Fget (XSYMBOL (sym)-&gt;u.s.function, intern ("no-self-insert"));</span>
+<span class='curline'><a href='../S/2844.html#L678'>sym</a>               678 src/data.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2844.html#L680'>sym</a>               680 src/data.c       sym = XSYMBOL (symbol);</span>
+<span class='curline'><a href='../S/2844.html#L683'>sym</a>               683 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L685'>sym</a>               685 src/data.c         case SYMBOL_PLAINVAL: valcontents = SYMBOL_VAL (sym); break;</span>
+<span class='curline'><a href='../S/2844.html#L686'>sym</a>               686 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L689'>sym</a>               689 src/data.c     	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L696'>sym</a>               696 src/data.c     	    swap_in_symval_forwarding (sym, blv);</span>
+<span class='curline'><a href='../S/2844.html#L791'>sym</a>               791 src/data.c       (register Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2844.html#L793'>sym</a>               793 src/data.c       if (BARE_SYMBOL_P (sym))</span>
+<span class='curline'><a href='../S/2844.html#L794'>sym</a>               794 src/data.c         return sym;</span>
+<span class='curline'><a href='../S/2844.html#L796'>sym</a>               796 src/data.c       return SYMBOL_WITH_POS_SYM (sym);</span>
+<span class='curline'><a href='../S/2844.html#L823'>sym</a>               823 src/data.c          (register Lisp_Object sym, register Lisp_Object pos)</span>
+<span class='curline'><a href='../S/2844.html#L828'>sym</a>               828 src/data.c       if (BARE_SYMBOL_P (sym))</span>
+<span class='curline'><a href='../S/2844.html#L829'>sym</a>               829 src/data.c         bare = sym;</span>
+<span class='curline'><a href='../S/2844.html#L830'>sym</a>               830 src/data.c       else if (SYMBOL_WITH_POS_P (sym))</span>
+<span class='curline'><a href='../S/2844.html#L831'>sym</a>               831 src/data.c         bare = XSYMBOL_WITH_POS (sym)-&gt;sym;</span>
+<span class='curline'><a href='../S/2844.html#L833'>sym</a>               833 src/data.c         wrong_type_argument (Qsymbolp, sym);</span>
+<span class='curline'><a href='../S/2844.html#L1288'>sym</a>              1288 src/data.c           struct Lisp_Symbol *sym = indirect_variable (XSYMBOL (object));</span>
+<span class='curline'><a href='../S/2844.html#L1289'>sym</a>              1289 src/data.c           XSETSYMBOL (object, sym);</span>
+<span class='curline'><a href='../S/2844.html#L1569'>sym</a>              1569 src/data.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2844.html#L1572'>sym</a>              1572 src/data.c       sym = XSYMBOL (symbol);</span>
+<span class='curline'><a href='../S/2844.html#L1575'>sym</a>              1575 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L1577'>sym</a>              1577 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L1578'>sym</a>              1578 src/data.c         case SYMBOL_PLAINVAL: return SYMBOL_VAL (sym);</span>
+<span class='curline'><a href='../S/2844.html#L1581'>sym</a>              1581 src/data.c     	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L1582'>sym</a>              1582 src/data.c     	swap_in_symval_forwarding (sym, blv);</span>
+<span class='curline'><a href='../S/2844.html#L1588'>sym</a>              1588 src/data.c           return do_symval_forwarding (SYMBOL_FWD (sym));</span>
+<span class='curline'><a href='../S/2844.html#L1636'>sym</a>              1636 src/data.c       struct Lisp_Symbol *sym = XSYMBOL (symbol);</span>
+<span class='curline'><a href='../S/2844.html#L1637'>sym</a>              1637 src/data.c       switch (sym-&gt;u.s.trapped_write)</span>
+<span class='curline'><a href='../S/2844.html#L1664'>sym</a>              1664 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L1666'>sym</a>              1666 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L1667'>sym</a>              1667 src/data.c         case SYMBOL_PLAINVAL: SET_SYMBOL_VAL (sym , newval); return;</span>
+<span class='curline'><a href='../S/2844.html#L1670'>sym</a>              1670 src/data.c     	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L1690'>sym</a>              1690 src/data.c     	    XSETSYMBOL (symbol, sym); /* May have changed via aliasing.  */</span>
+<span class='curline'><a href='../S/2844.html#L1708'>sym</a>              1708 src/data.c     		    || let_shadows_buffer_binding_p (sym))</span>
+<span class='curline'><a href='../S/2844.html#L1751'>sym</a>              1751 src/data.c     	lispfwd innercontents = SYMBOL_FWD (sym);</span>
+<span class='curline'><a href='../S/2844.html#L1759'>sym</a>              1759 src/data.c     		if (let_shadows_buffer_binding_p (sym))</span>
+<span class='curline'><a href='../S/2844.html#L1769'>sym</a>              1769 src/data.c     	    sym-&gt;u.s.redirect = SYMBOL_PLAINVAL;</span>
+<span class='curline'><a href='../S/2844.html#L1770'>sym</a>              1770 src/data.c     	    SET_SYMBOL_VAL (sym, newval);</span>
+<span class='curline'><a href='../S/2844.html#L1784'>sym</a>              1784 src/data.c       struct Lisp_Symbol *sym = XSYMBOL (symbol);</span>
+<span class='curline'><a href='../S/2844.html#L1785'>sym</a>              1785 src/data.c       if (sym-&gt;u.s.trapped_write == SYMBOL_NOWRITE)</span>
+<span class='curline'><a href='../S/2844.html#L1787'>sym</a>              1787 src/data.c       sym-&gt;u.s.trapped_write = trap;</span>
+<span class='curline'><a href='../S/2844.html#L1912'>sym</a>              1912 src/data.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2844.html#L1915'>sym</a>              1915 src/data.c       sym = XSYMBOL (symbol);</span>
+<span class='curline'><a href='../S/2844.html#L1918'>sym</a>              1918 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L1920'>sym</a>              1920 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L1921'>sym</a>              1921 src/data.c         case SYMBOL_PLAINVAL: return SYMBOL_VAL (sym);</span>
+<span class='curline'><a href='../S/2844.html#L1928'>sym</a>              1928 src/data.c     	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L1936'>sym</a>              1936 src/data.c     	lispfwd valcontents = SYMBOL_FWD (sym);</span>
+<span class='curline'><a href='../S/2844.html#L1986'>sym</a>              1986 src/data.c       struct Lisp_Symbol *sym = XSYMBOL (symbol);</span>
+<span class='curline'><a href='../S/2844.html#L1987'>sym</a>              1987 src/data.c       switch (sym-&gt;u.s.trapped_write)</span>
+<span class='curline'><a href='../S/2844.html#L1999'>sym</a>              1999 src/data.c           if (sym-&gt;u.s.redirect != SYMBOL_PLAINVAL</span>
+<span class='curline'><a href='../S/2844.html#L2012'>sym</a>              2012 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L2014'>sym</a>              2014 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L2018'>sym</a>              2018 src/data.c     	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2030'>sym</a>              2030 src/data.c     	lispfwd valcontents = SYMBOL_FWD (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2090'>sym</a>              2090 src/data.c     make_blv (struct Lisp_Symbol *sym, bool forwarded,</span>
+<span class='curline'><a href='../S/2844.html#L2097'>sym</a>              2097 src/data.c      XSETSYMBOL (symbol, sym);</span>
+<span class='curline'><a href='../S/2844.html#L2141'>sym</a>              2141 src/data.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2844.html#L2147'>sym</a>              2147 src/data.c       sym = XSYMBOL (variable);</span>
+<span class='curline'><a href='../S/2844.html#L2150'>sym</a>              2150 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L2152'>sym</a>              2152 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L2154'>sym</a>              2154 src/data.c           forwarded = 0; valcontents.value = SYMBOL_VAL (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2159'>sym</a>              2159 src/data.c           blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2162'>sym</a>              2162 src/data.c           forwarded = 1; valcontents.fwd = SYMBOL_FWD (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2177'>sym</a>              2177 src/data.c           blv = make_blv (sym, forwarded, valcontents);</span>
+<span class='curline'><a href='../S/2844.html#L2178'>sym</a>              2178 src/data.c           sym-&gt;u.s.redirect = SYMBOL_LOCALIZED;</span>
+<span class='curline'><a href='../S/2844.html#L2179'>sym</a>              2179 src/data.c           SET_SYMBOL_BLV (sym, blv);</span>
+<span class='curline'><a href='../S/2844.html#L2211'>sym</a>              2211 src/data.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2844.html#L2215'>sym</a>              2215 src/data.c       sym = XSYMBOL (variable);</span>
+<span class='curline'><a href='../S/2844.html#L2218'>sym</a>              2218 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L2220'>sym</a>              2220 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L2222'>sym</a>              2222 src/data.c           forwarded = 0; valcontents.value = SYMBOL_VAL (sym); break;</span>
+<span class='curline'><a href='../S/2844.html#L2224'>sym</a>              2224 src/data.c           blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2227'>sym</a>              2227 src/data.c           forwarded = 1; valcontents.fwd = SYMBOL_FWD (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2235'>sym</a>              2235 src/data.c       if (sym-&gt;u.s.trapped_write == SYMBOL_NOWRITE)</span>
+<span class='curline'><a href='../S/2844.html#L2249'>sym</a>              2249 src/data.c           blv = make_blv (sym, forwarded, valcontents);</span>
+<span class='curline'><a href='../S/2844.html#L2250'>sym</a>              2250 src/data.c           sym-&gt;u.s.redirect = SYMBOL_LOCALIZED;</span>
+<span class='curline'><a href='../S/2844.html#L2251'>sym</a>              2251 src/data.c           SET_SYMBOL_BLV (sym, blv);</span>
+<span class='curline'><a href='../S/2844.html#L2255'>sym</a>              2255 src/data.c       XSETSYMBOL (variable, sym);	/* Update in case of aliasing.  */</span>
+<span class='curline'><a href='../S/2844.html#L2259'>sym</a>              2259 src/data.c           if (let_shadows_buffer_binding_p (sym))</span>
+<span class='curline'><a href='../S/2844.html#L2269'>sym</a>              2269 src/data.c             swap_in_global_binding (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2284'>sym</a>              2284 src/data.c             swap_in_symval_forwarding (sym, blv);</span>
+<span class='curline'><a href='../S/2844.html#L2298'>sym</a>              2298 src/data.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2844.html#L2301'>sym</a>              2301 src/data.c       sym = XSYMBOL (variable);</span>
+<span class='curline'><a href='../S/2844.html#L2304'>sym</a>              2304 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L2306'>sym</a>              2306 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L2310'>sym</a>              2310 src/data.c     	lispfwd valcontents = SYMBOL_FWD (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2326'>sym</a>              2326 src/data.c           blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2331'>sym</a>              2331 src/data.c       if (sym-&gt;u.s.trapped_write == SYMBOL_TRAPPED_WRITE)</span>
+<span class='curline'><a href='../S/2844.html#L2335'>sym</a>              2335 src/data.c       XSETSYMBOL (variable, sym);	/* Propagate variable indirection.  */</span>
+<span class='curline'><a href='../S/2844.html#L2348'>sym</a>              2348 src/data.c           swap_in_global_binding (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2365'>sym</a>              2365 src/data.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2844.html#L2368'>sym</a>              2368 src/data.c       sym = XSYMBOL (variable);</span>
+<span class='curline'><a href='../S/2844.html#L2371'>sym</a>              2371 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L2373'>sym</a>              2373 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L2378'>sym</a>              2378 src/data.c     	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2380'>sym</a>              2380 src/data.c     	XSETSYMBOL (variable, sym); /* Update in case of aliasing.  */</span>
+<span class='curline'><a href='../S/2844.html#L2391'>sym</a>              2391 src/data.c     	lispfwd valcontents = SYMBOL_FWD (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2415'>sym</a>              2415 src/data.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2844.html#L2418'>sym</a>              2418 src/data.c       sym = XSYMBOL (variable);</span>
+<span class='curline'><a href='../S/2844.html#L2421'>sym</a>              2421 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L2423'>sym</a>              2423 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L2427'>sym</a>              2427 src/data.c     	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2430'>sym</a>              2430 src/data.c     	XSETSYMBOL (variable, sym); /* Update in case of aliasing.  */</span>
+<span class='curline'><a href='../S/2844.html#L2435'>sym</a>              2435 src/data.c           return (BUFFER_OBJFWDP (SYMBOL_FWD (sym)) ? Qt : Qnil);</span>
+<span class='curline'><a href='../S/2844.html#L2447'>sym</a>              2447 src/data.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2844.html#L2450'>sym</a>              2450 src/data.c       sym = XSYMBOL (variable);</span>
+<span class='curline'><a href='../S/2844.html#L2456'>sym</a>              2456 src/data.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2844.html#L2458'>sym</a>              2458 src/data.c         case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;</span>
+<span class='curline'><a href='../S/2844.html#L2462'>sym</a>              2462 src/data.c     	lispfwd valcontents = SYMBOL_FWD (sym);</span>
+<span class='curline'><a href='../S/2844.html#L2474'>sym</a>              2474 src/data.c           else if (sym-&gt;u.s.redirect == SYMBOL_LOCALIZED</span>
+<span class='curline'><a href='../S/2844.html#L2475'>sym</a>              2475 src/data.c     	       &amp;&amp; blv_found (SYMBOL_BLV (sym)))</span>
+<span class='curline'><a href='../S/2844.html#L2476'>sym</a>              2476 src/data.c     	return SYMBOL_BLV (sym)-&gt;where;</span>
+<span class='curline'><a href='../S/2844.html#L4178'>sym</a>              4178 src/data.c     #define PUT_ERROR(sym, tail, msg)			\</span>
+<span class='curline'><a href='../S/2844.html#L4179'>sym</a>              4179 src/data.c       Fput (sym, Qerror_conditions, pure_cons (sym, tail)); \</span>
+<span class='curline'><a href='../S/2844.html#L4180'>sym</a>              4180 src/data.c       Fput (sym, Qerror_message, build_pure_c_string (msg))</span>
+<span class='curline'><a href='../S/2993.html#L504'>sym</a>               504 src/doc.c        Lisp_Object sym;</span>
+<span class='curline'><a href='../S/2993.html#L586'>sym</a>               586 src/doc.c      	  sym = oblookup (Vobarray, p + 2,</span>
+<span class='curline'><a href='../S/2993.html#L592'>sym</a>               592 src/doc.c      	  if (SYMBOLP (sym))</span>
+<span class='curline'><a href='../S/2993.html#L600'>sym</a>               600 src/doc.c                        if ((!NILP (Fboundp (sym))</span>
+<span class='curline'><a href='../S/2993.html#L601'>sym</a>               601 src/doc.c                            || !NILP (Fmemq (sym, delayed_init)))</span>
+<span class='curline'><a href='../S/2993.html#L603'>sym</a>               603 src/doc.c                          Fput (sym, Qvariable_documentation,</span>
+<span class='curline'><a href='../S/2993.html#L611'>sym</a>               611 src/doc.c                        if (!NILP (Ffboundp (sym)) &amp;&amp; strncmp (end, "\nSKIP", 5))</span>
+<span class='curline'><a href='../S/2993.html#L612'>sym</a>               612 src/doc.c                          store_function_docstring (sym, pos + end + 1 - buf);</span>
+<span class='curline'><a href='../S/2937.html#L114'>sym</a>               114 src/dynlib.c   dynlib_sym (dynlib_handle_ptr h, const char *sym)</span>
+<span class='curline'><a href='../S/2937.html#L118'>sym</a>               118 src/dynlib.c     if (!h || h == INVALID_HANDLE_VALUE || !sym)</span>
+<span class='curline'><a href='../S/2937.html#L124'>sym</a>               124 src/dynlib.c     sym_addr = GetProcAddress ((HMODULE) h, sym);</span>
+<span class='curline'><a href='../S/2937.html#L291'>sym</a>               291 src/dynlib.c   dynlib_sym (dynlib_handle_ptr h, const char *sym)</span>
+<span class='curline'><a href='../S/2937.html#L293'>sym</a>               293 src/dynlib.c     return dlsym (h, sym);</span>
+<span class='curline'><a href='../S/2937.html#L297'>sym</a>               297 src/dynlib.c   dynlib_addr (void (*funcptr) (void), const char **path, const char **sym)</span>
+<span class='curline'><a href='../S/2937.html#L300'>sym</a>               300 src/dynlib.c     *sym = NULL;</span>
+<span class='curline'><a href='../S/2937.html#L307'>sym</a>               307 src/dynlib.c         *sym = info.dli_sname;</span>
+<span class='curline'><a href='../S/2937.html#L337'>sym</a>               337 src/dynlib.c   dynlib_func (dynlib_handle_ptr h, const char *sym)</span>
+<span class='curline'><a href='../S/2937.html#L339'>sym</a>               339 src/dynlib.c     return (dynlib_function_ptr) dlfunc (h, sym);</span>
+<span class='curline'><a href='../S/2908.html#L31'>sym</a>                31 src/dynlib.h   ATTRIBUTE_MAY_ALIAS void *dynlib_sym (dynlib_handle_ptr h, const char *sym);</span>
+<span class='curline'><a href='../S/2908.html#L34'>sym</a>                34 src/dynlib.h   dynlib_function_ptr dynlib_func (dynlib_handle_ptr h, const char *sym);</span>
+<span class='curline'><a href='../S/2908.html#L39'>sym</a>                39 src/dynlib.h   void dynlib_addr (void (*ptr) (void), const char **file, const char **sym);</span>
+<span class='curline'><a href='../S/2893.html#L1272'>sym</a>              1272 src/emacs-module.c module_non_local_exit_signal_1 (emacs_env *env, Lisp_Object sym,</span>
+<span class='curline'><a href='../S/2893.html#L1279'>sym</a>              1279 src/emacs-module.c       p-&gt;non_local_exit_symbol.v = sym;</span>
+<span class='curline'><a href='../S/2847.html#L477'>sym</a>               477 src/eval.c           Lisp_Object sym = XCAR (tail);</span>
+<span class='curline'><a href='../S/2847.html#L487'>sym</a>               487 src/eval.c     	= (SYMBOLP (sym)</span>
+<span class='curline'><a href='../S/2847.html#L488'>sym</a>               488 src/eval.c     	   ? Fassq (sym, Vinternal_interpreter_environment)</span>
+<span class='curline'><a href='../S/2847.html#L493'>sym</a>               493 src/eval.c     	Fset (sym, val);	/* SYM is dynamically bound.  */</span>
+<span class='curline'><a href='../S/2847.html#L577'>sym</a>               577 src/eval.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2847.html#L587'>sym</a>               587 src/eval.c       sym = XSYMBOL (new_alias);</span>
+<span class='curline'><a href='../S/2847.html#L589'>sym</a>               589 src/eval.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2847.html#L631'>sym</a>               631 src/eval.c       if (sym-&gt;u.s.trapped_write == SYMBOL_TRAPPED_WRITE)</span>
+<span class='curline'><a href='../S/2847.html#L634'>sym</a>               634 src/eval.c       sym-&gt;u.s.declared_special = true;</span>
+<span class='curline'><a href='../S/2847.html#L636'>sym</a>               636 src/eval.c       sym-&gt;u.s.redirect = SYMBOL_VARALIAS;</span>
+<span class='curline'><a href='../S/2847.html#L637'>sym</a>               637 src/eval.c       SET_SYMBOL_ALIAS (sym, XSYMBOL (base_variable));</span>
+<span class='curline'><a href='../S/2847.html#L638'>sym</a>               638 src/eval.c       sym-&gt;u.s.trapped_write = XSYMBOL (base_variable)-&gt;u.s.trapped_write;</span>
+<span class='curline'><a href='../S/2847.html#L752'>sym</a>               752 src/eval.c     defvar (Lisp_Object sym, Lisp_Object initvalue, Lisp_Object docstring, bool eval)</span>
+<span class='curline'><a href='../S/2847.html#L756'>sym</a>               756 src/eval.c       CHECK_SYMBOL (sym);</span>
+<span class='curline'><a href='../S/2847.html#L758'>sym</a>               758 src/eval.c       tem = Fdefault_boundp (sym);</span>
+<span class='curline'><a href='../S/2847.html#L761'>sym</a>               761 src/eval.c       Finternal__define_uninitialized_variable (sym, docstring);</span>
+<span class='curline'><a href='../S/2847.html#L764'>sym</a>               764 src/eval.c         Fset_default (sym, eval ? eval_sub (initvalue) : initvalue);</span>
+<span class='curline'><a href='../S/2847.html#L768'>sym</a>               768 src/eval.c           union specbinding *binding = default_toplevel_binding (sym);</span>
+<span class='curline'><a href='../S/2847.html#L775'>sym</a>               775 src/eval.c       return sym;</span>
+<span class='curline'><a href='../S/2847.html#L806'>sym</a>               806 src/eval.c       Lisp_Object sym, tail;</span>
+<span class='curline'><a href='../S/2847.html#L808'>sym</a>               808 src/eval.c       sym = XCAR (args);</span>
+<span class='curline'><a href='../S/2847.html#L811'>sym</a>               811 src/eval.c       CHECK_SYMBOL (sym);</span>
+<span class='curline'><a href='../S/2847.html#L819'>sym</a>               819 src/eval.c           return defvar (sym, exp, CAR (tail), true);</span>
+<span class='curline'><a href='../S/2847.html#L822'>sym</a>               822 src/eval.c     	   &amp;&amp; (SYMBOLP (sym) &amp;&amp; !XSYMBOL (sym)-&gt;u.s.declared_special))</span>
+<span class='curline'><a href='../S/2847.html#L827'>sym</a>               827 src/eval.c           = Fcons (sym, Vinternal_interpreter_environment);</span>
+<span class='curline'><a href='../S/2847.html#L835'>sym</a>               835 src/eval.c       return sym;</span>
+<span class='curline'><a href='../S/2847.html#L841'>sym</a>               841 src/eval.c       (Lisp_Object sym, Lisp_Object initvalue, Lisp_Object docstring)</span>
+<span class='curline'><a href='../S/2847.html#L843'>sym</a>               843 src/eval.c       return defvar (sym, initvalue, docstring, false);</span>
+<span class='curline'><a href='../S/2847.html#L864'>sym</a>               864 src/eval.c       Lisp_Object sym, tem;</span>
+<span class='curline'><a href='../S/2847.html#L866'>sym</a>               866 src/eval.c       sym = XCAR (args);</span>
+<span class='curline'><a href='../S/2847.html#L867'>sym</a>               867 src/eval.c       CHECK_SYMBOL (sym);</span>
+<span class='curline'><a href='../S/2847.html#L876'>sym</a>               876 src/eval.c       return Fdefconst_1 (sym, tem, docstring);</span>
+<span class='curline'><a href='../S/2847.html#L882'>sym</a>               882 src/eval.c       (Lisp_Object sym, Lisp_Object initvalue, Lisp_Object docstring)</span>
+<span class='curline'><a href='../S/2847.html#L884'>sym</a>               884 src/eval.c       CHECK_SYMBOL (sym);</span>
+<span class='curline'><a href='../S/2847.html#L886'>sym</a>               886 src/eval.c       Finternal__define_uninitialized_variable (sym, docstring);</span>
+<span class='curline'><a href='../S/2847.html#L889'>sym</a>               889 src/eval.c       Fset_default (sym, tem);      /* FIXME: set-default-toplevel-value? */</span>
+<span class='curline'><a href='../S/2847.html#L890'>sym</a>               890 src/eval.c       Fput (sym, Qrisky_local_variable, Qt); /* FIXME: Why?  */</span>
+<span class='curline'><a href='../S/2847.html#L891'>sym</a>               891 src/eval.c       return sym;</span>
+<span class='curline'><a href='../S/2847.html#L1105'>sym</a>              1105 src/eval.c       register Lisp_Object expander, sym, def, tem;</span>
+<span class='curline'><a href='../S/2847.html#L1114'>sym</a>              1114 src/eval.c           def = sym = XCAR (form);</span>
+<span class='curline'><a href='../S/2847.html#L1121'>sym</a>              1121 src/eval.c     	  sym = def;</span>
+<span class='curline'><a href='../S/2847.html#L1122'>sym</a>              1122 src/eval.c     	  tem = Fassq (sym, environment);</span>
+<span class='curline'><a href='../S/2847.html#L1125'>sym</a>              1125 src/eval.c     	      def = XSYMBOL (sym)-&gt;u.s.function;</span>
+<span class='curline'><a href='../S/2847.html#L1137'>sym</a>              1137 src/eval.c     	  def = Fautoload_do_load (def, sym, Qmacro);</span>
+<span class='curline'><a href='../S/2847.html#L2800'>sym</a>              2800 src/eval.c       Lisp_Object sym, val, ret = Qnil;</span>
+<span class='curline'><a href='../S/2847.html#L2807'>sym</a>              2807 src/eval.c       sym = args[0];</span>
+<span class='curline'><a href='../S/2847.html#L2808'>sym</a>              2808 src/eval.c       val = find_symbol_value (sym);</span>
+<span class='curline'><a href='../S/2847.html#L2829'>sym</a>              2829 src/eval.c     	      global_vals = Fdefault_value (sym);</span>
+<span class='curline'><a href='../S/2847.html#L3424'>sym</a>              3424 src/eval.c     do_specbind (struct Lisp_Symbol *sym, union specbinding *bind,</span>
+<span class='curline'><a href='../S/2847.html#L3427'>sym</a>              3427 src/eval.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2847.html#L3430'>sym</a>              3430 src/eval.c           if (!sym-&gt;u.s.trapped_write)</span>
+<span class='curline'><a href='../S/2847.html#L3431'>sym</a>              3431 src/eval.c     	SET_SYMBOL_VAL (sym, value);</span>
+<span class='curline'><a href='../S/2847.html#L3437'>sym</a>              3437 src/eval.c           if (BUFFER_OBJFWDP (SYMBOL_FWD (sym))</span>
+<span class='curline'><a href='../S/2847.html#L3468'>sym</a>              3468 src/eval.c       struct Lisp_Symbol *sym;</span>
+<span class='curline'><a href='../S/2847.html#L3471'>sym</a>              3471 src/eval.c       sym = XSYMBOL (symbol);</span>
+<span class='curline'><a href='../S/2847.html#L3474'>sym</a>              3474 src/eval.c       switch (sym-&gt;u.s.redirect)</span>
+<span class='curline'><a href='../S/2847.html#L3477'>sym</a>              3477 src/eval.c           sym = indirect_variable (sym); XSETSYMBOL (symbol, sym); goto start;</span>
+<span class='curline'><a href='../S/2847.html#L3483'>sym</a>              3483 src/eval.c           specpdl_ptr-&gt;let.old_value = SYMBOL_VAL (sym);</span>
+<span class='curline'><a href='../S/2847.html#L3494'>sym</a>              3494 src/eval.c     	eassert (sym-&gt;u.s.redirect != SYMBOL_LOCALIZED</span>
+<span class='curline'><a href='../S/2847.html#L3495'>sym</a>              3495 src/eval.c     		 || (BASE_EQ (SYMBOL_BLV (sym)-&gt;where, Fcurrent_buffer ())));</span>
+<span class='curline'><a href='../S/2847.html#L3497'>sym</a>              3497 src/eval.c     	if (sym-&gt;u.s.redirect == SYMBOL_LOCALIZED)</span>
+<span class='curline'><a href='../S/2847.html#L3499'>sym</a>              3499 src/eval.c     	    if (!blv_found (SYMBOL_BLV (sym)))</span>
+<span class='curline'><a href='../S/2847.html#L3502'>sym</a>              3502 src/eval.c     	else if (BUFFER_OBJFWDP (SYMBOL_FWD (sym)))</span>
+<span class='curline'><a href='../S/2847.html#L3520'>sym</a>              3520 src/eval.c       do_specbind (sym, specpdl_ptr - 1, value, SET_INTERNAL_BIND);</span>
+<span class='curline'><a href='../S/2847.html#L3655'>sym</a>              3655 src/eval.c     	Lisp_Object sym = specpdl_symbol (this_binding);</span>
+<span class='curline'><a href='../S/2847.html#L3656'>sym</a>              3656 src/eval.c     	if (SYMBOLP (sym) &amp;&amp; XSYMBOL (sym)-&gt;u.s.redirect == SYMBOL_PLAINVAL)</span>
+<span class='curline'><a href='../S/2847.html#L3658'>sym</a>              3658 src/eval.c     	    if (XSYMBOL (sym)-&gt;u.s.trapped_write == SYMBOL_UNTRAPPED_WRITE)</span>
+<span class='curline'><a href='../S/2847.html#L3659'>sym</a>              3659 src/eval.c     	      SET_SYMBOL_VAL (XSYMBOL (sym), specpdl_old_value (this_binding));</span>
+<span class='curline'><a href='../S/2847.html#L3661'>sym</a>              3661 src/eval.c     	      set_internal (sym, specpdl_old_value (this_binding),</span>
+<span class='curline'><a href='../S/2847.html#L3971'>sym</a>              3971 src/eval.c     	    Lisp_Object sym = specpdl_symbol (tmp);</span>
+<span class='curline'><a href='../S/2847.html#L3972'>sym</a>              3972 src/eval.c     	    if (SYMBOLP (sym)</span>
+<span class='curline'><a href='../S/2847.html#L3973'>sym</a>              3973 src/eval.c     		&amp;&amp; XSYMBOL (sym)-&gt;u.s.redirect == SYMBOL_PLAINVAL)</span>
+<span class='curline'><a href='../S/2847.html#L3976'>sym</a>              3976 src/eval.c     		set_specpdl_old_value (tmp, SYMBOL_VAL (XSYMBOL (sym)));</span>
+<span class='curline'><a href='../S/2847.html#L3977'>sym</a>              3977 src/eval.c     		SET_SYMBOL_VAL (XSYMBOL (sym), old_value);</span>
+<span class='curline'><a href='../S/2847.html#L3986'>sym</a>              3986 src/eval.c     	    Lisp_Object sym = specpdl_symbol (tmp);</span>
+<span class='curline'><a href='../S/2847.html#L3988'>sym</a>              3988 src/eval.c     	    set_specpdl_old_value (tmp, default_value (sym));</span>
+<span class='curline'><a href='../S/2847.html#L3989'>sym</a>              3989 src/eval.c     	    set_default_internal (sym, old_value, SET_INTERNAL_THREAD_SWITCH);</span>
+<span class='curline'><a href='../S/2847.html#L4090'>sym</a>              4090 src/eval.c     	      Lisp_Object sym = specpdl_symbol (tmp);</span>
+<span class='curline'><a href='../S/2847.html#L4092'>sym</a>              4092 src/eval.c     	      if (EQ (sym, Qinternal_interpreter_environment))</span>
+<span class='curline'><a href='../S/2847.html#L4105'>sym</a>              4105 src/eval.c     		result = Fcons (Fcons (sym, val), result);</span>
+<span class='curline'><a href='../S/2957.html#L5133'>sym</a>              5133 src/fns.c      	  return sxhash_obj (XSYMBOL_WITH_POS (obj)-&gt;sym, depth + 1);</span>
+<span class='curline'><a href='../S/3015.html#L3919'>sym</a>              3919 src/frame.c      int sym;</span>
+<span class='curline'><a href='../S/3015.html#L6336'>sym</a>              6336 src/frame.c    	Lisp_Object v = (frame_parms[i].sym &lt; 0</span>
+<span class='curline'><a href='../S/3015.html#L6338'>sym</a>              6338 src/frame.c    			 : builtin_lisp_symbol (frame_parms[i].sym));</span>
+<span class='curline'><a href='../S/3119.html#L1698'>sym</a>              1698 src/ftfont.c     Lisp_Object scripts, langsyses, features, sym;</span>
+<span class='curline'><a href='../S/3119.html#L1721'>sym</a>              1721 src/ftfont.c   	      OTF_TAG_SYM (sym, gsub_gpos-&gt;FeatureList.Feature[l].FeatureTag);</span>
+<span class='curline'><a href='../S/3119.html#L1722'>sym</a>              1722 src/ftfont.c   	      features = Fcons (sym, features);</span>
+<span class='curline'><a href='../S/3119.html#L1725'>sym</a>              1725 src/ftfont.c   	    OTF_TAG_SYM (sym, otf_script-&gt;LangSysRecord[j].LangSysTag);</span>
+<span class='curline'><a href='../S/3119.html#L1727'>sym</a>              1727 src/ftfont.c   	    sym = Qnil;</span>
+<span class='curline'><a href='../S/3119.html#L1728'>sym</a>              1728 src/ftfont.c   	  langsyses = Fcons (Fcons (sym, features), langsyses);</span>
+<span class='curline'><a href='../S/3119.html#L1731'>sym</a>              1731 src/ftfont.c         OTF_TAG_SYM (sym, gsub_gpos-&gt;ScriptList.Script[i].ScriptTag);</span>
+<span class='curline'><a href='../S/3119.html#L1732'>sym</a>              1732 src/ftfont.c         scripts = Fcons (Fcons (sym, langsyses), scripts);</span>
+<span class='curline'><a href='../S/2897.html#L332'>sym</a>               332 src/haikuterm.c haiku_valid_modifier_p (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2897.html#L334'>sym</a>               334 src/haikuterm.c   return EQ (sym, Qcommand) || EQ (sym, Qshift)</span>
+<span class='curline'><a href='../S/2897.html#L335'>sym</a>               335 src/haikuterm.c     || EQ (sym, Qcontrol) || EQ (sym, Qoption);</span>
+<span class='curline'><a href='../S/3048.html#L196'>sym</a>               196 src/hbfont.c   	  Lisp_Object sym = Qnil;</span>
+<span class='curline'><a href='../S/3048.html#L200'>sym</a>               200 src/hbfont.c   	      sym = font_intern_prop (buf, 4, 1);</span>
+<span class='curline'><a href='../S/3048.html#L202'>sym</a>               202 src/hbfont.c   	  langsyses = Fcons (Fcons (sym, features), langsyses);</span>
+<span class='curline'><a href='../S/3095.html#L4940'>sym</a>              4940 src/image.c          Lisp_Object sym = XCAR (color_symbols);</span>
+<span class='curline'><a href='../S/3095.html#L4941'>sym</a>              4941 src/image.c          if (!CONSP (sym)</span>
+<span class='curline'><a href='../S/3095.html#L4942'>sym</a>              4942 src/image.c    	  || !STRINGP (XCAR (sym))</span>
+<span class='curline'><a href='../S/3095.html#L4943'>sym</a>              4943 src/image.c    	  || !STRINGP (XCDR (sym)))</span>
+<span class='curline'><a href='../S/2972.html#L53'>sym</a>                53 src/intervals.c #define TMEM(sym, set) (CONSP (set) ? ! NILP (Fmemq (sym, set)) : ! NILP (set))</span>
+<span class='curline'><a href='../S/2972.html#L136'>sym</a>               136 src/intervals.c   register Lisp_Object o, sym, val;</span>
+<span class='curline'><a href='../S/2972.html#L146'>sym</a>               146 src/intervals.c       sym = XCAR (o);</span>
+<span class='curline'><a href='../S/2972.html#L151'>sym</a>               151 src/intervals.c       while (CONSP (val) &amp;&amp; !EQ (XCAR (val), sym))</span>
+<span class='curline'><a href='../S/2972.html#L162'>sym</a>               162 src/intervals.c 	  set_interval_plist (target, Fcons (sym, Fcons (val, target-&gt;plist)));</span>
+<span class='curline'><a href='../S/2972.html#L1030'>sym</a>              1030 src/intervals.c   Lisp_Object tail1, tail2, sym, lval, rval, cat;</span>
+<span class='curline'><a href='../S/2972.html#L1046'>sym</a>              1046 src/intervals.c       sym = XCAR (tail1);</span>
+<span class='curline'><a href='../S/2972.html#L1049'>sym</a>              1049 src/intervals.c       if (EQ (sym, Qrear_nonsticky) || EQ (sym, Qfront_sticky))</span>
+<span class='curline'><a href='../S/2972.html#L1054'>sym</a>              1054 src/intervals.c 	if (EQ (sym, XCAR (tail2)))</span>
+<span class='curline'><a href='../S/2972.html#L1066'>sym</a>              1066 src/intervals.c       tmp = Fassq (sym, Vtext_property_default_nonsticky);</span>
+<span class='curline'><a href='../S/2972.html#L1068'>sym</a>              1068 src/intervals.c 		  &amp;&amp; ! (TMEM (sym, lrear)</span>
+<span class='curline'><a href='../S/2972.html#L1070'>sym</a>              1070 src/intervals.c       use_right = (TMEM (sym, rfront)</span>
+<span class='curline'><a href='../S/2972.html#L1083'>sym</a>              1083 src/intervals.c 	  props = Fcons (lval, Fcons (sym, props));</span>
+<span class='curline'><a href='../S/2972.html#L1084'>sym</a>              1084 src/intervals.c 	  if (TMEM (sym, lfront))</span>
+<span class='curline'><a href='../S/2972.html#L1085'>sym</a>              1085 src/intervals.c 	    front = Fcons (sym, front);</span>
+<span class='curline'><a href='../S/2972.html#L1086'>sym</a>              1086 src/intervals.c 	  if (TMEM (sym, lrear))</span>
+<span class='curline'><a href='../S/2972.html#L1087'>sym</a>              1087 src/intervals.c 	    rear = Fcons (sym, rear);</span>
+<span class='curline'><a href='../S/2972.html#L1091'>sym</a>              1091 src/intervals.c 	  props = Fcons (rval, Fcons (sym, props));</span>
+<span class='curline'><a href='../S/2972.html#L1092'>sym</a>              1092 src/intervals.c 	  if (TMEM (sym, rfront))</span>
+<span class='curline'><a href='../S/2972.html#L1093'>sym</a>              1093 src/intervals.c 	    front = Fcons (sym, front);</span>
+<span class='curline'><a href='../S/2972.html#L1094'>sym</a>              1094 src/intervals.c 	  if (TMEM (sym, rrear))</span>
+<span class='curline'><a href='../S/2972.html#L1095'>sym</a>              1095 src/intervals.c 	    rear = Fcons (sym, rear);</span>
+<span class='curline'><a href='../S/2972.html#L1104'>sym</a>              1104 src/intervals.c       sym = XCAR (tail2);</span>
+<span class='curline'><a href='../S/2972.html#L1107'>sym</a>              1107 src/intervals.c       if (EQ (sym, Qrear_nonsticky) || EQ (sym, Qfront_sticky))</span>
+<span class='curline'><a href='../S/2972.html#L1112'>sym</a>              1112 src/intervals.c 	if (EQ (sym, XCAR (tail1)))</span>
+<span class='curline'><a href='../S/2972.html#L1122'>sym</a>              1122 src/intervals.c       tmp = Fassq (sym, Vtext_property_default_nonsticky);</span>
+<span class='curline'><a href='../S/2972.html#L1125'>sym</a>              1125 src/intervals.c       if (! (TMEM (sym, lrear) || (CONSP (tmp) &amp;&amp; ! NILP (XCDR (tmp)))))</span>
+<span class='curline'><a href='../S/2972.html#L1127'>sym</a>              1127 src/intervals.c 	  props = Fcons (lval, Fcons (sym, props));</span>
+<span class='curline'><a href='../S/2972.html#L1128'>sym</a>              1128 src/intervals.c 	  if (TMEM (sym, lfront))</span>
+<span class='curline'><a href='../S/2972.html#L1129'>sym</a>              1129 src/intervals.c 	    front = Fcons (sym, front);</span>
+<span class='curline'><a href='../S/2972.html#L1131'>sym</a>              1131 src/intervals.c       else if (TMEM (sym, rfront) || (CONSP (tmp) &amp;&amp; NILP (XCDR (tmp))))</span>
+<span class='curline'><a href='../S/2972.html#L1135'>sym</a>              1135 src/intervals.c 	  front = Fcons (sym, front);</span>
+<span class='curline'><a href='../S/2972.html#L1136'>sym</a>              1136 src/intervals.c 	  if (TMEM (sym, rrear))</span>
+<span class='curline'><a href='../S/2972.html#L1137'>sym</a>              1137 src/intervals.c 	    rear = Fcons (sym, rear);</span>
+<span class='curline'><a href='../S/2858.html#L2335'>sym</a>              2335 src/keymap.c   	  const char *sym = SSDATA (namestr);</span>
+<span class='curline'><a href='../S/2858.html#L2339'>sym</a>              2339 src/keymap.c   	  while (i &lt; len - 3 &amp;&amp; sym[i + 1] == '-' &amp;&amp; strchr ("CMSsHA", sym[i]))</span>
+<span class='curline'><a href='../S/2858.html#L2343'>sym</a>              2343 src/keymap.c   	  memcpy (buffer, sym, i);</span>
+<span class='curline'><a href='../S/2858.html#L2345'>sym</a>              2345 src/keymap.c   	  memcpy (buffer + i + 1, sym + i, len - i);</span>
+<span class='curline'><a href='../S/2974.html#L375'>sym</a>               375 src/lisp.h            &amp;&amp; BASE_EQ (XSYMBOL_WITH_POS (x)-&gt;sym, y)))</span>
+<span class='curline'><a href='../S/2974.html#L385'>sym</a>               385 src/lisp.h                   ? XLI (XSYMBOL_WITH_POS((x))-&gt;sym) == XLI (y) \</span>
+<span class='curline'><a href='../S/2974.html#L387'>sym</a>               387 src/lisp.h                     &amp;&amp; (XLI (XSYMBOL_WITH_POS((x))-&gt;sym)        \</span>
+<span class='curline'><a href='../S/2974.html#L388'>sym</a>               388 src/lisp.h                         == XLI (XSYMBOL_WITH_POS((y))-&gt;sym)))   \</span>
+<span class='curline'><a href='../S/2974.html#L391'>sym</a>               391 src/lisp.h                   &amp;&amp; (XLI (x) == XLI ((XSYMBOL_WITH_POS ((y)))-&gt;sym))))))</span>
+<span class='curline'><a href='../S/2974.html#L399'>sym</a>               399 src/lisp.h     #define lisp_h_SET_SYMBOL_VAL(sym, v) \</span>
+<span class='curline'><a href='../S/2974.html#L400'>sym</a>               400 src/lisp.h        (eassert ((sym)-&gt;u.s.redirect == SYMBOL_PLAINVAL), \</span>
+<span class='curline'><a href='../S/2974.html#L401'>sym</a>               401 src/lisp.h         (sym)-&gt;u.s.val.value = (v))</span>
+<span class='curline'><a href='../S/2974.html#L402'>sym</a>               402 src/lisp.h     #define lisp_h_SYMBOL_CONSTANT_P(sym) \</span>
+<span class='curline'><a href='../S/2974.html#L403'>sym</a>               403 src/lisp.h        (XSYMBOL (sym)-&gt;u.s.trapped_write == SYMBOL_NOWRITE)</span>
+<span class='curline'><a href='../S/2974.html#L404'>sym</a>               404 src/lisp.h     #define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (XSYMBOL (sym)-&gt;u.s.trapped_write)</span>
+<span class='curline'><a href='../S/2974.html#L405'>sym</a>               405 src/lisp.h     #define lisp_h_SYMBOL_VAL(sym) \</span>
+<span class='curline'><a href='../S/2974.html#L406'>sym</a>               406 src/lisp.h        (eassert ((sym)-&gt;u.s.redirect == SYMBOL_PLAINVAL), (sym)-&gt;u.s.val.value)</span>
+<span class='curline'><a href='../S/2974.html#L465'>sym</a>               465 src/lisp.h     # define SET_SYMBOL_VAL(sym, v) lisp_h_SET_SYMBOL_VAL (sym, v)</span>
+<span class='curline'><a href='../S/2974.html#L466'>sym</a>               466 src/lisp.h     # define SYMBOL_CONSTANT_P(sym) lisp_h_SYMBOL_CONSTANT_P (sym)</span>
+<span class='curline'><a href='../S/2974.html#L467'>sym</a>               467 src/lisp.h     # define SYMBOL_TRAPPED_WRITE_P(sym) lisp_h_SYMBOL_TRAPPED_WRITE_P (sym)</span>
+<span class='curline'><a href='../S/2974.html#L468'>sym</a>               468 src/lisp.h     # define SYMBOL_VAL(sym) lisp_h_SYMBOL_VAL (sym)</span>
+<span class='curline'><a href='../S/2974.html#L956'>sym</a>               956 src/lisp.h     #define SYMBOL_INDEX(sym) i##sym</span>
+<span class='curline'><a href='../S/2974.html#L1017'>sym</a>              1017 src/lisp.h       Lisp_Object sym;              /* A symbol */</span>
+<span class='curline'><a href='../S/2974.html#L1154'>sym</a>              1154 src/lisp.h       return XBARE_SYMBOL (XSYMBOL_WITH_POS (a)-&gt;sym);</span>
+<span class='curline'><a href='../S/2974.html#L1158'>sym</a>              1158 src/lisp.h     make_lisp_symbol (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/2974.html#L1162'>sym</a>              1162 src/lisp.h       char *symoffset = (char *) ((char *) sym - (char *) lispsym);</span>
+<span class='curline'><a href='../S/2974.html#L1164'>sym</a>              1164 src/lisp.h       eassert (XSYMBOL (a) == sym);</span>
+<span class='curline'><a href='../S/2974.html#L1175'>sym</a>              1175 src/lisp.h     c_symbol_p (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/2974.html#L1178'>sym</a>              1178 src/lisp.h       char *sp = (char *) sym;</span>
+<span class='curline'><a href='../S/2974.html#L2277'>sym</a>              2277 src/lisp.h     (SYMBOL_VAL) (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/2974.html#L2279'>sym</a>              2279 src/lisp.h       return lisp_h_SYMBOL_VAL (sym);</span>
+<span class='curline'><a href='../S/2974.html#L2283'>sym</a>              2283 src/lisp.h     SYMBOL_ALIAS (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/2974.html#L2285'>sym</a>              2285 src/lisp.h       eassume (sym-&gt;u.s.redirect == SYMBOL_VARALIAS &amp;&amp; sym-&gt;u.s.val.alias);</span>
+<span class='curline'><a href='../S/2974.html#L2286'>sym</a>              2286 src/lisp.h       return sym-&gt;u.s.val.alias;</span>
+<span class='curline'><a href='../S/2974.html#L2289'>sym</a>              2289 src/lisp.h     SYMBOL_BLV (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/2974.html#L2291'>sym</a>              2291 src/lisp.h       eassume (sym-&gt;u.s.redirect == SYMBOL_LOCALIZED &amp;&amp; sym-&gt;u.s.val.blv);</span>
+<span class='curline'><a href='../S/2974.html#L2292'>sym</a>              2292 src/lisp.h       return sym-&gt;u.s.val.blv;</span>
+<span class='curline'><a href='../S/2974.html#L2295'>sym</a>              2295 src/lisp.h     SYMBOL_FWD (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/2974.html#L2297'>sym</a>              2297 src/lisp.h       eassume (sym-&gt;u.s.redirect == SYMBOL_FORWARDED &amp;&amp; sym-&gt;u.s.val.fwd.fwdptr);</span>
+<span class='curline'><a href='../S/2974.html#L2298'>sym</a>              2298 src/lisp.h       return sym-&gt;u.s.val.fwd;</span>
+<span class='curline'><a href='../S/2974.html#L2302'>sym</a>              2302 src/lisp.h     (SET_SYMBOL_VAL) (struct Lisp_Symbol *sym, Lisp_Object v)</span>
+<span class='curline'><a href='../S/2974.html#L2304'>sym</a>              2304 src/lisp.h       lisp_h_SET_SYMBOL_VAL (sym, v);</span>
+<span class='curline'><a href='../S/2974.html#L2308'>sym</a>              2308 src/lisp.h     SET_SYMBOL_ALIAS (struct Lisp_Symbol *sym, struct Lisp_Symbol *v)</span>
+<span class='curline'><a href='../S/2974.html#L2310'>sym</a>              2310 src/lisp.h       eassume (sym-&gt;u.s.redirect == SYMBOL_VARALIAS &amp;&amp; v);</span>
+<span class='curline'><a href='../S/2974.html#L2311'>sym</a>              2311 src/lisp.h       sym-&gt;u.s.val.alias = v;</span>
+<span class='curline'><a href='../S/2974.html#L2314'>sym</a>              2314 src/lisp.h     SET_SYMBOL_BLV (struct Lisp_Symbol *sym, struct Lisp_Buffer_Local_Value *v)</span>
+<span class='curline'><a href='../S/2974.html#L2316'>sym</a>              2316 src/lisp.h       eassume (sym-&gt;u.s.redirect == SYMBOL_LOCALIZED &amp;&amp; v);</span>
+<span class='curline'><a href='../S/2974.html#L2317'>sym</a>              2317 src/lisp.h       sym-&gt;u.s.val.blv = v;</span>
+<span class='curline'><a href='../S/2974.html#L2320'>sym</a>              2320 src/lisp.h     SET_SYMBOL_FWD (struct Lisp_Symbol *sym, void const *v)</span>
+<span class='curline'><a href='../S/2974.html#L2322'>sym</a>              2322 src/lisp.h       eassume (sym-&gt;u.s.redirect == SYMBOL_FORWARDED &amp;&amp; v);</span>
+<span class='curline'><a href='../S/2974.html#L2323'>sym</a>              2323 src/lisp.h       sym-&gt;u.s.val.fwd.fwdptr = v;</span>
+<span class='curline'><a href='../S/2974.html#L2327'>sym</a>              2327 src/lisp.h     SYMBOL_NAME (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2974.html#L2329'>sym</a>              2329 src/lisp.h       return XSYMBOL (sym)-&gt;u.s.name;</span>
+<span class='curline'><a href='../S/2974.html#L2335'>sym</a>              2335 src/lisp.h     SYMBOL_INTERNED_P (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2974.html#L2337'>sym</a>              2337 src/lisp.h       return XSYMBOL (sym)-&gt;u.s.interned != SYMBOL_UNINTERNED;</span>
+<span class='curline'><a href='../S/2974.html#L2343'>sym</a>              2343 src/lisp.h     SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2974.html#L2345'>sym</a>              2345 src/lisp.h       return XSYMBOL (sym)-&gt;u.s.interned == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;</span>
+<span class='curline'><a href='../S/2974.html#L2353'>sym</a>              2353 src/lisp.h     (SYMBOL_TRAPPED_WRITE_P) (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2974.html#L2355'>sym</a>              2355 src/lisp.h       return lisp_h_SYMBOL_TRAPPED_WRITE_P (sym);</span>
+<span class='curline'><a href='../S/2974.html#L2364'>sym</a>              2364 src/lisp.h     (SYMBOL_CONSTANT_P) (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2974.html#L2366'>sym</a>              2366 src/lisp.h       return lisp_h_SYMBOL_CONSTANT_P (sym);</span>
+<span class='curline'><a href='../S/2974.html#L2371'>sym</a>              2371 src/lisp.h     #define DEFSYM(sym, name) /* empty */</span>
+<span class='curline'><a href='../S/2974.html#L2743'>sym</a>              2743 src/lisp.h       return XSYMBOL_WITH_POS (a)-&gt;sym;</span>
+<span class='curline'><a href='../S/2974.html#L3779'>sym</a>              3779 src/lisp.h     set_symbol_function (Lisp_Object sym, Lisp_Object function)</span>
+<span class='curline'><a href='../S/2974.html#L3781'>sym</a>              3781 src/lisp.h       XSYMBOL (sym)-&gt;u.s.function = function;</span>
+<span class='curline'><a href='../S/2974.html#L3785'>sym</a>              3785 src/lisp.h     set_symbol_plist (Lisp_Object sym, Lisp_Object plist)</span>
+<span class='curline'><a href='../S/2974.html#L3787'>sym</a>              3787 src/lisp.h       XSYMBOL (sym)-&gt;u.s.plist = plist;</span>
+<span class='curline'><a href='../S/2974.html#L3791'>sym</a>              3791 src/lisp.h     set_symbol_next (Lisp_Object sym, struct Lisp_Symbol *next)</span>
+<span class='curline'><a href='../S/2974.html#L3793'>sym</a>              3793 src/lisp.h       XSYMBOL (sym)-&gt;u.s.next = next;</span>
+<span class='curline'><a href='../S/2974.html#L3797'>sym</a>              3797 src/lisp.h     make_symbol_constant (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2974.html#L3799'>sym</a>              3799 src/lisp.h       XSYMBOL (sym)-&gt;u.s.trapped_write = SYMBOL_NOWRITE;</span>
+<span class='curline'><a href='../S/2997.html#L4078'>sym</a>              4078 src/lread.c    	Lisp_Object sym;</span>
+<span class='curline'><a href='../S/2997.html#L4080'>sym</a>              4080 src/lread.c    	  sym = Qcomma_at;</span>
+<span class='curline'><a href='../S/2997.html#L4085'>sym</a>              4085 src/lread.c    	    sym = Qcomma;</span>
+<span class='curline'><a href='../S/2997.html#L4089'>sym</a>              4089 src/lread.c    	    .u.special.symbol = sym,</span>
+<span class='curline'><a href='../S/2997.html#L4646'>sym</a>              4646 src/lread.c    intern_sym (Lisp_Object sym, Lisp_Object obarray, Lisp_Object index)</span>
+<span class='curline'><a href='../S/2997.html#L4650'>sym</a>              4650 src/lread.c      XSYMBOL (sym)-&gt;u.s.interned = (EQ (obarray, initial_obarray)</span>
+<span class='curline'><a href='../S/2997.html#L4654'>sym</a>              4654 src/lread.c      if (SREF (SYMBOL_NAME (sym), 0) == ':' &amp;&amp; EQ (obarray, initial_obarray))</span>
+<span class='curline'><a href='../S/2997.html#L4656'>sym</a>              4656 src/lread.c          make_symbol_constant (sym);</span>
+<span class='curline'><a href='../S/2997.html#L4657'>sym</a>              4657 src/lread.c          XSYMBOL (sym)-&gt;u.s.redirect = SYMBOL_PLAINVAL;</span>
+<span class='curline'><a href='../S/2997.html#L4660'>sym</a>              4660 src/lread.c          XSYMBOL (sym)-&gt;u.s.declared_special = true;</span>
+<span class='curline'><a href='../S/2997.html#L4661'>sym</a>              4661 src/lread.c          SET_SYMBOL_VAL (XSYMBOL (sym), sym);</span>
+<span class='curline'><a href='../S/2997.html#L4665'>sym</a>              4665 src/lread.c      set_symbol_next (sym, SYMBOLP (*ptr) ? XSYMBOL (*ptr) : NULL);</span>
+<span class='curline'><a href='../S/2997.html#L4666'>sym</a>              4666 src/lread.c      *ptr = sym;</span>
+<span class='curline'><a href='../S/2997.html#L4667'>sym</a>              4667 src/lread.c      return sym;</span>
+<span class='curline'><a href='../S/2997.html#L4716'>sym</a>              4716 src/lread.c    define_symbol (Lisp_Object sym, char const *str)</span>
+<span class='curline'><a href='../S/2997.html#L4720'>sym</a>              4720 src/lread.c      init_symbol (sym, string);</span>
+<span class='curline'><a href='../S/2997.html#L4724'>sym</a>              4724 src/lread.c      if (! BASE_EQ (sym, Qunbound))</span>
+<span class='curline'><a href='../S/2997.html#L4728'>sym</a>              4728 src/lread.c          intern_sym (sym, initial_obarray, bucket);</span>
+<span class='curline'><a href='../S/2997.html#L4864'>sym</a>              4864 src/lread.c    	  Lisp_Object sym;</span>
+<span class='curline'><a href='../S/2997.html#L4865'>sym</a>              4865 src/lread.c    	  XSETSYMBOL (sym, XSYMBOL (tem)-&gt;u.s.next);</span>
+<span class='curline'><a href='../S/2997.html#L4866'>sym</a>              4866 src/lread.c    	  ASET (obarray, hash, sym);</span>
+<span class='curline'><a href='../S/2997.html#L5017'>sym</a>              5017 src/lread.c    mapatoms_1 (Lisp_Object sym, Lisp_Object function)</span>
+<span class='curline'><a href='../S/2997.html#L5019'>sym</a>              5019 src/lread.c      call1 (function, sym);</span>
+<span class='curline'><a href='../S/2997.html#L5069'>sym</a>              5069 src/lread.c      Lisp_Object sym, tem;</span>
+<span class='curline'><a href='../S/2997.html#L5070'>sym</a>              5070 src/lread.c      sym = intern_c_string (sname-&gt;symbol_name);</span>
+<span class='curline'><a href='../S/2997.html#L5073'>sym</a>              5073 src/lread.c      set_symbol_function (sym, tem);</span>
+<span class='curline'><a href='../S/2997.html#L5084'>sym</a>              5084 src/lread.c      Lisp_Object sym;</span>
+<span class='curline'><a href='../S/2997.html#L5085'>sym</a>              5085 src/lread.c      sym = intern (string);</span>
+<span class='curline'><a href='../S/2997.html#L5086'>sym</a>              5086 src/lread.c      XSETSUBR (XSYMBOL (sym)-&gt;u.s.function, sname);</span>
+<span class='curline'><a href='../S/2997.html#L5096'>sym</a>              5096 src/lread.c      Lisp_Object sym = intern_c_string (namestring);</span>
+<span class='curline'><a href='../S/2997.html#L5097'>sym</a>              5097 src/lread.c      XSYMBOL (sym)-&gt;u.s.declared_special = true;</span>
+<span class='curline'><a href='../S/2997.html#L5098'>sym</a>              5098 src/lread.c      XSYMBOL (sym)-&gt;u.s.redirect = SYMBOL_FORWARDED;</span>
+<span class='curline'><a href='../S/2997.html#L5099'>sym</a>              5099 src/lread.c      SET_SYMBOL_FWD (XSYMBOL (sym), i_fwd);</span>
+<span class='curline'><a href='../S/2997.html#L5106'>sym</a>              5106 src/lread.c      Lisp_Object sym = intern_c_string (namestring);</span>
+<span class='curline'><a href='../S/2997.html#L5107'>sym</a>              5107 src/lread.c      XSYMBOL (sym)-&gt;u.s.declared_special = true;</span>
+<span class='curline'><a href='../S/2997.html#L5108'>sym</a>              5108 src/lread.c      XSYMBOL (sym)-&gt;u.s.redirect = SYMBOL_FORWARDED;</span>
+<span class='curline'><a href='../S/2997.html#L5109'>sym</a>              5109 src/lread.c      SET_SYMBOL_FWD (XSYMBOL (sym), b_fwd);</span>
+<span class='curline'><a href='../S/2997.html#L5110'>sym</a>              5110 src/lread.c      Vbyte_boolean_vars = Fcons (sym, Vbyte_boolean_vars);</span>
+<span class='curline'><a href='../S/2997.html#L5121'>sym</a>              5121 src/lread.c      Lisp_Object sym = intern_c_string (namestring);</span>
+<span class='curline'><a href='../S/2997.html#L5122'>sym</a>              5122 src/lread.c      XSYMBOL (sym)-&gt;u.s.declared_special = true;</span>
+<span class='curline'><a href='../S/2997.html#L5123'>sym</a>              5123 src/lread.c      XSYMBOL (sym)-&gt;u.s.redirect = SYMBOL_FORWARDED;</span>
+<span class='curline'><a href='../S/2997.html#L5124'>sym</a>              5124 src/lread.c      SET_SYMBOL_FWD (XSYMBOL (sym), o_fwd);</span>
+<span class='curline'><a href='../S/2997.html#L5140'>sym</a>              5140 src/lread.c      Lisp_Object sym = intern_c_string (namestring);</span>
+<span class='curline'><a href='../S/2997.html#L5141'>sym</a>              5141 src/lread.c      XSYMBOL (sym)-&gt;u.s.declared_special = true;</span>
+<span class='curline'><a href='../S/2997.html#L5142'>sym</a>              5142 src/lread.c      XSYMBOL (sym)-&gt;u.s.redirect = SYMBOL_FORWARDED;</span>
+<span class='curline'><a href='../S/2997.html#L5143'>sym</a>              5143 src/lread.c      SET_SYMBOL_FWD (XSYMBOL (sym), ko_fwd);</span>
+<span class='curline'><a href='../S/3063.html#L111'>sym</a>               111 src/pgtkselect.c symbol_to_gdk_atom (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/3063.html#L113'>sym</a>               113 src/pgtkselect.c   if (NILP (sym))</span>
+<span class='curline'><a href='../S/3063.html#L116'>sym</a>               116 src/pgtkselect.c   if (EQ (sym, QPRIMARY))</span>
+<span class='curline'><a href='../S/3063.html#L118'>sym</a>               118 src/pgtkselect.c   if (EQ (sym, QSECONDARY))</span>
+<span class='curline'><a href='../S/3063.html#L120'>sym</a>               120 src/pgtkselect.c   if (EQ (sym, QCLIPBOARD))</span>
+<span class='curline'><a href='../S/3063.html#L123'>sym</a>               123 src/pgtkselect.c   if (!SYMBOLP (sym))</span>
+<span class='curline'><a href='../S/3063.html#L126'>sym</a>               126 src/pgtkselect.c   return gdk_atom_intern (SSDATA (SYMBOL_NAME (sym)), FALSE);</span>
+<span class='curline'><a href='../S/3080.html#L1728'>sym</a>              1728 src/print.c              print_object (sp-&gt;sym, printcharfun, escapeflag);</span>
+<span class='curline'><a href='../S/3080.html#L1732'>sym</a>              1732 src/print.c                if (BARE_SYMBOL_P (sp-&gt;sym))</span>
+<span class='curline'><a href='../S/3080.html#L1733'>sym</a>              1733 src/print.c                  print_object (sp-&gt;sym, printcharfun, escapeflag);</span>
+<span class='curline'><a href='../S/2914.html#L155'>sym</a>               155 src/term.c     tty_send_additional_strings (struct terminal *terminal, Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2914.html#L166'>sym</a>               166 src/term.c     	 = CDR_SAFE (assq_no_quit (sym, terminal-&gt;param_alist));</span>
+<span class='curline'><a href='../S/2914.html#L1421'>sym</a>              1421 src/term.c     #define CONDITIONAL_REASSIGN(cap1, cap2, sym)				\</span>
+<span class='curline'><a href='../S/2914.html#L1427'>sym</a>              1427 src/term.c     			 make_vector (1, intern (sym)), Qnil);		\</span>
+<span class='curline'><a href='../S/3037.html#L29'>sym</a>                29 src/textprop.c #define TMEM(sym, set) (CONSP (set) ? ! NILP (Fmemq (sym, set)) : ! NILP (set))</span>
+<span class='curline'><a href='../S/3037.html#L258'>sym</a>               258 src/textprop.c   Lisp_Object tail1, tail2, sym;</span>
+<span class='curline'><a href='../S/3037.html#L263'>sym</a>               263 src/textprop.c       sym = XCAR (tail1);</span>
+<span class='curline'><a href='../S/3037.html#L267'>sym</a>               267 src/textprop.c 	if (EQ (sym, XCAR (tail2)))</span>
+<span class='curline'><a href='../S/3037.html#L280'>sym</a>               280 src/textprop.c   Lisp_Object tail1, tail2, sym;</span>
+<span class='curline'><a href='../S/3037.html#L285'>sym</a>               285 src/textprop.c       sym = XCAR (tail1);</span>
+<span class='curline'><a href='../S/3037.html#L289'>sym</a>               289 src/textprop.c 	if (EQ (sym, XCAR (tail2)))</span>
+<span class='curline'><a href='../S/3037.html#L321'>sym</a>               321 src/textprop.c   Lisp_Object sym, value;</span>
+<span class='curline'><a href='../S/3037.html#L327'>sym</a>               327 src/textprop.c       for (sym = interval-&gt;plist;</span>
+<span class='curline'><a href='../S/3037.html#L328'>sym</a>               328 src/textprop.c 	   PLIST_ELT_P (sym, value);</span>
+<span class='curline'><a href='../S/3037.html#L329'>sym</a>               329 src/textprop.c 	   sym = XCDR (value))</span>
+<span class='curline'><a href='../S/3037.html#L330'>sym</a>               330 src/textprop.c 	if (! EQ (property_value (properties, XCAR (sym)),</span>
+<span class='curline'><a href='../S/3037.html#L334'>sym</a>               334 src/textprop.c 				    XCAR (sym), XCAR (value),</span>
+<span class='curline'><a href='../S/3037.html#L340'>sym</a>               340 src/textprop.c       for (sym = properties;</span>
+<span class='curline'><a href='../S/3037.html#L341'>sym</a>               341 src/textprop.c 	   PLIST_ELT_P (sym, value);</span>
+<span class='curline'><a href='../S/3037.html#L342'>sym</a>               342 src/textprop.c 	   sym = XCDR (value))</span>
+<span class='curline'><a href='../S/3037.html#L343'>sym</a>               343 src/textprop.c 	if (BASE_EQ (property_value (interval-&gt;plist, XCAR (sym)), Qunbound))</span>
+<span class='curline'><a href='../S/3037.html#L346'>sym</a>               346 src/textprop.c 				    XCAR (sym), Qnil,</span>
+<span class='curline'><a href='../S/3037.html#L477'>sym</a>               477 src/textprop.c       Lisp_Object sym = XCAR (tail1);</span>
+<span class='curline'><a href='../S/3037.html#L480'>sym</a>               480 src/textprop.c       while (CONSP (current_plist) &amp;&amp; EQ (sym, XCAR (current_plist)))</span>
+<span class='curline'><a href='../S/3037.html#L484'>sym</a>               484 src/textprop.c 				    sym, XCAR (XCDR (current_plist)),</span>
+<span class='curline'><a href='../S/3037.html#L496'>sym</a>               496 src/textprop.c 	  if (CONSP (this) &amp;&amp; EQ (sym, XCAR (this)))</span>
+<span class='curline'><a href='../S/3037.html#L500'>sym</a>               500 src/textprop.c 					sym, XCAR (XCDR (this)), object);</span>
+<span class='curline'><a href='../S/3090.html#L136'>sym</a>               136 src/thread.c         Lisp_Object sym = current_thread-&gt;error_symbol;</span>
+<span class='curline'><a href='../S/3090.html#L141'>sym</a>               141 src/thread.c         Fsignal (sym, data);</span>
+<span class='curline'><a href='../S/3105.html#L2266'>sym</a>              2266 src/w32font.c  #define SUBRANGE(n,sym) \</span>
+<span class='curline'><a href='../S/3105.html#L2268'>sym</a>              2268 src/w32font.c      supported = Fcons ((sym), supported)</span>
+<span class='curline'><a href='../S/3105.html#L2272'>sym</a>              2272 src/w32font.c  #define MASK_ANY(mask0,mask1,mask2,mask3,sym)      \</span>
+<span class='curline'><a href='../S/3105.html#L2275'>sym</a>              2275 src/w32font.c      supported = Fcons ((sym), supported)</span>
+<span class='curline'><a href='../S/2987.html#L123'>sym</a>               123 src/xselect.c  symbol_to_x_atom (struct x_display_info *dpyinfo, Lisp_Object sym)</span>
+<span class='curline'><a href='../S/2987.html#L126'>sym</a>               126 src/xselect.c    if (NILP (sym))</span>
+<span class='curline'><a href='../S/2987.html#L128'>sym</a>               128 src/xselect.c    if (EQ (sym, QPRIMARY))</span>
+<span class='curline'><a href='../S/2987.html#L130'>sym</a>               130 src/xselect.c    if (EQ (sym, QSECONDARY))</span>
+<span class='curline'><a href='../S/2987.html#L132'>sym</a>               132 src/xselect.c    if (EQ (sym, QSTRING))</span>
+<span class='curline'><a href='../S/2987.html#L134'>sym</a>               134 src/xselect.c    if (EQ (sym, QINTEGER))</span>
+<span class='curline'><a href='../S/2987.html#L136'>sym</a>               136 src/xselect.c    if (EQ (sym, QATOM))</span>
+<span class='curline'><a href='../S/2987.html#L138'>sym</a>               138 src/xselect.c    if (EQ (sym, QCLIPBOARD))</span>
+<span class='curline'><a href='../S/2987.html#L140'>sym</a>               140 src/xselect.c    if (EQ (sym, QTIMESTAMP))</span>
+<span class='curline'><a href='../S/2987.html#L142'>sym</a>               142 src/xselect.c    if (EQ (sym, QTEXT))</span>
+<span class='curline'><a href='../S/2987.html#L144'>sym</a>               144 src/xselect.c    if (EQ (sym, QCOMPOUND_TEXT))</span>
+<span class='curline'><a href='../S/2987.html#L146'>sym</a>               146 src/xselect.c    if (EQ (sym, QUTF8_STRING))</span>
+<span class='curline'><a href='../S/2987.html#L148'>sym</a>               148 src/xselect.c    if (EQ (sym, QDELETE))</span>
+<span class='curline'><a href='../S/2987.html#L150'>sym</a>               150 src/xselect.c    if (EQ (sym, QMULTIPLE))</span>
+<span class='curline'><a href='../S/2987.html#L152'>sym</a>               152 src/xselect.c    if (EQ (sym, QINCR))</span>
+<span class='curline'><a href='../S/2987.html#L154'>sym</a>               154 src/xselect.c    if (EQ (sym, Q_EMACS_TMP_))</span>
+<span class='curline'><a href='../S/2987.html#L156'>sym</a>               156 src/xselect.c    if (EQ (sym, QTARGETS))</span>
+<span class='curline'><a href='../S/2987.html#L158'>sym</a>               158 src/xselect.c    if (EQ (sym, QNULL))</span>
+<span class='curline'><a href='../S/2987.html#L160'>sym</a>               160 src/xselect.c    if (EQ (sym, QXdndSelection))</span>
+<span class='curline'><a href='../S/2987.html#L162'>sym</a>               162 src/xselect.c    if (EQ (sym, QXmTRANSFER_SUCCESS))</span>
+<span class='curline'><a href='../S/2987.html#L164'>sym</a>               164 src/xselect.c    if (EQ (sym, QXmTRANSFER_FAILURE))</span>
+<span class='curline'><a href='../S/2987.html#L166'>sym</a>               166 src/xselect.c    if (EQ (sym, QXdndDirectSave0))</span>
+<span class='curline'><a href='../S/2987.html#L168'>sym</a>               168 src/xselect.c    if (EQ (sym, Qtext_plain))</span>
+<span class='curline'><a href='../S/2987.html#L170'>sym</a>               170 src/xselect.c    if (EQ (sym, QXdndActionDirectSave))</span>
+<span class='curline'><a href='../S/2987.html#L173'>sym</a>               173 src/xselect.c    if (!SYMBOLP (sym))</span>
+<span class='curline'><a href='../S/2987.html#L176'>sym</a>               176 src/xselect.c    TRACE1 (" XInternAtom %s", SSDATA (SYMBOL_NAME (sym)));</span>
+<span class='curline'><a href='../S/2987.html#L178'>sym</a>               178 src/xselect.c    val = x_intern_cached_atom (dpyinfo, SSDATA (SYMBOL_NAME (sym)), false);</span>
+<span class='curline'><a href='../S/2942.html#L13694'>sym</a>              13694 src/xterm.c    		  int sym = syms[((code - min_code) * syms_per_code) + code_col];</span>
+<span class='curline'><a href='../S/2942.html#L13696'>sym</a>              13696 src/xterm.c    		  switch (sym)</span>
+<span class='curline'><a href='../S/2942.html#L23571'>sym</a>              23571 src/xterm.c    		      KeySym sym = keysym;</span>
+<span class='curline'><a href='../S/2942.html#L23575'>sym</a>              23575 src/xterm.c    			  nbytes = XkbTranslateKeySym (dpyinfo-&gt;display, &amp;sym,</span>
+<span class='curline'><a href='../S/2942.html#L23583'>sym</a>              23583 src/xterm.c    			      nbytes = XkbTranslateKeySym (dpyinfo-&gt;display, &amp;sym,</span>
+<span class='curline'><a href='../S/4153.html#L118'>sym</a>               118 test/manual/etags/c-src/abbrev.c   Lisp_Object sym, oexp, ohook, tem;</span>
+<span class='curline'><a href='../S/4153.html#L127'>sym</a>               127 test/manual/etags/c-src/abbrev.c   sym = Fintern (name, table);</span>
+<span class='curline'><a href='../S/4153.html#L129'>sym</a>               129 test/manual/etags/c-src/abbrev.c   oexp = XSYMBOL (sym)-&gt;value;</span>
+<span class='curline'><a href='../S/4153.html#L130'>sym</a>               130 test/manual/etags/c-src/abbrev.c   ohook = XSYMBOL (sym)-&gt;function;</span>
+<span class='curline'><a href='../S/4153.html#L139'>sym</a>               139 test/manual/etags/c-src/abbrev.c   Fset (sym, expansion);</span>
+<span class='curline'><a href='../S/4153.html#L140'>sym</a>               140 test/manual/etags/c-src/abbrev.c   Ffset (sym, hook);</span>
+<span class='curline'><a href='../S/4153.html#L141'>sym</a>               141 test/manual/etags/c-src/abbrev.c   Fsetplist (sym, count);</span>
+<span class='curline'><a href='../S/4153.html#L181'>sym</a>               181 test/manual/etags/c-src/abbrev.c   Lisp_Object sym;</span>
+<span class='curline'><a href='../S/4153.html#L184'>sym</a>               184 test/manual/etags/c-src/abbrev.c     sym = Fintern_soft (abbrev, table);</span>
+<span class='curline'><a href='../S/4153.html#L187'>sym</a>               187 test/manual/etags/c-src/abbrev.c       sym = Qnil;</span>
+<span class='curline'><a href='../S/4153.html#L189'>sym</a>               189 test/manual/etags/c-src/abbrev.c 	sym = Fintern_soft (abbrev, current_buffer-&gt;abbrev_table);</span>
+<span class='curline'><a href='../S/4153.html#L190'>sym</a>               190 test/manual/etags/c-src/abbrev.c       if (NILP (XSYMBOL (sym)-&gt;value))</span>
+<span class='curline'><a href='../S/4153.html#L191'>sym</a>               191 test/manual/etags/c-src/abbrev.c 	sym = Qnil;</span>
+<span class='curline'><a href='../S/4153.html#L192'>sym</a>               192 test/manual/etags/c-src/abbrev.c       if (NILP (sym))</span>
+<span class='curline'><a href='../S/4153.html#L193'>sym</a>               193 test/manual/etags/c-src/abbrev.c 	sym = Fintern_soft (abbrev, Vglobal_abbrev_table);</span>
+<span class='curline'><a href='../S/4153.html#L195'>sym</a>               195 test/manual/etags/c-src/abbrev.c   if (NILP (XSYMBOL (sym)-&gt;value)) return Qnil;</span>
+<span class='curline'><a href='../S/4153.html#L196'>sym</a>               196 test/manual/etags/c-src/abbrev.c   return sym;</span>
+<span class='curline'><a href='../S/4153.html#L206'>sym</a>               206 test/manual/etags/c-src/abbrev.c   Lisp_Object sym;</span>
+<span class='curline'><a href='../S/4153.html#L207'>sym</a>               207 test/manual/etags/c-src/abbrev.c   sym = Fabbrev_symbol (abbrev, table);</span>
+<span class='curline'><a href='../S/4153.html#L208'>sym</a>               208 test/manual/etags/c-src/abbrev.c   if (NILP (sym)) return sym;</span>
+<span class='curline'><a href='../S/4153.html#L209'>sym</a>               209 test/manual/etags/c-src/abbrev.c   return Fsymbol_value (sym);</span>
+<span class='curline'><a href='../S/4153.html#L226'>sym</a>               226 test/manual/etags/c-src/abbrev.c   register Lisp_Object sym;</span>
+<span class='curline'><a href='../S/4153.html#L284'>sym</a>               284 test/manual/etags/c-src/abbrev.c     sym = oblookup (current_buffer-&gt;abbrev_table, buffer,</span>
+<span class='curline'><a href='../S/4153.html#L287'>sym</a>               287 test/manual/etags/c-src/abbrev.c     XSETFASTINT (sym, 0);</span>
+<span class='curline'><a href='../S/4153.html#L288'>sym</a>               288 test/manual/etags/c-src/abbrev.c   if (INTEGERP (sym) || NILP (XSYMBOL (sym)-&gt;value))</span>
+<span class='curline'><a href='../S/4153.html#L289'>sym</a>               289 test/manual/etags/c-src/abbrev.c     sym = oblookup (Vglobal_abbrev_table, buffer,</span>
+<span class='curline'><a href='../S/4153.html#L291'>sym</a>               291 test/manual/etags/c-src/abbrev.c   if (INTEGERP (sym) || NILP (XSYMBOL (sym)-&gt;value))</span>
+<span class='curline'><a href='../S/4153.html#L306'>sym</a>               306 test/manual/etags/c-src/abbrev.c   Vlast_abbrev = sym;</span>
+<span class='curline'><a href='../S/4153.html#L307'>sym</a>               307 test/manual/etags/c-src/abbrev.c   value = sym;</span>
+<span class='curline'><a href='../S/4153.html#L310'>sym</a>               310 test/manual/etags/c-src/abbrev.c   if (INTEGERP (XSYMBOL (sym)-&gt;plist))</span>
+<span class='curline'><a href='../S/4153.html#L311'>sym</a>               311 test/manual/etags/c-src/abbrev.c     XSETINT (XSYMBOL (sym)-&gt;plist,</span>
+<span class='curline'><a href='../S/4153.html#L312'>sym</a>               312 test/manual/etags/c-src/abbrev.c 	     XINT (XSYMBOL (sym)-&gt;plist) + 1);	/* Increment use count */</span>
+<span class='curline'><a href='../S/4153.html#L316'>sym</a>               316 test/manual/etags/c-src/abbrev.c   expansion = XSYMBOL (sym)-&gt;value;</span>
+<span class='curline'><a href='../S/4153.html#L360'>sym</a>               360 test/manual/etags/c-src/abbrev.c   hook = XSYMBOL (sym)-&gt;function;</span>
+<span class='curline'><a href='../S/4153.html#L420'>sym</a>               420 test/manual/etags/c-src/abbrev.c write_abbrev (sym, stream)</span>
+<span class='curline'><a href='../S/4153.html#L421'>sym</a>               421 test/manual/etags/c-src/abbrev.c      Lisp_Object sym, stream;</span>
+<span class='curline'><a href='../S/4153.html#L424'>sym</a>               424 test/manual/etags/c-src/abbrev.c   if (NILP (XSYMBOL (sym)-&gt;value))</span>
+<span class='curline'><a href='../S/4153.html#L427'>sym</a>               427 test/manual/etags/c-src/abbrev.c   XSETSTRING (name, XSYMBOL (sym)-&gt;name);</span>
+<span class='curline'><a href='../S/4153.html#L430'>sym</a>               430 test/manual/etags/c-src/abbrev.c   Fprin1 (XSYMBOL (sym)-&gt;value, stream);</span>
+<span class='curline'><a href='../S/4153.html#L432'>sym</a>               432 test/manual/etags/c-src/abbrev.c   Fprin1 (XSYMBOL (sym)-&gt;function, stream);</span>
+<span class='curline'><a href='../S/4153.html#L434'>sym</a>               434 test/manual/etags/c-src/abbrev.c   Fprin1 (XSYMBOL (sym)-&gt;plist, stream);</span>
+<span class='curline'><a href='../S/4153.html#L439'>sym</a>               439 test/manual/etags/c-src/abbrev.c describe_abbrev (sym, stream)</span>
+<span class='curline'><a href='../S/4153.html#L440'>sym</a>               440 test/manual/etags/c-src/abbrev.c      Lisp_Object sym, stream;</span>
+<span class='curline'><a href='../S/4153.html#L444'>sym</a>               444 test/manual/etags/c-src/abbrev.c   if (NILP (XSYMBOL (sym)-&gt;value))</span>
+<span class='curline'><a href='../S/4153.html#L447'>sym</a>               447 test/manual/etags/c-src/abbrev.c   Fprin1 (Fsymbol_name (sym), stream);</span>
+<span class='curline'><a href='../S/4153.html#L449'>sym</a>               449 test/manual/etags/c-src/abbrev.c   Fprin1 (XSYMBOL (sym)-&gt;plist, stream);</span>
+<span class='curline'><a href='../S/4153.html#L451'>sym</a>               451 test/manual/etags/c-src/abbrev.c   Fprin1 (XSYMBOL (sym)-&gt;value, stream);</span>
+<span class='curline'><a href='../S/4153.html#L452'>sym</a>               452 test/manual/etags/c-src/abbrev.c   if (!NILP (XSYMBOL (sym)-&gt;function))</span>
+<span class='curline'><a href='../S/4153.html#L455'>sym</a>               455 test/manual/etags/c-src/abbrev.c       Fprin1 (XSYMBOL (sym)-&gt;function, stream);</span>
+<span class='curline'><a href='../S/4158.html#L345'>sym</a>               345 test/manual/etags/c-src/emacs/src/lisp.h #define lisp_h_SET_SYMBOL_VAL(sym, v) \</span>
+<span class='curline'><a href='../S/4158.html#L346'>sym</a>               346 test/manual/etags/c-src/emacs/src/lisp.h    (eassert ((sym)-&gt;redirect == SYMBOL_PLAINVAL), (sym)-&gt;val.value = (v))</span>
+<span class='curline'><a href='../S/4158.html#L347'>sym</a>               347 test/manual/etags/c-src/emacs/src/lisp.h #define lisp_h_SYMBOL_CONSTANT_P(sym) (XSYMBOL (sym)-&gt;constant)</span>
+<span class='curline'><a href='../S/4158.html#L348'>sym</a>               348 test/manual/etags/c-src/emacs/src/lisp.h #define lisp_h_SYMBOL_VAL(sym) \</span>
+<span class='curline'><a href='../S/4158.html#L349'>sym</a>               349 test/manual/etags/c-src/emacs/src/lisp.h    (eassert ((sym)-&gt;redirect == SYMBOL_PLAINVAL), (sym)-&gt;val.value)</span>
+<span class='curline'><a href='../S/4158.html#L394'>sym</a>               394 test/manual/etags/c-src/emacs/src/lisp.h # define SET_SYMBOL_VAL(sym, v) lisp_h_SET_SYMBOL_VAL (sym, v)</span>
+<span class='curline'><a href='../S/4158.html#L395'>sym</a>               395 test/manual/etags/c-src/emacs/src/lisp.h # define SYMBOL_CONSTANT_P(sym) lisp_h_SYMBOL_CONSTANT_P (sym)</span>
+<span class='curline'><a href='../S/4158.html#L396'>sym</a>               396 test/manual/etags/c-src/emacs/src/lisp.h # define SYMBOL_VAL(sym) lisp_h_SYMBOL_VAL (sym)</span>
+<span class='curline'><a href='../S/4158.html#L988'>sym</a>               988 test/manual/etags/c-src/emacs/src/lisp.h #define SYMBOL_INDEX(sym) i##sym</span>
+<span class='curline'><a href='../S/4158.html#L1066'>sym</a>              1066 test/manual/etags/c-src/emacs/src/lisp.h make_lisp_symbol (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/4158.html#L1068'>sym</a>              1068 test/manual/etags/c-src/emacs/src/lisp.h   Lisp_Object a = XIL (TAG_SYMOFFSET ((char *) sym - (char *) lispsym));</span>
+<span class='curline'><a href='../S/4158.html#L1069'>sym</a>              1069 test/manual/etags/c-src/emacs/src/lisp.h   eassert (XSYMBOL (a) == sym);</span>
+<span class='curline'><a href='../S/4158.html#L1723'>sym</a>              1723 test/manual/etags/c-src/emacs/src/lisp.h LISP_MACRO_DEFUN (SYMBOL_VAL, Lisp_Object, (struct Lisp_Symbol *sym), (sym))</span>
+<span class='curline'><a href='../S/4158.html#L1726'>sym</a>              1726 test/manual/etags/c-src/emacs/src/lisp.h SYMBOL_ALIAS (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/4158.html#L1728'>sym</a>              1728 test/manual/etags/c-src/emacs/src/lisp.h   eassert (sym-&gt;redirect == SYMBOL_VARALIAS);</span>
+<span class='curline'><a href='../S/4158.html#L1729'>sym</a>              1729 test/manual/etags/c-src/emacs/src/lisp.h   return sym-&gt;val.alias;</span>
+<span class='curline'><a href='../S/4158.html#L1732'>sym</a>              1732 test/manual/etags/c-src/emacs/src/lisp.h SYMBOL_BLV (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/4158.html#L1734'>sym</a>              1734 test/manual/etags/c-src/emacs/src/lisp.h   eassert (sym-&gt;redirect == SYMBOL_LOCALIZED);</span>
+<span class='curline'><a href='../S/4158.html#L1735'>sym</a>              1735 test/manual/etags/c-src/emacs/src/lisp.h   return sym-&gt;val.blv;</span>
+<span class='curline'><a href='../S/4158.html#L1738'>sym</a>              1738 test/manual/etags/c-src/emacs/src/lisp.h SYMBOL_FWD (struct Lisp_Symbol *sym)</span>
+<span class='curline'><a href='../S/4158.html#L1740'>sym</a>              1740 test/manual/etags/c-src/emacs/src/lisp.h   eassert (sym-&gt;redirect == SYMBOL_FORWARDED);</span>
+<span class='curline'><a href='../S/4158.html#L1741'>sym</a>              1741 test/manual/etags/c-src/emacs/src/lisp.h   return sym-&gt;val.fwd;</span>
+<span class='curline'><a href='../S/4158.html#L1745'>sym</a>              1745 test/manual/etags/c-src/emacs/src/lisp.h 		       (struct Lisp_Symbol *sym, Lisp_Object v), (sym, v))</span>
+<span class='curline'><a href='../S/4158.html#L1748'>sym</a>              1748 test/manual/etags/c-src/emacs/src/lisp.h SET_SYMBOL_ALIAS (struct Lisp_Symbol *sym, struct Lisp_Symbol *v)</span>
+<span class='curline'><a href='../S/4158.html#L1750'>sym</a>              1750 test/manual/etags/c-src/emacs/src/lisp.h   eassert (sym-&gt;redirect == SYMBOL_VARALIAS);</span>
+<span class='curline'><a href='../S/4158.html#L1751'>sym</a>              1751 test/manual/etags/c-src/emacs/src/lisp.h   sym-&gt;val.alias = v;</span>
+<span class='curline'><a href='../S/4158.html#L1754'>sym</a>              1754 test/manual/etags/c-src/emacs/src/lisp.h SET_SYMBOL_BLV (struct Lisp_Symbol *sym, struct Lisp_Buffer_Local_Value *v)</span>
+<span class='curline'><a href='../S/4158.html#L1756'>sym</a>              1756 test/manual/etags/c-src/emacs/src/lisp.h   eassert (sym-&gt;redirect == SYMBOL_LOCALIZED);</span>
+<span class='curline'><a href='../S/4158.html#L1757'>sym</a>              1757 test/manual/etags/c-src/emacs/src/lisp.h   sym-&gt;val.blv = v;</span>
+<span class='curline'><a href='../S/4158.html#L1760'>sym</a>              1760 test/manual/etags/c-src/emacs/src/lisp.h SET_SYMBOL_FWD (struct Lisp_Symbol *sym, union Lisp_Fwd *v)</span>
+<span class='curline'><a href='../S/4158.html#L1762'>sym</a>              1762 test/manual/etags/c-src/emacs/src/lisp.h   eassert (sym-&gt;redirect == SYMBOL_FORWARDED);</span>
+<span class='curline'><a href='../S/4158.html#L1763'>sym</a>              1763 test/manual/etags/c-src/emacs/src/lisp.h   sym-&gt;val.fwd = v;</span>
+<span class='curline'><a href='../S/4158.html#L1767'>sym</a>              1767 test/manual/etags/c-src/emacs/src/lisp.h SYMBOL_NAME (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/4158.html#L1769'>sym</a>              1769 test/manual/etags/c-src/emacs/src/lisp.h   return XSYMBOL (sym)-&gt;name;</span>
+<span class='curline'><a href='../S/4158.html#L1775'>sym</a>              1775 test/manual/etags/c-src/emacs/src/lisp.h SYMBOL_INTERNED_P (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/4158.html#L1777'>sym</a>              1777 test/manual/etags/c-src/emacs/src/lisp.h   return XSYMBOL (sym)-&gt;interned != SYMBOL_UNINTERNED;</span>
+<span class='curline'><a href='../S/4158.html#L1783'>sym</a>              1783 test/manual/etags/c-src/emacs/src/lisp.h SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (Lisp_Object sym)</span>
+<span class='curline'><a href='../S/4158.html#L1785'>sym</a>              1785 test/manual/etags/c-src/emacs/src/lisp.h   return XSYMBOL (sym)-&gt;interned == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;</span>
+<span class='curline'><a href='../S/4158.html#L1792'>sym</a>              1792 test/manual/etags/c-src/emacs/src/lisp.h LISP_MACRO_DEFUN (SYMBOL_CONSTANT_P, int, (Lisp_Object sym), (sym))</span>
+<span class='curline'><a href='../S/4158.html#L1796'>sym</a>              1796 test/manual/etags/c-src/emacs/src/lisp.h #define DEFSYM(sym, name) /* empty */</span>
+<span class='curline'><a href='../S/4158.html#L3408'>sym</a>              3408 test/manual/etags/c-src/emacs/src/lisp.h set_symbol_function (Lisp_Object sym, Lisp_Object function)</span>
+<span class='curline'><a href='../S/4158.html#L3410'>sym</a>              3410 test/manual/etags/c-src/emacs/src/lisp.h   XSYMBOL (sym)-&gt;function = function;</span>
+<span class='curline'><a href='../S/4158.html#L3414'>sym</a>              3414 test/manual/etags/c-src/emacs/src/lisp.h set_symbol_plist (Lisp_Object sym, Lisp_Object plist)</span>
+<span class='curline'><a href='../S/4158.html#L3416'>sym</a>              3416 test/manual/etags/c-src/emacs/src/lisp.h   XSYMBOL (sym)-&gt;plist = plist;</span>
+<span class='curline'><a href='../S/4158.html#L3420'>sym</a>              3420 test/manual/etags/c-src/emacs/src/lisp.h set_symbol_next (Lisp_Object sym, struct Lisp_Symbol *next)</span>
+<span class='curline'><a href='../S/4158.html#L3422'>sym</a>              3422 test/manual/etags/c-src/emacs/src/lisp.h   XSYMBOL (sym)-&gt;next = next;</span>
+</pre>
+</body>
+</html>

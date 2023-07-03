@@ -1,0 +1,632 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/doprnt.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/doprnt.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L131'>[^]</a><a href='#L581'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L131' title='Defined at 131.'>parse_format_integer</a></li>
+<li><a href='#L152' title='Defined at 152.'>doprnt_non_null_end</a></li>
+<li><a href='#L186' title='Defined at 186.'>doprnt</a></li>
+<li><a href='#L546' title='Defined at 546.'>esprintf</a></li>
+<li><a href='#L565' title='Defined at 565.'>exprintf</a></li>
+<li><a href='#L581' title='Defined at 581.'>evxprintf</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Output like sprintf to a buffer of specified size.    -*- coding: utf-8 -*-</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Also takes args differently: pass one pointer to the end</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   of the format string in addition to the format string itself.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>   Copyright (C) 1985, 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'></em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>your option) any later version.</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'></em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'></em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L19' name='L19'></a>    19 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='comment'>/* If you think about replacing this with some similar standard C function of</em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>   the printf family (such as vsnprintf), please note that this function</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'>   supports the following Emacs-specific features:</em>
+<a id='L24' name='L24'></a>    24 <em class='comment'></em>
+<a id='L25' name='L25'></a>    25 <em class='comment'>   . For %c conversions, it produces a string with the multibyte representation</em>
+<a id='L26' name='L26'></a>    26 <em class='comment'>     of the (`int') argument, suitable for display in an Emacs buffer.</em>
+<a id='L27' name='L27'></a>    27 <em class='comment'></em>
+<a id='L28' name='L28'></a>    28 <em class='comment'>   . For %s and %c, when field width is specified (e.g., %25s), it accounts for</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'>     the display width of each character, according to char-width-table.  That</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>     is, it does not assume that each character takes one column on display.</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>     Nor does it assume that each character is a single byte.</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'></em>
+<a id='L33' name='L33'></a>    33 <em class='comment'>   . If the size of the buffer is not enough to produce the formatted string in</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>     its entirety, it makes sure that truncation does not chop the last</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'>     character in the middle of its multibyte sequence, producing an invalid</em>
+<a id='L36' name='L36'></a>    36 <em class='comment'>     sequence.</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'></em>
+<a id='L38' name='L38'></a>    38 <em class='comment'>   . It accepts a pointer to the end of the format string, so the format string</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>     could include embedded null characters.</em>
+<a id='L40' name='L40'></a>    40 <em class='comment'></em>
+<a id='L41' name='L41'></a>    41 <em class='comment'>   . It signals an error if the length of the formatted string is about to</em>
+<a id='L42' name='L42'></a>    42 <em class='comment'>     overflow ptrdiff_t or size_t, to avoid producing strings longer than what</em>
+<a id='L43' name='L43'></a>    43 <em class='comment'>     Emacs can handle.</em>
+<a id='L44' name='L44'></a>    44 <em class='comment'></em>
+<a id='L45' name='L45'></a>    45 <em class='comment'>   OTOH, this function supports only a small subset of the standard C formatted</em>
+<a id='L46' name='L46'></a>    46 <em class='comment'>   output facilities.  E.g., %u is not supported, precision is ignored</em>
+<a id='L47' name='L47'></a>    47 <em class='comment'>   in %s and %c conversions, and %lld does not necessarily work and</em>
+<a id='L48' name='L48'></a>    48 <em class='comment'>   code should use something like %"pM"d with intmax_t instead.</em>
+<a id='L49' name='L49'></a>    49 <em class='comment'>   (See below for the detailed documentation of what is supported.)</em>
+<a id='L50' name='L50'></a>    50 <em class='comment'>   However, this is okay, as this function is supposed to be called</em>
+<a id='L51' name='L51'></a>    51 <em class='comment'>   from 'error' and similar C functions, and thus does not need to</em>
+<a id='L52' name='L52'></a>    52 <em class='comment'>   support all the features of 'Fformat_message', which is used by the</em>
+<a id='L53' name='L53'></a>    53 <em class='comment'>   Lisp 'error' function.  */</em>
+<a id='L54' name='L54'></a>    54 
+<a id='L55' name='L55'></a>    55 <em class='comment'>/* In the FORMAT argument this function supports ` and ' as directives</em>
+<a id='L56' name='L56'></a>    56 <em class='comment'>   that output left and right quotes as per ‘text-quoting style’.  It</em>
+<a id='L57' name='L57'></a>    57 <em class='comment'>   also supports the following %-sequences:</em>
+<a id='L58' name='L58'></a>    58 <em class='comment'></em>
+<a id='L59' name='L59'></a>    59 <em class='comment'>   %s means print a string argument.</em>
+<a id='L60' name='L60'></a>    60 <em class='comment'>   %S is treated as %s, for loose compatibility with `Fformat_message'.</em>
+<a id='L61' name='L61'></a>    61 <em class='comment'>   %d means print a `signed int' argument in decimal.</em>
+<a id='L62' name='L62'></a>    62 <em class='comment'>   %o means print an `unsigned int' argument in octal.</em>
+<a id='L63' name='L63'></a>    63 <em class='comment'>   %x means print an `unsigned int' argument in hex.</em>
+<a id='L64' name='L64'></a>    64 <em class='comment'>   %e means print a `double' argument in exponential notation.</em>
+<a id='L65' name='L65'></a>    65 <em class='comment'>   %f means print a `double' argument in decimal-point notation.</em>
+<a id='L66' name='L66'></a>    66 <em class='comment'>   %g means print a `double' argument in exponential notation</em>
+<a id='L67' name='L67'></a>    67 <em class='comment'>      or in decimal-point notation, depending on the value;</em>
+<a id='L68' name='L68'></a>    68 <em class='comment'>      this is often (though not always) the shorter of the two notations.</em>
+<a id='L69' name='L69'></a>    69 <em class='comment'>   %c means print a `signed int' argument as a single character.</em>
+<a id='L70' name='L70'></a>    70 <em class='comment'>   %% means produce a literal % character.</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'></em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>   A %-sequence other than %% may contain optional flags, width, precision,</em>
+<a id='L73' name='L73'></a>    73 <em class='comment'>   and length, as follows:</em>
+<a id='L74' name='L74'></a>    74 <em class='comment'></em>
+<a id='L75' name='L75'></a>    75 <em class='comment'>     %&lt;flags&gt;&lt;width&gt;&lt;precision&gt;&lt;length&gt;character</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'></em>
+<a id='L77' name='L77'></a>    77 <em class='comment'>   where flags is [+ -0], width is [0-9]+, precision is .[0-9]+, and length</em>
+<a id='L78' name='L78'></a>    78 <em class='comment'>   is empty or l or the value of the pD or pI or PRIdMAX (sans "d") macros.</em>
+<a id='L79' name='L79'></a>    79 <em class='comment'>   A % that does not introduce a valid %-sequence causes undefined behavior.</em>
+<a id='L80' name='L80'></a>    80 <em class='comment'>   Bytes in FORMAT other than % are copied through as-is.</em>
+<a id='L81' name='L81'></a>    81 <em class='comment'></em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>   The + flag character inserts a + before any positive number, while a space</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>   inserts a space before any positive number; these flags only affect %d, %o,</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>   %x, %e, %f, and %g sequences.  The - and 0 flags affect the width specifier,</em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>   as described below.  For signed numerical arguments only, the ` ' (space)</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>   flag causes the result to be prefixed with a space character if it does not</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'>   start with a sign (+ or -).</em>
+<a id='L88' name='L88'></a>    88 <em class='comment'></em>
+<a id='L89' name='L89'></a>    89 <em class='comment'>   The l (lower-case letter ell) length modifier is a `long' data type</em>
+<a id='L90' name='L90'></a>    90 <em class='comment'>   modifier: it is supported for %d, %o, and %x conversions of integral</em>
+<a id='L91' name='L91'></a>    91 <em class='comment'>   arguments, must immediately precede the conversion specifier, and means that</em>
+<a id='L92' name='L92'></a>    92 <em class='comment'>   the respective argument is to be treated as `long int' or `unsigned long</em>
+<a id='L93' name='L93'></a>    93 <em class='comment'>   int'.  Similarly, the value of the pD macro means to use ptrdiff_t,</em>
+<a id='L94' name='L94'></a>    94 <em class='comment'>   the value of the pI macro means to use EMACS_INT or EMACS_UINT, the</em>
+<a id='L95' name='L95'></a>    95 <em class='comment'>   value of the PRIdMAX etc. macros means to use intmax_t or uintmax_t,</em>
+<a id='L96' name='L96'></a>    96 <em class='comment'>   and the empty length modifier means `int' or `unsigned int'.</em>
+<a id='L97' name='L97'></a>    97 <em class='comment'></em>
+<a id='L98' name='L98'></a>    98 <em class='comment'>   The width specifier supplies a lower limit for the length of the printed</em>
+<a id='L99' name='L99'></a>    99 <em class='comment'>   representation.  The padding, if any, normally goes on the left, but it goes</em>
+<a id='L100' name='L100'></a>   100 <em class='comment'>   on the right if the - flag is present.  The padding character is normally a</em>
+<a id='L101' name='L101'></a>   101 <em class='comment'>   space, but (for numerical arguments only) it is 0 if the 0 flag is present.</em>
+<a id='L102' name='L102'></a>   102 <em class='comment'>   The - flag takes precedence over the 0 flag.</em>
+<a id='L103' name='L103'></a>   103 <em class='comment'></em>
+<a id='L104' name='L104'></a>   104 <em class='comment'>   For %e, %f, and %g sequences, the number after the "." in the precision</em>
+<a id='L105' name='L105'></a>   105 <em class='comment'>   specifier says how many decimal places to show; if zero, the decimal point</em>
+<a id='L106' name='L106'></a>   106 <em class='comment'>   itself is omitted.  For %d, %o, and %x sequences, the precision specifies</em>
+<a id='L107' name='L107'></a>   107 <em class='comment'>   the minimum number of digits to appear.  Precision specifiers are</em>
+<a id='L108' name='L108'></a>   108 <em class='comment'>   not supported for other %-sequences.  */</em>
+<a id='L109' name='L109'></a>   109 
+<a id='L110' name='L110'></a>   110 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L111' name='L111'></a>   111 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L112' name='L112'></a>   112 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L113' name='L113'></a>   113 <em class='sharp'>#include</em> &lt;float.h&gt;
+<a id='L114' name='L114'></a>   114 <em class='sharp'>#include</em> &lt;<a href='2483.html'>unistd.h</a>&gt;
+<a id='L115' name='L115'></a>   115 <em class='sharp'>#include</em> &lt;limits.h&gt;
+<a id='L116' name='L116'></a>   116 
+<a id='L117' name='L117'></a>   117 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L118' name='L118'></a>   118 
+<a id='L119' name='L119'></a>   119 <em class='comment'>/* Since we use the macro CHAR_HEAD_P, we have to include this, but</em>
+<a id='L120' name='L120'></a>   120 <em class='comment'>   don't have to include others because CHAR_HEAD_P does not contains</em>
+<a id='L121' name='L121'></a>   121 <em class='comment'>   another macro.  */</em>
+<a id='L122' name='L122'></a>   122 <em class='sharp'>#include</em> "<a href='3043.html'>character.h</a>"
+<a id='L123' name='L123'></a>   123 
+<a id='L124' name='L124'></a>   124 <em class='comment'>/* Enough to handle floating point formats with large numbers.  */</em>
+<a id='L125' name='L125'></a>   125 <strong class='reserved'>enum</strong> <em class='brace'>{</em> <a href='../R/4762.html' title='Multiple referred from 3 places.'>SIZE_BOUND_EXTRA</a> = DBL_MAX_10_EXP + 50 <em class='brace'>}</em>;
+<a id='L126' name='L126'></a>   126 
+<a id='L127' name='L127'></a>   127 <em class='comment'>/* Parse FMT as an unsigned decimal integer, putting its value into *VALUE.</em>
+<a id='L128' name='L128'></a>   128 <em class='comment'>   Return the address of the first byte after the integer.</em>
+<a id='L129' name='L129'></a>   129 <em class='comment'>   If FMT is not an integer, return FMT and store zero into *VALUE.  */</em>
+<a id='L130' name='L130'></a>   130 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *
+<a id='L131' name='L131'></a>   131 <a href='../R/12623.html' title='Multiple referred from 2 places.'>parse_format_integer</a> (<strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *fmt, <strong class='reserved'>int</strong> *<a href='../S/2842.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
+<a id='L132' name='L132'></a>   132 <em class='brace'>{</em>
+<a id='L133' name='L133'></a>   133   <strong class='reserved'>int</strong> n = 0;
+<a id='L134' name='L134'></a>   134   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> overflow = <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L135' name='L135'></a>   135   <strong class='reserved'>for</strong> (; '0' &lt;= *fmt &amp;&amp; *fmt &lt;= '9'; fmt++)
+<a id='L136' name='L136'></a>   136     <em class='brace'>{</em>
+<a id='L137' name='L137'></a>   137       overflow |= <a href='../S/1870.html#L302' title='Defined at 302 in lib/intprops.h.'>INT_MULTIPLY_WRAPV</a> (n, 10, &amp;n);
+<a id='L138' name='L138'></a>   138       overflow |= <a href='../S/1870.html#L300' title='Defined at 300 in lib/intprops.h.'>INT_ADD_WRAPV</a> (n, *fmt - '0', &amp;n);
+<a id='L139' name='L139'></a>   139     <em class='brace'>}</em>
+<a id='L140' name='L140'></a>   140   <strong class='reserved'>if</strong> (overflow || <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a> (<a href='../D/4614.html' title='Multiple defined in 5 places.'>PTRDIFF_MAX</a>, <a href='../D/5289.html' title='Multiple defined in 8 places.'>SIZE_MAX</a>) - <a href='../S/2895.html#L125' title='Defined at 125 in src/doprnt.c.'>SIZE_BOUND_EXTRA</a> &lt; n)
+<a id='L141' name='L141'></a>   141     <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("Format width or precision too large");
+<a id='L142' name='L142'></a>   142   *<a href='../S/2842.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = n;
+<a id='L143' name='L143'></a>   143   <strong class='reserved'>return</strong> fmt;
+<a id='L144' name='L144'></a>   144 <em class='brace'>}</em>
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146 <em class='comment'>/* Like doprnt, except FORMAT_END must be non-null.</em>
+<a id='L147' name='L147'></a>   147 <em class='comment'>   Although this function is never exercised in current Emacs,</em>
+<a id='L148' name='L148'></a>   148 <em class='comment'>   it is retained in case some future Emacs version</em>
+<a id='L149' name='L149'></a>   149 <em class='comment'>   contains doprnt callers that need such formats.</em>
+<a id='L150' name='L150'></a>   150 <em class='comment'>   Having a separate function helps GCC optimize doprnt better.  */</em>
+<a id='L151' name='L151'></a>   151 <strong class='reserved'>static</strong> ptrdiff_t
+<a id='L152' name='L152'></a>   152 <a href='../S/2895.html#L190' title='Referred from 190 in src/doprnt.c.'>doprnt_non_null_end</a> (<strong class='reserved'>char</strong> *<a href='../S/2952.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, ptrdiff_t bufsize, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *format,
+<a id='L153' name='L153'></a>   153                      <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *format_end, va_list ap)
+<a id='L154' name='L154'></a>   154 <em class='brace'>{</em>
+<a id='L155' name='L155'></a>   155   <a href='../D/5945.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L156' name='L156'></a>   156   ptrdiff_t fmtlen = format_end - format;
+<a id='L157' name='L157'></a>   157   <strong class='reserved'>char</strong> *fmt = <a href='../D/4975.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (fmtlen + 1);
+<a id='L158' name='L158'></a>   158   memcpy (fmt, format, fmtlen);
+<a id='L159' name='L159'></a>   159   fmt[fmtlen] = 0;
+<a id='L160' name='L160'></a>   160   ptrdiff_t nbytes = <a href='../S/2895.html#L186' title='Defined at 186 in src/doprnt.c.'>doprnt</a> (<a href='../S/2952.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, bufsize, fmt, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, ap);
+<a id='L161' name='L161'></a>   161   <a href='../D/4980.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L162' name='L162'></a>   162   <strong class='reserved'>return</strong> nbytes;
+<a id='L163' name='L163'></a>   163 <em class='brace'>}</em>
+<a id='L164' name='L164'></a>   164 
+<a id='L165' name='L165'></a>   165 <em class='comment'>/* Generate output from a format-spec FORMAT,</em>
+<a id='L166' name='L166'></a>   166 <em class='comment'>   terminated at either the first NUL or (if FORMAT_END is non-null</em>
+<a id='L167' name='L167'></a>   167 <em class='comment'>   and there are no NUL bytes between FORMAT and FORMAT_END)</em>
+<a id='L168' name='L168'></a>   168 <em class='comment'>   terminated at position FORMAT_END.</em>
+<a id='L169' name='L169'></a>   169 <em class='comment'>   (*FORMAT_END is not part of the format, but must exist and be readable.)</em>
+<a id='L170' name='L170'></a>   170 <em class='comment'>   Output goes in BUFFER, which has room for BUFSIZE chars.</em>
+<a id='L171' name='L171'></a>   171 <em class='comment'>   BUFSIZE must be positive.  If the output does not fit, truncate it</em>
+<a id='L172' name='L172'></a>   172 <em class='comment'>   to fit and return BUFSIZE - 1; if this truncates a multibyte</em>
+<a id='L173' name='L173'></a>   173 <em class='comment'>   sequence, store '\0' into the sequence's first byte.</em>
+<a id='L174' name='L174'></a>   174 <em class='comment'>   Returns the number of bytes stored into BUFFER, excluding</em>
+<a id='L175' name='L175'></a>   175 <em class='comment'>   the terminating null byte.  Output is always null-terminated.</em>
+<a id='L176' name='L176'></a>   176 <em class='comment'>   String arguments are passed as C strings.</em>
+<a id='L177' name='L177'></a>   177 <em class='comment'>   Integers are passed as C integers.</em>
+<a id='L178' name='L178'></a>   178 <em class='comment'></em>
+<a id='L179' name='L179'></a>   179 <em class='comment'>   FIXME: If FORMAT_END is not at a character boundary</em>
+<a id='L180' name='L180'></a>   180 <em class='comment'>   doprnt_non_null_end will cut the string in the middle of the</em>
+<a id='L181' name='L181'></a>   181 <em class='comment'>   character and the returned string will have an incomplete character</em>
+<a id='L182' name='L182'></a>   182 <em class='comment'>   sequence at the end.  We may prefer to cut at a character</em>
+<a id='L183' name='L183'></a>   183 <em class='comment'>   boundary.  */</em>
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185 ptrdiff_t
+<a id='L186' name='L186'></a>   186 <a href='../R/8440.html' title='Multiple referred from 7 places.'>doprnt</a> (<strong class='reserved'>char</strong> *<a href='../S/2952.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, ptrdiff_t bufsize, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *format,
+<a id='L187' name='L187'></a>   187         <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *format_end, va_list ap)
+<a id='L188' name='L188'></a>   188 <em class='brace'>{</em>
+<a id='L189' name='L189'></a>   189   <strong class='reserved'>if</strong> (format_end)
+<a id='L190' name='L190'></a>   190     <strong class='reserved'>return</strong> <a href='../S/2895.html#L152' title='Defined at 152 in src/doprnt.c.'>doprnt_non_null_end</a> (<a href='../S/2952.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, bufsize, format, format_end, ap);
+<a id='L191' name='L191'></a>   191 
+<a id='L192' name='L192'></a>   192   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *fmt = format;     <em class='comment'>/* Pointer into format string.  */</em>
+<a id='L193' name='L193'></a>   193   <strong class='reserved'>char</strong> *bufptr = <a href='../S/2952.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>;        <em class='comment'>/* Pointer into output buffer.  */</em>
+<a id='L194' name='L194'></a>   194 
+<a id='L195' name='L195'></a>   195   <em class='comment'>/* Use this for sprintf unless we need something really big.  */</em>
+<a id='L196' name='L196'></a>   196   <strong class='reserved'>char</strong> tembuf[<a href='../S/2895.html#L125' title='Defined at 125 in src/doprnt.c.'>SIZE_BOUND_EXTRA</a> + 50];
+<a id='L197' name='L197'></a>   197 
+<a id='L198' name='L198'></a>   198   <em class='comment'>/* Size of sprintf_buffer.  */</em>
+<a id='L199' name='L199'></a>   199   ptrdiff_t size_allocated = <strong class='reserved'>sizeof</strong> (tembuf);
+<a id='L200' name='L200'></a>   200 
+<a id='L201' name='L201'></a>   201   <em class='comment'>/* Buffer to use for sprintf.  Either tembuf or same as BIG_BUFFER.  */</em>
+<a id='L202' name='L202'></a>   202   <strong class='reserved'>char</strong> *sprintf_buffer = tembuf;
+<a id='L203' name='L203'></a>   203 
+<a id='L204' name='L204'></a>   204   <em class='comment'>/* Buffer we have got with malloc.  */</em>
+<a id='L205' name='L205'></a>   205   <strong class='reserved'>char</strong> *big_buffer = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L206' name='L206'></a>   206 
+<a id='L207' name='L207'></a>   207   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> quoting_style = Ftext_quoting_style ();
+<a id='L208' name='L208'></a>   208 
+<a id='L209' name='L209'></a>   209   bufsize--;
+<a id='L210' name='L210'></a>   210 
+<a id='L211' name='L211'></a>   211   <em class='comment'>/* Loop until end of format string or buffer full. */</em>
+<a id='L212' name='L212'></a>   212   <strong class='reserved'>while</strong> (*fmt &amp;&amp; bufsize &gt; 0)
+<a id='L213' name='L213'></a>   213     <em class='brace'>{</em>
+<a id='L214' name='L214'></a>   214       <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *fmt0 = fmt;
+<a id='L215' name='L215'></a>   215       <strong class='reserved'>char</strong> fmtchar = *fmt++;
+<a id='L216' name='L216'></a>   216       <strong class='reserved'>if</strong> (fmtchar == '%')
+<a id='L217' name='L217'></a>   217         <em class='brace'>{</em>
+<a id='L218' name='L218'></a>   218           ptrdiff_t width;  <em class='comment'>/* Columns occupied by STRING on display.  */</em>
+<a id='L219' name='L219'></a>   219           <strong class='reserved'>enum</strong> <em class='brace'>{</em>
+<a id='L220' name='L220'></a>   220             <a href='../R/12594.html' title='Multiple referred from 3 places.'>pDlen</a> = <strong class='reserved'>sizeof</strong> <a href='../D/13673.html' title='Multiple defined in 5 places.'>pD</a> - 1,
+<a id='L221' name='L221'></a>   221             <a href='../R/12598.html' title='Multiple referred from 3 places.'>pIlen</a> = <strong class='reserved'>sizeof</strong> <a href='../D/13678.html' title='Multiple defined in 10 places.'>pI</a> - 1,
+<a id='L222' name='L222'></a>   222             <a href='../R/12600.html' title='Multiple referred from 7 places.'>pMlen</a> = <strong class='reserved'>sizeof</strong> <a href='../D/4518.html' title='Multiple defined in 3 places.'>PRIdMAX</a> - 2,
+<a id='L223' name='L223'></a>   223             <a href='../R/11819.html' title='Multiple referred from 2 places.'>maxmlen</a> = <a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> (<a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> (1, <a href='../S/2895.html#L220' title='Defined at 220 in src/doprnt.c.'>pDlen</a>), <a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> (<a href='../S/2895.html#L221' title='Defined at 221 in src/doprnt.c.'>pIlen</a>, <a href='../D/13683.html' title='Multiple defined in 2 places.'>pMlen</a>))
+<a id='L224' name='L224'></a>   224           <em class='brace'>}</em>;
+<a id='L225' name='L225'></a>   225           <strong class='reserved'>enum</strong> <em class='brace'>{</em>
+<a id='L226' name='L226'></a>   226             <a href='../R/12421.html' title='Multiple referred from 3 places.'>no_modifier</a>, <a href='../R/11481.html' title='Multiple referred from 3 places.'>long_modifier</a>, <a href='../R/12593.html' title='Multiple referred from 3 places.'>pD_modifier</a>, <a href='../R/12597.html' title='Multiple referred from 3 places.'>pI_modifier</a>, <a href='../R/12599.html' title='Multiple referred from 3 places.'>pM_modifier</a>
+<a id='L227' name='L227'></a>   227           <em class='brace'>}</em> length_modifier = <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>no_modifier</a>;
+<a id='L228' name='L228'></a>   228           <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> modifier_len[] = <em class='brace'>{</em> 0, 1, <a href='../S/2895.html#L220' title='Defined at 220 in src/doprnt.c.'>pDlen</a>, <a href='../S/2895.html#L221' title='Defined at 221 in src/doprnt.c.'>pIlen</a>, <a href='../D/13683.html' title='Multiple defined in 2 places.'>pMlen</a> <em class='brace'>}</em>;
+<a id='L229' name='L229'></a>   229           <strong class='reserved'>int</strong> mlen;
+<a id='L230' name='L230'></a>   230           <strong class='reserved'>char</strong> charbuf[<a href='../S/3043.html#L156' title='Defined at 156 in src/character.h.'>MAX_MULTIBYTE_LENGTH</a> + 1];       <em class='comment'>/* Used for %c.  */</em>
+<a id='L231' name='L231'></a>   231 
+<a id='L232' name='L232'></a>   232           <em class='comment'>/* Width and precision specified by this %-sequence.  */</em>
+<a id='L233' name='L233'></a>   233           <strong class='reserved'>int</strong> wid = 0, prec = -1;
+<a id='L234' name='L234'></a>   234 
+<a id='L235' name='L235'></a>   235           <em class='comment'>/* FMTSTAR will be a "%*.*X"-like version of this %-sequence.</em>
+<a id='L236' name='L236'></a>   236 <em class='comment'>             Start by putting '%' into FMTSTAR.  */</em>
+<a id='L237' name='L237'></a>   237           <strong class='reserved'>char</strong> fmtstar[<strong class='reserved'>sizeof</strong> "%-+ 0*.*d" + <a href='../S/2895.html#L223' title='Defined at 223 in src/doprnt.c.'>maxmlen</a>];
+<a id='L238' name='L238'></a>   238           <strong class='reserved'>char</strong> *string = fmtstar;
+<a id='L239' name='L239'></a>   239           *string++ = '%';
+<a id='L240' name='L240'></a>   240 
+<a id='L241' name='L241'></a>   241           <em class='comment'>/* Copy at most one instance of each flag into FMTSTAR.  */</em>
+<a id='L242' name='L242'></a>   242           <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> minusflag = <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, plusflag = <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, zeroflag = <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>,
+<a id='L243' name='L243'></a>   243             spaceflag = <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L244' name='L244'></a>   244           <strong class='reserved'>for</strong> (;; fmt++)
+<a id='L245' name='L245'></a>   245             <em class='brace'>{</em>
+<a id='L246' name='L246'></a>   246               *string = *fmt;
+<a id='L247' name='L247'></a>   247               <strong class='reserved'>switch</strong> (*fmt)
+<a id='L248' name='L248'></a>   248                 <em class='brace'>{</em>
+<a id='L249' name='L249'></a>   249                 <strong class='reserved'>case</strong> '-': string += !minusflag; minusflag = <a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>; <strong class='reserved'>continue</strong>;
+<a id='L250' name='L250'></a>   250                 <strong class='reserved'>case</strong> '+': string += !plusflag; plusflag = <a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>; <strong class='reserved'>continue</strong>;
+<a id='L251' name='L251'></a>   251                 <strong class='reserved'>case</strong> ' ': string += !spaceflag; spaceflag = <a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>; <strong class='reserved'>continue</strong>;
+<a id='L252' name='L252'></a>   252                 <strong class='reserved'>case</strong> '0': string += !zeroflag; zeroflag = <a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>; <strong class='reserved'>continue</strong>;
+<a id='L253' name='L253'></a>   253                 <em class='brace'>}</em>
+<a id='L254' name='L254'></a>   254               <strong class='reserved'>break</strong>;
+<a id='L255' name='L255'></a>   255             <em class='brace'>}</em>
+<a id='L256' name='L256'></a>   256 
+<a id='L257' name='L257'></a>   257           <em class='comment'>/* Parse width and precision, putting "*.*" into FMTSTAR.  */</em>
+<a id='L258' name='L258'></a>   258           <strong class='reserved'>if</strong> ('1' &lt;= *fmt &amp;&amp; *fmt &lt;= '9')
+<a id='L259' name='L259'></a>   259             fmt = <a href='../S/2895.html#L131' title='Defined at 131 in src/doprnt.c.'>parse_format_integer</a> (fmt, &amp;wid);
+<a id='L260' name='L260'></a>   260           <strong class='reserved'>if</strong> (*fmt == '.')
+<a id='L261' name='L261'></a>   261             fmt = <a href='../S/2895.html#L131' title='Defined at 131 in src/doprnt.c.'>parse_format_integer</a> (fmt + 1, &amp;prec);
+<a id='L262' name='L262'></a>   262           *string++ = '*';
+<a id='L263' name='L263'></a>   263           *string++ = '.';
+<a id='L264' name='L264'></a>   264           *string++ = '*';
+<a id='L265' name='L265'></a>   265 
+<a id='L266' name='L266'></a>   266           <em class='comment'>/* Check for the length modifiers in textual length order, so</em>
+<a id='L267' name='L267'></a>   267 <em class='comment'>             that longer modifiers override shorter ones.  */</em>
+<a id='L268' name='L268'></a>   268           <strong class='reserved'>for</strong> (mlen = 1; mlen &lt;= <a href='../S/2895.html#L223' title='Defined at 223 in src/doprnt.c.'>maxmlen</a>; mlen++)
+<a id='L269' name='L269'></a>   269             <em class='brace'>{</em>
+<a id='L270' name='L270'></a>   270               <strong class='reserved'>if</strong> (mlen == 1 &amp;&amp; *fmt == 'l')
+<a id='L271' name='L271'></a>   271                 length_modifier = <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>long_modifier</a>;
+<a id='L272' name='L272'></a>   272               <strong class='reserved'>if</strong> (mlen == <a href='../S/2895.html#L220' title='Defined at 220 in src/doprnt.c.'>pDlen</a> &amp;&amp; strncmp (fmt, <a href='../D/13673.html' title='Multiple defined in 5 places.'>pD</a>, <a href='../S/2895.html#L220' title='Defined at 220 in src/doprnt.c.'>pDlen</a>) == 0)
+<a id='L273' name='L273'></a>   273                 length_modifier = <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>pD_modifier</a>;
+<a id='L274' name='L274'></a>   274               <strong class='reserved'>if</strong> (mlen == <a href='../S/2895.html#L221' title='Defined at 221 in src/doprnt.c.'>pIlen</a> &amp;&amp; strncmp (fmt, <a href='../D/13678.html' title='Multiple defined in 10 places.'>pI</a>, <a href='../S/2895.html#L221' title='Defined at 221 in src/doprnt.c.'>pIlen</a>) == 0)
+<a id='L275' name='L275'></a>   275                 length_modifier = <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>pI_modifier</a>;
+<a id='L276' name='L276'></a>   276               <strong class='reserved'>if</strong> (mlen == <a href='../D/13683.html' title='Multiple defined in 2 places.'>pMlen</a> &amp;&amp; strncmp (fmt, <a href='../D/4518.html' title='Multiple defined in 3 places.'>PRIdMAX</a>, <a href='../D/13683.html' title='Multiple defined in 2 places.'>pMlen</a>) == 0)
+<a id='L277' name='L277'></a>   277                 length_modifier = <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>pM_modifier</a>;
+<a id='L278' name='L278'></a>   278             <em class='brace'>}</em>
+<a id='L279' name='L279'></a>   279 
+<a id='L280' name='L280'></a>   280           <em class='comment'>/* Copy optional length modifier and conversion specifier</em>
+<a id='L281' name='L281'></a>   281 <em class='comment'>             character into FMTSTAR, and append a NUL.  */</em>
+<a id='L282' name='L282'></a>   282           mlen = modifier_len[length_modifier];
+<a id='L283' name='L283'></a>   283           string = <a href='../D/12910.html' title='Multiple defined in 2 places.'>mempcpy</a> (string, fmt, mlen + 1);
+<a id='L284' name='L284'></a>   284           fmt += mlen;
+<a id='L285' name='L285'></a>   285           *string = 0;
+<a id='L286' name='L286'></a>   286 
+<a id='L287' name='L287'></a>   287           <em class='comment'>/* An idea of how much space we might need.</em>
+<a id='L288' name='L288'></a>   288 <em class='comment'>             This might be a field width or a precision; e.g.</em>
+<a id='L289' name='L289'></a>   289 <em class='comment'>             %1.1000f and %1000.1f both might need 1000+ bytes.</em>
+<a id='L290' name='L290'></a>   290 <em class='comment'>             Make it large enough to handle floating point formats</em>
+<a id='L291' name='L291'></a>   291 <em class='comment'>             with large numbers.  */</em>
+<a id='L292' name='L292'></a>   292           ptrdiff_t size_bound = <a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> (wid, prec) + <a href='../S/2895.html#L125' title='Defined at 125 in src/doprnt.c.'>SIZE_BOUND_EXTRA</a>;
+<a id='L293' name='L293'></a>   293 
+<a id='L294' name='L294'></a>   294           <em class='comment'>/* Make sure we have that much.  */</em>
+<a id='L295' name='L295'></a>   295           <strong class='reserved'>if</strong> (size_bound &gt; size_allocated)
+<a id='L296' name='L296'></a>   296             <em class='brace'>{</em>
+<a id='L297' name='L297'></a>   297               <strong class='reserved'>if</strong> (big_buffer)
+<a id='L298' name='L298'></a>   298                 <a href='../D/17636.html' title='Multiple defined in 2 places.'>xfree</a> (big_buffer);
+<a id='L299' name='L299'></a>   299               big_buffer = <a href='../D/17887.html' title='Multiple defined in 8 places.'>xmalloc</a> (size_bound);
+<a id='L300' name='L300'></a>   300               sprintf_buffer = big_buffer;
+<a id='L301' name='L301'></a>   301               size_allocated = size_bound;
+<a id='L302' name='L302'></a>   302             <em class='brace'>}</em>
+<a id='L303' name='L303'></a>   303           <strong class='reserved'>int</strong> minlen = 0;
+<a id='L304' name='L304'></a>   304           ptrdiff_t tem;
+<a id='L305' name='L305'></a>   305           <strong class='reserved'>switch</strong> (*fmt++)
+<a id='L306' name='L306'></a>   306             <em class='brace'>{</em>
+<a id='L307' name='L307'></a>   307             <strong class='reserved'>default</strong>:
+<a id='L308' name='L308'></a>   308               <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("Invalid format operation %s", fmt0);
+<a id='L309' name='L309'></a>   309 
+<a id='L310' name='L310'></a>   310             <strong class='reserved'>case</strong> 'd':
+<a id='L311' name='L311'></a>   311               <strong class='reserved'>switch</strong> (length_modifier)
+<a id='L312' name='L312'></a>   312                 <em class='brace'>{</em>
+<a id='L313' name='L313'></a>   313                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>no_modifier</a>:
+<a id='L314' name='L314'></a>   314                   <em class='brace'>{</em>
+<a id='L315' name='L315'></a>   315                     <strong class='reserved'>int</strong> v = va_arg (ap, <strong class='reserved'>int</strong>);
+<a id='L316' name='L316'></a>   316                     tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, v);
+<a id='L317' name='L317'></a>   317                   <em class='brace'>}</em>
+<a id='L318' name='L318'></a>   318                   <strong class='reserved'>break</strong>;
+<a id='L319' name='L319'></a>   319                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>long_modifier</a>:
+<a id='L320' name='L320'></a>   320                   <em class='brace'>{</em>
+<a id='L321' name='L321'></a>   321                     <strong class='reserved'>long</strong> v = va_arg (ap, <strong class='reserved'>long</strong>);
+<a id='L322' name='L322'></a>   322                     tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, v);
+<a id='L323' name='L323'></a>   323                   <em class='brace'>}</em>
+<a id='L324' name='L324'></a>   324                   <strong class='reserved'>break</strong>;
+<a id='L325' name='L325'></a>   325                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>pD_modifier</a>:
+<a id='L326' name='L326'></a>   326                 signed_pD_modifier:
+<a id='L327' name='L327'></a>   327                   <em class='brace'>{</em>
+<a id='L328' name='L328'></a>   328                     ptrdiff_t v = va_arg (ap, ptrdiff_t);
+<a id='L329' name='L329'></a>   329                     tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, v);
+<a id='L330' name='L330'></a>   330                   <em class='brace'>}</em>
+<a id='L331' name='L331'></a>   331                   <strong class='reserved'>break</strong>;
+<a id='L332' name='L332'></a>   332                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>pI_modifier</a>:
+<a id='L333' name='L333'></a>   333                   <em class='brace'>{</em>
+<a id='L334' name='L334'></a>   334                     <a href='../D/1527.html' title='Multiple defined in 11 places.'>EMACS_INT</a> v = va_arg (ap, <a href='../D/1527.html' title='Multiple defined in 11 places.'>EMACS_INT</a>);
+<a id='L335' name='L335'></a>   335                     tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, v);
+<a id='L336' name='L336'></a>   336                   <em class='brace'>}</em>
+<a id='L337' name='L337'></a>   337                   <strong class='reserved'>break</strong>;
+<a id='L338' name='L338'></a>   338                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>pM_modifier</a>:
+<a id='L339' name='L339'></a>   339                   <em class='brace'>{</em>
+<a id='L340' name='L340'></a>   340                     <a href='../D/12002.html' title='Multiple defined in 6 places.'>intmax_t</a> v = va_arg (ap, <a href='../D/12002.html' title='Multiple defined in 6 places.'>intmax_t</a>);
+<a id='L341' name='L341'></a>   341                     tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, v);
+<a id='L342' name='L342'></a>   342                   <em class='brace'>}</em>
+<a id='L343' name='L343'></a>   343                   <strong class='reserved'>break</strong>;
+<a id='L344' name='L344'></a>   344                 <strong class='reserved'>default</strong>:
+<a id='L345' name='L345'></a>   345                   <a href='../D/9616.html' title='Multiple defined in 5 places.'>eassume</a> (<a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L346' name='L346'></a>   346                 <em class='brace'>}</em>
+<a id='L347' name='L347'></a>   347               <em class='comment'>/* Now copy into final output, truncating as necessary.  */</em>
+<a id='L348' name='L348'></a>   348               string = sprintf_buffer;
+<a id='L349' name='L349'></a>   349               <strong class='reserved'>goto</strong> doit;
+<a id='L350' name='L350'></a>   350 
+<a id='L351' name='L351'></a>   351             <strong class='reserved'>case</strong> 'o':
+<a id='L352' name='L352'></a>   352             <strong class='reserved'>case</strong> 'x':
+<a id='L353' name='L353'></a>   353               <strong class='reserved'>switch</strong> (length_modifier)
+<a id='L354' name='L354'></a>   354                 <em class='brace'>{</em>
+<a id='L355' name='L355'></a>   355                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>no_modifier</a>:
+<a id='L356' name='L356'></a>   356                   <em class='brace'>{</em>
+<a id='L357' name='L357'></a>   357                     <strong class='reserved'>unsigned</strong> v = va_arg (ap, <strong class='reserved'>unsigned</strong>);
+<a id='L358' name='L358'></a>   358                     tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, v);
+<a id='L359' name='L359'></a>   359                   <em class='brace'>}</em>
+<a id='L360' name='L360'></a>   360                   <strong class='reserved'>break</strong>;
+<a id='L361' name='L361'></a>   361                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>long_modifier</a>:
+<a id='L362' name='L362'></a>   362                   <em class='brace'>{</em>
+<a id='L363' name='L363'></a>   363                     <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> v = va_arg (ap, <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong>);
+<a id='L364' name='L364'></a>   364                     tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, v);
+<a id='L365' name='L365'></a>   365                   <em class='brace'>}</em>
+<a id='L366' name='L366'></a>   366                   <strong class='reserved'>break</strong>;
+<a id='L367' name='L367'></a>   367                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>pD_modifier</a>:
+<a id='L368' name='L368'></a>   368                   <strong class='reserved'>goto</strong> signed_pD_modifier;
+<a id='L369' name='L369'></a>   369                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>pI_modifier</a>:
+<a id='L370' name='L370'></a>   370                   <em class='brace'>{</em>
+<a id='L371' name='L371'></a>   371                     <a href='../D/1571.html' title='Multiple defined in 8 places.'>EMACS_UINT</a> v = va_arg (ap, <a href='../D/1571.html' title='Multiple defined in 8 places.'>EMACS_UINT</a>);
+<a id='L372' name='L372'></a>   372                     tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, v);
+<a id='L373' name='L373'></a>   373                   <em class='brace'>}</em>
+<a id='L374' name='L374'></a>   374                   <strong class='reserved'>break</strong>;
+<a id='L375' name='L375'></a>   375                 <strong class='reserved'>case</strong> <a href='../S/2895.html#L226' title='Defined at 226 in src/doprnt.c.'>pM_modifier</a>:
+<a id='L376' name='L376'></a>   376                   <em class='brace'>{</em>
+<a id='L377' name='L377'></a>   377                     <a href='../D/16450.html' title='Multiple defined in 6 places.'>uintmax_t</a> v = va_arg (ap, <a href='../D/16450.html' title='Multiple defined in 6 places.'>uintmax_t</a>);
+<a id='L378' name='L378'></a>   378                     tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, v);
+<a id='L379' name='L379'></a>   379                   <em class='brace'>}</em>
+<a id='L380' name='L380'></a>   380                   <strong class='reserved'>break</strong>;
+<a id='L381' name='L381'></a>   381                 <strong class='reserved'>default</strong>:
+<a id='L382' name='L382'></a>   382                   <a href='../D/9616.html' title='Multiple defined in 5 places.'>eassume</a> (<a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L383' name='L383'></a>   383                 <em class='brace'>}</em>
+<a id='L384' name='L384'></a>   384               <em class='comment'>/* Now copy into final output, truncating as necessary.  */</em>
+<a id='L385' name='L385'></a>   385               string = sprintf_buffer;
+<a id='L386' name='L386'></a>   386               <strong class='reserved'>goto</strong> doit;
+<a id='L387' name='L387'></a>   387 
+<a id='L388' name='L388'></a>   388             <strong class='reserved'>case</strong> 'f':
+<a id='L389' name='L389'></a>   389             <strong class='reserved'>case</strong> 'e':
+<a id='L390' name='L390'></a>   390             <strong class='reserved'>case</strong> 'g':
+<a id='L391' name='L391'></a>   391               <em class='brace'>{</em>
+<a id='L392' name='L392'></a>   392                 <strong class='reserved'>double</strong> <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a> = va_arg (ap, <strong class='reserved'>double</strong>);
+<a id='L393' name='L393'></a>   393                 tem = <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (sprintf_buffer, fmtstar, wid, prec, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>);
+<a id='L394' name='L394'></a>   394                 <em class='comment'>/* Now copy into final output, truncating as necessary.  */</em>
+<a id='L395' name='L395'></a>   395                 string = sprintf_buffer;
+<a id='L396' name='L396'></a>   396                 <strong class='reserved'>goto</strong> doit;
+<a id='L397' name='L397'></a>   397               <em class='brace'>}</em>
+<a id='L398' name='L398'></a>   398 
+<a id='L399' name='L399'></a>   399             <strong class='reserved'>case</strong> 'S':
+<a id='L400' name='L400'></a>   400             <strong class='reserved'>case</strong> 's':
+<a id='L401' name='L401'></a>   401               minlen = minusflag ? -wid : wid;
+<a id='L402' name='L402'></a>   402               string = va_arg (ap, <strong class='reserved'>char</strong> *);
+<a id='L403' name='L403'></a>   403               tem = <a href='../D/15686.html' title='Multiple defined in 4 places.'>strnlen</a> (string, <a href='../D/5402.html' title='Multiple defined in 2 places.'>STRING_BYTES_BOUND</a> + 1);
+<a id='L404' name='L404'></a>   404               <strong class='reserved'>if</strong> (tem == <a href='../D/5402.html' title='Multiple defined in 2 places.'>STRING_BYTES_BOUND</a> + 1)
+<a id='L405' name='L405'></a>   405                 <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("String for %%s or %%S format is too long");
+<a id='L406' name='L406'></a>   406               width = <a href='../S/3029.html#L324' title='Defined at 324 in src/character.c.'>strwidth</a> (string, tem);
+<a id='L407' name='L407'></a>   407               <strong class='reserved'>goto</strong> doit1;
+<a id='L408' name='L408'></a>   408 
+<a id='L409' name='L409'></a>   409               <em class='comment'>/* Copy string into final output, truncating if no room.  */</em>
+<a id='L410' name='L410'></a>   410             doit:
+<a id='L411' name='L411'></a>   411               <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (0 &lt;= tem);
+<a id='L412' name='L412'></a>   412               <em class='comment'>/* Coming here means STRING contains ASCII only.  */</em>
+<a id='L413' name='L413'></a>   413               <strong class='reserved'>if</strong> (<a href='../D/5402.html' title='Multiple defined in 2 places.'>STRING_BYTES_BOUND</a> &lt; tem)
+<a id='L414' name='L414'></a>   414                 <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("Format width or precision too large");
+<a id='L415' name='L415'></a>   415               width = tem;
+<a id='L416' name='L416'></a>   416             doit1:
+<a id='L417' name='L417'></a>   417               <em class='comment'>/* We have already calculated:</em>
+<a id='L418' name='L418'></a>   418 <em class='comment'>                 TEM -- length of STRING,</em>
+<a id='L419' name='L419'></a>   419 <em class='comment'>                 WIDTH -- columns occupied by STRING when displayed, and</em>
+<a id='L420' name='L420'></a>   420 <em class='comment'>                 MINLEN -- minimum columns of the output.  */</em>
+<a id='L421' name='L421'></a>   421               <strong class='reserved'>if</strong> (minlen &gt; 0)
+<a id='L422' name='L422'></a>   422                 <em class='brace'>{</em>
+<a id='L423' name='L423'></a>   423                   <strong class='reserved'>while</strong> (minlen &gt; width &amp;&amp; bufsize &gt; 0)
+<a id='L424' name='L424'></a>   424                     <em class='brace'>{</em>
+<a id='L425' name='L425'></a>   425                       *bufptr++ = ' ';
+<a id='L426' name='L426'></a>   426                       bufsize--;
+<a id='L427' name='L427'></a>   427                       minlen--;
+<a id='L428' name='L428'></a>   428                     <em class='brace'>}</em>
+<a id='L429' name='L429'></a>   429                   minlen = 0;
+<a id='L430' name='L430'></a>   430                 <em class='brace'>}</em>
+<a id='L431' name='L431'></a>   431               <strong class='reserved'>if</strong> (tem &gt; bufsize)
+<a id='L432' name='L432'></a>   432                 <em class='brace'>{</em>
+<a id='L433' name='L433'></a>   433                   <em class='comment'>/* Truncate the string at character boundary.  */</em>
+<a id='L434' name='L434'></a>   434                   tem = bufsize;
+<a id='L435' name='L435'></a>   435                   <strong class='reserved'>do</strong>
+<a id='L436' name='L436'></a>   436                     <em class='brace'>{</em>
+<a id='L437' name='L437'></a>   437                       tem--;
+<a id='L438' name='L438'></a>   438                       <strong class='reserved'>if</strong> (<a href='../S/3043.html#L286' title='Defined at 286 in src/character.h.'>CHAR_HEAD_P</a> (string[tem]))
+<a id='L439' name='L439'></a>   439                         <em class='brace'>{</em>
+<a id='L440' name='L440'></a>   440                           <strong class='reserved'>if</strong> (<a href='../S/3043.html#L295' title='Defined at 295 in src/character.h.'>BYTES_BY_CHAR_HEAD</a> (string[tem]) &lt;= bufsize - tem)
+<a id='L441' name='L441'></a>   441                             tem = bufsize;
+<a id='L442' name='L442'></a>   442                           <strong class='reserved'>break</strong>;
+<a id='L443' name='L443'></a>   443                         <em class='brace'>}</em>
+<a id='L444' name='L444'></a>   444                     <em class='brace'>}</em>
+<a id='L445' name='L445'></a>   445                   <strong class='reserved'>while</strong> (tem != 0);
+<a id='L446' name='L446'></a>   446 
+<a id='L447' name='L447'></a>   447                   memcpy (bufptr, string, tem);
+<a id='L448' name='L448'></a>   448                   bufptr[tem] = 0;
+<a id='L449' name='L449'></a>   449                   <em class='comment'>/* Trigger exit from the loop, but make sure we</em>
+<a id='L450' name='L450'></a>   450 <em class='comment'>                     return to the caller a value which will indicate</em>
+<a id='L451' name='L451'></a>   451 <em class='comment'>                     that the buffer was too small.  */</em>
+<a id='L452' name='L452'></a>   452                   bufptr += bufsize;
+<a id='L453' name='L453'></a>   453                   bufsize = 0;
+<a id='L454' name='L454'></a>   454                   <strong class='reserved'>continue</strong>;
+<a id='L455' name='L455'></a>   455                 <em class='brace'>}</em>
+<a id='L456' name='L456'></a>   456               memcpy (bufptr, string, tem);
+<a id='L457' name='L457'></a>   457               bufptr += tem;
+<a id='L458' name='L458'></a>   458               bufsize -= tem;
+<a id='L459' name='L459'></a>   459               <strong class='reserved'>if</strong> (minlen &lt; 0)
+<a id='L460' name='L460'></a>   460                 <em class='brace'>{</em>
+<a id='L461' name='L461'></a>   461                   <strong class='reserved'>while</strong> (minlen &lt; - width &amp;&amp; bufsize &gt; 0)
+<a id='L462' name='L462'></a>   462                     <em class='brace'>{</em>
+<a id='L463' name='L463'></a>   463                       *bufptr++ = ' ';
+<a id='L464' name='L464'></a>   464                       bufsize--;
+<a id='L465' name='L465'></a>   465                       minlen++;
+<a id='L466' name='L466'></a>   466                     <em class='brace'>}</em>
+<a id='L467' name='L467'></a>   467                   minlen = 0;
+<a id='L468' name='L468'></a>   468                 <em class='brace'>}</em>
+<a id='L469' name='L469'></a>   469               <strong class='reserved'>continue</strong>;
+<a id='L470' name='L470'></a>   470 
+<a id='L471' name='L471'></a>   471             <strong class='reserved'>case</strong> 'c':
+<a id='L472' name='L472'></a>   472               <em class='brace'>{</em>
+<a id='L473' name='L473'></a>   473                 <strong class='reserved'>int</strong> chr = va_arg (ap, <strong class='reserved'>int</strong>);
+<a id='L474' name='L474'></a>   474                 tem = <a href='../S/3043.html#L228' title='Defined at 228 in src/character.h.'>CHAR_STRING</a> (chr, (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) charbuf);
+<a id='L475' name='L475'></a>   475                 string = charbuf;
+<a id='L476' name='L476'></a>   476                 string[tem] = 0;
+<a id='L477' name='L477'></a>   477                 width = <a href='../S/3029.html#L324' title='Defined at 324 in src/character.c.'>strwidth</a> (string, tem);
+<a id='L478' name='L478'></a>   478                 minlen = minusflag ? -wid : wid;
+<a id='L479' name='L479'></a>   479                 <strong class='reserved'>goto</strong> doit1;
+<a id='L480' name='L480'></a>   480               <em class='brace'>}</em>
+<a id='L481' name='L481'></a>   481 
+<a id='L482' name='L482'></a>   482             <strong class='reserved'>case</strong> '%':
+<a id='L483' name='L483'></a>   483               <em class='comment'>/* Treat this '%' as normal.  */</em>
+<a id='L484' name='L484'></a>   484               <strong class='reserved'>break</strong>;
+<a id='L485' name='L485'></a>   485             <em class='brace'>}</em>
+<a id='L486' name='L486'></a>   486         <em class='brace'>}</em>
+<a id='L487' name='L487'></a>   487 
+<a id='L488' name='L488'></a>   488       <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *src;
+<a id='L489' name='L489'></a>   489       ptrdiff_t srclen;
+<a id='L490' name='L490'></a>   490       <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (quoting_style, Qcurve) &amp;&amp; fmtchar == '`')
+<a id='L491' name='L491'></a>   491         src = <a href='../S/3043.html#L93' title='Defined at 93 in src/character.h.'>uLSQM</a>, srclen = <strong class='reserved'>sizeof</strong> <a href='../S/3043.html#L93' title='Defined at 93 in src/character.h.'>uLSQM</a> - 1;
+<a id='L492' name='L492'></a>   492       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (quoting_style, Qcurve) &amp;&amp; fmtchar == '\'')
+<a id='L493' name='L493'></a>   493         src = <a href='../S/3043.html#L94' title='Defined at 94 in src/character.h.'>uRSQM</a>, srclen = <strong class='reserved'>sizeof</strong> <a href='../S/3043.html#L94' title='Defined at 94 in src/character.h.'>uRSQM</a> - 1;
+<a id='L494' name='L494'></a>   494       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (! <a href='../S/3043.html#L269' title='Defined at 269 in src/character.h.'>LEADING_CODE_P</a> (fmtchar))
+<a id='L495' name='L495'></a>   495         <em class='brace'>{</em>
+<a id='L496' name='L496'></a>   496           <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (quoting_style, Qstraight) &amp;&amp; fmtchar == '`')
+<a id='L497' name='L497'></a>   497             fmtchar = '\'';
+<a id='L498' name='L498'></a>   498 
+<a id='L499' name='L499'></a>   499           *bufptr++ = fmtchar;
+<a id='L500' name='L500'></a>   500           <strong class='reserved'>continue</strong>;
+<a id='L501' name='L501'></a>   501         <em class='brace'>}</em>
+<a id='L502' name='L502'></a>   502       <strong class='reserved'>else</strong>
+<a id='L503' name='L503'></a>   503         <em class='brace'>{</em>
+<a id='L504' name='L504'></a>   504           <strong class='reserved'>int</strong> charlen = <a href='../S/3043.html#L295' title='Defined at 295 in src/character.h.'>BYTES_BY_CHAR_HEAD</a> (fmtchar);
+<a id='L505' name='L505'></a>   505           src = fmt0;
+<a id='L506' name='L506'></a>   506 
+<a id='L507' name='L507'></a>   507           <em class='comment'>/* If the format string ends in the middle of a multibyte</em>
+<a id='L508' name='L508'></a>   508 <em class='comment'>             character we don't want to skip over the NUL byte.  */</em>
+<a id='L509' name='L509'></a>   509           <strong class='reserved'>for</strong> (srclen = 1 ; *(src + srclen) != 0 &amp;&amp; srclen &lt; charlen ; srclen++);
+<a id='L510' name='L510'></a>   510 
+<a id='L511' name='L511'></a>   511           fmt = src + srclen;
+<a id='L512' name='L512'></a>   512         <em class='brace'>}</em>
+<a id='L513' name='L513'></a>   513 
+<a id='L514' name='L514'></a>   514       <strong class='reserved'>if</strong> (bufsize &lt; srclen)
+<a id='L515' name='L515'></a>   515         <em class='brace'>{</em>
+<a id='L516' name='L516'></a>   516           <em class='comment'>/* Truncate, but return value that will signal to caller</em>
+<a id='L517' name='L517'></a>   517 <em class='comment'>             that the buffer was too small.  */</em>
+<a id='L518' name='L518'></a>   518           <strong class='reserved'>do</strong>
+<a id='L519' name='L519'></a>   519             *bufptr++ = '\0';
+<a id='L520' name='L520'></a>   520           <strong class='reserved'>while</strong> (--bufsize != 0);
+<a id='L521' name='L521'></a>   521         <em class='brace'>}</em>
+<a id='L522' name='L522'></a>   522       <strong class='reserved'>else</strong>
+<a id='L523' name='L523'></a>   523         <em class='brace'>{</em>
+<a id='L524' name='L524'></a>   524           <strong class='reserved'>do</strong>
+<a id='L525' name='L525'></a>   525             *bufptr++ = *src++;
+<a id='L526' name='L526'></a>   526           <strong class='reserved'>while</strong> (--srclen != 0);
+<a id='L527' name='L527'></a>   527         <em class='brace'>}</em>
+<a id='L528' name='L528'></a>   528     <em class='brace'>}</em>
+<a id='L529' name='L529'></a>   529 
+<a id='L530' name='L530'></a>   530   <em class='comment'>/* If we had to malloc something, free it.  */</em>
+<a id='L531' name='L531'></a>   531   <a href='../D/17636.html' title='Multiple defined in 2 places.'>xfree</a> (big_buffer);
+<a id='L532' name='L532'></a>   532 
+<a id='L533' name='L533'></a>   533   *bufptr = 0;          <em class='comment'>/* Make sure our string ends with a '\0' */</em>
+<a id='L534' name='L534'></a>   534   <strong class='reserved'>return</strong> bufptr - <a href='../S/2952.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>;
+<a id='L535' name='L535'></a>   535 <em class='brace'>}</em>
+<a id='L536' name='L536'></a>   536 
+<a id='L537' name='L537'></a>   537 <em class='comment'>/* Format to an unbounded buffer BUF.  This is like sprintf, except it</em>
+<a id='L538' name='L538'></a>   538 <em class='comment'>   is not limited to returning an 'int' so it doesn't have a silly 2</em>
+<a id='L539' name='L539'></a>   539 <em class='comment'>   GiB limit on typical 64-bit hosts.  However, it is limited to the</em>
+<a id='L540' name='L540'></a>   540 <em class='comment'>   Emacs-style formats that doprnt supports, and it requotes ` and '</em>
+<a id='L541' name='L541'></a>   541 <em class='comment'>   as per ‘text-quoting-style’.</em>
+<a id='L542' name='L542'></a>   542 <em class='comment'></em>
+<a id='L543' name='L543'></a>   543 <em class='comment'>   Return the number of bytes put into BUF, excluding the terminating</em>
+<a id='L544' name='L544'></a>   544 <em class='comment'>   '\0'.  */</em>
+<a id='L545' name='L545'></a>   545 ptrdiff_t
+<a id='L546' name='L546'></a>   546 <a href='../R/8958.html' title='Multiple referred from 7 places.'>esprintf</a> (<strong class='reserved'>char</strong> *buf, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *format, ...)
+<a id='L547' name='L547'></a>   547 <em class='brace'>{</em>
+<a id='L548' name='L548'></a>   548   ptrdiff_t nbytes;
+<a id='L549' name='L549'></a>   549   va_list ap;
+<a id='L550' name='L550'></a>   550   va_start (ap, format);
+<a id='L551' name='L551'></a>   551   nbytes = <a href='../S/2895.html#L186' title='Defined at 186 in src/doprnt.c.'>doprnt</a> (buf, <a href='../S/1870.html#L47' title='Defined at 47 in lib/intprops.h.'>TYPE_MAXIMUM</a> (ptrdiff_t), format, 0, ap);
+<a id='L552' name='L552'></a>   552   va_end (ap);
+<a id='L553' name='L553'></a>   553   <strong class='reserved'>return</strong> nbytes;
+<a id='L554' name='L554'></a>   554 <em class='brace'>}</em>
+<a id='L555' name='L555'></a>   555 
+<a id='L556' name='L556'></a>   556 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> HAVE_X_WINDOWS &amp;&amp; <strong class='reserved'>defined</strong> USE_X_TOOLKIT
+<a id='L557' name='L557'></a>   557 
+<a id='L558' name='L558'></a>   558 <em class='comment'>/* Format to buffer *BUF of positive size *BUFSIZE, reallocating *BUF</em>
+<a id='L559' name='L559'></a>   559 <em class='comment'>   and updating *BUFSIZE if the buffer is too small, and otherwise</em>
+<a id='L560' name='L560'></a>   560 <em class='comment'>   behaving line esprintf.  When reallocating, free *BUF unless it is</em>
+<a id='L561' name='L561'></a>   561 <em class='comment'>   equal to NONHEAPBUF, and if BUFSIZE_MAX is nonnegative then signal</em>
+<a id='L562' name='L562'></a>   562 <em class='comment'>   memory exhaustion instead of growing the buffer size past</em>
+<a id='L563' name='L563'></a>   563 <em class='comment'>   BUFSIZE_MAX.  */</em>
+<a id='L564' name='L564'></a>   564 ptrdiff_t
+<a id='L565' name='L565'></a>   565 <a href='../R/9009.html' title='Multiple referred from 8 places.'>exprintf</a> (<strong class='reserved'>char</strong> **buf, ptrdiff_t *bufsize,
+<a id='L566' name='L566'></a>   566           <strong class='reserved'>char</strong> *nonheapbuf, ptrdiff_t bufsize_max,
+<a id='L567' name='L567'></a>   567           <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *format, ...)
+<a id='L568' name='L568'></a>   568 <em class='brace'>{</em>
+<a id='L569' name='L569'></a>   569   ptrdiff_t nbytes;
+<a id='L570' name='L570'></a>   570   va_list ap;
+<a id='L571' name='L571'></a>   571   va_start (ap, format);
+<a id='L572' name='L572'></a>   572   nbytes = <a href='../S/2895.html#L581' title='Defined at 581 in src/doprnt.c.'>evxprintf</a> (buf, bufsize, nonheapbuf, bufsize_max, format, ap);
+<a id='L573' name='L573'></a>   573   va_end (ap);
+<a id='L574' name='L574'></a>   574   <strong class='reserved'>return</strong> nbytes;
+<a id='L575' name='L575'></a>   575 <em class='brace'>}</em>
+<a id='L576' name='L576'></a>   576 
+<a id='L577' name='L577'></a>   577 <em class='sharp'>#endif</em>
+<a id='L578' name='L578'></a>   578 
+<a id='L579' name='L579'></a>   579 <em class='comment'>/* Act like exprintf, except take a va_list.  */</em>
+<a id='L580' name='L580'></a>   580 ptrdiff_t
+<a id='L581' name='L581'></a>   581 <a href='../R/8977.html' title='Multiple referred from 5 places.'>evxprintf</a> (<strong class='reserved'>char</strong> **buf, ptrdiff_t *bufsize,
+<a id='L582' name='L582'></a>   582            <strong class='reserved'>char</strong> *nonheapbuf, ptrdiff_t bufsize_max,
+<a id='L583' name='L583'></a>   583            <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *format, va_list ap)
+<a id='L584' name='L584'></a>   584 <em class='brace'>{</em>
+<a id='L585' name='L585'></a>   585   <strong class='reserved'>for</strong> (;;)
+<a id='L586' name='L586'></a>   586     <em class='brace'>{</em>
+<a id='L587' name='L587'></a>   587       ptrdiff_t nbytes;
+<a id='L588' name='L588'></a>   588       va_list ap_copy;
+<a id='L589' name='L589'></a>   589       <a href='../D/16641.html' title='Multiple defined in 2 places.'>va_copy</a> (ap_copy, ap);
+<a id='L590' name='L590'></a>   590       nbytes = <a href='../S/2895.html#L186' title='Defined at 186 in src/doprnt.c.'>doprnt</a> (*buf, *bufsize, format, 0, ap_copy);
+<a id='L591' name='L591'></a>   591       va_end (ap_copy);
+<a id='L592' name='L592'></a>   592       <strong class='reserved'>if</strong> (nbytes &lt; *bufsize - 1)
+<a id='L593' name='L593'></a>   593         <strong class='reserved'>return</strong> nbytes;
+<a id='L594' name='L594'></a>   594       <strong class='reserved'>if</strong> (*buf != nonheapbuf)
+<a id='L595' name='L595'></a>   595         <em class='brace'>{</em>
+<a id='L596' name='L596'></a>   596           <a href='../D/17636.html' title='Multiple defined in 2 places.'>xfree</a> (*buf);
+<a id='L597' name='L597'></a>   597           *buf = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L598' name='L598'></a>   598         <em class='brace'>}</em>
+<a id='L599' name='L599'></a>   599       *buf = <a href='../S/3007.html#L879' title='Defined at 879 in src/alloc.c.'>xpalloc</a> (<a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, bufsize, 1, bufsize_max, 1);
+<a id='L600' name='L600'></a>   600     <em class='brace'>}</em>
+<a id='L601' name='L601'></a>   601 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L131'>[^]</a><a href='#L581'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

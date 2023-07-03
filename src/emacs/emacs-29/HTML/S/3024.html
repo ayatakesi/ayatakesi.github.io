@@ -1,0 +1,1193 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/dired.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/dired.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L57'>[^]</a><a href='#L1125'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L57' title='Defined at 57.'>dirent_namelen</a></li>
+<li><a href='#L72' title='Defined at 72.'>dirent_type</a></li>
+<li><a href='#L82' title='Defined at 82.'>open_directory</a></li>
+<li><a href='#L119' title='Defined at 119.'>directory_files_internal_w32_unwind</a></li>
+<li><a href='#L126' title='Defined at 126.'>directory_files_internal_unwind</a></li>
+<li><a href='#L136' title='Defined at 136.'>read_dirent</a></li>
+<li><a href='#L166' title='Defined at 166.'>directory_files_internal</a></li>
+<li><a href='#L459' title='Defined at 459.'>file_name_completion</a></li>
+<li><a href='#L824' title='Defined at 824.'>scmp</a></li>
+<li><a href='#L852' title='Defined at 852.'>file_name_completion_dirp</a></li>
+<li><a href='#L864' title='Defined at 864.'>stat_uname</a></li>
+<li><a href='#L879' title='Defined at 879.'>stat_gname</a></li>
+<li><a href='#L967' title='Defined at 967.'>file_attributes</a></li>
+<li><a href='#L1086' title='Defined at 1086.'>DEFUN</a></li>
+<li><a href='#L1107' title='Defined at 1107.'>DEFUN</a></li>
+<li><a href='#L1125' title='Defined at 1125.'>syms_of_dired</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Lisp functions for making directory listings.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1985-1986, 1993-1994, 1999-2023 Free Software</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L22' name='L22'></a>    22 
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;<a href='2492.html'>sys/stat.h</a>&gt;
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#ifdef</em> HAVE_PWD_H
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;<a href='2497.html'>pwd.h</a>&gt;
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#endif</em>
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;<a href='2498.html'>grp.h</a>&gt;
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;<a href='2483.html'>unistd.h</a>&gt;
+<a id='L33' name='L33'></a>    33 
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#include</em> &lt;<a href='2496.html'>dirent.h</a>&gt;
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#include</em> &lt;<a href='1872.html'>filemode.h</a>&gt;
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#include</em> &lt;<a href='1809.html'>stat-time.h</a>&gt;
+<a id='L37' name='L37'></a>    37 
+<a id='L38' name='L38'></a>    38 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> "<a href='3088.html'>systime.h</a>"
+<a id='L40' name='L40'></a>    40 <em class='sharp'>#include</em> "<a href='2952.html'>buffer.h</a>"
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#include</em> "<a href='2920.html'>coding.h</a>"
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#ifdef</em> <a href='../D/3826.html' title='Multiple defined in 7 places.'>MSDOS</a>
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#include</em> "<a href='3113.html'>msdos.h</a>"      <em class='comment'>/* for fstatat */</em>
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#endif</em>
+<a id='L46' name='L46'></a>    46 
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L48' name='L48'></a>    48 <strong class='reserved'>extern</strong> <strong class='reserved'>int</strong> <a href='../S/2885.html#L5244' title='Defined at 5244 in src/w32.c.'>is_slow_fs</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *);
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#endif</em>
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51 <strong class='reserved'>static</strong> ptrdiff_t <a href='../S/3024.html#L824' title='Defined at 824 in src/dired.c.'>scmp</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *, ptrdiff_t);
+<a id='L52' name='L52'></a>    52 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/3024.html#L967' title='Defined at 967 in src/dired.c.'>file_attributes</a> (<strong class='reserved'>int</strong>, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>,
+<a id='L53' name='L53'></a>    53                                     <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L54' name='L54'></a>    54 
+<a id='L55' name='L55'></a>    55 <em class='comment'>/* Return the number of bytes in DP's name.  */</em>
+<a id='L56' name='L56'></a>    56 <strong class='reserved'>static</strong> ptrdiff_t
+<a id='L57' name='L57'></a>    57 <a href='../R/8363.html' title='Multiple referred from 2 places.'>dirent_namelen</a> (<strong class='reserved'>struct</strong> <a href='../D/9244.html' title='Multiple defined in 2 places.'>dirent</a> *dp)
+<a id='L58' name='L58'></a>    58 <em class='brace'>{</em>
+<a id='L59' name='L59'></a>    59 <em class='sharp'>#ifdef</em> _D_EXACT_NAMLEN
+<a id='L60' name='L60'></a>    60   <strong class='reserved'>return</strong> _D_EXACT_NAMLEN (dp);
+<a id='L61' name='L61'></a>    61 <em class='sharp'>#else</em>
+<a id='L62' name='L62'></a>    62   <strong class='reserved'>return</strong> strlen (dp-&gt;d_name);
+<a id='L63' name='L63'></a>    63 <em class='sharp'>#endif</em>
+<a id='L64' name='L64'></a>    64 <em class='brace'>}</em>
+<a id='L65' name='L65'></a>    65 
+<a id='L66' name='L66'></a>    66 <em class='sharp'>#ifndef</em> HAVE_STRUCT_DIRENT_D_TYPE
+<a id='L67' name='L67'></a>    67 <strong class='reserved'>enum</strong> <em class='brace'>{</em> <a href='../R/1295.html' title='Multiple referred from 2 places.'>DT_UNKNOWN</a>, <a href='../S/3024.html#L549' title='Referred from 549 in src/dired.c.'>DT_DIR</a>, <a href='../S/3024.html#L553' title='Referred from 553 in src/dired.c.'>DT_LNK</a> <em class='brace'>}</em>;
+<a id='L68' name='L68'></a>    68 <em class='sharp'>#endif</em>
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70 <em class='comment'>/* Return the file type of DP.  */</em>
+<a id='L71' name='L71'></a>    71 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L72' name='L72'></a>    72 <a href='../S/3024.html#L547' title='Referred from 547 in src/dired.c.'>dirent_type</a> (<strong class='reserved'>struct</strong> <a href='../D/9244.html' title='Multiple defined in 2 places.'>dirent</a> *dp)
+<a id='L73' name='L73'></a>    73 <em class='brace'>{</em>
+<a id='L74' name='L74'></a>    74 <em class='sharp'>#ifdef</em> HAVE_STRUCT_DIRENT_D_TYPE
+<a id='L75' name='L75'></a>    75   <strong class='reserved'>return</strong> dp-&gt;d_type;
+<a id='L76' name='L76'></a>    76 <em class='sharp'>#else</em>
+<a id='L77' name='L77'></a>    77   <strong class='reserved'>return</strong> <a href='../D/1409.html' title='Multiple defined in 2 places.'>DT_UNKNOWN</a>;
+<a id='L78' name='L78'></a>    78 <em class='sharp'>#endif</em>
+<a id='L79' name='L79'></a>    79 <em class='brace'>}</em>
+<a id='L80' name='L80'></a>    80 
+<a id='L81' name='L81'></a>    81 <strong class='reserved'>static</strong> <a href='../D/1349.html' title='Multiple defined in 2 places.'>DIR</a> *
+<a id='L82' name='L82'></a>    82 <a href='../R/12517.html' title='Multiple referred from 2 places.'>open_directory</a> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> dirname, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> encoded_dirname, <strong class='reserved'>int</strong> *fdp)
+<a id='L83' name='L83'></a>    83 <em class='brace'>{</em>
+<a id='L84' name='L84'></a>    84   <strong class='reserved'>char</strong> *<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = <a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (encoded_dirname);
+<a id='L85' name='L85'></a>    85   <a href='../D/1349.html' title='Multiple defined in 2 places.'>DIR</a> *<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>;
+<a id='L86' name='L86'></a>    86   <strong class='reserved'>int</strong> fd, opendir_errno;
+<a id='L87' name='L87'></a>    87 
+<a id='L88' name='L88'></a>    88 <em class='sharp'>#ifdef</em> <a href='../D/1377.html' title='Multiple defined in 4 places.'>DOS_NT</a>
+<a id='L89' name='L89'></a>    89   <em class='comment'>/* Directories cannot be opened.  The emulation assumes that any</em>
+<a id='L90' name='L90'></a>    90 <em class='comment'>     file descriptor other than AT_FDCWD corresponds to the most</em>
+<a id='L91' name='L91'></a>    91 <em class='comment'>     recently opened directory.  This hack is good enough for Emacs.  */</em>
+<a id='L92' name='L92'></a>    92   fd = 0;
+<a id='L93' name='L93'></a>    93   <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a> = <a href='../D/13609.html' title='Multiple defined in 7 places.'>opendir</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L94' name='L94'></a>    94   opendir_errno = errno;
+<a id='L95' name='L95'></a>    95 <em class='sharp'>#else</em>
+<a id='L96' name='L96'></a>    96   fd = <a href='../S/3040.html#L2378' title='Defined at 2378 in src/sysdep.c.'>emacs_open</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, O_RDONLY | <a href='../S/1814.html#L302' title='Defined at 302 in lib/fcntl.in.h.'>O_DIRECTORY</a>, 0);
+<a id='L97' name='L97'></a>    97   <strong class='reserved'>if</strong> (fd &lt; 0)
+<a id='L98' name='L98'></a>    98     <em class='brace'>{</em>
+<a id='L99' name='L99'></a>    99       opendir_errno = errno;
+<a id='L100' name='L100'></a>   100       <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a> = 0;
+<a id='L101' name='L101'></a>   101     <em class='brace'>}</em>
+<a id='L102' name='L102'></a>   102   <strong class='reserved'>else</strong>
+<a id='L103' name='L103'></a>   103     <em class='brace'>{</em>
+<a id='L104' name='L104'></a>   104       <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a> = <a href='../D/10018.html' title='Multiple defined in 6 places.'>fdopendir</a> (fd);
+<a id='L105' name='L105'></a>   105       opendir_errno = errno;
+<a id='L106' name='L106'></a>   106       <strong class='reserved'>if</strong> (! <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>)
+<a id='L107' name='L107'></a>   107         <a href='../S/3040.html#L2480' title='Defined at 2480 in src/sysdep.c.'>emacs_close</a> (fd);
+<a id='L108' name='L108'></a>   108     <em class='brace'>}</em>
+<a id='L109' name='L109'></a>   109 <em class='sharp'>#endif</em>
+<a id='L110' name='L110'></a>   110 
+<a id='L111' name='L111'></a>   111   <strong class='reserved'>if</strong> (!<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>)
+<a id='L112' name='L112'></a>   112     <a href='../S/3056.html#L207' title='Defined at 207 in src/fileio.c.'>report_file_errno</a> ("Opening directory", dirname, opendir_errno);
+<a id='L113' name='L113'></a>   113   *fdp = fd;
+<a id='L114' name='L114'></a>   114   <strong class='reserved'>return</strong> <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>;
+<a id='L115' name='L115'></a>   115 <em class='brace'>}</em>
+<a id='L116' name='L116'></a>   116 
+<a id='L117' name='L117'></a>   117 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L118' name='L118'></a>   118 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L119' name='L119'></a>   119 <a href='../S/3024.html#L207' title='Referred from 207 in src/dired.c.'>directory_files_internal_w32_unwind</a> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> arg)
+<a id='L120' name='L120'></a>   120 <em class='brace'>{</em>
+<a id='L121' name='L121'></a>   121   Vw32_get_true_file_attributes = arg;
+<a id='L122' name='L122'></a>   122 <em class='brace'>}</em>
+<a id='L123' name='L123'></a>   123 <em class='sharp'>#endif</em>
+<a id='L124' name='L124'></a>   124 
+<a id='L125' name='L125'></a>   125 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L126' name='L126'></a>   126 <a href='../R/8359.html' title='Multiple referred from 2 places.'>directory_files_internal_unwind</a> (<strong class='reserved'>void</strong> *<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>)
+<a id='L127' name='L127'></a>   127 <em class='brace'>{</em>
+<a id='L128' name='L128'></a>   128   <a href='../D/8618.html' title='Multiple defined in 5 places.'>closedir</a> (<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>);
+<a id='L129' name='L129'></a>   129 <em class='brace'>}</em>
+<a id='L130' name='L130'></a>   130 
+<a id='L131' name='L131'></a>   131 <em class='comment'>/* Return the next directory entry from DIR; DIR's name is DIRNAME.</em>
+<a id='L132' name='L132'></a>   132 <em class='comment'>   If there are no more directory entries, return a null pointer.</em>
+<a id='L133' name='L133'></a>   133 <em class='comment'>   Signal any unrecoverable errors.  */</em>
+<a id='L134' name='L134'></a>   134 
+<a id='L135' name='L135'></a>   135 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../D/9244.html' title='Multiple defined in 2 places.'>dirent</a> *
+<a id='L136' name='L136'></a>   136 <a href='../R/13394.html' title='Multiple referred from 2 places.'>read_dirent</a> (<a href='../D/1349.html' title='Multiple defined in 2 places.'>DIR</a> *dir, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> dirname)
+<a id='L137' name='L137'></a>   137 <em class='brace'>{</em>
+<a id='L138' name='L138'></a>   138   <strong class='reserved'>while</strong> (<a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>)
+<a id='L139' name='L139'></a>   139     <em class='brace'>{</em>
+<a id='L140' name='L140'></a>   140       errno = 0;
+<a id='L141' name='L141'></a>   141       <strong class='reserved'>struct</strong> <a href='../D/9244.html' title='Multiple defined in 2 places.'>dirent</a> *dp = <a href='../D/14551.html' title='Multiple defined in 3 places.'>readdir</a> (dir);
+<a id='L142' name='L142'></a>   142       <strong class='reserved'>if</strong> (dp || errno == 0)
+<a id='L143' name='L143'></a>   143         <strong class='reserved'>return</strong> dp;
+<a id='L144' name='L144'></a>   144       <strong class='reserved'>if</strong> (! (errno == EAGAIN || errno == EINTR))
+<a id='L145' name='L145'></a>   145         <em class='brace'>{</em>
+<a id='L146' name='L146'></a>   146 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L147' name='L147'></a>   147           <em class='comment'>/* The MS-Windows implementation of 'opendir' doesn't</em>
+<a id='L148' name='L148'></a>   148 <em class='comment'>             actually open a directory until the first call to</em>
+<a id='L149' name='L149'></a>   149 <em class='comment'>             'readdir'.  If 'readdir' fails to open the directory, it</em>
+<a id='L150' name='L150'></a>   150 <em class='comment'>             sets errno to ENOENT or EACCES, see w32.c.  */</em>
+<a id='L151' name='L151'></a>   151           <strong class='reserved'>if</strong> (errno == ENOENT || errno == EACCES)
+<a id='L152' name='L152'></a>   152             <a href='../S/3056.html#L220' title='Defined at 220 in src/fileio.c.'>report_file_error</a> ("Opening directory", dirname);
+<a id='L153' name='L153'></a>   153 <em class='sharp'>#endif</em>
+<a id='L154' name='L154'></a>   154           <a href='../S/3056.html#L220' title='Defined at 220 in src/fileio.c.'>report_file_error</a> ("Reading directory", dirname);
+<a id='L155' name='L155'></a>   155         <em class='brace'>}</em>
+<a id='L156' name='L156'></a>   156       <a href='../S/2974.html#L3686' title='Defined at 3686 in src/lisp.h.'>maybe_quit</a> ();
+<a id='L157' name='L157'></a>   157     <em class='brace'>}</em>
+<a id='L158' name='L158'></a>   158 <em class='brace'>}</em>
+<a id='L159' name='L159'></a>   159 
+<a id='L160' name='L160'></a>   160 <em class='comment'>/* Function shared by Fdirectory_files and Fdirectory_files_and_attributes.</em>
+<a id='L161' name='L161'></a>   161 <em class='comment'>   If not ATTRS, return a list of directory filenames;</em>
+<a id='L162' name='L162'></a>   162 <em class='comment'>   if ATTRS, return a list of directory filenames and their attributes.</em>
+<a id='L163' name='L163'></a>   163 <em class='comment'>   In the latter case, pass ID_FORMAT to file_attributes.  */</em>
+<a id='L164' name='L164'></a>   164 
+<a id='L165' name='L165'></a>   165 <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L166' name='L166'></a>   166 <a href='../R/8358.html' title='Multiple referred from 7 places.'>directory_files_internal</a> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> directory, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> full,
+<a id='L167' name='L167'></a>   167                           <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> nosort, <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> attrs,
+<a id='L168' name='L168'></a>   168                           <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> id_format, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> return_count)
+<a id='L169' name='L169'></a>   169 <em class='brace'>{</em>
+<a id='L170' name='L170'></a>   170   <a href='../D/1527.html' title='Multiple defined in 11 places.'>EMACS_INT</a> ind = 0, last = <a href='../D/3790.html' title='Multiple defined in 2 places.'>MOST_POSITIVE_FIXNUM</a>;
+<a id='L171' name='L171'></a>   171 
+<a id='L172' name='L172'></a>   172   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (return_count))
+<a id='L173' name='L173'></a>   173     <em class='brace'>{</em>
+<a id='L174' name='L174'></a>   174       <a href='../S/2974.html#L3134' title='Defined at 3134 in src/lisp.h.'>CHECK_FIXNAT</a> (return_count);
+<a id='L175' name='L175'></a>   175       last = <a href='../S/2974.html#L3016' title='Defined at 3016 in src/lisp.h.'>XFIXNAT</a> (return_count);
+<a id='L176' name='L176'></a>   176     <em class='brace'>}</em>
+<a id='L177' name='L177'></a>   177 
+<a id='L178' name='L178'></a>   178   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>))
+<a id='L179' name='L179'></a>   179     <a href='../S/2974.html#L1605' title='Defined at 1605 in src/lisp.h.'>CHECK_STRING</a> (<a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>);
+<a id='L180' name='L180'></a>   180 
+<a id='L181' name='L181'></a>   181   <em class='comment'>/* Don't let the compiler optimize away all copies of DIRECTORY,</em>
+<a id='L182' name='L182'></a>   182 <em class='comment'>     which would break GC; see Bug#16986.  */</em>
+<a id='L183' name='L183'></a>   183   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <strong class='reserved'>volatile</strong> directory_volatile = directory;
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> dirfilename = Fdirectory_file_name (directory);
+<a id='L186' name='L186'></a>   186 
+<a id='L187' name='L187'></a>   187   <em class='comment'>/* Note: ENCODE_FILE and DECODE_FILE can GC because they can run</em>
+<a id='L188' name='L188'></a>   188 <em class='comment'>     run_pre_post_conversion_on_str which calls Lisp directly and</em>
+<a id='L189' name='L189'></a>   189 <em class='comment'>     indirectly.  */</em>
+<a id='L190' name='L190'></a>   190   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> encoded_dirfilename = <a href='../S/2920.html#L643' title='Defined at 643 in src/coding.h.'>ENCODE_FILE</a> (dirfilename);
+<a id='L191' name='L191'></a>   191 
+<a id='L192' name='L192'></a>   192   <strong class='reserved'>int</strong> fd;
+<a id='L193' name='L193'></a>   193   <a href='../D/1349.html' title='Multiple defined in 2 places.'>DIR</a> *<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a> = <a href='../S/3024.html#L82' title='Defined at 82 in src/dired.c.'>open_directory</a> (dirfilename, encoded_dirfilename, &amp;fd);
+<a id='L194' name='L194'></a>   194 
+<a id='L195' name='L195'></a>   195   <em class='comment'>/* Unfortunately, we can now invoke expand-file-name and</em>
+<a id='L196' name='L196'></a>   196 <em class='comment'>     file-attributes on filenames, both of which can throw, so we must</em>
+<a id='L197' name='L197'></a>   197 <em class='comment'>     do a proper unwind-protect.  */</em>
+<a id='L198' name='L198'></a>   198   <a href='../D/15483.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count = <a href='../D/5328.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L199' name='L199'></a>   199   <a href='../S/2847.html#L3545' title='Defined at 3545 in src/eval.c.'>record_unwind_protect_ptr</a> (<a href='../S/3024.html#L126' title='Defined at 126 in src/dired.c.'>directory_files_internal_unwind</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>);
+<a id='L200' name='L200'></a>   200 
+<a id='L201' name='L201'></a>   201 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L202' name='L202'></a>   202   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> w32_save = Qnil;
+<a id='L203' name='L203'></a>   203   <strong class='reserved'>if</strong> (attrs)
+<a id='L204' name='L204'></a>   204     <em class='brace'>{</em>
+<a id='L205' name='L205'></a>   205       <em class='comment'>/* Do this only once to avoid doing it (in w32.c:stat) for each</em>
+<a id='L206' name='L206'></a>   206 <em class='comment'>         file in the directory, when we call file_attributes below.  */</em>
+<a id='L207' name='L207'></a>   207       <a href='../S/2847.html#L3526' title='Defined at 3526 in src/eval.c.'>record_unwind_protect</a> (<a href='../S/3024.html#L119' title='Defined at 119 in src/dired.c.'>directory_files_internal_w32_unwind</a>,
+<a id='L208' name='L208'></a>   208                              Vw32_get_true_file_attributes);
+<a id='L209' name='L209'></a>   209       w32_save = Vw32_get_true_file_attributes;
+<a id='L210' name='L210'></a>   210       <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (Vw32_get_true_file_attributes, Qlocal))
+<a id='L211' name='L211'></a>   211         <em class='brace'>{</em>
+<a id='L212' name='L212'></a>   212           <em class='comment'>/* w32.c:stat will notice these bindings and avoid calling</em>
+<a id='L213' name='L213'></a>   213 <em class='comment'>             GetDriveType for each file.  */</em>
+<a id='L214' name='L214'></a>   214           <strong class='reserved'>if</strong> (<a href='../S/2885.html#L5244' title='Defined at 5244 in src/w32.c.'>is_slow_fs</a> (<a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (encoded_dirfilename)))
+<a id='L215' name='L215'></a>   215             Vw32_get_true_file_attributes = Qnil;
+<a id='L216' name='L216'></a>   216           <strong class='reserved'>else</strong>
+<a id='L217' name='L217'></a>   217             Vw32_get_true_file_attributes = Qt;
+<a id='L218' name='L218'></a>   218         <em class='brace'>}</em>
+<a id='L219' name='L219'></a>   219     <em class='brace'>}</em>
+<a id='L220' name='L220'></a>   220 <em class='sharp'>#endif</em>
+<a id='L221' name='L221'></a>   221 
+<a id='L222' name='L222'></a>   222   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (full) &amp;&amp; !<a href='../D/5405.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (directory))
+<a id='L223' name='L223'></a>   223     <em class='brace'>{</em> <em class='comment'>/* We will be concatenating 'directory' with local file name.</em>
+<a id='L224' name='L224'></a>   224 <em class='comment'>         We always decode local file names, so in order to safely concatenate</em>
+<a id='L225' name='L225'></a>   225 <em class='comment'>         them we need 'directory' to be decoded as well (bug#56469).  */</em>
+<a id='L226' name='L226'></a>   226       directory = <a href='../S/2920.html#L647' title='Defined at 647 in src/coding.h.'>DECODE_FILE</a> (directory);
+<a id='L227' name='L227'></a>   227     <em class='brace'>}</em>
+<a id='L228' name='L228'></a>   228 
+<a id='L229' name='L229'></a>   229   ptrdiff_t directory_nbytes = <a href='../D/5016.html' title='Multiple defined in 2 places.'>SBYTES</a> (directory);
+<a id='L230' name='L230'></a>   230   re_match_object = Qt;
+<a id='L231' name='L231'></a>   231 
+<a id='L232' name='L232'></a>   232   <em class='comment'>/* Decide whether we need to add a directory separator.  */</em>
+<a id='L233' name='L233'></a>   233   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> needsep = (directory_nbytes == 0
+<a id='L234' name='L234'></a>   234                   || !IS_ANY_SEP (<a href='../D/5346.html' title='Multiple defined in 2 places.'>SREF</a> (directory, directory_nbytes - 1)));
+<a id='L235' name='L235'></a>   235 
+<a id='L236' name='L236'></a>   236   <em class='comment'>/* Windows users want case-insensitive wildcards.  */</em>
+<a id='L237' name='L237'></a>   237   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> case_table = Qnil;
+<a id='L238' name='L238'></a>   238 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L239' name='L239'></a>   239   case_table = <a href='../S/2952.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (&amp;buffer_defaults, case_canon_table);
+<a id='L240' name='L240'></a>   240 <em class='sharp'>#endif</em>
+<a id='L241' name='L241'></a>   241 
+<a id='L242' name='L242'></a>   242   <em class='comment'>/* Read directory entries and accumulate them into LIST.  */</em>
+<a id='L243' name='L243'></a>   243   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = Qnil;
+<a id='L244' name='L244'></a>   244   <strong class='reserved'>for</strong> (<strong class='reserved'>struct</strong> <a href='../D/9244.html' title='Multiple defined in 2 places.'>dirent</a> *dp; (dp = <a href='../S/3024.html#L136' title='Defined at 136 in src/dired.c.'>read_dirent</a> (<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>, directory)); )
+<a id='L245' name='L245'></a>   245     <em class='brace'>{</em>
+<a id='L246' name='L246'></a>   246       ptrdiff_t len = <a href='../S/3024.html#L57' title='Defined at 57 in src/dired.c.'>dirent_namelen</a> (dp);
+<a id='L247' name='L247'></a>   247       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = <a href='../S/3007.html#L2370' title='Defined at 2370 in src/alloc.c.'>make_unibyte_string</a> (dp-&gt;d_name, len);
+<a id='L248' name='L248'></a>   248       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> finalname = <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>;
+<a id='L249' name='L249'></a>   249 
+<a id='L250' name='L250'></a>   250       <em class='comment'>/* This can GC.  */</em>
+<a id='L251' name='L251'></a>   251       <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = <a href='../S/2920.html#L647' title='Defined at 647 in src/coding.h.'>DECODE_FILE</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L252' name='L252'></a>   252 
+<a id='L253' name='L253'></a>   253       <a href='../S/2974.html#L3686' title='Defined at 3686 in src/lisp.h.'>maybe_quit</a> ();
+<a id='L254' name='L254'></a>   254 
+<a id='L255' name='L255'></a>   255       <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>)
+<a id='L256' name='L256'></a>   256           &amp;&amp; <a href='../S/3066.html#L481' title='Defined at 481 in src/search.c.'>fast_string_match_internal</a> (<a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>, <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, case_table) &lt; 0)
+<a id='L257' name='L257'></a>   257         <strong class='reserved'>continue</strong>;
+<a id='L258' name='L258'></a>   258 
+<a id='L259' name='L259'></a>   259       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> fileattrs <a href='../D/5907.html' title='Multiple defined in 2 places.'>UNINIT</a>;
+<a id='L260' name='L260'></a>   260       <strong class='reserved'>if</strong> (attrs)
+<a id='L261' name='L261'></a>   261         <em class='brace'>{</em>
+<a id='L262' name='L262'></a>   262           fileattrs = <a href='../S/3024.html#L967' title='Defined at 967 in src/dired.c.'>file_attributes</a> (fd, dp-&gt;d_name, directory, <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>,
+<a id='L263' name='L263'></a>   263                                        id_format);
+<a id='L264' name='L264'></a>   264           <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (fileattrs))
+<a id='L265' name='L265'></a>   265             <strong class='reserved'>continue</strong>;
+<a id='L266' name='L266'></a>   266         <em class='brace'>}</em>
+<a id='L267' name='L267'></a>   267 
+<a id='L268' name='L268'></a>   268       <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (full))
+<a id='L269' name='L269'></a>   269         <em class='brace'>{</em>
+<a id='L270' name='L270'></a>   270           ptrdiff_t name_nbytes = <a href='../D/5016.html' title='Multiple defined in 2 places.'>SBYTES</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L271' name='L271'></a>   271           ptrdiff_t nbytes = directory_nbytes + needsep + name_nbytes;
+<a id='L272' name='L272'></a>   272           ptrdiff_t nchars = <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (directory) + needsep + <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L273' name='L273'></a>   273           <em class='comment'>/* DECODE_FILE may return non-ASCII unibyte strings (e.g. when</em>
+<a id='L274' name='L274'></a>   274 <em class='comment'>             file-name-coding-system is 'binary'), so we don't know for sure</em>
+<a id='L275' name='L275'></a>   275 <em class='comment'>             that the bytes we have follow our internal utf-8 representation</em>
+<a id='L276' name='L276'></a>   276 <em class='comment'>             for multibyte strings.  If nchars == nbytes we don't need to</em>
+<a id='L277' name='L277'></a>   277 <em class='comment'>             care and just return a unibyte string; and if not, that means</em>
+<a id='L278' name='L278'></a>   278 <em class='comment'>             one of 'name' or 'directory' is multibyte, in which case we</em>
+<a id='L279' name='L279'></a>   279 <em class='comment'>             presume that the other one would also be multibyte if it</em>
+<a id='L280' name='L280'></a>   280 <em class='comment'>             contained non-ASCII.</em>
+<a id='L281' name='L281'></a>   281 <em class='comment'>             FIXME: This last presumption is broken when 'directory' is</em>
+<a id='L282' name='L282'></a>   282 <em class='comment'>             multibyte (with non-ASCII), and 'name' is unibyte with non-ASCII</em>
+<a id='L283' name='L283'></a>   283 <em class='comment'>             (because file-name-coding-system is 'binary').  */</em>
+<a id='L284' name='L284'></a>   284           finalname = (nchars == nbytes)
+<a id='L285' name='L285'></a>   285                       ? <a href='../S/3007.html#L2456' title='Defined at 2456 in src/alloc.c.'>make_uninit_string</a> (nbytes)
+<a id='L286' name='L286'></a>   286                       : <a href='../S/3007.html#L2489' title='Defined at 2489 in src/alloc.c.'>make_uninit_multibyte_string</a> (nchars, nbytes);
+<a id='L287' name='L287'></a>   287           memcpy (<a href='../D/5121.html' title='Multiple defined in 2 places.'>SDATA</a> (finalname), <a href='../D/5121.html' title='Multiple defined in 2 places.'>SDATA</a> (directory), directory_nbytes);
+<a id='L288' name='L288'></a>   288           <strong class='reserved'>if</strong> (needsep)
+<a id='L289' name='L289'></a>   289             <a href='../D/5350.html' title='Multiple defined in 2 places.'>SSET</a> (finalname, directory_nbytes, DIRECTORY_SEP);
+<a id='L290' name='L290'></a>   290           memcpy (<a href='../D/5121.html' title='Multiple defined in 2 places.'>SDATA</a> (finalname) + directory_nbytes + needsep,
+<a id='L291' name='L291'></a>   291                   <a href='../D/5121.html' title='Multiple defined in 2 places.'>SDATA</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>), name_nbytes);
+<a id='L292' name='L292'></a>   292         <em class='brace'>}</em>
+<a id='L293' name='L293'></a>   293       <strong class='reserved'>else</strong>
+<a id='L294' name='L294'></a>   294         finalname = <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>;
+<a id='L295' name='L295'></a>   295 
+<a id='L296' name='L296'></a>   296       <strong class='reserved'>if</strong> (ind == last)
+<a id='L297' name='L297'></a>   297           <strong class='reserved'>break</strong>;
+<a id='L298' name='L298'></a>   298       ind ++;
+<a id='L299' name='L299'></a>   299 
+<a id='L300' name='L300'></a>   300       <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = Fcons (attrs ? Fcons (finalname, fileattrs) : finalname, <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>);
+<a id='L301' name='L301'></a>   301     <em class='brace'>}</em>
+<a id='L302' name='L302'></a>   302 
+<a id='L303' name='L303'></a>   303   <a href='../D/8618.html' title='Multiple defined in 5 places.'>closedir</a> (<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>);
+<a id='L304' name='L304'></a>   304 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L305' name='L305'></a>   305   <strong class='reserved'>if</strong> (attrs)
+<a id='L306' name='L306'></a>   306     Vw32_get_true_file_attributes = w32_save;
+<a id='L307' name='L307'></a>   307 <em class='sharp'>#endif</em>
+<a id='L308' name='L308'></a>   308 
+<a id='L309' name='L309'></a>   309   <em class='comment'>/* Discard the unwind protect.  */</em>
+<a id='L310' name='L310'></a>   310   <a href='../S/3006.html#L116' title='Defined at 116 in src/thread.h.'>specpdl_ptr</a> = <a href='../S/2974.html#L3542' title='Defined at 3542 in src/lisp.h.'>specpdl_ref_to_ptr</a> (count);
+<a id='L311' name='L311'></a>   311 
+<a id='L312' name='L312'></a>   312   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (nosort))
+<a id='L313' name='L313'></a>   313     <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = Fsort (Fnreverse (<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>),
+<a id='L314' name='L314'></a>   314                   attrs ? Qfile_attributes_lessp : Qstring_lessp);
+<a id='L315' name='L315'></a>   315 
+<a id='L316' name='L316'></a>   316   (<strong class='reserved'>void</strong>) directory_volatile;
+<a id='L317' name='L317'></a>   317   <strong class='reserved'>return</strong> <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>;
+<a id='L318' name='L318'></a>   318 <em class='brace'>}</em>
+<a id='L319' name='L319'></a>   319 
+<a id='L320' name='L320'></a>   320 
+<a id='L321' name='L321'></a>   321 <a href='../D/1294.html' title='Multiple defined in 980 places.'>DEFUN</a> ("directory-files", Fdirectory_files, Sdirectory_files, 1, 5, 0,
+<a id='L322' name='L322'></a>   322        doc: <em class='comment'>/* Return a list of names of files in DIRECTORY.</em>
+<a id='L323' name='L323'></a>   323 <em class='comment'>There are four optional arguments:</em>
+<a id='L324' name='L324'></a>   324 <em class='comment'>If FULL is non-nil, return absolute file names.  Otherwise return names</em>
+<a id='L325' name='L325'></a>   325 <em class='comment'> that are relative to the specified directory.</em>
+<a id='L326' name='L326'></a>   326 <em class='comment'>If MATCH is non-nil, mention only file names whose non-directory part</em>
+<a id='L327' name='L327'></a>   327 <em class='comment'> matches the regexp MATCH.</em>
+<a id='L328' name='L328'></a>   328 <em class='comment'>If NOSORT is non-nil, the list is not sorted--its order is unpredictable.</em>
+<a id='L329' name='L329'></a>   329 <em class='comment'> Otherwise, the list returned is sorted with `string-lessp'.</em>
+<a id='L330' name='L330'></a>   330 <em class='comment'> NOSORT is useful if you plan to sort the result yourself.</em>
+<a id='L331' name='L331'></a>   331 <em class='comment'>If COUNT is non-nil and a natural number, the function will return</em>
+<a id='L332' name='L332'></a>   332 <em class='comment'> COUNT number of file names (if so many are present).  */</em>)
+<a id='L333' name='L333'></a>   333   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> directory, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> full, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>,
+<a id='L334' name='L334'></a>   334    <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> nosort, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> count)
+<a id='L335' name='L335'></a>   335 <em class='brace'>{</em>
+<a id='L336' name='L336'></a>   336   directory = Fexpand_file_name (directory, Qnil);
+<a id='L337' name='L337'></a>   337 
+<a id='L338' name='L338'></a>   338   <em class='comment'>/* If the file name has special constructs in it,</em>
+<a id='L339' name='L339'></a>   339 <em class='comment'>     call the corresponding file name handler.  */</em>
+<a id='L340' name='L340'></a>   340   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a> = Ffind_file_name_handler (directory, Qdirectory_files);
+<a id='L341' name='L341'></a>   341   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>))
+<a id='L342' name='L342'></a>   342     <strong class='reserved'>return</strong> <a href='../S/2974.html#L3282' title='Defined at 3282 in src/lisp.h.'>call6</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>, Qdirectory_files, directory,
+<a id='L343' name='L343'></a>   343                   full, <a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>, nosort, count);
+<a id='L344' name='L344'></a>   344 
+<a id='L345' name='L345'></a>   345   <strong class='reserved'>return</strong> <a href='../S/3024.html#L166' title='Defined at 166 in src/dired.c.'>directory_files_internal</a> (directory, full, <a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>, nosort,
+<a id='L346' name='L346'></a>   346                                    <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, Qnil, count);
+<a id='L347' name='L347'></a>   347 <em class='brace'>}</em>
+<a id='L348' name='L348'></a>   348 
+<a id='L349' name='L349'></a>   349 <a href='../D/1294.html' title='Multiple defined in 980 places.'>DEFUN</a> ("directory-files-and-attributes", Fdirectory_files_and_attributes,
+<a id='L350' name='L350'></a>   350        Sdirectory_files_and_attributes, 1, 6, 0,
+<a id='L351' name='L351'></a>   351        doc: <em class='comment'>/* Return a list of names of files and their attributes in DIRECTORY.</em>
+<a id='L352' name='L352'></a>   352 <em class='comment'>Value is a list of the form:</em>
+<a id='L353' name='L353'></a>   353 <em class='comment'></em>
+<a id='L354' name='L354'></a>   354 <em class='comment'>  ((FILE1 . FILE1-ATTRS) (FILE2 . FILE2-ATTRS) ...)</em>
+<a id='L355' name='L355'></a>   355 <em class='comment'></em>
+<a id='L356' name='L356'></a>   356 <em class='comment'>where each FILEn-ATTRS is the attributes of FILEn as returned</em>
+<a id='L357' name='L357'></a>   357 <em class='comment'>by `file-attributes'.</em>
+<a id='L358' name='L358'></a>   358 <em class='comment'></em>
+<a id='L359' name='L359'></a>   359 <em class='comment'>This function accepts five optional arguments:</em>
+<a id='L360' name='L360'></a>   360 <em class='comment'>If FULL is non-nil, return absolute file names.  Otherwise return names</em>
+<a id='L361' name='L361'></a>   361 <em class='comment'> that are relative to the specified directory.</em>
+<a id='L362' name='L362'></a>   362 <em class='comment'>If MATCH is non-nil, mention only file names whose non-directory part</em>
+<a id='L363' name='L363'></a>   363 <em class='comment'> matches the regexp MATCH.</em>
+<a id='L364' name='L364'></a>   364 <em class='comment'>If NOSORT is non-nil, the list is not sorted--its order is unpredictable.</em>
+<a id='L365' name='L365'></a>   365 <em class='comment'> NOSORT is useful if you plan to sort the result yourself.</em>
+<a id='L366' name='L366'></a>   366 <em class='comment'>ID-FORMAT specifies the preferred format of attributes uid and gid, see</em>
+<a id='L367' name='L367'></a>   367 <em class='comment'> `file-attributes' for further documentation.</em>
+<a id='L368' name='L368'></a>   368 <em class='comment'>If COUNT is non-nil and a natural number, the function will return</em>
+<a id='L369' name='L369'></a>   369 <em class='comment'> COUNT number of file names (if so many are present).</em>
+<a id='L370' name='L370'></a>   370 <em class='comment'>On MS-Windows, performance depends on `w32-get-true-file-attributes',</em>
+<a id='L371' name='L371'></a>   371 <em class='comment'>which see.  */</em>)
+<a id='L372' name='L372'></a>   372   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> directory, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> full, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>,
+<a id='L373' name='L373'></a>   373    <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> nosort, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> id_format, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> count)
+<a id='L374' name='L374'></a>   374 <em class='brace'>{</em>
+<a id='L375' name='L375'></a>   375   directory = Fexpand_file_name (directory, Qnil);
+<a id='L376' name='L376'></a>   376 
+<a id='L377' name='L377'></a>   377   <em class='comment'>/* If the file name has special constructs in it,</em>
+<a id='L378' name='L378'></a>   378 <em class='comment'>     call the corresponding file name handler.  */</em>
+<a id='L379' name='L379'></a>   379   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>
+<a id='L380' name='L380'></a>   380     = Ffind_file_name_handler (directory, Qdirectory_files_and_attributes);
+<a id='L381' name='L381'></a>   381   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>))
+<a id='L382' name='L382'></a>   382     <strong class='reserved'>return</strong> <a href='../S/2974.html#L3290' title='Defined at 3290 in src/lisp.h.'>call7</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>, Qdirectory_files_and_attributes,
+<a id='L383' name='L383'></a>   383                   directory, full, <a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>, nosort, id_format, count);
+<a id='L384' name='L384'></a>   384 
+<a id='L385' name='L385'></a>   385   <strong class='reserved'>return</strong> <a href='../S/3024.html#L166' title='Defined at 166 in src/dired.c.'>directory_files_internal</a> (directory, full, <a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a>, nosort,
+<a id='L386' name='L386'></a>   386                                    <a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>, id_format, count);
+<a id='L387' name='L387'></a>   387 <em class='brace'>}</em>
+<a id='L388' name='L388'></a>   388 
+<a id='L389' name='L389'></a>   389 
+<a id='L390' name='L390'></a>   390 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/3024.html#L459' title='Defined at 459 in src/dired.c.'>file_name_completion</a> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>, <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a>,
+<a id='L391' name='L391'></a>   391                                          <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L392' name='L392'></a>   392 
+<a id='L393' name='L393'></a>   393 <a href='../D/1294.html' title='Multiple defined in 980 places.'>DEFUN</a> ("file-name-completion", Ffile_name_completion, Sfile_name_completion,
+<a id='L394' name='L394'></a>   394        2, 3, 0,
+<a id='L395' name='L395'></a>   395        doc: <em class='comment'>/* Complete file name FILE in directory DIRECTORY.</em>
+<a id='L396' name='L396'></a>   396 <em class='comment'>Returns the longest string</em>
+<a id='L397' name='L397'></a>   397 <em class='comment'>common to all file names in DIRECTORY that start with FILE.</em>
+<a id='L398' name='L398'></a>   398 <em class='comment'>If there is only one and FILE matches it exactly, returns t.</em>
+<a id='L399' name='L399'></a>   399 <em class='comment'>Returns nil if DIRECTORY contains no name starting with FILE.</em>
+<a id='L400' name='L400'></a>   400 <em class='comment'></em>
+<a id='L401' name='L401'></a>   401 <em class='comment'>If PREDICATE is non-nil, call PREDICATE with each possible</em>
+<a id='L402' name='L402'></a>   402 <em class='comment'>completion (in absolute form) and ignore it if PREDICATE returns nil.</em>
+<a id='L403' name='L403'></a>   403 <em class='comment'></em>
+<a id='L404' name='L404'></a>   404 <em class='comment'>This function ignores some of the possible completions as determined</em>
+<a id='L405' name='L405'></a>   405 <em class='comment'>by the variables `completion-regexp-list' and</em>
+<a id='L406' name='L406'></a>   406 <em class='comment'>`completion-ignored-extensions', which see.  `completion-regexp-list'</em>
+<a id='L407' name='L407'></a>   407 <em class='comment'>is matched against file and directory names relative to DIRECTORY.  */</em>)
+<a id='L408' name='L408'></a>   408   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> directory, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> predicate)
+<a id='L409' name='L409'></a>   409 <em class='brace'>{</em>
+<a id='L410' name='L410'></a>   410   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>;
+<a id='L411' name='L411'></a>   411   directory = Fexpand_file_name (directory, Qnil);
+<a id='L412' name='L412'></a>   412 
+<a id='L413' name='L413'></a>   413   <em class='comment'>/* If the directory name has special constructs in it,</em>
+<a id='L414' name='L414'></a>   414 <em class='comment'>     call the corresponding file name handler.  */</em>
+<a id='L415' name='L415'></a>   415   <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a> = Ffind_file_name_handler (directory, Qfile_name_completion);
+<a id='L416' name='L416'></a>   416   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>))
+<a id='L417' name='L417'></a>   417     <strong class='reserved'>return</strong> <a href='../S/2974.html#L3266' title='Defined at 3266 in src/lisp.h.'>call4</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>, Qfile_name_completion, file, directory, predicate);
+<a id='L418' name='L418'></a>   418 
+<a id='L419' name='L419'></a>   419   <em class='comment'>/* If the file name has special constructs in it,</em>
+<a id='L420' name='L420'></a>   420 <em class='comment'>     call the corresponding file name handler.  */</em>
+<a id='L421' name='L421'></a>   421   <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a> = Ffind_file_name_handler (file, Qfile_name_completion);
+<a id='L422' name='L422'></a>   422   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>))
+<a id='L423' name='L423'></a>   423     <strong class='reserved'>return</strong> <a href='../S/2974.html#L3266' title='Defined at 3266 in src/lisp.h.'>call4</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>, Qfile_name_completion, file, directory, predicate);
+<a id='L424' name='L424'></a>   424 
+<a id='L425' name='L425'></a>   425   <strong class='reserved'>return</strong> <a href='../S/3024.html#L459' title='Defined at 459 in src/dired.c.'>file_name_completion</a> (file, directory, 0, predicate);
+<a id='L426' name='L426'></a>   426 <em class='brace'>}</em>
+<a id='L427' name='L427'></a>   427 
+<a id='L428' name='L428'></a>   428 <a href='../D/1294.html' title='Multiple defined in 980 places.'>DEFUN</a> ("file-name-all-completions", Ffile_name_all_completions,
+<a id='L429' name='L429'></a>   429        Sfile_name_all_completions, 2, 2, 0,
+<a id='L430' name='L430'></a>   430        doc: <em class='comment'>/* Return a list of all completions of file name FILE in directory DIRECTORY.</em>
+<a id='L431' name='L431'></a>   431 <em class='comment'>These are all file names in directory DIRECTORY which begin with FILE.</em>
+<a id='L432' name='L432'></a>   432 <em class='comment'></em>
+<a id='L433' name='L433'></a>   433 <em class='comment'>This function ignores some of the possible completions as determined</em>
+<a id='L434' name='L434'></a>   434 <em class='comment'>by `completion-regexp-list', which see.  `completion-regexp-list'</em>
+<a id='L435' name='L435'></a>   435 <em class='comment'>is matched against file and directory names relative to DIRECTORY.  */</em>)
+<a id='L436' name='L436'></a>   436   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> directory)
+<a id='L437' name='L437'></a>   437 <em class='brace'>{</em>
+<a id='L438' name='L438'></a>   438   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>;
+<a id='L439' name='L439'></a>   439   directory = Fexpand_file_name (directory, Qnil);
+<a id='L440' name='L440'></a>   440 
+<a id='L441' name='L441'></a>   441   <em class='comment'>/* If the directory name has special constructs in it,</em>
+<a id='L442' name='L442'></a>   442 <em class='comment'>     call the corresponding file name handler.  */</em>
+<a id='L443' name='L443'></a>   443   <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a> = Ffind_file_name_handler (directory, Qfile_name_all_completions);
+<a id='L444' name='L444'></a>   444   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>))
+<a id='L445' name='L445'></a>   445     <strong class='reserved'>return</strong> <a href='../S/2974.html#L3259' title='Defined at 3259 in src/lisp.h.'>call3</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>, Qfile_name_all_completions, file, directory);
+<a id='L446' name='L446'></a>   446 
+<a id='L447' name='L447'></a>   447   <em class='comment'>/* If the file name has special constructs in it,</em>
+<a id='L448' name='L448'></a>   448 <em class='comment'>     call the corresponding file name handler.  */</em>
+<a id='L449' name='L449'></a>   449   <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a> = Ffind_file_name_handler (file, Qfile_name_all_completions);
+<a id='L450' name='L450'></a>   450   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>))
+<a id='L451' name='L451'></a>   451     <strong class='reserved'>return</strong> <a href='../S/2974.html#L3259' title='Defined at 3259 in src/lisp.h.'>call3</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>, Qfile_name_all_completions, file, directory);
+<a id='L452' name='L452'></a>   452 
+<a id='L453' name='L453'></a>   453   <strong class='reserved'>return</strong> <a href='../S/3024.html#L459' title='Defined at 459 in src/dired.c.'>file_name_completion</a> (file, directory, 1, Qnil);
+<a id='L454' name='L454'></a>   454 <em class='brace'>}</em>
+<a id='L455' name='L455'></a>   455 
+<a id='L456' name='L456'></a>   456 <strong class='reserved'>static</strong> <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> <a href='../S/3024.html#L852' title='Defined at 852 in src/dired.c.'>file_name_completion_dirp</a> (<strong class='reserved'>int</strong>, <strong class='reserved'>struct</strong> <a href='../D/9244.html' title='Multiple defined in 2 places.'>dirent</a> *, ptrdiff_t);
+<a id='L457' name='L457'></a>   457 
+<a id='L458' name='L458'></a>   458 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L459' name='L459'></a>   459 <a href='../R/9139.html' title='Multiple referred from 3 places.'>file_name_completion</a> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> dirname, <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> all_flag,
+<a id='L460' name='L460'></a>   460                       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> predicate)
+<a id='L461' name='L461'></a>   461 <em class='brace'>{</em>
+<a id='L462' name='L462'></a>   462   ptrdiff_t bestmatchsize = 0;
+<a id='L463' name='L463'></a>   463   <strong class='reserved'>int</strong> matchcount = 0;
+<a id='L464' name='L464'></a>   464   <em class='comment'>/* If ALL_FLAG is 1, BESTMATCH is the list of all matches, decoded.</em>
+<a id='L465' name='L465'></a>   465 <em class='comment'>     If ALL_FLAG is 0, BESTMATCH is either nil</em>
+<a id='L466' name='L466'></a>   466 <em class='comment'>     or the best match so far, not decoded.  */</em>
+<a id='L467' name='L467'></a>   467   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> bestmatch, tem, elt, <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>;
+<a id='L468' name='L468'></a>   468   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> encoded_file;
+<a id='L469' name='L469'></a>   469   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> encoded_dir;
+<a id='L470' name='L470'></a>   470   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> directoryp;
+<a id='L471' name='L471'></a>   471   <em class='comment'>/* If not INCLUDEALL, exclude files in completion-ignored-extensions as</em>
+<a id='L472' name='L472'></a>   472 <em class='comment'>     well as "." and "..".  Until shown otherwise, assume we can't exclude</em>
+<a id='L473' name='L473'></a>   473 <em class='comment'>     anything.  */</em>
+<a id='L474' name='L474'></a>   474   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> includeall = 1;
+<a id='L475' name='L475'></a>   475   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> check_decoded = <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L476' name='L476'></a>   476   <a href='../D/15483.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count = <a href='../D/5328.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L477' name='L477'></a>   477 
+<a id='L478' name='L478'></a>   478   elt = Qnil;
+<a id='L479' name='L479'></a>   479 
+<a id='L480' name='L480'></a>   480   <a href='../S/2974.html#L1605' title='Defined at 1605 in src/lisp.h.'>CHECK_STRING</a> (file);
+<a id='L481' name='L481'></a>   481 
+<a id='L482' name='L482'></a>   482   bestmatch = Qnil;
+<a id='L483' name='L483'></a>   483   encoded_file = encoded_dir = Qnil;
+<a id='L484' name='L484'></a>   484   <a href='../S/2847.html#L3466' title='Defined at 3466 in src/eval.c.'>specbind</a> (Qdefault_directory, dirname);
+<a id='L485' name='L485'></a>   485 
+<a id='L486' name='L486'></a>   486   <em class='comment'>/* Do completion on the encoded file name</em>
+<a id='L487' name='L487'></a>   487 <em class='comment'>     because the other names in the directory are (we presume)</em>
+<a id='L488' name='L488'></a>   488 <em class='comment'>     encoded likewise.  We decode the completed string at the end.  */</em>
+<a id='L489' name='L489'></a>   489   <em class='comment'>/* Actually, this is not quite true any more: we do most of the completion</em>
+<a id='L490' name='L490'></a>   490 <em class='comment'>     work with decoded file names, but we still do some filtering based</em>
+<a id='L491' name='L491'></a>   491 <em class='comment'>     on the encoded file name.  */</em>
+<a id='L492' name='L492'></a>   492   encoded_file = <a href='../S/2920.html#L643' title='Defined at 643 in src/coding.h.'>ENCODE_FILE</a> (file);
+<a id='L493' name='L493'></a>   493   encoded_dir = <a href='../S/2920.html#L643' title='Defined at 643 in src/coding.h.'>ENCODE_FILE</a> (Fdirectory_file_name (dirname));
+<a id='L494' name='L494'></a>   494 
+<a id='L495' name='L495'></a>   495   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file_encoding = Vfile_name_coding_system;
+<a id='L496' name='L496'></a>   496   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (Vfile_name_coding_system))
+<a id='L497' name='L497'></a>   497     file_encoding = Vdefault_file_name_coding_system;
+<a id='L498' name='L498'></a>   498   <em class='comment'>/* If the file-name encoding decomposes characters, as we do for</em>
+<a id='L499' name='L499'></a>   499 <em class='comment'>     HFS+ filesystems, we need to make an additional comparison of</em>
+<a id='L500' name='L500'></a>   500 <em class='comment'>     decoded names in order to filter false positives, such as "a"</em>
+<a id='L501' name='L501'></a>   501 <em class='comment'>     falsely matching "a-ring".  */</em>
+<a id='L502' name='L502'></a>   502   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (file_encoding)
+<a id='L503' name='L503'></a>   503       &amp;&amp; !<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2957.html#L2501' title='Defined at 2501 in src/fns.c.'>plist_get</a> (Fcoding_system_plist (file_encoding),
+<a id='L504' name='L504'></a>   504                            Qdecomposed_characters)))
+<a id='L505' name='L505'></a>   505     <em class='brace'>{</em>
+<a id='L506' name='L506'></a>   506       check_decoded = <a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L507' name='L507'></a>   507       <strong class='reserved'>if</strong> (<a href='../D/5405.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (file))
+<a id='L508' name='L508'></a>   508         <em class='brace'>{</em>
+<a id='L509' name='L509'></a>   509           <em class='comment'>/* Recompute FILE to make sure any decomposed characters in</em>
+<a id='L510' name='L510'></a>   510 <em class='comment'>             it are re-composed by the post-read-conversion.</em>
+<a id='L511' name='L511'></a>   511 <em class='comment'>             Otherwise, any decomposed characters will be rejected by</em>
+<a id='L512' name='L512'></a>   512 <em class='comment'>             the additional check below.  */</em>
+<a id='L513' name='L513'></a>   513           file = <a href='../S/2920.html#L647' title='Defined at 647 in src/coding.h.'>DECODE_FILE</a> (encoded_file);
+<a id='L514' name='L514'></a>   514         <em class='brace'>}</em>
+<a id='L515' name='L515'></a>   515     <em class='brace'>}</em>
+<a id='L516' name='L516'></a>   516   <strong class='reserved'>int</strong> fd;
+<a id='L517' name='L517'></a>   517   <a href='../D/1349.html' title='Multiple defined in 2 places.'>DIR</a> *<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a> = <a href='../S/3024.html#L82' title='Defined at 82 in src/dired.c.'>open_directory</a> (dirname, encoded_dir, &amp;fd);
+<a id='L518' name='L518'></a>   518   <a href='../S/2847.html#L3545' title='Defined at 3545 in src/eval.c.'>record_unwind_protect_ptr</a> (<a href='../S/3024.html#L126' title='Defined at 126 in src/dired.c.'>directory_files_internal_unwind</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>);
+<a id='L519' name='L519'></a>   519 
+<a id='L520' name='L520'></a>   520   <em class='comment'>/* Loop reading directory entries.  */</em>
+<a id='L521' name='L521'></a>   521   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> zero = <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (0);
+<a id='L522' name='L522'></a>   522   ptrdiff_t enc_file_len = <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (encoded_file);
+<a id='L523' name='L523'></a>   523   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file_len = <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (file));
+<a id='L524' name='L524'></a>   524   <strong class='reserved'>for</strong> (<strong class='reserved'>struct</strong> <a href='../D/9244.html' title='Multiple defined in 2 places.'>dirent</a> *dp; (dp = <a href='../S/3024.html#L136' title='Defined at 136 in src/dired.c.'>read_dirent</a> (<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>, dirname)); )
+<a id='L525' name='L525'></a>   525     <em class='brace'>{</em>
+<a id='L526' name='L526'></a>   526       ptrdiff_t len = <a href='../S/3024.html#L57' title='Defined at 57 in src/dired.c.'>dirent_namelen</a> (dp);
+<a id='L527' name='L527'></a>   527       <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> canexclude = 0;
+<a id='L528' name='L528'></a>   528 
+<a id='L529' name='L529'></a>   529       <a href='../S/2974.html#L3686' title='Defined at 3686 in src/lisp.h.'>maybe_quit</a> ();
+<a id='L530' name='L530'></a>   530 
+<a id='L531' name='L531'></a>   531       <strong class='reserved'>if</strong> (len &lt; enc_file_len
+<a id='L532' name='L532'></a>   532           <em class='comment'>/* scmp cannot reliably compare non-ASCII strings while</em>
+<a id='L533' name='L533'></a>   533 <em class='comment'>             ignoring letter-case.  */</em>
+<a id='L534' name='L534'></a>   534           || (!completion_ignore_case
+<a id='L535' name='L535'></a>   535               &amp;&amp; <a href='../S/3024.html#L824' title='Defined at 824 in src/dired.c.'>scmp</a> (dp-&gt;d_name, <a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (encoded_file), enc_file_len) &gt;= 0))
+<a id='L536' name='L536'></a>   536         <strong class='reserved'>continue</strong>;
+<a id='L537' name='L537'></a>   537 
+<a id='L538' name='L538'></a>   538       <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = <a href='../S/3007.html#L2370' title='Defined at 2370 in src/alloc.c.'>make_unibyte_string</a> (dp-&gt;d_name, len);
+<a id='L539' name='L539'></a>   539       <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = <a href='../S/2920.html#L647' title='Defined at 647 in src/coding.h.'>DECODE_FILE</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L540' name='L540'></a>   540       ptrdiff_t name_blen = <a href='../D/5016.html' title='Multiple defined in 2 places.'>SBYTES</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>), name_len = <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L541' name='L541'></a>   541       <strong class='reserved'>if</strong> (completion_ignore_case
+<a id='L542' name='L542'></a>   542           &amp;&amp; !<a href='../S/2974.html#L460' title='Defined at 460 in src/lisp.h.'>BASE_EQ</a> (Fcompare_strings (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, zero, file_len, file, zero,
+<a id='L543' name='L543'></a>   543                                          file_len, Qt),
+<a id='L544' name='L544'></a>   544                        Qt))
+<a id='L545' name='L545'></a>   545             <strong class='reserved'>continue</strong>;
+<a id='L546' name='L546'></a>   546 
+<a id='L547' name='L547'></a>   547       <strong class='reserved'>switch</strong> (<a href='../S/3024.html#L72' title='Defined at 72 in src/dired.c.'>dirent_type</a> (dp))
+<a id='L548' name='L548'></a>   548         <em class='brace'>{</em>
+<a id='L549' name='L549'></a>   549         <strong class='reserved'>case</strong> <a href='../D/1404.html' title='Multiple defined in 2 places.'>DT_DIR</a>:
+<a id='L550' name='L550'></a>   550           directoryp = <a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L551' name='L551'></a>   551           <strong class='reserved'>break</strong>;
+<a id='L552' name='L552'></a>   552 
+<a id='L553' name='L553'></a>   553         <strong class='reserved'>case</strong> <a href='../D/1406.html' title='Multiple defined in 2 places.'>DT_LNK</a>: <strong class='reserved'>case</strong> <a href='../D/1409.html' title='Multiple defined in 2 places.'>DT_UNKNOWN</a>:
+<a id='L554' name='L554'></a>   554           directoryp = <a href='../S/3024.html#L852' title='Defined at 852 in src/dired.c.'>file_name_completion_dirp</a> (fd, dp, len);
+<a id='L555' name='L555'></a>   555           <strong class='reserved'>break</strong>;
+<a id='L556' name='L556'></a>   556 
+<a id='L557' name='L557'></a>   557         <strong class='reserved'>default</strong>:
+<a id='L558' name='L558'></a>   558           directoryp = <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L559' name='L559'></a>   559           <strong class='reserved'>break</strong>;
+<a id='L560' name='L560'></a>   560         <em class='brace'>}</em>
+<a id='L561' name='L561'></a>   561 
+<a id='L562' name='L562'></a>   562       tem = Qnil;
+<a id='L563' name='L563'></a>   563       <em class='comment'>/* If all_flag is set, always include all.</em>
+<a id='L564' name='L564'></a>   564 <em class='comment'>         It would not actually be helpful to the user to ignore any possible</em>
+<a id='L565' name='L565'></a>   565 <em class='comment'>         completions when making a list of them.  */</em>
+<a id='L566' name='L566'></a>   566       <strong class='reserved'>if</strong> (!all_flag)
+<a id='L567' name='L567'></a>   567         <em class='brace'>{</em>
+<a id='L568' name='L568'></a>   568           ptrdiff_t skip;
+<a id='L569' name='L569'></a>   569           <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> cmp_len = <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (name_len);
+<a id='L570' name='L570'></a>   570 
+<a id='L571' name='L571'></a>   571 <em class='sharp'>#if</em> 0 <em class='comment'>/* FIXME: The `scmp' call compares an encoded and a decoded string. */</em>
+<a id='L572' name='L572'></a>   572           <em class='comment'>/* If this entry matches the current bestmatch, the only</em>
+<a id='L573' name='L573'></a>   573 <em class='comment'>             thing it can do is increase matchcount, so don't bother</em>
+<a id='L574' name='L574'></a>   574 <em class='comment'>             investigating it any further.  */</em>
+<a id='L575' name='L575'></a>   575           <strong class='reserved'>if</strong> (!completion_ignore_case
+<a id='L576' name='L576'></a>   576               <em class='comment'>/* The return result depends on whether it's the sole match.  */</em>
+<a id='L577' name='L577'></a>   577               &amp;&amp; matchcount &gt; 1
+<a id='L578' name='L578'></a>   578               &amp;&amp; !includeall <em class='comment'>/* This match may allow includeall to 0.  */</em>
+<a id='L579' name='L579'></a>   579               &amp;&amp; len &gt;= bestmatchsize
+<a id='L580' name='L580'></a>   580               &amp;&amp; 0 &gt; <a href='../S/3024.html#L824' title='Defined at 824 in src/dired.c.'>scmp</a> (dp-&gt;d_name, <a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (bestmatch), bestmatchsize))
+<a id='L581' name='L581'></a>   581             <strong class='reserved'>continue</strong>;
+<a id='L582' name='L582'></a>   582 <em class='sharp'>#endif</em>
+<a id='L583' name='L583'></a>   583 
+<a id='L584' name='L584'></a>   584           <strong class='reserved'>if</strong> (directoryp)
+<a id='L585' name='L585'></a>   585             <em class='brace'>{</em>
+<a id='L586' name='L586'></a>   586 <em class='sharp'>#ifndef</em> <a href='../S/3024.html#L587' title='Defined at 587 in src/dired.c.'>TRIVIAL_DIRECTORY_ENTRY</a>
+<a id='L587' name='L587'></a>   587 <em class='sharp'>#define</em> <a href='../R/5207.html' title='Multiple referred from 2 places.'>TRIVIAL_DIRECTORY_ENTRY</a>(n) (!strcmp (n, ".") || !strcmp (n, ".."))
+<a id='L588' name='L588'></a>   588 <em class='sharp'>#endif</em>
+<a id='L589' name='L589'></a>   589               <em class='comment'>/* "." and ".." are never interesting as completions, and are</em>
+<a id='L590' name='L590'></a>   590 <em class='comment'>                 actually in the way in a directory with only one file.  */</em>
+<a id='L591' name='L591'></a>   591               <strong class='reserved'>if</strong> (<a href='../S/3024.html#L587' title='Defined at 587 in src/dired.c.'>TRIVIAL_DIRECTORY_ENTRY</a> (dp-&gt;d_name))
+<a id='L592' name='L592'></a>   592                 canexclude = 1;
+<a id='L593' name='L593'></a>   593               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (len &gt; enc_file_len)
+<a id='L594' name='L594'></a>   594                 <em class='comment'>/* Ignore directories if they match an element of</em>
+<a id='L595' name='L595'></a>   595 <em class='comment'>                   completion-ignored-extensions which ends in a slash.  */</em>
+<a id='L596' name='L596'></a>   596                 <strong class='reserved'>for</strong> (tem = Vcompletion_ignored_extensions;
+<a id='L597' name='L597'></a>   597                      <a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (tem); tem = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (tem))
+<a id='L598' name='L598'></a>   598                   <em class='brace'>{</em>
+<a id='L599' name='L599'></a>   599                     ptrdiff_t elt_len;
+<a id='L600' name='L600'></a>   600                     <strong class='reserved'>char</strong> *p1;
+<a id='L601' name='L601'></a>   601 
+<a id='L602' name='L602'></a>   602                     elt = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (tem);
+<a id='L603' name='L603'></a>   603                     <strong class='reserved'>if</strong> (!<a href='../S/2974.html#L1599' title='Defined at 1599 in src/lisp.h.'>STRINGP</a> (elt))
+<a id='L604' name='L604'></a>   604                       <strong class='reserved'>continue</strong>;
+<a id='L605' name='L605'></a>   605                     elt_len = <a href='../D/5016.html' title='Multiple defined in 2 places.'>SBYTES</a> (elt) - 1; <em class='comment'>/* -1 for trailing / */</em>
+<a id='L606' name='L606'></a>   606                     <strong class='reserved'>if</strong> (elt_len &lt;= 0)
+<a id='L607' name='L607'></a>   607                       <strong class='reserved'>continue</strong>;
+<a id='L608' name='L608'></a>   608                     p1 = <a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (elt);
+<a id='L609' name='L609'></a>   609                     <strong class='reserved'>if</strong> (p1[elt_len] != '/')
+<a id='L610' name='L610'></a>   610                       <strong class='reserved'>continue</strong>;
+<a id='L611' name='L611'></a>   611                     skip = name_blen - elt_len;
+<a id='L612' name='L612'></a>   612                     <strong class='reserved'>if</strong> (skip &lt; 0)
+<a id='L613' name='L613'></a>   613                       <strong class='reserved'>continue</strong>;
+<a id='L614' name='L614'></a>   614 
+<a id='L615' name='L615'></a>   615                     <strong class='reserved'>if</strong> (!completion_ignore_case
+<a id='L616' name='L616'></a>   616                         &amp;&amp; <a href='../S/3024.html#L824' title='Defined at 824 in src/dired.c.'>scmp</a> (<a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>) + skip, p1, elt_len) &gt;= 0)
+<a id='L617' name='L617'></a>   617                       <strong class='reserved'>continue</strong>;
+<a id='L618' name='L618'></a>   618                     <strong class='reserved'>if</strong> (completion_ignore_case)
+<a id='L619' name='L619'></a>   619                       <em class='brace'>{</em>
+<a id='L620' name='L620'></a>   620                         elt_len = <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (elt) - 1;
+<a id='L621' name='L621'></a>   621                         skip = name_len - elt_len;
+<a id='L622' name='L622'></a>   622                         cmp_len = <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (elt_len);
+<a id='L623' name='L623'></a>   623                         <strong class='reserved'>if</strong> (skip &lt; 0
+<a id='L624' name='L624'></a>   624                             || !<a href='../S/2974.html#L460' title='Defined at 460 in src/lisp.h.'>BASE_EQ</a> (Fcompare_strings (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>,
+<a id='L625' name='L625'></a>   625                                                            <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (skip),
+<a id='L626' name='L626'></a>   626                                                            Qnil,
+<a id='L627' name='L627'></a>   627                                                            elt, zero, cmp_len,
+<a id='L628' name='L628'></a>   628                                                            Qt),
+<a id='L629' name='L629'></a>   629                                          Qt))
+<a id='L630' name='L630'></a>   630                           <strong class='reserved'>continue</strong>;
+<a id='L631' name='L631'></a>   631                       <em class='brace'>}</em>
+<a id='L632' name='L632'></a>   632                     <strong class='reserved'>break</strong>;
+<a id='L633' name='L633'></a>   633                   <em class='brace'>}</em>
+<a id='L634' name='L634'></a>   634             <em class='brace'>}</em>
+<a id='L635' name='L635'></a>   635           <strong class='reserved'>else</strong>
+<a id='L636' name='L636'></a>   636             <em class='brace'>{</em>
+<a id='L637' name='L637'></a>   637               <em class='comment'>/* Compare extensions-to-be-ignored against end of this file name */</em>
+<a id='L638' name='L638'></a>   638               <em class='comment'>/* if name is not an exact match against specified string */</em>
+<a id='L639' name='L639'></a>   639               <strong class='reserved'>if</strong> (len &gt; enc_file_len)
+<a id='L640' name='L640'></a>   640                 <em class='comment'>/* and exit this for loop if a match is found */</em>
+<a id='L641' name='L641'></a>   641                 <strong class='reserved'>for</strong> (tem = Vcompletion_ignored_extensions;
+<a id='L642' name='L642'></a>   642                      <a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (tem); tem = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (tem))
+<a id='L643' name='L643'></a>   643                   <em class='brace'>{</em>
+<a id='L644' name='L644'></a>   644                     elt = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (tem);
+<a id='L645' name='L645'></a>   645                     <strong class='reserved'>if</strong> (!<a href='../S/2974.html#L1599' title='Defined at 1599 in src/lisp.h.'>STRINGP</a> (elt)) <strong class='reserved'>continue</strong>;
+<a id='L646' name='L646'></a>   646                     ptrdiff_t elt_len = <a href='../D/5016.html' title='Multiple defined in 2 places.'>SBYTES</a> (elt);
+<a id='L647' name='L647'></a>   647                     skip = len - elt_len;
+<a id='L648' name='L648'></a>   648                     <strong class='reserved'>if</strong> (skip &lt; 0) <strong class='reserved'>continue</strong>;
+<a id='L649' name='L649'></a>   649 
+<a id='L650' name='L650'></a>   650                     <strong class='reserved'>if</strong> (!completion_ignore_case
+<a id='L651' name='L651'></a>   651                         &amp;&amp; (<a href='../S/3024.html#L824' title='Defined at 824 in src/dired.c.'>scmp</a> (<a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>) + skip, <a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (elt), elt_len)
+<a id='L652' name='L652'></a>   652                             &gt;= 0))
+<a id='L653' name='L653'></a>   653                       <strong class='reserved'>continue</strong>;
+<a id='L654' name='L654'></a>   654                     <strong class='reserved'>if</strong> (completion_ignore_case)
+<a id='L655' name='L655'></a>   655                       <em class='brace'>{</em>
+<a id='L656' name='L656'></a>   656                         elt_len = <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (elt);
+<a id='L657' name='L657'></a>   657                         skip = name_len - elt_len;
+<a id='L658' name='L658'></a>   658                         cmp_len = <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (elt_len);
+<a id='L659' name='L659'></a>   659                         <strong class='reserved'>if</strong> (skip &lt; 0
+<a id='L660' name='L660'></a>   660                             || !<a href='../S/2974.html#L460' title='Defined at 460 in src/lisp.h.'>BASE_EQ</a> (Fcompare_strings (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>,
+<a id='L661' name='L661'></a>   661                                                            <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (skip),
+<a id='L662' name='L662'></a>   662                                                            Qnil,
+<a id='L663' name='L663'></a>   663                                                            elt, zero, cmp_len,
+<a id='L664' name='L664'></a>   664                                                            Qt),
+<a id='L665' name='L665'></a>   665                                          Qt))
+<a id='L666' name='L666'></a>   666                           <strong class='reserved'>continue</strong>;
+<a id='L667' name='L667'></a>   667                       <em class='brace'>}</em>
+<a id='L668' name='L668'></a>   668                     <strong class='reserved'>break</strong>;
+<a id='L669' name='L669'></a>   669                   <em class='brace'>}</em>
+<a id='L670' name='L670'></a>   670             <em class='brace'>}</em>
+<a id='L671' name='L671'></a>   671 
+<a id='L672' name='L672'></a>   672           <em class='comment'>/* If an ignored-extensions match was found,</em>
+<a id='L673' name='L673'></a>   673 <em class='comment'>             don't process this name as a completion.  */</em>
+<a id='L674' name='L674'></a>   674           <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (tem))
+<a id='L675' name='L675'></a>   675             canexclude = 1;
+<a id='L676' name='L676'></a>   676 
+<a id='L677' name='L677'></a>   677           <strong class='reserved'>if</strong> (!includeall &amp;&amp; canexclude)
+<a id='L678' name='L678'></a>   678             <em class='comment'>/* We're not including all files and this file can be excluded.  */</em>
+<a id='L679' name='L679'></a>   679             <strong class='reserved'>continue</strong>;
+<a id='L680' name='L680'></a>   680 
+<a id='L681' name='L681'></a>   681           <strong class='reserved'>if</strong> (includeall &amp;&amp; !canexclude)
+<a id='L682' name='L682'></a>   682             <em class='brace'>{</em> <em class='comment'>/* If we have one non-excludable file, we want to exclude the</em>
+<a id='L683' name='L683'></a>   683 <em class='comment'>                 excludable files.  */</em>
+<a id='L684' name='L684'></a>   684               includeall = 0;
+<a id='L685' name='L685'></a>   685               <em class='comment'>/* Throw away any previous excludable match found.  */</em>
+<a id='L686' name='L686'></a>   686               bestmatch = Qnil;
+<a id='L687' name='L687'></a>   687               bestmatchsize = 0;
+<a id='L688' name='L688'></a>   688               matchcount = 0;
+<a id='L689' name='L689'></a>   689             <em class='brace'>}</em>
+<a id='L690' name='L690'></a>   690         <em class='brace'>}</em>
+<a id='L691' name='L691'></a>   691 
+<a id='L692' name='L692'></a>   692       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> regexps, table = (completion_ignore_case
+<a id='L693' name='L693'></a>   693                                     ? Vascii_canon_table : Qnil);
+<a id='L694' name='L694'></a>   694 
+<a id='L695' name='L695'></a>   695       <em class='comment'>/* Ignore this element if it fails to match all the regexps.  */</em>
+<a id='L696' name='L696'></a>   696       <strong class='reserved'>for</strong> (regexps = Vcompletion_regexp_list; <a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (regexps);
+<a id='L697' name='L697'></a>   697            regexps = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (regexps))
+<a id='L698' name='L698'></a>   698         <strong class='reserved'>if</strong> (<a href='../S/3066.html#L481' title='Defined at 481 in src/search.c.'>fast_string_match_internal</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (regexps), <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, table) &lt; 0)
+<a id='L699' name='L699'></a>   699           <strong class='reserved'>break</strong>;
+<a id='L700' name='L700'></a>   700 
+<a id='L701' name='L701'></a>   701       <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (regexps))
+<a id='L702' name='L702'></a>   702         <strong class='reserved'>continue</strong>;
+<a id='L703' name='L703'></a>   703 
+<a id='L704' name='L704'></a>   704       <em class='comment'>/* This is a possible completion */</em>
+<a id='L705' name='L705'></a>   705       <strong class='reserved'>if</strong> (directoryp)
+<a id='L706' name='L706'></a>   706         <em class='comment'>/* This completion is a directory; make it end with '/'.  */</em>
+<a id='L707' name='L707'></a>   707         <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = Ffile_name_as_directory (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L708' name='L708'></a>   708 
+<a id='L709' name='L709'></a>   709       <em class='comment'>/* Test the predicate, if any.  */</em>
+<a id='L710' name='L710'></a>   710       <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (predicate) &amp;&amp; <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2974.html#L3245' title='Defined at 3245 in src/lisp.h.'>call1</a> (predicate, <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>)))
+<a id='L711' name='L711'></a>   711         <strong class='reserved'>continue</strong>;
+<a id='L712' name='L712'></a>   712 
+<a id='L713' name='L713'></a>   713       <em class='comment'>/* Reject entries where the encoded strings match, but the</em>
+<a id='L714' name='L714'></a>   714 <em class='comment'>         decoded don't.  For example, "a" should not match "a-ring" on</em>
+<a id='L715' name='L715'></a>   715 <em class='comment'>         file systems that store decomposed characters. */</em>
+<a id='L716' name='L716'></a>   716       <strong class='reserved'>if</strong> (check_decoded &amp;&amp; <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (file) &lt;= <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>))
+<a id='L717' name='L717'></a>   717         <em class='brace'>{</em>
+<a id='L718' name='L718'></a>   718           <em class='comment'>/* FIXME: This is a copy of the code below.  */</em>
+<a id='L719' name='L719'></a>   719           ptrdiff_t compare = <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (file);
+<a id='L720' name='L720'></a>   720           <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> cmp
+<a id='L721' name='L721'></a>   721             = Fcompare_strings (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, zero, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (compare),
+<a id='L722' name='L722'></a>   722                                 file, zero, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (compare),
+<a id='L723' name='L723'></a>   723                                 completion_ignore_case ? Qt : Qnil);
+<a id='L724' name='L724'></a>   724           <strong class='reserved'>if</strong> (!<a href='../S/2974.html#L460' title='Defined at 460 in src/lisp.h.'>BASE_EQ</a> (cmp, Qt))
+<a id='L725' name='L725'></a>   725             <strong class='reserved'>continue</strong>;
+<a id='L726' name='L726'></a>   726         <em class='brace'>}</em>
+<a id='L727' name='L727'></a>   727 
+<a id='L728' name='L728'></a>   728       <em class='comment'>/* Suitably record this match.  */</em>
+<a id='L729' name='L729'></a>   729 
+<a id='L730' name='L730'></a>   730       matchcount += matchcount &lt;= 1;
+<a id='L731' name='L731'></a>   731 
+<a id='L732' name='L732'></a>   732       <strong class='reserved'>if</strong> (all_flag)
+<a id='L733' name='L733'></a>   733         bestmatch = Fcons (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, bestmatch);
+<a id='L734' name='L734'></a>   734       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (bestmatch))
+<a id='L735' name='L735'></a>   735         <em class='brace'>{</em>
+<a id='L736' name='L736'></a>   736           bestmatch = <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>;
+<a id='L737' name='L737'></a>   737           bestmatchsize = <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L738' name='L738'></a>   738         <em class='brace'>}</em>
+<a id='L739' name='L739'></a>   739       <strong class='reserved'>else</strong>
+<a id='L740' name='L740'></a>   740         <em class='brace'>{</em>
+<a id='L741' name='L741'></a>   741           <em class='comment'>/* FIXME: This is a copy of the code in Ftry_completion.  */</em>
+<a id='L742' name='L742'></a>   742           ptrdiff_t compare = <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a> (bestmatchsize, <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>));
+<a id='L743' name='L743'></a>   743           <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> cmp
+<a id='L744' name='L744'></a>   744             = Fcompare_strings (bestmatch, zero, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (compare),
+<a id='L745' name='L745'></a>   745                                 <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, zero, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (compare),
+<a id='L746' name='L746'></a>   746                                 completion_ignore_case ? Qt : Qnil);
+<a id='L747' name='L747'></a>   747           ptrdiff_t matchsize = <a href='../S/2974.html#L460' title='Defined at 460 in src/lisp.h.'>BASE_EQ</a> (cmp, Qt)
+<a id='L748' name='L748'></a>   748                                 ? compare : <a href='../D/9614.html' title='Multiple defined in 2 places.'>eabs</a> (<a href='../S/2974.html#L1287' title='Defined at 1287 in src/lisp.h.'>XFIXNUM</a> (cmp)) - 1;
+<a id='L749' name='L749'></a>   749 
+<a id='L750' name='L750'></a>   750           <strong class='reserved'>if</strong> (completion_ignore_case)
+<a id='L751' name='L751'></a>   751             <em class='brace'>{</em>
+<a id='L752' name='L752'></a>   752               <em class='comment'>/* If this is an exact match except for case,</em>
+<a id='L753' name='L753'></a>   753 <em class='comment'>                 use it as the best match rather than one that is not</em>
+<a id='L754' name='L754'></a>   754 <em class='comment'>                 an exact match.  This way, we get the case pattern</em>
+<a id='L755' name='L755'></a>   755 <em class='comment'>                 of the actual match.  */</em>
+<a id='L756' name='L756'></a>   756               <em class='comment'>/* This tests that the current file is an exact match</em>
+<a id='L757' name='L757'></a>   757 <em class='comment'>                 but BESTMATCH is not (it is too long).  */</em>
+<a id='L758' name='L758'></a>   758               <strong class='reserved'>if</strong> ((matchsize == <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>)
+<a id='L759' name='L759'></a>   759                    &amp;&amp; matchsize + directoryp &lt; <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (bestmatch))
+<a id='L760' name='L760'></a>   760                   ||
+<a id='L761' name='L761'></a>   761                   <em class='comment'>/* If there is no exact match ignoring case,</em>
+<a id='L762' name='L762'></a>   762 <em class='comment'>                     prefer a match that does not change the case</em>
+<a id='L763' name='L763'></a>   763 <em class='comment'>                     of the input.  */</em>
+<a id='L764' name='L764'></a>   764                   <em class='comment'>/* If there is more than one exact match aside from</em>
+<a id='L765' name='L765'></a>   765 <em class='comment'>                     case, and one of them is exact including case,</em>
+<a id='L766' name='L766'></a>   766 <em class='comment'>                     prefer that one.  */</em>
+<a id='L767' name='L767'></a>   767                   <em class='comment'>/* This == checks that, of current file and BESTMATCH,</em>
+<a id='L768' name='L768'></a>   768 <em class='comment'>                     either both or neither are exact.  */</em>
+<a id='L769' name='L769'></a>   769                   (((matchsize == <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>))
+<a id='L770' name='L770'></a>   770                     ==
+<a id='L771' name='L771'></a>   771                     (matchsize + directoryp == <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (bestmatch)))
+<a id='L772' name='L772'></a>   772                    &amp;&amp; (cmp = Fcompare_strings (<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, zero,
+<a id='L773' name='L773'></a>   773                                                <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (file)),
+<a id='L774' name='L774'></a>   774                                                file, zero,
+<a id='L775' name='L775'></a>   775                                                Qnil,
+<a id='L776' name='L776'></a>   776                                                Qnil),
+<a id='L777' name='L777'></a>   777                        <a href='../S/2974.html#L460' title='Defined at 460 in src/lisp.h.'>BASE_EQ</a> (Qt, cmp))
+<a id='L778' name='L778'></a>   778                    &amp;&amp; (cmp = Fcompare_strings (bestmatch, zero,
+<a id='L779' name='L779'></a>   779                                                <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (file)),
+<a id='L780' name='L780'></a>   780                                                file, zero,
+<a id='L781' name='L781'></a>   781                                                Qnil,
+<a id='L782' name='L782'></a>   782                                                Qnil),
+<a id='L783' name='L783'></a>   783                        ! <a href='../S/2974.html#L460' title='Defined at 460 in src/lisp.h.'>BASE_EQ</a> (Qt, cmp))))
+<a id='L784' name='L784'></a>   784                 bestmatch = <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>;
+<a id='L785' name='L785'></a>   785             <em class='brace'>}</em>
+<a id='L786' name='L786'></a>   786           bestmatchsize = matchsize;
+<a id='L787' name='L787'></a>   787 
+<a id='L788' name='L788'></a>   788           <em class='comment'>/* If the best completion so far is reduced to the string</em>
+<a id='L789' name='L789'></a>   789 <em class='comment'>             we're trying to complete, then we already know there's no</em>
+<a id='L790' name='L790'></a>   790 <em class='comment'>             other completion, so there's no point looking any further.  */</em>
+<a id='L791' name='L791'></a>   791           <strong class='reserved'>if</strong> (matchsize &lt;= <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (file)
+<a id='L792' name='L792'></a>   792               &amp;&amp; !includeall <em class='comment'>/* A future match may allow includeall to 0.  */</em>
+<a id='L793' name='L793'></a>   793               <em class='comment'>/* If completion-ignore-case is non-nil, don't</em>
+<a id='L794' name='L794'></a>   794 <em class='comment'>                 short-circuit because we want to find the best</em>
+<a id='L795' name='L795'></a>   795 <em class='comment'>                 possible match *including* case differences.  */</em>
+<a id='L796' name='L796'></a>   796               &amp;&amp; (!completion_ignore_case || matchsize == 0)
+<a id='L797' name='L797'></a>   797               <em class='comment'>/* The return value depends on whether it's the sole match.  */</em>
+<a id='L798' name='L798'></a>   798               &amp;&amp; matchcount &gt; 1)
+<a id='L799' name='L799'></a>   799             <strong class='reserved'>break</strong>;
+<a id='L800' name='L800'></a>   800 
+<a id='L801' name='L801'></a>   801         <em class='brace'>}</em>
+<a id='L802' name='L802'></a>   802     <em class='brace'>}</em>
+<a id='L803' name='L803'></a>   803 
+<a id='L804' name='L804'></a>   804   <em class='comment'>/* This closes the directory.  */</em>
+<a id='L805' name='L805'></a>   805   bestmatch = <a href='../S/2847.html#L3743' title='Defined at 3743 in src/eval.c.'>unbind_to</a> (count, bestmatch);
+<a id='L806' name='L806'></a>   806 
+<a id='L807' name='L807'></a>   807   <strong class='reserved'>if</strong> (all_flag || <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (bestmatch))
+<a id='L808' name='L808'></a>   808     <strong class='reserved'>return</strong> bestmatch;
+<a id='L809' name='L809'></a>   809   <em class='comment'>/* Return t if the supplied string is an exact match (counting case);</em>
+<a id='L810' name='L810'></a>   810 <em class='comment'>     it does not require any change to be made.  */</em>
+<a id='L811' name='L811'></a>   811   <strong class='reserved'>if</strong> (matchcount == 1 &amp;&amp; !<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (Fequal (bestmatch, file)))
+<a id='L812' name='L812'></a>   812     <strong class='reserved'>return</strong> Qt;
+<a id='L813' name='L813'></a>   813   bestmatch = Fsubstring (bestmatch, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (0),
+<a id='L814' name='L814'></a>   814                           <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (bestmatchsize));
+<a id='L815' name='L815'></a>   815   <strong class='reserved'>return</strong> bestmatch;
+<a id='L816' name='L816'></a>   816 <em class='brace'>}</em>
+<a id='L817' name='L817'></a>   817 
+<a id='L818' name='L818'></a>   818 <em class='comment'>/* Compare exactly LEN chars of strings at S1 and S2,</em>
+<a id='L819' name='L819'></a>   819 <em class='comment'>   ignoring case if appropriate.</em>
+<a id='L820' name='L820'></a>   820 <em class='comment'>   Return -1 if strings match,</em>
+<a id='L821' name='L821'></a>   821 <em class='comment'>   else number of chars that match at the beginning.  */</em>
+<a id='L822' name='L822'></a>   822 
+<a id='L823' name='L823'></a>   823 <strong class='reserved'>static</strong> ptrdiff_t
+<a id='L824' name='L824'></a>   824 <a href='../R/13887.html' title='Multiple referred from 5 places.'>scmp</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/4167.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/4167.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>, ptrdiff_t len)
+<a id='L825' name='L825'></a>   825 <em class='brace'>{</em>
+<a id='L826' name='L826'></a>   826   <strong class='reserved'>register</strong> ptrdiff_t l = len;
+<a id='L827' name='L827'></a>   827 
+<a id='L828' name='L828'></a>   828   <strong class='reserved'>if</strong> (completion_ignore_case)
+<a id='L829' name='L829'></a>   829     <em class='brace'>{</em>
+<a id='L830' name='L830'></a>   830       <em class='comment'>/* WARNING: This only works for pure ASCII strings, as we</em>
+<a id='L831' name='L831'></a>   831 <em class='comment'>         compare bytes, not characters!  Use Fcompare_strings for</em>
+<a id='L832' name='L832'></a>   832 <em class='comment'>         comparing non-ASCII strings case-insensitively.  */</em>
+<a id='L833' name='L833'></a>   833       <strong class='reserved'>while</strong> (l
+<a id='L834' name='L834'></a>   834              &amp;&amp; (<a href='../S/2952.html#L1562' title='Defined at 1562 in src/buffer.h.'>downcase</a> ((<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong>) *<a href='../S/4167.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>++)
+<a id='L835' name='L835'></a>   835                  == <a href='../S/2952.html#L1562' title='Defined at 1562 in src/buffer.h.'>downcase</a> ((<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong>) *<a href='../S/4167.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>++)))
+<a id='L836' name='L836'></a>   836         l--;
+<a id='L837' name='L837'></a>   837     <em class='brace'>}</em>
+<a id='L838' name='L838'></a>   838   <strong class='reserved'>else</strong>
+<a id='L839' name='L839'></a>   839     <em class='brace'>{</em>
+<a id='L840' name='L840'></a>   840       <strong class='reserved'>while</strong> (l &amp;&amp; *<a href='../S/4167.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>++ == *<a href='../S/4167.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>++)
+<a id='L841' name='L841'></a>   841         l--;
+<a id='L842' name='L842'></a>   842     <em class='brace'>}</em>
+<a id='L843' name='L843'></a>   843   <strong class='reserved'>if</strong> (l == 0)
+<a id='L844' name='L844'></a>   844     <strong class='reserved'>return</strong> -1;
+<a id='L845' name='L845'></a>   845   <strong class='reserved'>else</strong>
+<a id='L846' name='L846'></a>   846     <strong class='reserved'>return</strong> len - l;
+<a id='L847' name='L847'></a>   847 <em class='brace'>}</em>
+<a id='L848' name='L848'></a>   848 
+<a id='L849' name='L849'></a>   849 <em class='comment'>/* Return true if in the directory FD the directory entry DP, whose</em>
+<a id='L850' name='L850'></a>   850 <em class='comment'>   string length is LEN, is that of a subdirectory that can be searched.  */</em>
+<a id='L851' name='L851'></a>   851 <strong class='reserved'>static</strong> <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L852' name='L852'></a>   852 <a href='../R/9140.html' title='Multiple referred from 2 places.'>file_name_completion_dirp</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>struct</strong> <a href='../D/9244.html' title='Multiple defined in 2 places.'>dirent</a> *dp, ptrdiff_t len)
+<a id='L853' name='L853'></a>   853 <em class='brace'>{</em>
+<a id='L854' name='L854'></a>   854   <a href='../D/5945.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L855' name='L855'></a>   855   <strong class='reserved'>char</strong> *subdir_name = <a href='../D/4975.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (len + 2);
+<a id='L856' name='L856'></a>   856   memcpy (subdir_name, dp-&gt;d_name, len);
+<a id='L857' name='L857'></a>   857   strcpy (subdir_name + len, "/");
+<a id='L858' name='L858'></a>   858   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> dirp = <a href='../D/9956.html' title='Multiple defined in 5 places.'>faccessat</a> (fd, subdir_name, <a href='../D/2266.html' title='Multiple defined in 3 places.'>F_OK</a>, <a href='../D/127.html' title='Multiple defined in 2 places.'>AT_EACCESS</a>) == 0;
+<a id='L859' name='L859'></a>   859   <a href='../D/4980.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L860' name='L860'></a>   860   <strong class='reserved'>return</strong> dirp;
+<a id='L861' name='L861'></a>   861 <em class='brace'>}</em>
+<a id='L862' name='L862'></a>   862 
+<a id='L863' name='L863'></a>   863 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *
+<a id='L864' name='L864'></a>   864 <a href='../S/3024.html#L1043' title='Referred from 1043 in src/dired.c.'>stat_uname</a> (<strong class='reserved'>struct</strong> <a href='../D/15576.html' title='Multiple defined in 13 places.'>stat</a> *st)
+<a id='L865' name='L865'></a>   865 <em class='brace'>{</em>
+<a id='L866' name='L866'></a>   866 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L867' name='L867'></a>   867   <strong class='reserved'>return</strong> st-&gt;st_uname;
+<a id='L868' name='L868'></a>   868 <em class='sharp'>#else</em>
+<a id='L869' name='L869'></a>   869   <strong class='reserved'>struct</strong> <a href='../S/2497.html#L7' title='Defined at 7 in nt/inc/pwd.h.'>passwd</a> *pw = <a href='../D/10938.html' title='Multiple defined in 2 places.'>getpwuid</a> (st-&gt;st_uid);
+<a id='L870' name='L870'></a>   870 
+<a id='L871' name='L871'></a>   871   <strong class='reserved'>if</strong> (pw)
+<a id='L872' name='L872'></a>   872     <strong class='reserved'>return</strong> pw-&gt;pw_name;
+<a id='L873' name='L873'></a>   873   <strong class='reserved'>else</strong>
+<a id='L874' name='L874'></a>   874     <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L875' name='L875'></a>   875 <em class='sharp'>#endif</em>
+<a id='L876' name='L876'></a>   876 <em class='brace'>}</em>
+<a id='L877' name='L877'></a>   877 
+<a id='L878' name='L878'></a>   878 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *
+<a id='L879' name='L879'></a>   879 <a href='../S/3024.html#L1044' title='Referred from 1044 in src/dired.c.'>stat_gname</a> (<strong class='reserved'>struct</strong> <a href='../D/15576.html' title='Multiple defined in 13 places.'>stat</a> *st)
+<a id='L880' name='L880'></a>   880 <em class='brace'>{</em>
+<a id='L881' name='L881'></a>   881 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L882' name='L882'></a>   882   <strong class='reserved'>return</strong> st-&gt;st_gname;
+<a id='L883' name='L883'></a>   883 <em class='sharp'>#else</em>
+<a id='L884' name='L884'></a>   884   <strong class='reserved'>struct</strong> <a href='../S/2498.html#L26' title='Defined at 26 in nt/inc/grp.h.'>group</a> *gr = <a href='../S/2885.html#L2202' title='Defined at 2202 in src/w32.c.'>getgrgid</a> (st-&gt;st_gid);
+<a id='L885' name='L885'></a>   885 
+<a id='L886' name='L886'></a>   886   <strong class='reserved'>if</strong> (gr)
+<a id='L887' name='L887'></a>   887     <strong class='reserved'>return</strong> gr-&gt;gr_name;
+<a id='L888' name='L888'></a>   888   <strong class='reserved'>else</strong>
+<a id='L889' name='L889'></a>   889     <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L890' name='L890'></a>   890 <em class='sharp'>#endif</em>
+<a id='L891' name='L891'></a>   891 <em class='brace'>}</em>
+<a id='L892' name='L892'></a>   892 
+<a id='L893' name='L893'></a>   893 <a href='../D/1294.html' title='Multiple defined in 980 places.'>DEFUN</a> ("file-attributes", Ffile_attributes, Sfile_attributes, 1, 2, 0,
+<a id='L894' name='L894'></a>   894        doc: <em class='comment'>/* Return a list of attributes of file FILENAME.</em>
+<a id='L895' name='L895'></a>   895 <em class='comment'>Value is nil if specified file does not exist.</em>
+<a id='L896' name='L896'></a>   896 <em class='comment'></em>
+<a id='L897' name='L897'></a>   897 <em class='comment'>ID-FORMAT specifies the preferred format of attributes uid and gid (see</em>
+<a id='L898' name='L898'></a>   898 <em class='comment'>below) - valid values are `string' and `integer'.  The latter is the</em>
+<a id='L899' name='L899'></a>   899 <em class='comment'>default, but we plan to change that, so you should specify a non-nil value</em>
+<a id='L900' name='L900'></a>   900 <em class='comment'>for ID-FORMAT if you use the returned uid or gid.</em>
+<a id='L901' name='L901'></a>   901 <em class='comment'></em>
+<a id='L902' name='L902'></a>   902 <em class='comment'>To access the elements returned, the following access functions are</em>
+<a id='L903' name='L903'></a>   903 <em class='comment'>provided: `file-attribute-type', `file-attribute-link-number',</em>
+<a id='L904' name='L904'></a>   904 <em class='comment'>`file-attribute-user-id', `file-attribute-group-id',</em>
+<a id='L905' name='L905'></a>   905 <em class='comment'>`file-attribute-access-time', `file-attribute-modification-time',</em>
+<a id='L906' name='L906'></a>   906 <em class='comment'>`file-attribute-status-change-time', `file-attribute-size',</em>
+<a id='L907' name='L907'></a>   907 <em class='comment'>`file-attribute-modes', `file-attribute-inode-number', and</em>
+<a id='L908' name='L908'></a>   908 <em class='comment'>`file-attribute-device-number'.</em>
+<a id='L909' name='L909'></a>   909 <em class='comment'></em>
+<a id='L910' name='L910'></a>   910 <em class='comment'>Elements of the attribute list are:</em>
+<a id='L911' name='L911'></a>   911 <em class='comment'> 0. t for directory, string (name linked to) for symbolic link, or nil.</em>
+<a id='L912' name='L912'></a>   912 <em class='comment'> 1. Number of links to file.</em>
+<a id='L913' name='L913'></a>   913 <em class='comment'> 2. File uid as a string or (if ID-FORMAT is `integer' or a string value</em>
+<a id='L914' name='L914'></a>   914 <em class='comment'>  cannot be looked up) as an integer.</em>
+<a id='L915' name='L915'></a>   915 <em class='comment'> 3. File gid, likewise.</em>
+<a id='L916' name='L916'></a>   916 <em class='comment'> 4. Last access time, in the style of `current-time'.</em>
+<a id='L917' name='L917'></a>   917 <em class='comment'>  (See a note below about access time on FAT-based filesystems.)</em>
+<a id='L918' name='L918'></a>   918 <em class='comment'> 5. Last modification time, likewise.  This is the time of the last</em>
+<a id='L919' name='L919'></a>   919 <em class='comment'>  change to the file's contents.</em>
+<a id='L920' name='L920'></a>   920 <em class='comment'> 6. Last status change time, likewise.  This is the time of last change</em>
+<a id='L921' name='L921'></a>   921 <em class='comment'>  to the file's attributes: owner and group, access mode bits, etc.</em>
+<a id='L922' name='L922'></a>   922 <em class='comment'> 7. Size in bytes, as an integer.</em>
+<a id='L923' name='L923'></a>   923 <em class='comment'> 8. File modes, as a string of ten letters or dashes as in ls -l.</em>
+<a id='L924' name='L924'></a>   924 <em class='comment'> 9. An unspecified value, present only for backward compatibility.</em>
+<a id='L925' name='L925'></a>   925 <em class='comment'>10. inode number, as a nonnegative integer.</em>
+<a id='L926' name='L926'></a>   926 <em class='comment'>11. Filesystem device identifier, as an integer or a cons cell of integers.</em>
+<a id='L927' name='L927'></a>   927 <em class='comment'></em>
+<a id='L928' name='L928'></a>   928 <em class='comment'>Large integers are bignums, so `eq' might not work on them.</em>
+<a id='L929' name='L929'></a>   929 <em class='comment'>On most filesystems, the combination of the inode and the device</em>
+<a id='L930' name='L930'></a>   930 <em class='comment'>identifier uniquely identifies the file.  This unique file identification</em>
+<a id='L931' name='L931'></a>   931 <em class='comment'>is provided by the access function `file-attribute-file-identifier'.</em>
+<a id='L932' name='L932'></a>   932 <em class='comment'></em>
+<a id='L933' name='L933'></a>   933 <em class='comment'>On MS-Windows, performance depends on `w32-get-true-file-attributes',</em>
+<a id='L934' name='L934'></a>   934 <em class='comment'>which see.</em>
+<a id='L935' name='L935'></a>   935 <em class='comment'></em>
+<a id='L936' name='L936'></a>   936 <em class='comment'>On some FAT-based filesystems, only the date of last access is recorded,</em>
+<a id='L937' name='L937'></a>   937 <em class='comment'>so last access time will always be midnight of that day.  */</em>)
+<a id='L938' name='L938'></a>   938   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> filename, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> id_format)
+<a id='L939' name='L939'></a>   939 <em class='brace'>{</em>
+<a id='L940' name='L940'></a>   940   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> encoded;
+<a id='L941' name='L941'></a>   941   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>;
+<a id='L942' name='L942'></a>   942 
+<a id='L943' name='L943'></a>   943   filename = <a href='../S/2847.html#L1509' title='Defined at 1509 in src/eval.c.'>internal_condition_case_2</a> (Fexpand_file_name, filename, Qnil,
+<a id='L944' name='L944'></a>   944                                         Qt, Fidentity);
+<a id='L945' name='L945'></a>   945   <strong class='reserved'>if</strong> (!<a href='../S/2974.html#L1599' title='Defined at 1599 in src/lisp.h.'>STRINGP</a> (filename))
+<a id='L946' name='L946'></a>   946     <strong class='reserved'>return</strong> Qnil;
+<a id='L947' name='L947'></a>   947 
+<a id='L948' name='L948'></a>   948   <em class='comment'>/* If the file name has special constructs in it,</em>
+<a id='L949' name='L949'></a>   949 <em class='comment'>     call the corresponding file name handler.  */</em>
+<a id='L950' name='L950'></a>   950   <a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a> = Ffind_file_name_handler (filename, Qfile_attributes);
+<a id='L951' name='L951'></a>   951   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>))
+<a id='L952' name='L952'></a>   952     <em class='brace'>{</em> <em class='comment'>/* Only pass the extra arg if it is used to help backward</em>
+<a id='L953' name='L953'></a>   953 <em class='comment'>         compatibility with old file name handlers which do not</em>
+<a id='L954' name='L954'></a>   954 <em class='comment'>         implement the new arg.  --Stef */</em>
+<a id='L955' name='L955'></a>   955       <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (id_format))
+<a id='L956' name='L956'></a>   956         <strong class='reserved'>return</strong> <a href='../S/2974.html#L3252' title='Defined at 3252 in src/lisp.h.'>call2</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>, Qfile_attributes, filename);
+<a id='L957' name='L957'></a>   957       <strong class='reserved'>else</strong>
+<a id='L958' name='L958'></a>   958         <strong class='reserved'>return</strong> <a href='../S/2974.html#L3259' title='Defined at 3259 in src/lisp.h.'>call3</a> (<a href='../D/11539.html' title='Multiple defined in 2 places.'>handler</a>, Qfile_attributes, filename, id_format);
+<a id='L959' name='L959'></a>   959     <em class='brace'>}</em>
+<a id='L960' name='L960'></a>   960 
+<a id='L961' name='L961'></a>   961   encoded = <a href='../S/2920.html#L643' title='Defined at 643 in src/coding.h.'>ENCODE_FILE</a> (filename);
+<a id='L962' name='L962'></a>   962   <strong class='reserved'>return</strong> <a href='../S/3024.html#L967' title='Defined at 967 in src/dired.c.'>file_attributes</a> (<a href='../D/128.html' title='Multiple defined in 4 places.'>AT_FDCWD</a>, <a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (encoded), Qnil, filename,
+<a id='L963' name='L963'></a>   963                           id_format);
+<a id='L964' name='L964'></a>   964 <em class='brace'>}</em>
+<a id='L965' name='L965'></a>   965 
+<a id='L966' name='L966'></a>   966 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L967' name='L967'></a>   967 <a href='../R/9124.html' title='Multiple referred from 3 places.'>file_attributes</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>,
+<a id='L968' name='L968'></a>   968                  <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> dirname, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> filename,
+<a id='L969' name='L969'></a>   969                  <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> id_format)
+<a id='L970' name='L970'></a>   970 <em class='brace'>{</em>
+<a id='L971' name='L971'></a>   971   <a href='../D/15483.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count = <a href='../D/5328.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L972' name='L972'></a>   972   <strong class='reserved'>struct</strong> <a href='../D/15576.html' title='Multiple defined in 13 places.'>stat</a> s;
+<a id='L973' name='L973'></a>   973 
+<a id='L974' name='L974'></a>   974   <em class='comment'>/* An array to hold the mode string generated by filemodestring,</em>
+<a id='L975' name='L975'></a>   975 <em class='comment'>     including its terminating space and null byte.  */</em>
+<a id='L976' name='L976'></a>   976   <strong class='reserved'>char</strong> modes[<strong class='reserved'>sizeof</strong> "-rwxr-xr-x "];
+<a id='L977' name='L977'></a>   977 
+<a id='L978' name='L978'></a>   978   <strong class='reserved'>char</strong> *uname = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, *gname = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L979' name='L979'></a>   979 
+<a id='L980' name='L980'></a>   980   <strong class='reserved'>int</strong> err = EINVAL;
+<a id='L981' name='L981'></a>   981 
+<a id='L982' name='L982'></a>   982 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> <a href='../S/4456.html#L1176' title='Defined at 1176 in lib-src/emacsclient.c.'>O_PATH</a> &amp;&amp; !<strong class='reserved'>defined</strong> HAVE_CYGWIN_O_PATH_BUG
+<a id='L983' name='L983'></a>   983   <strong class='reserved'>int</strong> namefd = <a href='../S/3040.html#L2366' title='Defined at 2366 in src/sysdep.c.'>emacs_openat</a> (fd, <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, <a href='../S/4456.html#L1176' title='Defined at 1176 in lib-src/emacsclient.c.'>O_PATH</a> | <a href='../D/4308.html' title='Multiple defined in 7 places.'>O_CLOEXEC</a> | <a href='../D/4317.html' title='Multiple defined in 3 places.'>O_NOFOLLOW</a>, 0);
+<a id='L984' name='L984'></a>   984   <strong class='reserved'>if</strong> (namefd &lt; 0)
+<a id='L985' name='L985'></a>   985     err = errno;
+<a id='L986' name='L986'></a>   986   <strong class='reserved'>else</strong>
+<a id='L987' name='L987'></a>   987     <em class='brace'>{</em>
+<a id='L988' name='L988'></a>   988       <a href='../S/2847.html#L3568' title='Defined at 3568 in src/eval.c.'>record_unwind_protect_int</a> (<a href='../S/3056.html#L261' title='Defined at 261 in src/fileio.c.'>close_file_unwind</a>, namefd);
+<a id='L989' name='L989'></a>   989       <strong class='reserved'>if</strong> (<a href='../D/10489.html' title='Multiple defined in 9 places.'>fstat</a> (namefd, &amp;s) != 0)
+<a id='L990' name='L990'></a>   990         <em class='brace'>{</em>
+<a id='L991' name='L991'></a>   991           err = errno;
+<a id='L992' name='L992'></a>   992           <em class='comment'>/* The Linux kernel before version 3.6 does not support</em>
+<a id='L993' name='L993'></a>   993 <em class='comment'>             fstat on O_PATH file descriptors.  Handle this error like</em>
+<a id='L994' name='L994'></a>   994 <em class='comment'>             missing support for O_PATH.  */</em>
+<a id='L995' name='L995'></a>   995           <strong class='reserved'>if</strong> (err == EBADF)
+<a id='L996' name='L996'></a>   996             err = EINVAL;
+<a id='L997' name='L997'></a>   997         <em class='brace'>}</em>
+<a id='L998' name='L998'></a>   998       <strong class='reserved'>else</strong>
+<a id='L999' name='L999'></a>   999         <em class='brace'>{</em>
+<a id='L1000' name='L1000'></a>  1000           err = 0;
+<a id='L1001' name='L1001'></a>  1001           fd = namefd;
+<a id='L1002' name='L1002'></a>  1002           <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = "";
+<a id='L1003' name='L1003'></a>  1003         <em class='brace'>}</em>
+<a id='L1004' name='L1004'></a>  1004     <em class='brace'>}</em>
+<a id='L1005' name='L1005'></a>  1005 <em class='sharp'>#endif</em>
+<a id='L1006' name='L1006'></a>  1006 
+<a id='L1007' name='L1007'></a>  1007   <strong class='reserved'>if</strong> (err == EINVAL)
+<a id='L1008' name='L1008'></a>  1008     <em class='brace'>{</em>
+<a id='L1009' name='L1009'></a>  1009 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L1010' name='L1010'></a>  1010       <em class='comment'>/* We usually don't request accurate owner and group info,</em>
+<a id='L1011' name='L1011'></a>  1011 <em class='comment'>         because it can be expensive on Windows to get that, and most</em>
+<a id='L1012' name='L1012'></a>  1012 <em class='comment'>         callers of 'lstat' don't need that.  But here we do want that</em>
+<a id='L1013' name='L1013'></a>  1013 <em class='comment'>         information to be accurate.  */</em>
+<a id='L1014' name='L1014'></a>  1014       w32_stat_get_owner_group = 1;
+<a id='L1015' name='L1015'></a>  1015 <em class='sharp'>#endif</em>
+<a id='L1016' name='L1016'></a>  1016       err = <a href='../S/3040.html#L2335' title='Defined at 2335 in src/sysdep.c.'>emacs_fstatat</a> (fd, <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, &amp;s, <a href='../D/141.html' title='Multiple defined in 2 places.'>AT_SYMLINK_NOFOLLOW</a>) == 0 ? 0 : errno;
+<a id='L1017' name='L1017'></a>  1017 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L1018' name='L1018'></a>  1018       w32_stat_get_owner_group = 0;
+<a id='L1019' name='L1019'></a>  1019 <em class='sharp'>#endif</em>
+<a id='L1020' name='L1020'></a>  1020     <em class='brace'>}</em>
+<a id='L1021' name='L1021'></a>  1021 
+<a id='L1022' name='L1022'></a>  1022   <strong class='reserved'>if</strong> (err != 0)
+<a id='L1023' name='L1023'></a>  1023     <strong class='reserved'>return</strong> <a href='../S/2847.html#L3743' title='Defined at 3743 in src/eval.c.'>unbind_to</a> (count, <a href='../S/3056.html#L255' title='Defined at 255 in src/fileio.c.'>file_attribute_errno</a> (filename, err));
+<a id='L1024' name='L1024'></a>  1024 
+<a id='L1025' name='L1025'></a>  1025   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file_type;
+<a id='L1026' name='L1026'></a>  1026   <strong class='reserved'>if</strong> (<a href='../D/5555.html' title='Multiple defined in 4 places.'>S_ISLNK</a> (s.st_mode))
+<a id='L1027' name='L1027'></a>  1027     <em class='brace'>{</em>
+<a id='L1028' name='L1028'></a>  1028       <em class='comment'>/* On systems lacking O_PATH support there is a race if the</em>
+<a id='L1029' name='L1029'></a>  1029 <em class='comment'>         symlink is replaced between the call to fstatat and the call</em>
+<a id='L1030' name='L1030'></a>  1030 <em class='comment'>         to emacs_readlinkat.  Detect this race unless the replacement</em>
+<a id='L1031' name='L1031'></a>  1031 <em class='comment'>         is also a symlink.  */</em>
+<a id='L1032' name='L1032'></a>  1032       file_type = <a href='../S/3056.html#L3016' title='Defined at 3016 in src/fileio.c.'>check_emacs_readlinkat</a> (fd, filename, <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L1033' name='L1033'></a>  1033       <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (file_type))
+<a id='L1034' name='L1034'></a>  1034         <strong class='reserved'>return</strong> <a href='../S/2847.html#L3743' title='Defined at 3743 in src/eval.c.'>unbind_to</a> (count, Qnil);
+<a id='L1035' name='L1035'></a>  1035     <em class='brace'>}</em>
+<a id='L1036' name='L1036'></a>  1036   <strong class='reserved'>else</strong>
+<a id='L1037' name='L1037'></a>  1037     file_type = <a href='../D/5551.html' title='Multiple defined in 4 places.'>S_ISDIR</a> (s.st_mode) ? Qt : Qnil;
+<a id='L1038' name='L1038'></a>  1038 
+<a id='L1039' name='L1039'></a>  1039   <a href='../S/2847.html#L3743' title='Defined at 3743 in src/eval.c.'>unbind_to</a> (count, Qnil);
+<a id='L1040' name='L1040'></a>  1040 
+<a id='L1041' name='L1041'></a>  1041   <strong class='reserved'>if</strong> (!(<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (id_format) || <a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (id_format, Qinteger)))
+<a id='L1042' name='L1042'></a>  1042     <em class='brace'>{</em>
+<a id='L1043' name='L1043'></a>  1043       uname = <a href='../S/3024.html#L864' title='Defined at 864 in src/dired.c.'>stat_uname</a> (&amp;s);
+<a id='L1044' name='L1044'></a>  1044       gname = <a href='../S/3024.html#L879' title='Defined at 879 in src/dired.c.'>stat_gname</a> (&amp;s);
+<a id='L1045' name='L1045'></a>  1045     <em class='brace'>}</em>
+<a id='L1046' name='L1046'></a>  1046 
+<a id='L1047' name='L1047'></a>  1047   <a href='../S/1888.html#L154' title='Defined at 154 in lib/filemode.c.'>filemodestring</a> (&amp;s, modes);
+<a id='L1048' name='L1048'></a>  1048 
+<a id='L1049' name='L1049'></a>  1049   <strong class='reserved'>return</strong> <a href='../D/510.html' title='Multiple defined in 2 places.'>CALLN</a> (Flist,
+<a id='L1050' name='L1050'></a>  1050                 file_type,
+<a id='L1051' name='L1051'></a>  1051                 <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (s.st_nlink),
+<a id='L1052' name='L1052'></a>  1052                 (uname
+<a id='L1053' name='L1053'></a>  1053                  ? <a href='../S/2920.html#L658' title='Defined at 658 in src/coding.h.'>DECODE_SYSTEM</a> (<a href='../S/2974.html#L4316' title='Defined at 4316 in src/lisp.h.'>build_unibyte_string</a> (uname))
+<a id='L1054' name='L1054'></a>  1054                  : <a href='../S/2974.html#L2817' title='Defined at 2817 in src/lisp.h.'>INT_TO_INTEGER</a> (s.st_uid)),
+<a id='L1055' name='L1055'></a>  1055                 (gname
+<a id='L1056' name='L1056'></a>  1056                  ? <a href='../S/2920.html#L658' title='Defined at 658 in src/coding.h.'>DECODE_SYSTEM</a> (<a href='../S/2974.html#L4316' title='Defined at 4316 in src/lisp.h.'>build_unibyte_string</a> (gname))
+<a id='L1057' name='L1057'></a>  1057                  : <a href='../S/2974.html#L2817' title='Defined at 2817 in src/lisp.h.'>INT_TO_INTEGER</a> (s.st_gid)),
+<a id='L1058' name='L1058'></a>  1058                 <a href='../S/3026.html#L584' title='Defined at 584 in src/timefns.c.'>make_lisp_time</a> (<a href='../S/1809.html#L117' title='Defined at 117 in lib/stat-time.h.'>get_stat_atime</a> (&amp;s)),
+<a id='L1059' name='L1059'></a>  1059                 <a href='../S/3026.html#L584' title='Defined at 584 in src/timefns.c.'>make_lisp_time</a> (<a href='../S/1809.html#L145' title='Defined at 145 in lib/stat-time.h.'>get_stat_mtime</a> (&amp;s)),
+<a id='L1060' name='L1060'></a>  1060                 <a href='../S/3026.html#L584' title='Defined at 584 in src/timefns.c.'>make_lisp_time</a> (<a href='../S/1809.html#L131' title='Defined at 131 in lib/stat-time.h.'>get_stat_ctime</a> (&amp;s)),
+<a id='L1061' name='L1061'></a>  1061 
+<a id='L1062' name='L1062'></a>  1062                 <em class='comment'>/* If the file size is a 4-byte type, assume that</em>
+<a id='L1063' name='L1063'></a>  1063 <em class='comment'>                   files of sizes in the 2-4 GiB range wrap around to</em>
+<a id='L1064' name='L1064'></a>  1064 <em class='comment'>                   negative values, as this is a common bug on older</em>
+<a id='L1065' name='L1065'></a>  1065 <em class='comment'>                   32-bit platforms.  */</em>
+<a id='L1066' name='L1066'></a>  1066                 <a href='../S/2974.html#L2817' title='Defined at 2817 in src/lisp.h.'>INT_TO_INTEGER</a> (<strong class='reserved'>sizeof</strong> (s.st_size) == 4
+<a id='L1067' name='L1067'></a>  1067                             ? s.st_size &amp; 0xffffffffu
+<a id='L1068' name='L1068'></a>  1068                             : s.st_size),
+<a id='L1069' name='L1069'></a>  1069 
+<a id='L1070' name='L1070'></a>  1070                 <a href='../S/3007.html#L2351' title='Defined at 2351 in src/alloc.c.'>make_string</a> (modes, 10),
+<a id='L1071' name='L1071'></a>  1071                 Qt,
+<a id='L1072' name='L1072'></a>  1072                 <a href='../S/2974.html#L2817' title='Defined at 2817 in src/lisp.h.'>INT_TO_INTEGER</a> (s.st_ino),
+<a id='L1073' name='L1073'></a>  1073                 <a href='../S/2974.html#L2817' title='Defined at 2817 in src/lisp.h.'>INT_TO_INTEGER</a> (s.st_dev));
+<a id='L1074' name='L1074'></a>  1074 <em class='brace'>}</em>
+<a id='L1075' name='L1075'></a>  1075 
+<a id='L1076' name='L1076'></a>  1076 <a href='../D/1294.html' title='Multiple defined in 980 places.'>DEFUN</a> ("file-attributes-lessp", Ffile_attributes_lessp,
+<a id='L1077' name='L1077'></a>  1077        Sfile_attributes_lessp, 2, 2, 0,
+<a id='L1078' name='L1078'></a>  1078        doc: <em class='comment'>/* Return t if first arg file attributes list is less than second.</em>
+<a id='L1079' name='L1079'></a>  1079 <em class='comment'>Comparison is in lexicographic order and case is significant.  */</em>)
+<a id='L1080' name='L1080'></a>  1080   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/4147.html#L73' title='Defined at 73 in test/manual/etags/c-src/c.c.'>f1</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/4147.html#L74' title='Defined at 74 in test/manual/etags/c-src/c.c.'>f2</a>)
+<a id='L1081' name='L1081'></a>  1081 <em class='brace'>{</em>
+<a id='L1082' name='L1082'></a>  1082   <strong class='reserved'>return</strong> Fstring_lessp (Fcar (<a href='../S/4147.html#L73' title='Defined at 73 in test/manual/etags/c-src/c.c.'>f1</a>), Fcar (<a href='../S/4147.html#L74' title='Defined at 74 in test/manual/etags/c-src/c.c.'>f2</a>));
+<a id='L1083' name='L1083'></a>  1083 <em class='brace'>}</em>
+<a id='L1084' name='L1084'></a>  1084 
+<a id='L1085' name='L1085'></a>  1085 
+<a id='L1086' name='L1086'></a>  1086 <a href='../R/1201.html' title='Multiple referred from 820 places.'>DEFUN</a> ("system-users", Fsystem_users, Ssystem_users, 0, 0, 0,
+<a id='L1087' name='L1087'></a>  1087        doc: <em class='comment'>/* Return a list of user names currently registered in the system.</em>
+<a id='L1088' name='L1088'></a>  1088 <em class='comment'>If we don't know how to determine that on this platform, just</em>
+<a id='L1089' name='L1089'></a>  1089 <em class='comment'>return a list with one element, taken from `user-real-login-name'.  */</em>)
+<a id='L1090' name='L1090'></a>  1090      (<strong class='reserved'>void</strong>)
+<a id='L1091' name='L1091'></a>  1091 <em class='brace'>{</em>
+<a id='L1092' name='L1092'></a>  1092   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> users = Qnil;
+<a id='L1093' name='L1093'></a>  1093 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> HAVE_GETPWENT &amp;&amp; <strong class='reserved'>defined</strong> HAVE_ENDPWENT
+<a id='L1094' name='L1094'></a>  1094   <strong class='reserved'>struct</strong> <a href='../S/2497.html#L7' title='Defined at 7 in nt/inc/pwd.h.'>passwd</a> *pw;
+<a id='L1095' name='L1095'></a>  1095 
+<a id='L1096' name='L1096'></a>  1096   <strong class='reserved'>while</strong> ((pw = getpwent ()))
+<a id='L1097' name='L1097'></a>  1097     users = Fcons (<a href='../S/2920.html#L658' title='Defined at 658 in src/coding.h.'>DECODE_SYSTEM</a> (<a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> (pw-&gt;pw_name)), users);
+<a id='L1098' name='L1098'></a>  1098 
+<a id='L1099' name='L1099'></a>  1099   endpwent ();
+<a id='L1100' name='L1100'></a>  1100 <em class='sharp'>#endif</em>
+<a id='L1101' name='L1101'></a>  1101   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (users))
+<a id='L1102' name='L1102'></a>  1102     <em class='comment'>/* At least current user is always known. */</em>
+<a id='L1103' name='L1103'></a>  1103     users = <a href='../S/3007.html#L2746' title='Defined at 2746 in src/alloc.c.'>list1</a> (Vuser_real_login_name);
+<a id='L1104' name='L1104'></a>  1104   <strong class='reserved'>return</strong> users;
+<a id='L1105' name='L1105'></a>  1105 <em class='brace'>}</em>
+<a id='L1106' name='L1106'></a>  1106 
+<a id='L1107' name='L1107'></a>  1107 <a href='../R/1201.html' title='Multiple referred from 820 places.'>DEFUN</a> ("system-groups", Fsystem_groups, Ssystem_groups, 0, 0, 0,
+<a id='L1108' name='L1108'></a>  1108        doc: <em class='comment'>/* Return a list of user group names currently registered in the system.</em>
+<a id='L1109' name='L1109'></a>  1109 <em class='comment'>The value may be nil if not supported on this platform.  */</em>)
+<a id='L1110' name='L1110'></a>  1110      (<strong class='reserved'>void</strong>)
+<a id='L1111' name='L1111'></a>  1111 <em class='brace'>{</em>
+<a id='L1112' name='L1112'></a>  1112   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> groups = Qnil;
+<a id='L1113' name='L1113'></a>  1113 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> HAVE_GETGRENT &amp;&amp; <strong class='reserved'>defined</strong> HAVE_ENDGRENT
+<a id='L1114' name='L1114'></a>  1114   <strong class='reserved'>struct</strong> <a href='../S/2498.html#L26' title='Defined at 26 in nt/inc/grp.h.'>group</a> *gr;
+<a id='L1115' name='L1115'></a>  1115 
+<a id='L1116' name='L1116'></a>  1116   <strong class='reserved'>while</strong> ((gr = getgrent ()))
+<a id='L1117' name='L1117'></a>  1117     groups = Fcons (<a href='../S/2920.html#L658' title='Defined at 658 in src/coding.h.'>DECODE_SYSTEM</a> (<a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> (gr-&gt;gr_name)), groups);
+<a id='L1118' name='L1118'></a>  1118 
+<a id='L1119' name='L1119'></a>  1119   endgrent ();
+<a id='L1120' name='L1120'></a>  1120 <em class='sharp'>#endif</em>
+<a id='L1121' name='L1121'></a>  1121   <strong class='reserved'>return</strong> groups;
+<a id='L1122' name='L1122'></a>  1122 <em class='brace'>}</em>
+<a id='L1123' name='L1123'></a>  1123 
+<a id='L1124' name='L1124'></a>  1124 <strong class='reserved'>void</strong>
+<a id='L1125' name='L1125'></a>  1125 <a href='../R/14651.html' title='Multiple referred from 3 places.'>syms_of_dired</a> (<strong class='reserved'>void</strong>)
+<a id='L1126' name='L1126'></a>  1126 <em class='brace'>{</em>
+<a id='L1127' name='L1127'></a>  1127   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qdirectory_files, "directory-files");
+<a id='L1128' name='L1128'></a>  1128   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qdirectory_files_and_attributes, "directory-files-and-attributes");
+<a id='L1129' name='L1129'></a>  1129   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qfile_name_completion, "file-name-completion");
+<a id='L1130' name='L1130'></a>  1130   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qfile_name_all_completions, "file-name-all-completions");
+<a id='L1131' name='L1131'></a>  1131   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qfile_attributes, "file-attributes");
+<a id='L1132' name='L1132'></a>  1132   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qfile_attributes_lessp, "file-attributes-lessp");
+<a id='L1133' name='L1133'></a>  1133   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qdefault_directory, "default-directory");
+<a id='L1134' name='L1134'></a>  1134   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qdecomposed_characters, "decomposed-characters");
+<a id='L1135' name='L1135'></a>  1135 
+<a id='L1136' name='L1136'></a>  1136   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sdirectory_files);
+<a id='L1137' name='L1137'></a>  1137   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sdirectory_files_and_attributes);
+<a id='L1138' name='L1138'></a>  1138   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sfile_name_completion);
+<a id='L1139' name='L1139'></a>  1139   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sfile_name_all_completions);
+<a id='L1140' name='L1140'></a>  1140   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sfile_attributes);
+<a id='L1141' name='L1141'></a>  1141   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sfile_attributes_lessp);
+<a id='L1142' name='L1142'></a>  1142   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Ssystem_users);
+<a id='L1143' name='L1143'></a>  1143   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Ssystem_groups);
+<a id='L1144' name='L1144'></a>  1144 
+<a id='L1145' name='L1145'></a>  1145   <a href='../D/1314.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("completion-ignored-extensions", Vcompletion_ignored_extensions,
+<a id='L1146' name='L1146'></a>  1146                doc: <em class='comment'>/* Completion ignores file names ending in any string in this list.</em>
+<a id='L1147' name='L1147'></a>  1147 <em class='comment'>It does not ignore them if all possible completions end in one of</em>
+<a id='L1148' name='L1148'></a>  1148 <em class='comment'>these strings or when displaying a list of completions.</em>
+<a id='L1149' name='L1149'></a>  1149 <em class='comment'>It ignores directory names if they match any string in this list which</em>
+<a id='L1150' name='L1150'></a>  1150 <em class='comment'>ends in a slash.  */</em>);
+<a id='L1151' name='L1151'></a>  1151   Vcompletion_ignored_extensions = Qnil;
+<a id='L1152' name='L1152'></a>  1152 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L57'>[^]</a><a href='#L1125'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

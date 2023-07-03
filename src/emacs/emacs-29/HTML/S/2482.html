@@ -1,0 +1,866 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>nt/preprep.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4497.html'>nt</a>/preprep.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L62'>[^]</a><a href='#L765'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L62' title='Defined at 62.'>open_input_file</a></li>
+<li><a href='#L94' title='Defined at 94.'>open_output_file</a></li>
+<li><a href='#L124' title='Defined at 124.'>open_inout_file</a></li>
+<li><a href='#L157' title='Defined at 157.'>close_file_data</a></li>
+<li><a href='#L171' title='Defined at 171.'>get_unrounded_section_size</a></li>
+<li><a href='#L182' title='Defined at 182.'>find_section</a></li>
+<li><a href='#L201' title='Defined at 201.'>rva_to_section</a></li>
+<li><a href='#L229' title='Defined at 229.'>offset_to_section</a></li>
+<li><a href='#L250' title='Defined at 250.'>relocate_offset</a></li>
+<li><a href='#L346' title='Defined at 346.'>copy_executable_and_move_sections</a></li>
+<li><a href='#L765' title='Defined at 765.'>main</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Pre-process emacs.exe for profiling by MSVC.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1999, 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'></em>
+<a id='L19' name='L19'></a>    19 <em class='comment'></em>
+<a id='L20' name='L20'></a>    20 <em class='comment'>   Andrew Innes &lt;andrewi@harlequin.co.uk&gt;       16-Jan-1999</em>
+<a id='L21' name='L21'></a>    21 <em class='comment'>     based on code from addsection.c</em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>*/</em>
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#define</em> <a href='../S/2980.html#L37' title='Referred from 37 in src/conf_post.h.'>DEFER_MS_W32_H</a>
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;<a href='2489.html'>time.h</a>&gt;
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong>(__GNUC__) &amp;&amp; !<strong class='reserved'>defined</strong>(<a href='../S/2503.html#L35' title='Defined at 35 in nt/inc/ms-w32.h.'>MINGW_W64</a>)
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#define</em> <a href='../S/2967.html#L9850' title='Referred from 9850 in src/w32fns.c.'>_ANONYMOUS_UNION</a>
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#define</em> _ANONYMOUS_STRUCT
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#endif</em>
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#include</em> &lt;windows.h&gt;
+<a id='L36' name='L36'></a>    36 
+<a id='L37' name='L37'></a>    37 <em class='comment'>/* Include relevant definitions from IMAGEHLP.H, which can be found</em>
+<a id='L38' name='L38'></a>    38 <em class='comment'>   in \\win32sdk\mstools\samples\image\include\imagehlp.h. */</em>
+<a id='L39' name='L39'></a>    39 
+<a id='L40' name='L40'></a>    40 PIMAGE_NT_HEADERS (__stdcall * pfnCheckSumMappedFile) (LPVOID BaseAddress,
+<a id='L41' name='L41'></a>    41                                                        DWORD_PTR FileLength,
+<a id='L42' name='L42'></a>    42                                                        PDWORD_PTR HeaderSum,
+<a id='L43' name='L43'></a>    43                                                        PDWORD_PTR CheckSum);
+<a id='L44' name='L44'></a>    44 
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#undef</em> <a href='../R/11952.html' title='Multiple referred from 480 places.'>min</a>
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#undef</em> <a href='../R/11811.html' title='Multiple referred from 523 places.'>max</a>
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#define</em> <a href='../R/11952.html' title='Multiple referred from 480 places.'>min</a>(<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y) (((<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>) &lt; (y)) ? (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>) : (y))
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#define</em> <a href='../R/11811.html' title='Multiple referred from 523 places.'>max</a>(<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y) (((<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>) &gt; (y)) ? (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>) : (y))
+<a id='L49' name='L49'></a>    49 
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51 <em class='comment'>/* File handling.  */</em>
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 <strong class='reserved'>typedef</strong> <strong class='reserved'>struct</strong> <a href='../R/9125.html' title='Multiple referred from 21 places.'>file_data</a> <em class='brace'>{</em>
+<a id='L54' name='L54'></a>    54   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong>    *<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>;
+<a id='L55' name='L55'></a>    55   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong>  <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L56' name='L56'></a>    56   HANDLE         file;
+<a id='L57' name='L57'></a>    57   HANDLE         file_mapping;
+<a id='L58' name='L58'></a>    58   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *file_base;
+<a id='L59' name='L59'></a>    59 <em class='brace'>}</em> <a href='../R/9125.html' title='Multiple referred from 21 places.'>file_data</a>;
+<a id='L60' name='L60'></a>    60 
+<a id='L61' name='L61'></a>    61 <strong class='reserved'>int</strong>
+<a id='L62' name='L62'></a>    62 <a href='../R/12519.html' title='Multiple referred from 4 places.'>open_input_file</a> (<a href='../D/10049.html' title='Multiple defined in 4 places.'>file_data</a> *p_file, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *filename)
+<a id='L63' name='L63'></a>    63 <em class='brace'>{</em>
+<a id='L64' name='L64'></a>    64   HANDLE file;
+<a id='L65' name='L65'></a>    65   HANDLE file_mapping;
+<a id='L66' name='L66'></a>    66   <strong class='reserved'>void</strong>  *file_base;
+<a id='L67' name='L67'></a>    67   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>, upper_size;
+<a id='L68' name='L68'></a>    68 
+<a id='L69' name='L69'></a>    69   file = CreateFile (filename, GENERIC_READ, FILE_SHARE_READ, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>,
+<a id='L70' name='L70'></a>    70                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+<a id='L71' name='L71'></a>    71   <strong class='reserved'>if</strong> (file == INVALID_HANDLE_VALUE)
+<a id='L72' name='L72'></a>    72     <strong class='reserved'>return</strong> <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L73' name='L73'></a>    73 
+<a id='L74' name='L74'></a>    74   <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = GetFileSize (file, &amp;upper_size);
+<a id='L75' name='L75'></a>    75   file_mapping = CreateFileMapping (file, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, PAGE_READONLY,
+<a id='L76' name='L76'></a>    76                                     0, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L77' name='L77'></a>    77   <strong class='reserved'>if</strong> (!file_mapping)
+<a id='L78' name='L78'></a>    78     <strong class='reserved'>return</strong> <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80   file_base = MapViewOfFile (file_mapping, FILE_MAP_READ, 0, 0, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L81' name='L81'></a>    81   <strong class='reserved'>if</strong> (file_base == 0)
+<a id='L82' name='L82'></a>    82     <strong class='reserved'>return</strong> <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L83' name='L83'></a>    83 
+<a id='L84' name='L84'></a>    84   p_file-&gt;<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = filename;
+<a id='L85' name='L85'></a>    85   p_file-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L86' name='L86'></a>    86   p_file-&gt;file = file;
+<a id='L87' name='L87'></a>    87   p_file-&gt;file_mapping = file_mapping;
+<a id='L88' name='L88'></a>    88   p_file-&gt;file_base = file_base;
+<a id='L89' name='L89'></a>    89 
+<a id='L90' name='L90'></a>    90   <strong class='reserved'>return</strong> <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L91' name='L91'></a>    91 <em class='brace'>}</em>
+<a id='L92' name='L92'></a>    92 
+<a id='L93' name='L93'></a>    93 <strong class='reserved'>int</strong>
+<a id='L94' name='L94'></a>    94 <a href='../R/12520.html' title='Multiple referred from 3 places.'>open_output_file</a> (<a href='../D/10049.html' title='Multiple defined in 4 places.'>file_data</a> *p_file, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *filename, <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L95' name='L95'></a>    95 <em class='brace'>{</em>
+<a id='L96' name='L96'></a>    96   HANDLE file;
+<a id='L97' name='L97'></a>    97   HANDLE file_mapping;
+<a id='L98' name='L98'></a>    98   <strong class='reserved'>void</strong>  *file_base;
+<a id='L99' name='L99'></a>    99 
+<a id='L100' name='L100'></a>   100   file = CreateFile (filename, GENERIC_READ | GENERIC_WRITE, 0, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>,
+<a id='L101' name='L101'></a>   101                      CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+<a id='L102' name='L102'></a>   102   <strong class='reserved'>if</strong> (file == INVALID_HANDLE_VALUE)
+<a id='L103' name='L103'></a>   103     <strong class='reserved'>return</strong> <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L104' name='L104'></a>   104 
+<a id='L105' name='L105'></a>   105   file_mapping = CreateFileMapping (file, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, PAGE_READWRITE,
+<a id='L106' name='L106'></a>   106                                     0, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L107' name='L107'></a>   107   <strong class='reserved'>if</strong> (!file_mapping)
+<a id='L108' name='L108'></a>   108     <strong class='reserved'>return</strong> <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L109' name='L109'></a>   109 
+<a id='L110' name='L110'></a>   110   file_base = MapViewOfFile (file_mapping, FILE_MAP_WRITE, 0, 0, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L111' name='L111'></a>   111   <strong class='reserved'>if</strong> (file_base == 0)
+<a id='L112' name='L112'></a>   112     <strong class='reserved'>return</strong> <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L113' name='L113'></a>   113 
+<a id='L114' name='L114'></a>   114   p_file-&gt;<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = filename;
+<a id='L115' name='L115'></a>   115   p_file-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L116' name='L116'></a>   116   p_file-&gt;file = file;
+<a id='L117' name='L117'></a>   117   p_file-&gt;file_mapping = file_mapping;
+<a id='L118' name='L118'></a>   118   p_file-&gt;file_base = file_base;
+<a id='L119' name='L119'></a>   119 
+<a id='L120' name='L120'></a>   120   <strong class='reserved'>return</strong> <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L121' name='L121'></a>   121 <em class='brace'>}</em>
+<a id='L122' name='L122'></a>   122 
+<a id='L123' name='L123'></a>   123 <strong class='reserved'>int</strong>
+<a id='L124' name='L124'></a>   124 open_inout_file (<a href='../D/10049.html' title='Multiple defined in 4 places.'>file_data</a> *p_file, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *filename)
+<a id='L125' name='L125'></a>   125 <em class='brace'>{</em>
+<a id='L126' name='L126'></a>   126   HANDLE file;
+<a id='L127' name='L127'></a>   127   HANDLE file_mapping;
+<a id='L128' name='L128'></a>   128   <strong class='reserved'>void</strong>  *file_base;
+<a id='L129' name='L129'></a>   129   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>, upper_size;
+<a id='L130' name='L130'></a>   130 
+<a id='L131' name='L131'></a>   131   file = CreateFile (filename, GENERIC_READ | GENERIC_WRITE, 0, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>,
+<a id='L132' name='L132'></a>   132                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+<a id='L133' name='L133'></a>   133   <strong class='reserved'>if</strong> (file == INVALID_HANDLE_VALUE)
+<a id='L134' name='L134'></a>   134     <strong class='reserved'>return</strong> <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L135' name='L135'></a>   135 
+<a id='L136' name='L136'></a>   136   <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = GetFileSize (file, &amp;upper_size);
+<a id='L137' name='L137'></a>   137   file_mapping = CreateFileMapping (file, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, PAGE_READWRITE,
+<a id='L138' name='L138'></a>   138                                     0, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L139' name='L139'></a>   139   <strong class='reserved'>if</strong> (!file_mapping)
+<a id='L140' name='L140'></a>   140     <strong class='reserved'>return</strong> <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L141' name='L141'></a>   141 
+<a id='L142' name='L142'></a>   142   file_base = MapViewOfFile (file_mapping, FILE_MAP_WRITE, 0, 0, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L143' name='L143'></a>   143   <strong class='reserved'>if</strong> (file_base == 0)
+<a id='L144' name='L144'></a>   144     <strong class='reserved'>return</strong> <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146   p_file-&gt;<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a> = filename;
+<a id='L147' name='L147'></a>   147   p_file-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L148' name='L148'></a>   148   p_file-&gt;file = file;
+<a id='L149' name='L149'></a>   149   p_file-&gt;file_mapping = file_mapping;
+<a id='L150' name='L150'></a>   150   p_file-&gt;file_base = file_base;
+<a id='L151' name='L151'></a>   151 
+<a id='L152' name='L152'></a>   152   <strong class='reserved'>return</strong> <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L153' name='L153'></a>   153 <em class='brace'>}</em>
+<a id='L154' name='L154'></a>   154 
+<a id='L155' name='L155'></a>   155 <em class='comment'>/* Close the system structures associated with the given file.  */</em>
+<a id='L156' name='L156'></a>   156 <strong class='reserved'>void</strong>
+<a id='L157' name='L157'></a>   157 <a href='../R/7744.html' title='Multiple referred from 6 places.'>close_file_data</a> (<a href='../D/10049.html' title='Multiple defined in 4 places.'>file_data</a> *p_file)
+<a id='L158' name='L158'></a>   158 <em class='brace'>{</em>
+<a id='L159' name='L159'></a>   159   UnmapViewOfFile (p_file-&gt;file_base);
+<a id='L160' name='L160'></a>   160   CloseHandle (p_file-&gt;file_mapping);
+<a id='L161' name='L161'></a>   161   <em class='comment'>/* For the case of output files, set final size.  */</em>
+<a id='L162' name='L162'></a>   162   SetFilePointer (p_file-&gt;file, p_file-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, FILE_BEGIN);
+<a id='L163' name='L163'></a>   163   SetEndOfFile (p_file-&gt;file);
+<a id='L164' name='L164'></a>   164   CloseHandle (p_file-&gt;file);
+<a id='L165' name='L165'></a>   165 <em class='brace'>}</em>
+<a id='L166' name='L166'></a>   166 
+<a id='L167' name='L167'></a>   167 
+<a id='L168' name='L168'></a>   168 <em class='comment'>/* Routines to manipulate NT executable file sections.  */</em>
+<a id='L169' name='L169'></a>   169 
+<a id='L170' name='L170'></a>   170 <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong>
+<a id='L171' name='L171'></a>   171 get_unrounded_section_size (PIMAGE_SECTION_HEADER p_section)
+<a id='L172' name='L172'></a>   172 <em class='brace'>{</em>
+<a id='L173' name='L173'></a>   173   <em class='comment'>/* The true section size, before rounding, for an initialized data or</em>
+<a id='L174' name='L174'></a>   174 <em class='comment'>     code section.  (Supposedly some linkers swap the meaning of these</em>
+<a id='L175' name='L175'></a>   175 <em class='comment'>     two values.)  */</em>
+<a id='L176' name='L176'></a>   176   <strong class='reserved'>return</strong> <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a> (p_section-&gt;SizeOfRawData,
+<a id='L177' name='L177'></a>   177               p_section-&gt;Misc.VirtualSize);
+<a id='L178' name='L178'></a>   178 <em class='brace'>}</em>
+<a id='L179' name='L179'></a>   179 
+<a id='L180' name='L180'></a>   180 <em class='comment'>/* Return pointer to section header for named section. */</em>
+<a id='L181' name='L181'></a>   181 IMAGE_SECTION_HEADER *
+<a id='L182' name='L182'></a>   182 <a href='../R/9239.html' title='Multiple referred from 2 places.'>find_section</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>, IMAGE_NT_HEADERS *nt_header)
+<a id='L183' name='L183'></a>   183 <em class='brace'>{</em>
+<a id='L184' name='L184'></a>   184   PIMAGE_SECTION_HEADER <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L185' name='L185'></a>   185   <strong class='reserved'>int</strong> i;
+<a id='L186' name='L186'></a>   186 
+<a id='L187' name='L187'></a>   187   <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = IMAGE_FIRST_SECTION (nt_header);
+<a id='L188' name='L188'></a>   188 
+<a id='L189' name='L189'></a>   189   <strong class='reserved'>for</strong> (i = 0; i &lt; nt_header-&gt;FileHeader.NumberOfSections; i++)
+<a id='L190' name='L190'></a>   190     <em class='brace'>{</em>
+<a id='L191' name='L191'></a>   191       <strong class='reserved'>if</strong> (strcmp (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;Name, <a href='../D/13421.html' title='Multiple defined in 4 places.'>name</a>) == 0)
+<a id='L192' name='L192'></a>   192         <strong class='reserved'>return</strong> <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L193' name='L193'></a>   193       <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>++;
+<a id='L194' name='L194'></a>   194     <em class='brace'>}</em>
+<a id='L195' name='L195'></a>   195   <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L196' name='L196'></a>   196 <em class='brace'>}</em>
+<a id='L197' name='L197'></a>   197 
+<a id='L198' name='L198'></a>   198 <em class='comment'>/* Return pointer to section header for section containing the given</em>
+<a id='L199' name='L199'></a>   199 <em class='comment'>   relative virtual address. */</em>
+<a id='L200' name='L200'></a>   200 IMAGE_SECTION_HEADER *
+<a id='L201' name='L201'></a>   201 <a href='../R/13806.html' title='Multiple referred from 17 places.'>rva_to_section</a> (DWORD_PTR rva, IMAGE_NT_HEADERS * nt_header)
+<a id='L202' name='L202'></a>   202 <em class='brace'>{</em>
+<a id='L203' name='L203'></a>   203   PIMAGE_SECTION_HEADER <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L204' name='L204'></a>   204   <strong class='reserved'>int</strong> i;
+<a id='L205' name='L205'></a>   205 
+<a id='L206' name='L206'></a>   206   <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = IMAGE_FIRST_SECTION (nt_header);
+<a id='L207' name='L207'></a>   207 
+<a id='L208' name='L208'></a>   208   <strong class='reserved'>for</strong> (i = 0; i &lt; nt_header-&gt;FileHeader.NumberOfSections; i++)
+<a id='L209' name='L209'></a>   209     <em class='brace'>{</em>
+<a id='L210' name='L210'></a>   210       <em class='comment'>/* Some linkers (eg. the NT SDK linker I believe) swapped the</em>
+<a id='L211' name='L211'></a>   211 <em class='comment'>         meaning of these two values - or rather, they ignored</em>
+<a id='L212' name='L212'></a>   212 <em class='comment'>         VirtualSize entirely and always set it to zero.  This affects</em>
+<a id='L213' name='L213'></a>   213 <em class='comment'>         some very old exes (eg. gzip dated Dec 1993).  Since</em>
+<a id='L214' name='L214'></a>   214 <em class='comment'>         w32_executable_type relies on this function to work reliably,</em>
+<a id='L215' name='L215'></a>   215 <em class='comment'>         we need to cope with this.  */</em>
+<a id='L216' name='L216'></a>   216       DWORD_PTR real_size = <a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;SizeOfRawData,
+<a id='L217' name='L217'></a>   217                              <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;Misc.VirtualSize);
+<a id='L218' name='L218'></a>   218       <strong class='reserved'>if</strong> (rva &gt;= <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;VirtualAddress
+<a id='L219' name='L219'></a>   219           &amp;&amp; rva &lt; <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;VirtualAddress + real_size)
+<a id='L220' name='L220'></a>   220         <strong class='reserved'>return</strong> <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L221' name='L221'></a>   221       <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>++;
+<a id='L222' name='L222'></a>   222     <em class='brace'>}</em>
+<a id='L223' name='L223'></a>   223   <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L224' name='L224'></a>   224 <em class='brace'>}</em>
+<a id='L225' name='L225'></a>   225 
+<a id='L226' name='L226'></a>   226 <em class='comment'>/* Return pointer to section header for section containing the given</em>
+<a id='L227' name='L227'></a>   227 <em class='comment'>   offset in its raw data area. */</em>
+<a id='L228' name='L228'></a>   228 IMAGE_SECTION_HEADER *
+<a id='L229' name='L229'></a>   229 offset_to_section (DWORD_PTR <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>, IMAGE_NT_HEADERS * nt_header)
+<a id='L230' name='L230'></a>   230 <em class='brace'>{</em>
+<a id='L231' name='L231'></a>   231   PIMAGE_SECTION_HEADER <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L232' name='L232'></a>   232   <strong class='reserved'>int</strong> i;
+<a id='L233' name='L233'></a>   233 
+<a id='L234' name='L234'></a>   234   <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = IMAGE_FIRST_SECTION (nt_header);
+<a id='L235' name='L235'></a>   235 
+<a id='L236' name='L236'></a>   236   <strong class='reserved'>for</strong> (i = 0; i &lt; nt_header-&gt;FileHeader.NumberOfSections; i++)
+<a id='L237' name='L237'></a>   237     <em class='brace'>{</em>
+<a id='L238' name='L238'></a>   238       <strong class='reserved'>if</strong> (<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> &gt;= <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;PointerToRawData
+<a id='L239' name='L239'></a>   239           &amp;&amp; <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> &lt; <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;PointerToRawData + <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;SizeOfRawData)
+<a id='L240' name='L240'></a>   240         <strong class='reserved'>return</strong> <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L241' name='L241'></a>   241       <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>++;
+<a id='L242' name='L242'></a>   242     <em class='brace'>}</em>
+<a id='L243' name='L243'></a>   243   <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L244' name='L244'></a>   244 <em class='brace'>}</em>
+<a id='L245' name='L245'></a>   245 
+<a id='L246' name='L246'></a>   246 <em class='comment'>/* Return offset to an object in dst, given offset in src.  We assume</em>
+<a id='L247' name='L247'></a>   247 <em class='comment'>   there is at least one section in both src and dst images, and that</em>
+<a id='L248' name='L248'></a>   248 <em class='comment'>   the some sections may have been added to dst (after sections in src).  */</em>
+<a id='L249' name='L249'></a>   249 <strong class='reserved'>static</strong> DWORD_PTR
+<a id='L250' name='L250'></a>   250 <a href='../R/13595.html' title='Multiple referred from 2 places.'>relocate_offset</a> (DWORD_PTR <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>,
+<a id='L251' name='L251'></a>   251                  IMAGE_NT_HEADERS * src_nt_header,
+<a id='L252' name='L252'></a>   252                  IMAGE_NT_HEADERS * dst_nt_header)
+<a id='L253' name='L253'></a>   253 <em class='brace'>{</em>
+<a id='L254' name='L254'></a>   254   PIMAGE_SECTION_HEADER src_section = IMAGE_FIRST_SECTION (src_nt_header);
+<a id='L255' name='L255'></a>   255   PIMAGE_SECTION_HEADER dst_section = IMAGE_FIRST_SECTION (dst_nt_header);
+<a id='L256' name='L256'></a>   256   <strong class='reserved'>int</strong> i = 0;
+<a id='L257' name='L257'></a>   257 
+<a id='L258' name='L258'></a>   258   <strong class='reserved'>while</strong> (<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> &gt;= src_section-&gt;PointerToRawData)
+<a id='L259' name='L259'></a>   259     <em class='brace'>{</em>
+<a id='L260' name='L260'></a>   260       <strong class='reserved'>if</strong> (<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> &lt; src_section-&gt;PointerToRawData + src_section-&gt;SizeOfRawData)
+<a id='L261' name='L261'></a>   261         <strong class='reserved'>break</strong>;
+<a id='L262' name='L262'></a>   262       i++;
+<a id='L263' name='L263'></a>   263       <strong class='reserved'>if</strong> (i == src_nt_header-&gt;FileHeader.NumberOfSections)
+<a id='L264' name='L264'></a>   264         <em class='brace'>{</em>
+<a id='L265' name='L265'></a>   265           <em class='comment'>/* Handle offsets after the last section.  */</em>
+<a id='L266' name='L266'></a>   266           dst_section = IMAGE_FIRST_SECTION (dst_nt_header);
+<a id='L267' name='L267'></a>   267           dst_section += dst_nt_header-&gt;FileHeader.NumberOfSections - 1;
+<a id='L268' name='L268'></a>   268           <strong class='reserved'>while</strong> (dst_section-&gt;PointerToRawData == 0)
+<a id='L269' name='L269'></a>   269             dst_section--;
+<a id='L270' name='L270'></a>   270           <strong class='reserved'>while</strong> (src_section-&gt;PointerToRawData == 0)
+<a id='L271' name='L271'></a>   271             src_section--;
+<a id='L272' name='L272'></a>   272           <strong class='reserved'>return</strong> <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>
+<a id='L273' name='L273'></a>   273             + (dst_section-&gt;PointerToRawData + dst_section-&gt;SizeOfRawData)
+<a id='L274' name='L274'></a>   274             - (src_section-&gt;PointerToRawData + src_section-&gt;SizeOfRawData);
+<a id='L275' name='L275'></a>   275         <em class='brace'>}</em>
+<a id='L276' name='L276'></a>   276       src_section++;
+<a id='L277' name='L277'></a>   277       dst_section++;
+<a id='L278' name='L278'></a>   278     <em class='brace'>}</em>
+<a id='L279' name='L279'></a>   279   <strong class='reserved'>return</strong> <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> +
+<a id='L280' name='L280'></a>   280     (dst_section-&gt;PointerToRawData - src_section-&gt;PointerToRawData);
+<a id='L281' name='L281'></a>   281 <em class='brace'>}</em>
+<a id='L282' name='L282'></a>   282 
+<a id='L283' name='L283'></a>   283 <em class='sharp'>#define</em> OFFSET_TO_RVA(<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>, <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>) \
+<a id='L284' name='L284'></a>   284   ((<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;VirtualAddress + ((DWORD_PTR)(<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>) - (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;PointerToRawData))
+<a id='L285' name='L285'></a>   285 
+<a id='L286' name='L286'></a>   286 <em class='sharp'>#define</em> <a href='../R/4446.html' title='Multiple referred from 3 places.'>RVA_TO_OFFSET</a>(rva, <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>) \
+<a id='L287' name='L287'></a>   287   ((<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;PointerToRawData + ((DWORD_PTR)(rva) - (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;VirtualAddress))
+<a id='L288' name='L288'></a>   288 
+<a id='L289' name='L289'></a>   289 <em class='sharp'>#define</em> <a href='../R/4448.html' title='Multiple referred from 5 places.'>RVA_TO_SECTION_OFFSET</a>(rva, <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>) \
+<a id='L290' name='L290'></a>   290   ((DWORD_PTR)(rva) - (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;VirtualAddress)
+<a id='L291' name='L291'></a>   291 
+<a id='L292' name='L292'></a>   292 <em class='sharp'>#define</em> <a href='../R/4447.html' title='Multiple referred from 8 places.'>RVA_TO_PTR</a>(var,<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>,filedata) \
+<a id='L293' name='L293'></a>   293   ((<strong class='reserved'>void</strong> *)((<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *)(<a href='../D/4955.html' title='Multiple defined in 2 places.'>RVA_TO_OFFSET</a>(var,<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>) + (filedata)-&gt;file_base)))
+<a id='L294' name='L294'></a>   294 
+<a id='L295' name='L295'></a>   295 <em class='comment'>/* Convert address in executing image to RVA.  */</em>
+<a id='L296' name='L296'></a>   296 <em class='sharp'>#define</em> <a href='../R/4132.html' title='Multiple referred from 11 places.'>PTR_TO_RVA</a>(ptr) ((DWORD_PTR)(ptr) - (DWORD_PTR) GetModuleHandle (<a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>))
+<a id='L297' name='L297'></a>   297 
+<a id='L298' name='L298'></a>   298 <em class='sharp'>#define</em> <a href='../R/4131.html' title='Multiple referred from 10 places.'>PTR_TO_OFFSET</a>(ptr, pfile_data) \
+<a id='L299' name='L299'></a>   299           ((<strong class='reserved'>unsigned</strong> <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *)(ptr) - (pfile_data)-&gt;file_base)
+<a id='L300' name='L300'></a>   300 
+<a id='L301' name='L301'></a>   301 <em class='sharp'>#define</em> <a href='../R/3753.html' title='Multiple referred from 6 places.'>OFFSET_TO_PTR</a>(<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>, pfile_data) \
+<a id='L302' name='L302'></a>   302           ((pfile_data)-&gt;file_base + (DWORD_PTR)(<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>))
+<a id='L303' name='L303'></a>   303 
+<a id='L304' name='L304'></a>   304 <em class='sharp'>#define</em> <a href='../R/4435.html' title='Multiple referred from 20 places.'>ROUND_UP</a>(p, <a href='../D/7704.html' title='Multiple defined in 2 places.'>align</a>) \
+<a id='L305' name='L305'></a>   305           (((DWORD_PTR)(p) + (<a href='../D/7704.html' title='Multiple defined in 2 places.'>align</a>)-1) &amp; ~((DWORD_PTR)(<a href='../D/7704.html' title='Multiple defined in 2 places.'>align</a>)-1))
+<a id='L306' name='L306'></a>   306 <em class='sharp'>#define</em> <a href='../S/3068.html#L423' title='Referred from 423 in src/w32heap.c.'>ROUND_DOWN</a>(p, <a href='../D/7704.html' title='Multiple defined in 2 places.'>align</a>) ((DWORD_PTR)(p) &amp; ~((DWORD_PTR)(<a href='../D/7704.html' title='Multiple defined in 2 places.'>align</a>)-1))
+<a id='L307' name='L307'></a>   307 
+<a id='L308' name='L308'></a>   308 
+<a id='L309' name='L309'></a>   309 <em class='comment'>/* The MSVC prep program generates a ._xe file from .exe, where relevant</em>
+<a id='L310' name='L310'></a>   310 <em class='comment'>   function calls etc have been patched to go through thunks (generated</em>
+<a id='L311' name='L311'></a>   311 <em class='comment'>   by prep) that record timing/call information.  Because the thunks</em>
+<a id='L312' name='L312'></a>   312 <em class='comment'>   need to make references to functions imported from profile.dll, the</em>
+<a id='L313' name='L313'></a>   313 <em class='comment'>   import table must be expanded; the end result is that all the</em>
+<a id='L314' name='L314'></a>   314 <em class='comment'>   sections following .rdata are relocated to higher RVAs (add a final</em>
+<a id='L315' name='L315'></a>   315 <em class='comment'>   code section is added holding all the thunks).  The .reloc section is</em>
+<a id='L316' name='L316'></a>   316 <em class='comment'>   also expanded, so that the thunks themselves are relocatable.</em>
+<a id='L317' name='L317'></a>   317 <em class='comment'></em>
+<a id='L318' name='L318'></a>   318 <em class='comment'>   It is this relocation which kills emacs._xe, because the dumped heap</em>
+<a id='L319' name='L319'></a>   319 <em class='comment'>   pointers aren't relocated, because there is no relocation data for</em>
+<a id='L320' name='L320'></a>   320 <em class='comment'>   either the relevant global/static variables or the heap section</em>
+<a id='L321' name='L321'></a>   321 <em class='comment'>   itself, both of which contain pointers into the heap.  [Note that</em>
+<a id='L322' name='L322'></a>   322 <em class='comment'>   static variables which aren't initialized during linking may become</em>
+<a id='L323' name='L323'></a>   323 <em class='comment'>   initialized with heap pointers, or even pointers to other static</em>
+<a id='L324' name='L324'></a>   324 <em class='comment'>   variables, because of dumping.]</em>
+<a id='L325' name='L325'></a>   325 <em class='comment'></em>
+<a id='L326' name='L326'></a>   326 <em class='comment'>   We could potentially generate the relocation data ourselves by making</em>
+<a id='L327' name='L327'></a>   327 <em class='comment'>   two versions of temacs, one with an extra dummy section before</em>
+<a id='L328' name='L328'></a>   328 <em class='comment'>   EMHEAP to offset it, and then compare the dumped executables from</em>
+<a id='L329' name='L329'></a>   329 <em class='comment'>   both.  That is a lot of work though, and it doesn't solve the problem</em>
+<a id='L330' name='L330'></a>   330 <em class='comment'>   of dumped pointers to static variables, which also can be relocated.</em>
+<a id='L331' name='L331'></a>   331 <em class='comment'></em>
+<a id='L332' name='L332'></a>   332 <em class='comment'>   A better solution is to pre-process emacs.exe so that the .rdata and</em>
+<a id='L333' name='L333'></a>   333 <em class='comment'>   .reloc sections are moved to the end of the section table, and thus</em>
+<a id='L334' name='L334'></a>   334 <em class='comment'>   prep won't relocate anything else.  (Of course, we leave "dead"</em>
+<a id='L335' name='L335'></a>   335 <em class='comment'>   copies of these two sections in place, so that the virtual address of</em>
+<a id='L336' name='L336'></a>   336 <em class='comment'>   everything else is unaffected.)  Relocating the .reloc data is</em>
+<a id='L337' name='L337'></a>   337 <em class='comment'>   trivial - we just update the IMAGE_BASE_RELOCATION address in the</em>
+<a id='L338' name='L338'></a>   338 <em class='comment'>   header (the data itself doesn't change).  Relocating the import table</em>
+<a id='L339' name='L339'></a>   339 <em class='comment'>   is more complicated though, because the calls to imported functions</em>
+<a id='L340' name='L340'></a>   340 <em class='comment'>   must be patched up.  That requires us to selectively apply the base</em>
+<a id='L341' name='L341'></a>   341 <em class='comment'>   relocations when we encounter references to imported functions (or</em>
+<a id='L342' name='L342'></a>   342 <em class='comment'>   variables) in other sections, but at least the base relocations are</em>
+<a id='L343' name='L343'></a>   343 <em class='comment'>   easy to parse.  */</em>
+<a id='L344' name='L344'></a>   344 
+<a id='L345' name='L345'></a>   345 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L346' name='L346'></a>   346 <a href='../S/2482.html#L795' title='Referred from 795 in nt/preprep.c.'>copy_executable_and_move_sections</a> (<a href='../D/10049.html' title='Multiple defined in 4 places.'>file_data</a> *p_infile,
+<a id='L347' name='L347'></a>   347                                    <a href='../D/10049.html' title='Multiple defined in 4 places.'>file_data</a> *p_outfile)
+<a id='L348' name='L348'></a>   348 <em class='brace'>{</em>
+<a id='L349' name='L349'></a>   349   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *dst;
+<a id='L350' name='L350'></a>   350   PIMAGE_DOS_HEADER dos_header;
+<a id='L351' name='L351'></a>   351   PIMAGE_NT_HEADERS nt_header;
+<a id='L352' name='L352'></a>   352   PIMAGE_NT_HEADERS dst_nt_header;
+<a id='L353' name='L353'></a>   353   PIMAGE_SECTION_HEADER <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L354' name='L354'></a>   354   PIMAGE_SECTION_HEADER dst_section;
+<a id='L355' name='L355'></a>   355   PIMAGE_SECTION_HEADER import_section;
+<a id='L356' name='L356'></a>   356   PIMAGE_SECTION_HEADER reloc_section;
+<a id='L357' name='L357'></a>   357   PIMAGE_DATA_DIRECTORY import_dir;
+<a id='L358' name='L358'></a>   358   PIMAGE_DATA_DIRECTORY reloc_dir;
+<a id='L359' name='L359'></a>   359   DWORD_PTR import_delta_rva;
+<a id='L360' name='L360'></a>   360   DWORD_PTR reloc_delta_rva;
+<a id='L361' name='L361'></a>   361   DWORD_PTR <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>;
+<a id='L362' name='L362'></a>   362   <strong class='reserved'>int</strong> i;
+<a id='L363' name='L363'></a>   363 
+<a id='L364' name='L364'></a>   364 <em class='sharp'>#define</em> <a href='../R/1023.html' title='Multiple referred from 12 places.'>COPY_CHUNK</a>(<a href='../D/12965.html' title='Multiple defined in 2 places.'>message</a>, src, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)                                          \
+<a id='L365' name='L365'></a>   365   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                                          \
+<a id='L366' name='L366'></a>   366     <strong class='reserved'>unsigned</strong> <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *s = (<strong class='reserved'>void</strong> *)(src);                                     \
+<a id='L367' name='L367'></a>   367     <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> count = (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);                                               \
+<a id='L368' name='L368'></a>   368     <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("%s\n", (<a href='../D/12965.html' title='Multiple defined in 2 places.'>message</a>));                                                 \
+<a id='L369' name='L369'></a>   369     <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%08x Offset in input file.\n", s - p_infile-&gt;file_base);       \
+<a id='L370' name='L370'></a>   370     <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%08x Offset in output file.\n", dst - p_outfile-&gt;file_base);   \
+<a id='L371' name='L371'></a>   371     <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%08x Size in bytes.\n", count);                                \
+<a id='L372' name='L372'></a>   372     memcpy (dst, s, count);                                                     \
+<a id='L373' name='L373'></a>   373     dst += count;                                                               \
+<a id='L374' name='L374'></a>   374   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L375' name='L375'></a>   375 
+<a id='L376' name='L376'></a>   376 <em class='sharp'>#define</em> <a href='../R/1289.html' title='Multiple referred from 11 places.'>DST_TO_OFFSET</a>()  <a href='../D/4618.html' title='Multiple defined in 3 places.'>PTR_TO_OFFSET</a> (dst, p_outfile)
+<a id='L377' name='L377'></a>   377 <em class='sharp'>#define</em> <a href='../R/4437.html' title='Multiple referred from 6 places.'>ROUND_UP_DST_AND_ZERO</a>(<a href='../D/7704.html' title='Multiple defined in 2 places.'>align</a>)                                            \
+<a id='L378' name='L378'></a>   378   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                                          \
+<a id='L379' name='L379'></a>   379     <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *newdst = p_outfile-&gt;file_base                                \
+<a id='L380' name='L380'></a>   380       + <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (<a href='../D/1398.html' title='Multiple defined in 2 places.'>DST_TO_OFFSET</a> (), (<a href='../D/7704.html' title='Multiple defined in 2 places.'>align</a>));                                   \
+<a id='L381' name='L381'></a>   381     <em class='comment'>/* Zero the alignment slop; it may actually initialize real data.  */</em>       \
+<a id='L382' name='L382'></a>   382     memset (dst, 0, newdst - dst);                                              \
+<a id='L383' name='L383'></a>   383     dst = newdst;                                                               \
+<a id='L384' name='L384'></a>   384   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L385' name='L385'></a>   385 
+<a id='L386' name='L386'></a>   386   <em class='comment'>/* Copy the source image sequentially, ie. section by section after</em>
+<a id='L387' name='L387'></a>   387 <em class='comment'>     copying the headers and section table, to simplify the process of</em>
+<a id='L388' name='L388'></a>   388 <em class='comment'>     relocating the .rdata and .reloc section table entries (which might</em>
+<a id='L389' name='L389'></a>   389 <em class='comment'>     force the raw section data to be relocated).</em>
+<a id='L390' name='L390'></a>   390 <em class='comment'></em>
+<a id='L391' name='L391'></a>   391 <em class='comment'>     Note that dst is updated implicitly by each COPY_CHUNK.  */</em>
+<a id='L392' name='L392'></a>   392 
+<a id='L393' name='L393'></a>   393   dos_header = (PIMAGE_DOS_HEADER) p_infile-&gt;file_base;
+<a id='L394' name='L394'></a>   394   nt_header = (PIMAGE_NT_HEADERS) (((<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) dos_header) +
+<a id='L395' name='L395'></a>   395                                    dos_header-&gt;e_lfanew);
+<a id='L396' name='L396'></a>   396   <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = IMAGE_FIRST_SECTION (nt_header);
+<a id='L397' name='L397'></a>   397 
+<a id='L398' name='L398'></a>   398   import_dir = &amp;nt_header-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+<a id='L399' name='L399'></a>   399   import_section = <a href='../D/14921.html' title='Multiple defined in 2 places.'>rva_to_section</a> (import_dir-&gt;VirtualAddress, nt_header);
+<a id='L400' name='L400'></a>   400 
+<a id='L401' name='L401'></a>   401   reloc_dir = &amp;nt_header-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+<a id='L402' name='L402'></a>   402   reloc_section = <a href='../D/14921.html' title='Multiple defined in 2 places.'>rva_to_section</a> (reloc_dir-&gt;VirtualAddress, nt_header);
+<a id='L403' name='L403'></a>   403   <strong class='reserved'>if</strong> (!reloc_section)
+<a id='L404' name='L404'></a>   404     <em class='brace'>{</em>
+<a id='L405' name='L405'></a>   405       <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("No relocation data, cannot prepare for profile prepping.\n");
+<a id='L406' name='L406'></a>   406       exit (1);
+<a id='L407' name='L407'></a>   407     <em class='brace'>}</em>
+<a id='L408' name='L408'></a>   408 
+<a id='L409' name='L409'></a>   409   dst = (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) p_outfile-&gt;file_base;
+<a id='L410' name='L410'></a>   410 
+<a id='L411' name='L411'></a>   411   <a href='../D/1094.html' title='Multiple defined in 2 places.'>COPY_CHUNK</a> ("Copying DOS header...", dos_header,
+<a id='L412' name='L412'></a>   412               (DWORD_PTR) nt_header - (DWORD_PTR) dos_header);
+<a id='L413' name='L413'></a>   413   dst_nt_header = (PIMAGE_NT_HEADERS) dst;
+<a id='L414' name='L414'></a>   414   <a href='../D/1094.html' title='Multiple defined in 2 places.'>COPY_CHUNK</a> ("Copying NT header...", nt_header,
+<a id='L415' name='L415'></a>   415               (DWORD_PTR) <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> - (DWORD_PTR) nt_header);
+<a id='L416' name='L416'></a>   416   dst_section = (PIMAGE_SECTION_HEADER) dst;
+<a id='L417' name='L417'></a>   417   <a href='../D/1094.html' title='Multiple defined in 2 places.'>COPY_CHUNK</a> ("Copying section table...", <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>,
+<a id='L418' name='L418'></a>   418               nt_header-&gt;FileHeader.NumberOfSections * <strong class='reserved'>sizeof</strong> (*<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>));
+<a id='L419' name='L419'></a>   419 
+<a id='L420' name='L420'></a>   420   <em class='comment'>/* Leave room for extra section table entries; filled in below.  */</em>
+<a id='L421' name='L421'></a>   421   dst += 2 * <strong class='reserved'>sizeof</strong> (*<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>);
+<a id='L422' name='L422'></a>   422 
+<a id='L423' name='L423'></a>   423   <em class='comment'>/* Align the first section's raw data area, and set the header size</em>
+<a id='L424' name='L424'></a>   424 <em class='comment'>     field accordingly.  */</em>
+<a id='L425' name='L425'></a>   425   <a href='../D/4946.html' title='Multiple defined in 2 places.'>ROUND_UP_DST_AND_ZERO</a> (dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L426' name='L426'></a>   426   dst_nt_header-&gt;OptionalHeader.SizeOfHeaders = <a href='../D/1398.html' title='Multiple defined in 2 places.'>DST_TO_OFFSET</a> ();
+<a id='L427' name='L427'></a>   427 
+<a id='L428' name='L428'></a>   428   <strong class='reserved'>for</strong> (i = 0; i &lt; nt_header-&gt;FileHeader.NumberOfSections;
+<a id='L429' name='L429'></a>   429        i++, <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>++, dst_section++)
+<a id='L430' name='L430'></a>   430     <em class='brace'>{</em>
+<a id='L431' name='L431'></a>   431       <strong class='reserved'>char</strong> msg[100];
+<a id='L432' name='L432'></a>   432       <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (msg, "Copying raw data for %s...", <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;Name);
+<a id='L433' name='L433'></a>   433 
+<a id='L434' name='L434'></a>   434       <em class='comment'>/* "Blank out" the two sections being relocated.  */</em>
+<a id='L435' name='L435'></a>   435       <strong class='reserved'>if</strong> (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> == import_section || <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> == reloc_section)
+<a id='L436' name='L436'></a>   436         <em class='brace'>{</em>
+<a id='L437' name='L437'></a>   437           dst_section-&gt;Name[0] = 'X';
+<a id='L438' name='L438'></a>   438           dst_section-&gt;Misc.VirtualSize =
+<a id='L439' name='L439'></a>   439             <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (dst_section-&gt;Misc.VirtualSize,
+<a id='L440' name='L440'></a>   440                       dst_nt_header-&gt;OptionalHeader.SectionAlignment);
+<a id='L441' name='L441'></a>   441           dst_section-&gt;PointerToRawData = 0;
+<a id='L442' name='L442'></a>   442           dst_section-&gt;SizeOfRawData = 0;
+<a id='L443' name='L443'></a>   443           dst_section-&gt;Characteristics &amp;= ~IMAGE_SCN_CNT_INITIALIZED_DATA;
+<a id='L444' name='L444'></a>   444           dst_section-&gt;Characteristics |= IMAGE_SCN_CNT_UNINITIALIZED_DATA;
+<a id='L445' name='L445'></a>   445           dst_section-&gt;Characteristics &amp;= ~IMAGE_SCN_MEM_WRITE;
+<a id='L446' name='L446'></a>   446           <strong class='reserved'>continue</strong>;
+<a id='L447' name='L447'></a>   447         <em class='brace'>}</em>
+<a id='L448' name='L448'></a>   448 
+<a id='L449' name='L449'></a>   449       <em class='comment'>/* Update the file-relative offset for this section's raw data (if</em>
+<a id='L450' name='L450'></a>   450 <em class='comment'>         it has any) in case things have been relocated; we will update</em>
+<a id='L451' name='L451'></a>   451 <em class='comment'>         the other offsets below once we know where everything is.  */</em>
+<a id='L452' name='L452'></a>   452       <strong class='reserved'>if</strong> (dst_section-&gt;PointerToRawData)
+<a id='L453' name='L453'></a>   453         dst_section-&gt;PointerToRawData = <a href='../D/1398.html' title='Multiple defined in 2 places.'>DST_TO_OFFSET</a> ();
+<a id='L454' name='L454'></a>   454 
+<a id='L455' name='L455'></a>   455       <em class='comment'>/* Copy the original raw data.  */</em>
+<a id='L456' name='L456'></a>   456       <a href='../D/1094.html' title='Multiple defined in 2 places.'>COPY_CHUNK</a>
+<a id='L457' name='L457'></a>   457         (msg, <a href='../D/4201.html' title='Multiple defined in 2 places.'>OFFSET_TO_PTR</a> (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;PointerToRawData, p_infile),
+<a id='L458' name='L458'></a>   458          <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;SizeOfRawData);
+<a id='L459' name='L459'></a>   459 
+<a id='L460' name='L460'></a>   460       <em class='comment'>/* Round up the raw data size to the new alignment.  */</em>
+<a id='L461' name='L461'></a>   461       dst_section-&gt;SizeOfRawData =
+<a id='L462' name='L462'></a>   462         <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (dst_section-&gt;SizeOfRawData,
+<a id='L463' name='L463'></a>   463                   dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L464' name='L464'></a>   464 
+<a id='L465' name='L465'></a>   465       <em class='comment'>/* Align the next section's raw data area.  */</em>
+<a id='L466' name='L466'></a>   466       <a href='../D/4946.html' title='Multiple defined in 2 places.'>ROUND_UP_DST_AND_ZERO</a> (dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L467' name='L467'></a>   467     <em class='brace'>}</em>
+<a id='L468' name='L468'></a>   468 
+<a id='L469' name='L469'></a>   469   <em class='comment'>/* Add the extra section entries, copying the raw data we skipped</em>
+<a id='L470' name='L470'></a>   470 <em class='comment'>     earlier.  We'll patch up the data itself below.  */</em>
+<a id='L471' name='L471'></a>   471   <strong class='reserved'>if</strong> (import_section != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L472' name='L472'></a>   472     <em class='brace'>{</em>
+<a id='L473' name='L473'></a>   473       dst_nt_header-&gt;FileHeader.NumberOfSections++;
+<a id='L474' name='L474'></a>   474       dst_nt_header-&gt;OptionalHeader.SizeOfImage +=
+<a id='L475' name='L475'></a>   475         <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (import_section-&gt;Misc.VirtualSize,
+<a id='L476' name='L476'></a>   476                   dst_nt_header-&gt;OptionalHeader.SectionAlignment);
+<a id='L477' name='L477'></a>   477       *dst_section = *import_section;
+<a id='L478' name='L478'></a>   478       dst_section-&gt;VirtualAddress =
+<a id='L479' name='L479'></a>   479         dst_section[-1].VirtualAddress
+<a id='L480' name='L480'></a>   480         + <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (dst_section[-1].Misc.VirtualSize,
+<a id='L481' name='L481'></a>   481                     dst_nt_header-&gt;OptionalHeader.SectionAlignment);
+<a id='L482' name='L482'></a>   482       dst_section-&gt;PointerToRawData = <a href='../D/1398.html' title='Multiple defined in 2 places.'>DST_TO_OFFSET</a> ();
+<a id='L483' name='L483'></a>   483       <em class='comment'>/* Remember delta applied to import section.  */</em>
+<a id='L484' name='L484'></a>   484       import_delta_rva = dst_section-&gt;VirtualAddress - import_section-&gt;VirtualAddress;
+<a id='L485' name='L485'></a>   485       <a href='../D/1094.html' title='Multiple defined in 2 places.'>COPY_CHUNK</a>
+<a id='L486' name='L486'></a>   486         ("Relocating import directory",
+<a id='L487' name='L487'></a>   487          <a href='../D/4201.html' title='Multiple defined in 2 places.'>OFFSET_TO_PTR</a> (import_section-&gt;PointerToRawData, p_infile),
+<a id='L488' name='L488'></a>   488          import_section-&gt;SizeOfRawData);
+<a id='L489' name='L489'></a>   489       <a href='../D/4946.html' title='Multiple defined in 2 places.'>ROUND_UP_DST_AND_ZERO</a> (dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L490' name='L490'></a>   490       dst_section++;
+<a id='L491' name='L491'></a>   491     <em class='brace'>}</em>
+<a id='L492' name='L492'></a>   492   <strong class='reserved'>if</strong> (reloc_section != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L493' name='L493'></a>   493     <em class='brace'>{</em>
+<a id='L494' name='L494'></a>   494       dst_nt_header-&gt;FileHeader.NumberOfSections++;
+<a id='L495' name='L495'></a>   495       dst_nt_header-&gt;OptionalHeader.SizeOfImage +=
+<a id='L496' name='L496'></a>   496         <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (reloc_section-&gt;Misc.VirtualSize,
+<a id='L497' name='L497'></a>   497                   dst_nt_header-&gt;OptionalHeader.SectionAlignment);
+<a id='L498' name='L498'></a>   498       *dst_section = *reloc_section;
+<a id='L499' name='L499'></a>   499       dst_section-&gt;VirtualAddress =
+<a id='L500' name='L500'></a>   500         dst_section[-1].VirtualAddress
+<a id='L501' name='L501'></a>   501         + <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (dst_section[-1].Misc.VirtualSize,
+<a id='L502' name='L502'></a>   502                     dst_nt_header-&gt;OptionalHeader.SectionAlignment);
+<a id='L503' name='L503'></a>   503       dst_section-&gt;PointerToRawData = <a href='../D/1398.html' title='Multiple defined in 2 places.'>DST_TO_OFFSET</a> ();
+<a id='L504' name='L504'></a>   504       <em class='comment'>/* Remember delta applied to reloc section.  */</em>
+<a id='L505' name='L505'></a>   505       reloc_delta_rva = dst_section-&gt;VirtualAddress - reloc_section-&gt;VirtualAddress;
+<a id='L506' name='L506'></a>   506       <a href='../D/1094.html' title='Multiple defined in 2 places.'>COPY_CHUNK</a>
+<a id='L507' name='L507'></a>   507         ("Relocating base relocations directory",
+<a id='L508' name='L508'></a>   508          <a href='../D/4201.html' title='Multiple defined in 2 places.'>OFFSET_TO_PTR</a> (reloc_section-&gt;PointerToRawData, p_infile),
+<a id='L509' name='L509'></a>   509          reloc_section-&gt;SizeOfRawData);
+<a id='L510' name='L510'></a>   510       <a href='../D/4946.html' title='Multiple defined in 2 places.'>ROUND_UP_DST_AND_ZERO</a> (dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L511' name='L511'></a>   511       reloc_dir = &amp;dst_nt_header-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+<a id='L512' name='L512'></a>   512       reloc_dir-&gt;VirtualAddress += reloc_delta_rva;
+<a id='L513' name='L513'></a>   513       dst_section++;
+<a id='L514' name='L514'></a>   514     <em class='brace'>}</em>
+<a id='L515' name='L515'></a>   515 
+<a id='L516' name='L516'></a>   516   <em class='comment'>/* Copy remainder of source image.  */</em>
+<a id='L517' name='L517'></a>   517   <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>--;
+<a id='L518' name='L518'></a>   518   <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> = <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;PointerToRawData + <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;SizeOfRawData,
+<a id='L519' name='L519'></a>   519                      nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L520' name='L520'></a>   520   <a href='../D/1094.html' title='Multiple defined in 2 places.'>COPY_CHUNK</a>
+<a id='L521' name='L521'></a>   521     ("Copying remainder of executable...",
+<a id='L522' name='L522'></a>   522      <a href='../D/4201.html' title='Multiple defined in 2 places.'>OFFSET_TO_PTR</a> (<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>, p_infile),
+<a id='L523' name='L523'></a>   523      p_infile-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> - <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>);
+<a id='L524' name='L524'></a>   524 
+<a id='L525' name='L525'></a>   525   <em class='comment'>/* Final size for new image.  */</em>
+<a id='L526' name='L526'></a>   526   p_outfile-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = <a href='../D/1398.html' title='Multiple defined in 2 places.'>DST_TO_OFFSET</a> ();
+<a id='L527' name='L527'></a>   527 
+<a id='L528' name='L528'></a>   528   <em class='comment'>/* Now patch up remaining file-relative offsets.  */</em>
+<a id='L529' name='L529'></a>   529   <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("Patching up raw data offsets...\n");
+<a id='L530' name='L530'></a>   530 
+<a id='L531' name='L531'></a>   531   <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = IMAGE_FIRST_SECTION (nt_header);
+<a id='L532' name='L532'></a>   532   dst_section = IMAGE_FIRST_SECTION (dst_nt_header);
+<a id='L533' name='L533'></a>   533 
+<a id='L534' name='L534'></a>   534 <em class='sharp'>#define</em> <a href='../R/29.html' title='Multiple referred from 6 places.'>ADJUST_OFFSET</a>(var)                                              \
+<a id='L535' name='L535'></a>   535   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                                  \
+<a id='L536' name='L536'></a>   536     <strong class='reserved'>if</strong> ((var) != 0)                                                     \
+<a id='L537' name='L537'></a>   537       (var) = <a href='../D/14705.html' title='Multiple defined in 2 places.'>relocate_offset</a> ((var), nt_header, dst_nt_header);        \
+<a id='L538' name='L538'></a>   538   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L539' name='L539'></a>   539 
+<a id='L540' name='L540'></a>   540 <em class='sharp'>#define</em> <a href='../R/28.html' title='Multiple referred from 6 places.'>ADJUST_IMPORT_RVA</a>(var)                  \
+<a id='L541' name='L541'></a>   541   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                          \
+<a id='L542' name='L542'></a>   542     <strong class='reserved'>if</strong> ((var) != 0)                             \
+<a id='L543' name='L543'></a>   543       *((DWORD_PTR *)&amp;(var)) += import_delta_rva;       \
+<a id='L544' name='L544'></a>   544   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L545' name='L545'></a>   545 
+<a id='L546' name='L546'></a>   546   dst_nt_header-&gt;OptionalHeader.SizeOfInitializedData = 0;
+<a id='L547' name='L547'></a>   547   dst_nt_header-&gt;OptionalHeader.SizeOfUninitializedData = 0;
+<a id='L548' name='L548'></a>   548   <strong class='reserved'>for</strong> (i = 0; i &lt; dst_nt_header-&gt;FileHeader.NumberOfSections; i++)
+<a id='L549' name='L549'></a>   549     <em class='brace'>{</em>
+<a id='L550' name='L550'></a>   550       <em class='comment'>/* Recompute data sizes for completeness.  */</em>
+<a id='L551' name='L551'></a>   551       <strong class='reserved'>if</strong> (dst_section[i].Characteristics &amp; IMAGE_SCN_CNT_INITIALIZED_DATA)
+<a id='L552' name='L552'></a>   552         dst_nt_header-&gt;OptionalHeader.SizeOfInitializedData +=
+<a id='L553' name='L553'></a>   553           <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (dst_section[i].Misc.VirtualSize, dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L554' name='L554'></a>   554       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (dst_section[i].Characteristics &amp; IMAGE_SCN_CNT_UNINITIALIZED_DATA)
+<a id='L555' name='L555'></a>   555         dst_nt_header-&gt;OptionalHeader.SizeOfUninitializedData +=
+<a id='L556' name='L556'></a>   556           <a href='../D/4944.html' title='Multiple defined in 2 places.'>ROUND_UP</a> (dst_section[i].Misc.VirtualSize, dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L557' name='L557'></a>   557 
+<a id='L558' name='L558'></a>   558       <a href='../D/29.html' title='Multiple defined in 2 places.'>ADJUST_OFFSET</a> (dst_section[i].PointerToLinenumbers);
+<a id='L559' name='L559'></a>   559     <em class='brace'>}</em>
+<a id='L560' name='L560'></a>   560 
+<a id='L561' name='L561'></a>   561   <a href='../D/29.html' title='Multiple defined in 2 places.'>ADJUST_OFFSET</a> (dst_nt_header-&gt;FileHeader.PointerToSymbolTable);
+<a id='L562' name='L562'></a>   562 
+<a id='L563' name='L563'></a>   563   <em class='comment'>/* Update offsets in debug directory entries.  Note that the debug</em>
+<a id='L564' name='L564'></a>   564 <em class='comment'>     directory may be in the same section as the import table, so its</em>
+<a id='L565' name='L565'></a>   565 <em class='comment'>     RVA may need to be adjusted too.  */</em>
+<a id='L566' name='L566'></a>   566   <em class='brace'>{</em>
+<a id='L567' name='L567'></a>   567     PIMAGE_DATA_DIRECTORY debug_dir =
+<a id='L568' name='L568'></a>   568       &amp;dst_nt_header-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DEBUG];
+<a id='L569' name='L569'></a>   569     PIMAGE_DEBUG_DIRECTORY debug_entry;
+<a id='L570' name='L570'></a>   570 
+<a id='L571' name='L571'></a>   571     <em class='comment'>/* Update debug_dir if part of import_section.  */</em>
+<a id='L572' name='L572'></a>   572     <strong class='reserved'>if</strong> (<a href='../D/14921.html' title='Multiple defined in 2 places.'>rva_to_section</a> (debug_dir-&gt;VirtualAddress, nt_header) == import_section)
+<a id='L573' name='L573'></a>   573       debug_dir-&gt;VirtualAddress += import_delta_rva;
+<a id='L574' name='L574'></a>   574 
+<a id='L575' name='L575'></a>   575     <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = <a href='../D/14921.html' title='Multiple defined in 2 places.'>rva_to_section</a> (debug_dir-&gt;VirtualAddress, dst_nt_header);
+<a id='L576' name='L576'></a>   576     <strong class='reserved'>if</strong> (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)
+<a id='L577' name='L577'></a>   577       <em class='brace'>{</em>
+<a id='L578' name='L578'></a>   578         <strong class='reserved'>int</strong> <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L579' name='L579'></a>   579 
+<a id='L580' name='L580'></a>   580         debug_entry = <a href='../D/4956.html' title='Multiple defined in 3 places.'>RVA_TO_PTR</a> (debug_dir-&gt;VirtualAddress, <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>, p_outfile);
+<a id='L581' name='L581'></a>   581         <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = debug_dir-&gt;Size / <strong class='reserved'>sizeof</strong> (IMAGE_DEBUG_DIRECTORY);
+<a id='L582' name='L582'></a>   582 
+<a id='L583' name='L583'></a>   583         <strong class='reserved'>for</strong> (i = 0; i &lt; <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>; i++, debug_entry++)
+<a id='L584' name='L584'></a>   584           <em class='brace'>{</em>
+<a id='L585' name='L585'></a>   585             <em class='comment'>/* The debug data itself is normally not part of any</em>
+<a id='L586' name='L586'></a>   586 <em class='comment'>               section, but stored after all the raw section data.  So</em>
+<a id='L587' name='L587'></a>   587 <em class='comment'>               let relocate_offset do the work.  */</em>
+<a id='L588' name='L588'></a>   588             <a href='../D/29.html' title='Multiple defined in 2 places.'>ADJUST_OFFSET</a> (debug_entry-&gt;PointerToRawData);
+<a id='L589' name='L589'></a>   589             <a href='../S/2482.html#L540' title='Defined at 540 in nt/preprep.c.'>ADJUST_IMPORT_RVA</a> (debug_entry-&gt;AddressOfRawData);
+<a id='L590' name='L590'></a>   590           <em class='brace'>}</em>
+<a id='L591' name='L591'></a>   591       <em class='brace'>}</em>
+<a id='L592' name='L592'></a>   592   <em class='brace'>}</em>
+<a id='L593' name='L593'></a>   593 
+<a id='L594' name='L594'></a>   594   <em class='comment'>/* Update RVAs in import directory entries.  */</em>
+<a id='L595' name='L595'></a>   595   <em class='brace'>{</em>
+<a id='L596' name='L596'></a>   596     PIMAGE_IMPORT_DESCRIPTOR imports;
+<a id='L597' name='L597'></a>   597     PIMAGE_THUNK_DATA import_thunks;
+<a id='L598' name='L598'></a>   598 
+<a id='L599' name='L599'></a>   599     import_dir = &amp;dst_nt_header-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+<a id='L600' name='L600'></a>   600     import_dir-&gt;VirtualAddress += import_delta_rva;
+<a id='L601' name='L601'></a>   601 
+<a id='L602' name='L602'></a>   602     <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = <a href='../D/14921.html' title='Multiple defined in 2 places.'>rva_to_section</a> (import_dir-&gt;VirtualAddress, dst_nt_header);
+<a id='L603' name='L603'></a>   603     imports = <a href='../D/4956.html' title='Multiple defined in 3 places.'>RVA_TO_PTR</a> (import_dir-&gt;VirtualAddress, <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>, p_outfile);
+<a id='L604' name='L604'></a>   604 
+<a id='L605' name='L605'></a>   605     <strong class='reserved'>for</strong> ( ; imports-&gt;Name != 0; imports++)
+<a id='L606' name='L606'></a>   606       <em class='brace'>{</em>
+<a id='L607' name='L607'></a>   607         <a href='../S/2482.html#L540' title='Defined at 540 in nt/preprep.c.'>ADJUST_IMPORT_RVA</a> (imports-&gt;OriginalFirstThunk);
+<a id='L608' name='L608'></a>   608         <a href='../S/2482.html#L540' title='Defined at 540 in nt/preprep.c.'>ADJUST_IMPORT_RVA</a> (imports-&gt;FirstThunk);
+<a id='L609' name='L609'></a>   609         <a href='../S/2482.html#L540' title='Defined at 540 in nt/preprep.c.'>ADJUST_IMPORT_RVA</a> (imports-&gt;Name);
+<a id='L610' name='L610'></a>   610 
+<a id='L611' name='L611'></a>   611         <strong class='reserved'>for</strong> (import_thunks = <a href='../D/4956.html' title='Multiple defined in 3 places.'>RVA_TO_PTR</a> (imports-&gt;OriginalFirstThunk, <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>, p_outfile);
+<a id='L612' name='L612'></a>   612              import_thunks-&gt;u1.Function != 0;
+<a id='L613' name='L613'></a>   613              import_thunks++)
+<a id='L614' name='L614'></a>   614           <strong class='reserved'>if</strong> ((import_thunks-&gt;u1.Ordinal &gt;&gt; 31) == 0)
+<a id='L615' name='L615'></a>   615             <a href='../S/2482.html#L540' title='Defined at 540 in nt/preprep.c.'>ADJUST_IMPORT_RVA</a> (import_thunks-&gt;u1.Ordinal);
+<a id='L616' name='L616'></a>   616 
+<a id='L617' name='L617'></a>   617         <strong class='reserved'>for</strong> (import_thunks = <a href='../D/4956.html' title='Multiple defined in 3 places.'>RVA_TO_PTR</a> (imports-&gt;FirstThunk, <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>, p_outfile);
+<a id='L618' name='L618'></a>   618              import_thunks-&gt;u1.Function != 0;
+<a id='L619' name='L619'></a>   619              import_thunks++)
+<a id='L620' name='L620'></a>   620           <strong class='reserved'>if</strong> ((import_thunks-&gt;u1.Ordinal &gt;&gt; 31) == 0)
+<a id='L621' name='L621'></a>   621             <a href='../S/2482.html#L540' title='Defined at 540 in nt/preprep.c.'>ADJUST_IMPORT_RVA</a> (import_thunks-&gt;u1.Ordinal);
+<a id='L622' name='L622'></a>   622       <em class='brace'>}</em>
+<a id='L623' name='L623'></a>   623 
+<a id='L624' name='L624'></a>   624     import_dir = &amp;dst_nt_header-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IAT];
+<a id='L625' name='L625'></a>   625     import_dir-&gt;VirtualAddress += import_delta_rva;
+<a id='L626' name='L626'></a>   626   <em class='brace'>}</em>
+<a id='L627' name='L627'></a>   627 
+<a id='L628' name='L628'></a>   628   <em class='comment'>/* Fix up references to the import section.  */</em>
+<a id='L629' name='L629'></a>   629   <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("Applying fixups to import references...\n");
+<a id='L630' name='L630'></a>   630 
+<a id='L631' name='L631'></a>   631   <em class='brace'>{</em>
+<a id='L632' name='L632'></a>   632     IMAGE_BASE_RELOCATION *relocs, *block, *start_block, *end_block;
+<a id='L633' name='L633'></a>   633     DWORD_PTR import_start = import_section-&gt;VirtualAddress + dst_nt_header-&gt;OptionalHeader.ImageBase;
+<a id='L634' name='L634'></a>   634     DWORD_PTR import_end = import_start + import_section-&gt;Misc.VirtualSize;
+<a id='L635' name='L635'></a>   635     DWORD_PTR len_import_relocs;
+<a id='L636' name='L636'></a>   636     DWORD_PTR len_remaining_relocs;
+<a id='L637' name='L637'></a>   637     <strong class='reserved'>int</strong> seen_high = 0;
+<a id='L638' name='L638'></a>   638     WORD * high_word;
+<a id='L639' name='L639'></a>   639     <strong class='reserved'>void</strong> * holder;
+<a id='L640' name='L640'></a>   640 
+<a id='L641' name='L641'></a>   641     reloc_dir = &amp;dst_nt_header-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+<a id='L642' name='L642'></a>   642     reloc_section = <a href='../D/14921.html' title='Multiple defined in 2 places.'>rva_to_section</a> (reloc_dir-&gt;VirtualAddress, dst_nt_header);
+<a id='L643' name='L643'></a>   643     relocs = <a href='../D/4956.html' title='Multiple defined in 3 places.'>RVA_TO_PTR</a> (reloc_dir-&gt;VirtualAddress, reloc_section, p_outfile);
+<a id='L644' name='L644'></a>   644 
+<a id='L645' name='L645'></a>   645     <em class='comment'>/* Move the base relocations for the import section, if there are</em>
+<a id='L646' name='L646'></a>   646 <em class='comment'>       any; the profiler needs to be able to patch RVAs in the import</em>
+<a id='L647' name='L647'></a>   647 <em class='comment'>       section itself.  */</em>
+<a id='L648' name='L648'></a>   648     <strong class='reserved'>for</strong> (block = relocs, start_block = 0;
+<a id='L649' name='L649'></a>   649          (DWORD_PTR) block - (DWORD_PTR) relocs &lt; reloc_dir-&gt;Size;
+<a id='L650' name='L650'></a>   650          block = (<strong class='reserved'>void</strong> *)((DWORD_PTR) block + block-&gt;SizeOfBlock))
+<a id='L651' name='L651'></a>   651       <em class='brace'>{</em>
+<a id='L652' name='L652'></a>   652         <strong class='reserved'>if</strong> (block-&gt;VirtualAddress &gt;= import_section-&gt;VirtualAddress + import_section-&gt;Misc.VirtualSize)
+<a id='L653' name='L653'></a>   653           <em class='brace'>{</em>
+<a id='L654' name='L654'></a>   654             end_block = block;
+<a id='L655' name='L655'></a>   655             <strong class='reserved'>break</strong>;
+<a id='L656' name='L656'></a>   656           <em class='brace'>}</em>
+<a id='L657' name='L657'></a>   657         <strong class='reserved'>if</strong> (block-&gt;VirtualAddress &gt;= import_section-&gt;VirtualAddress)
+<a id='L658' name='L658'></a>   658           <em class='brace'>{</em>
+<a id='L659' name='L659'></a>   659             <strong class='reserved'>if</strong> (start_block == 0)
+<a id='L660' name='L660'></a>   660               start_block = block;
+<a id='L661' name='L661'></a>   661             block-&gt;VirtualAddress += import_delta_rva;
+<a id='L662' name='L662'></a>   662           <em class='brace'>}</em>
+<a id='L663' name='L663'></a>   663       <em class='brace'>}</em>
+<a id='L664' name='L664'></a>   664     <strong class='reserved'>if</strong> (start_block)
+<a id='L665' name='L665'></a>   665       <em class='brace'>{</em>
+<a id='L666' name='L666'></a>   666         len_import_relocs = (DWORD_PTR) end_block - (DWORD_PTR) start_block;
+<a id='L667' name='L667'></a>   667         len_remaining_relocs = (DWORD_PTR) relocs + reloc_dir-&gt;Size - (DWORD_PTR) end_block;
+<a id='L668' name='L668'></a>   668         holder = <a href='../D/12720.html' title='Multiple defined in 19 places.'>malloc</a> (len_import_relocs);
+<a id='L669' name='L669'></a>   669         <strong class='reserved'>if</strong> (holder == 0)
+<a id='L670' name='L670'></a>   670           abort ();
+<a id='L671' name='L671'></a>   671         memcpy (holder, start_block, len_import_relocs);
+<a id='L672' name='L672'></a>   672         memcpy (start_block, end_block, len_remaining_relocs);
+<a id='L673' name='L673'></a>   673         memcpy ((<strong class='reserved'>char</strong> *) start_block + len_remaining_relocs, holder, len_import_relocs);
+<a id='L674' name='L674'></a>   674         <a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> (holder);
+<a id='L675' name='L675'></a>   675       <em class='brace'>}</em>
+<a id='L676' name='L676'></a>   676 
+<a id='L677' name='L677'></a>   677     <em class='comment'>/* Walk up the list of base relocations, checking for references</em>
+<a id='L678' name='L678'></a>   678 <em class='comment'>       to the old import section location, and patching them to</em>
+<a id='L679' name='L679'></a>   679 <em class='comment'>       reference the new location.  */</em>
+<a id='L680' name='L680'></a>   680     <strong class='reserved'>for</strong> (block = relocs;
+<a id='L681' name='L681'></a>   681          (DWORD_PTR) block - (DWORD_PTR) relocs &lt; reloc_dir-&gt;Size;
+<a id='L682' name='L682'></a>   682          block = (<strong class='reserved'>void</strong> *)((DWORD_PTR) block + block-&gt;SizeOfBlock))
+<a id='L683' name='L683'></a>   683       <em class='brace'>{</em>
+<a id='L684' name='L684'></a>   684         DWORD_PTR page_rva = block-&gt;VirtualAddress;
+<a id='L685' name='L685'></a>   685         DWORD_PTR page_offset;
+<a id='L686' name='L686'></a>   686         <strong class='reserved'>union</strong> <em class='brace'>{</em>
+<a id='L687' name='L687'></a>   687           WORD word;
+<a id='L688' name='L688'></a>   688           DWORD_PTR dword;
+<a id='L689' name='L689'></a>   689         <em class='brace'>}</em> * ploc;
+<a id='L690' name='L690'></a>   690         WORD *fixup;
+<a id='L691' name='L691'></a>   691 
+<a id='L692' name='L692'></a>   692         <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = <a href='../D/14921.html' title='Multiple defined in 2 places.'>rva_to_section</a> (page_rva, dst_nt_header);
+<a id='L693' name='L693'></a>   693         <em class='comment'>/* Don't apply fixups to the blanked sections.  */</em>
+<a id='L694' name='L694'></a>   694         <strong class='reserved'>if</strong> (<a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;Name[0] == 'X')
+<a id='L695' name='L695'></a>   695           <strong class='reserved'>continue</strong>;
+<a id='L696' name='L696'></a>   696 
+<a id='L697' name='L697'></a>   697         <strong class='reserved'>for</strong> (fixup = (WORD *) &amp;block[1];
+<a id='L698' name='L698'></a>   698              (DWORD_PTR) fixup - (DWORD_PTR) block &lt; block-&gt;SizeOfBlock;
+<a id='L699' name='L699'></a>   699              fixup++)
+<a id='L700' name='L700'></a>   700           <em class='brace'>{</em>
+<a id='L701' name='L701'></a>   701             page_offset = (*fixup) &amp; 0xfff;
+<a id='L702' name='L702'></a>   702             ploc = <a href='../D/4956.html' title='Multiple defined in 3 places.'>RVA_TO_PTR</a> (page_rva + page_offset, <a href='../S/2838.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>, p_outfile);
+<a id='L703' name='L703'></a>   703 
+<a id='L704' name='L704'></a>   704             <em class='comment'>/* Unless our assumption is wrong, all low word fixups</em>
+<a id='L705' name='L705'></a>   705 <em class='comment'>               should immediately follow a high fixup.  */</em>
+<a id='L706' name='L706'></a>   706             <strong class='reserved'>if</strong> (seen_high &amp;&amp; ((*fixup) &gt;&gt; 12) != IMAGE_REL_BASED_LOW)
+<a id='L707' name='L707'></a>   707               abort ();
+<a id='L708' name='L708'></a>   708 
+<a id='L709' name='L709'></a>   709             <strong class='reserved'>switch</strong> ((*fixup) &gt;&gt; 12)
+<a id='L710' name='L710'></a>   710               <em class='brace'>{</em>
+<a id='L711' name='L711'></a>   711               <strong class='reserved'>case</strong> IMAGE_REL_BASED_ABSOLUTE:
+<a id='L712' name='L712'></a>   712                 <strong class='reserved'>break</strong>;
+<a id='L713' name='L713'></a>   713               <strong class='reserved'>case</strong> IMAGE_REL_BASED_HIGH:
+<a id='L714' name='L714'></a>   714                 <em class='comment'>/* We must assume that high and low fixups occur in</em>
+<a id='L715' name='L715'></a>   715 <em class='comment'>                   pairs, specifically a low fixup immediately follows a</em>
+<a id='L716' name='L716'></a>   716 <em class='comment'>                   high fixup (normally separated by two bytes).  We</em>
+<a id='L717' name='L717'></a>   717 <em class='comment'>                   have to process the two fixups together, to find out</em>
+<a id='L718' name='L718'></a>   718 <em class='comment'>                   the full pointer value and decide whether to apply</em>
+<a id='L719' name='L719'></a>   719 <em class='comment'>                   the fixup.  */</em>
+<a id='L720' name='L720'></a>   720                 seen_high = 1;
+<a id='L721' name='L721'></a>   721                 high_word = &amp;ploc-&gt;word;
+<a id='L722' name='L722'></a>   722                 <strong class='reserved'>break</strong>;
+<a id='L723' name='L723'></a>   723               <strong class='reserved'>case</strong> IMAGE_REL_BASED_LOW:
+<a id='L724' name='L724'></a>   724                 <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> = (*high_word &lt;&lt; 16) + ploc-&gt;word;
+<a id='L725' name='L725'></a>   725                 <strong class='reserved'>if</strong> (<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> &gt;= import_start &amp;&amp; <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> &lt; import_end)
+<a id='L726' name='L726'></a>   726                   <em class='brace'>{</em>
+<a id='L727' name='L727'></a>   727                     (*high_word) += import_delta_rva &gt;&gt; 16;
+<a id='L728' name='L728'></a>   728                     ploc-&gt;dword += import_delta_rva &amp; 0xffff;
+<a id='L729' name='L729'></a>   729                   <em class='brace'>}</em>
+<a id='L730' name='L730'></a>   730                 seen_high = 0;
+<a id='L731' name='L731'></a>   731                 <strong class='reserved'>break</strong>;
+<a id='L732' name='L732'></a>   732               <strong class='reserved'>case</strong> IMAGE_REL_BASED_HIGHLOW:
+<a id='L733' name='L733'></a>   733                 <em class='comment'>/* Docs imply two words in big-endian order, so perhaps</em>
+<a id='L734' name='L734'></a>   734 <em class='comment'>                   this is only used on big-endian platforms, in which</em>
+<a id='L735' name='L735'></a>   735 <em class='comment'>                   case the obvious code will work.  */</em>
+<a id='L736' name='L736'></a>   736                 <strong class='reserved'>if</strong> (ploc-&gt;dword &gt;= import_start &amp;&amp; ploc-&gt;dword &lt; import_end)
+<a id='L737' name='L737'></a>   737                   ploc-&gt;dword += import_delta_rva;
+<a id='L738' name='L738'></a>   738                 <strong class='reserved'>break</strong>;
+<a id='L739' name='L739'></a>   739               <strong class='reserved'>case</strong> IMAGE_REL_BASED_HIGHADJ:
+<a id='L740' name='L740'></a>   740                 <em class='comment'>/* Docs don't say, but I guess this is the equivalent</em>
+<a id='L741' name='L741'></a>   741 <em class='comment'>                   for little-endian platforms.  */</em>
+<a id='L742' name='L742'></a>   742                 <strong class='reserved'>if</strong> (ploc-&gt;dword &gt;= import_start &amp;&amp; ploc-&gt;dword &lt; import_end)
+<a id='L743' name='L743'></a>   743                   ploc-&gt;dword += import_delta_rva;
+<a id='L744' name='L744'></a>   744                 <strong class='reserved'>break</strong>;
+<a id='L745' name='L745'></a>   745               <strong class='reserved'>case</strong> IMAGE_REL_BASED_MIPS_JMPADDR:
+<a id='L746' name='L746'></a>   746                 <em class='comment'>/* Don't know how to handle this; MIPS support has been</em>
+<a id='L747' name='L747'></a>   747 <em class='comment'>                   dropped from NT4 anyway.  */</em>
+<a id='L748' name='L748'></a>   748                 abort ();
+<a id='L749' name='L749'></a>   749                 <strong class='reserved'>break</strong>;
+<a id='L750' name='L750'></a>   750 <em class='sharp'>#ifdef</em> IMAGE_REL_BASED_SECTION
+<a id='L751' name='L751'></a>   751               <strong class='reserved'>case</strong> IMAGE_REL_BASED_SECTION:
+<a id='L752' name='L752'></a>   752               <strong class='reserved'>case</strong> IMAGE_REL_BASED_REL32:
+<a id='L753' name='L753'></a>   753                 <em class='comment'>/* Docs don't say what these values mean.  */</em>
+<a id='L754' name='L754'></a>   754 <em class='sharp'>#endif</em>
+<a id='L755' name='L755'></a>   755               <strong class='reserved'>default</strong>:
+<a id='L756' name='L756'></a>   756                 abort ();
+<a id='L757' name='L757'></a>   757               <em class='brace'>}</em>
+<a id='L758' name='L758'></a>   758           <em class='brace'>}</em>
+<a id='L759' name='L759'></a>   759       <em class='brace'>}</em>
+<a id='L760' name='L760'></a>   760   <em class='brace'>}</em>
+<a id='L761' name='L761'></a>   761 <em class='brace'>}</em>
+<a id='L762' name='L762'></a>   762 
+<a id='L763' name='L763'></a>   763 
+<a id='L764' name='L764'></a>   764 <strong class='reserved'>int</strong>
+<a id='L765' name='L765'></a>   765 <a href='../R/11554.html' title='Multiple referred from 90 places.'>main</a> (<strong class='reserved'>int</strong> argc, <strong class='reserved'>char</strong> **argv)
+<a id='L766' name='L766'></a>   766 <em class='brace'>{</em>
+<a id='L767' name='L767'></a>   767   PIMAGE_DOS_HEADER dos_header;
+<a id='L768' name='L768'></a>   768   PIMAGE_NT_HEADERS nt_header;
+<a id='L769' name='L769'></a>   769   <a href='../D/10049.html' title='Multiple defined in 4 places.'>file_data</a> in_file, out_file;
+<a id='L770' name='L770'></a>   770   <strong class='reserved'>char</strong> out_filename[MAX_PATH], in_filename[MAX_PATH];
+<a id='L771' name='L771'></a>   771 
+<a id='L772' name='L772'></a>   772   strcpy (in_filename, argv[1]);
+<a id='L773' name='L773'></a>   773   strcpy (out_filename, argv[2]);
+<a id='L774' name='L774'></a>   774 
+<a id='L775' name='L775'></a>   775   <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("Preparing %s for profile prepping\n", out_filename);
+<a id='L776' name='L776'></a>   776 
+<a id='L777' name='L777'></a>   777   <em class='comment'>/* Open the original (dumped) executable file for reference.  */</em>
+<a id='L778' name='L778'></a>   778   <strong class='reserved'>if</strong> (!<a href='../D/13598.html' title='Multiple defined in 2 places.'>open_input_file</a> (&amp;in_file, in_filename))
+<a id='L779' name='L779'></a>   779     <em class='brace'>{</em>
+<a id='L780' name='L780'></a>   780       <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("Failed to open %s (%d)...bailing.\n",
+<a id='L781' name='L781'></a>   781               in_filename, GetLastError ());
+<a id='L782' name='L782'></a>   782       exit (1);
+<a id='L783' name='L783'></a>   783     <em class='brace'>}</em>
+<a id='L784' name='L784'></a>   784 
+<a id='L785' name='L785'></a>   785   <em class='comment'>/* Create a new image that can be prepped; we don't expect the size to</em>
+<a id='L786' name='L786'></a>   786 <em class='comment'>     change because we are only adding two new section table entries,</em>
+<a id='L787' name='L787'></a>   787 <em class='comment'>     which should fit in the alignment slop.  */</em>
+<a id='L788' name='L788'></a>   788   <strong class='reserved'>if</strong> (!<a href='../D/13599.html' title='Multiple defined in 2 places.'>open_output_file</a> (&amp;out_file, out_filename, in_file.<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>))
+<a id='L789' name='L789'></a>   789     <em class='brace'>{</em>
+<a id='L790' name='L790'></a>   790       <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("Failed to open %s (%d)...bailing.\n",
+<a id='L791' name='L791'></a>   791               out_filename, GetLastError ());
+<a id='L792' name='L792'></a>   792       exit (1);
+<a id='L793' name='L793'></a>   793     <em class='brace'>}</em>
+<a id='L794' name='L794'></a>   794 
+<a id='L795' name='L795'></a>   795   <a href='../S/2482.html#L346' title='Defined at 346 in nt/preprep.c.'>copy_executable_and_move_sections</a> (&amp;in_file, &amp;out_file);
+<a id='L796' name='L796'></a>   796 
+<a id='L797' name='L797'></a>   797   <em class='comment'>/* Patch up header fields; profiler is picky about this. */</em>
+<a id='L798' name='L798'></a>   798   <em class='brace'>{</em>
+<a id='L799' name='L799'></a>   799     HANDLE hImagehelp = <a href='../D/3510.html' title='Multiple defined in 4 places.'>LoadLibrary</a> ("imagehlp.dll");
+<a id='L800' name='L800'></a>   800     DWORD_PTR  headersum;
+<a id='L801' name='L801'></a>   801     DWORD_PTR  checksum;
+<a id='L802' name='L802'></a>   802 
+<a id='L803' name='L803'></a>   803     dos_header = (PIMAGE_DOS_HEADER) out_file.file_base;
+<a id='L804' name='L804'></a>   804     nt_header = (PIMAGE_NT_HEADERS) ((<strong class='reserved'>char</strong> *) dos_header + dos_header-&gt;e_lfanew);
+<a id='L805' name='L805'></a>   805 
+<a id='L806' name='L806'></a>   806     nt_header-&gt;OptionalHeader.CheckSum = 0;
+<a id='L807' name='L807'></a>   807 <em class='comment'>//    nt_header-&gt;FileHeader.TimeDateStamp = time (NULL);</em>
+<a id='L808' name='L808'></a>   808 <em class='comment'>//    dos_header-&gt;e_cp = size / 512;</em>
+<a id='L809' name='L809'></a>   809 <em class='comment'>//    nt_header-&gt;OptionalHeader.SizeOfImage = size;</em>
+<a id='L810' name='L810'></a>   810 
+<a id='L811' name='L811'></a>   811     pfnCheckSumMappedFile = (<strong class='reserved'>void</strong> *) <a href='../D/2642.html' title='Multiple defined in 2 places.'>GetProcAddress</a> (hImagehelp, "CheckSumMappedFile");
+<a id='L812' name='L812'></a>   812     <strong class='reserved'>if</strong> (pfnCheckSumMappedFile)
+<a id='L813' name='L813'></a>   813       <em class='brace'>{</em>
+<a id='L814' name='L814'></a>   814 <em class='comment'>//      nt_header-&gt;FileHeader.TimeDateStamp = time (NULL);</em>
+<a id='L815' name='L815'></a>   815         pfnCheckSumMappedFile (out_file.file_base,
+<a id='L816' name='L816'></a>   816                                out_file.<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>,
+<a id='L817' name='L817'></a>   817                                &amp;headersum,
+<a id='L818' name='L818'></a>   818                                &amp;checksum);
+<a id='L819' name='L819'></a>   819         nt_header-&gt;OptionalHeader.CheckSum = checksum;
+<a id='L820' name='L820'></a>   820       <em class='brace'>}</em>
+<a id='L821' name='L821'></a>   821     FreeLibrary (hImagehelp);
+<a id='L822' name='L822'></a>   822   <em class='brace'>}</em>
+<a id='L823' name='L823'></a>   823 
+<a id='L824' name='L824'></a>   824   <a href='../D/8608.html' title='Multiple defined in 2 places.'>close_file_data</a> (&amp;out_file);
+<a id='L825' name='L825'></a>   825   <a href='../D/8608.html' title='Multiple defined in 2 places.'>close_file_data</a> (&amp;in_file);
+<a id='L826' name='L826'></a>   826 
+<a id='L827' name='L827'></a>   827   <strong class='reserved'>return</strong> 0;
+<a id='L828' name='L828'></a>   828 <em class='brace'>}</em>
+<a id='L829' name='L829'></a>   829 
+<a id='L830' name='L830'></a>   830 <em class='comment'>/* eof */</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L62'>[^]</a><a href='#L765'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

@@ -1,0 +1,594 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/haiku_draw_support.cc</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/haiku_draw_support.cc</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L39'>[^]</a><a href='#L480'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L39' title='Defined at 39.'>rgb32_to_rgb_color</a></li>
+<li><a href='#L48' title='Defined at 48.'>get_view</a></li>
+<li><a href='#L55' title='Defined at 55.'>BView_StartClip</a></li>
+<li><a href='#L62' title='Defined at 62.'>BView_EndClip</a></li>
+<li><a href='#L69' title='Defined at 69.'>BView_SetHighColor</a></li>
+<li><a href='#L79' title='Defined at 79.'>BView_SetLowColor</a></li>
+<li><a href='#L89' title='Defined at 89.'>BView_SetPenSize</a></li>
+<li><a href='#L96' title='Defined at 96.'>BView_FillRectangle</a></li>
+<li><a href='#L105' title='Defined at 105.'>BView_FillRectangleAbs</a></li>
+<li><a href='#L114' title='Defined at 114.'>BView_StrokeRectangle</a></li>
+<li><a href='#L123' title='Defined at 123.'>BView_SetViewColor</a></li>
+<li><a href='#L137' title='Defined at 137.'>BView_ClipToRect</a></li>
+<li><a href='#L146' title='Defined at 146.'>BView_ClipToInverseRect</a></li>
+<li><a href='#L155' title='Defined at 155.'>BView_StrokeLine</a></li>
+<li><a href='#L165' title='Defined at 165.'>BView_SetFont</a></li>
+<li><a href='#L173' title='Defined at 173.'>BView_MovePenTo</a></li>
+<li><a href='#L182' title='Defined at 182.'>BView_DrawString</a></li>
+<li><a href='#L190' title='Defined at 190.'>BView_DrawChar</a></li>
+<li><a href='#L198' title='Defined at 198.'>BView_CopyBits</a></li>
+<li><a href='#L211' title='Defined at 211.'>rgb_color_hsl</a></li>
+<li><a href='#L248' title='Defined at 248.'>hue_to_rgb</a></li>
+<li><a href='#L260' title='Defined at 260.'>hsl_color_rgb</a></li>
+<li><a href='#L281' title='Defined at 281.'>BView_DrawBitmap</a></li>
+<li><a href='#L300' title='Defined at 300.'>BView_DrawBitmapTiled</a></li>
+<li><a href='#L322' title='Defined at 322.'>BView_DrawBitmapWithEraseOp</a></li>
+<li><a href='#L365' title='Defined at 365.'>be_draw_image_mask</a></li>
+<li><a href='#L402' title='Defined at 402.'>be_apply_affine_transform</a></li>
+<li><a href='#L411' title='Defined at 411.'>be_apply_inverse_transform</a></li>
+<li><a href='#L426' title='Defined at 426.'>BView_FillTriangle</a></li>
+<li><a href='#L435' title='Defined at 435.'>BView_InvertRect</a></li>
+<li><a href='#L443' title='Defined at 443.'>be_draw_cross_on_pixmap_1</a></li>
+<li><a href='#L470' title='Defined at 470.'>be_draw_cross_on_pixmap</a></li>
+<li><a href='#L480' title='Defined at 480.'>be_draw_bitmap_with_mask</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Haiku window system support.  Hey, Emacs, this is -*- C++ -*-</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 2021-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L18' name='L18'></a>    18 
+<a id='L19' name='L19'></a>    19 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;View.h&gt;
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;Region.h&gt;
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;Font.h&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;Window.h&gt;
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> &lt;Bitmap.h&gt;
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;cmath&gt;
+<a id='L28' name='L28'></a>    28 
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> "<a href='2910.html'>haiku_support.h</a>"
+<a id='L30' name='L30'></a>    30 
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#define</em> <a href='../R/4408.html' title='Multiple referred from 3 places.'>RGB_TO_UINT32</a>(r, <a href='../S/4167.html#L90' title='Defined at 90 in test/manual/etags/cp-src/c.C.'>g</a>, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>) ((255 &lt;&lt; 24) | ((r) &lt;&lt; 16) | ((<a href='../S/4167.html#L90' title='Defined at 90 in test/manual/etags/cp-src/c.C.'>g</a>) &lt;&lt; 8) | (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>))
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#define</em> <a href='../R/4241.html' title='Multiple referred from 10 places.'>RED_FROM_ULONG</a>(color)   (((color) &gt;&gt; 16) &amp; 0xff)
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#define</em> <a href='../R/2362.html' title='Multiple referred from 10 places.'>GREEN_FROM_ULONG</a>(color) (((color) &gt;&gt; 8) &amp; 0xff)
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#define</em> <a href='../R/265.html' title='Multiple referred from 10 places.'>BLUE_FROM_ULONG</a>(color)  ((color) &amp; 0xff)
+<a id='L35' name='L35'></a>    35 
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#define</em> <a href='../S/2881.html#L350' title='Referred from 350 in src/haiku_draw_support.cc.'>RGB_COLOR_UINT32</a>(r) <a href='../S/2881.html#L31' title='Defined at 31 in src/haiku_draw_support.cc.'>RGB_TO_UINT32</a> ((r).red, (r).green, (r).blue)
+<a id='L37' name='L37'></a>    37 
+<a id='L38' name='L38'></a>    38 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L39' name='L39'></a>    39 <a href='../R/13712.html' title='Multiple referred from 5 places.'>rgb32_to_rgb_color</a> (<a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> rgb, rgb_color *color)
+<a id='L40' name='L40'></a>    40 <em class='brace'>{</em>
+<a id='L41' name='L41'></a>    41   color-&gt;red = <a href='../D/4732.html' title='Multiple defined in 6 places.'>RED_FROM_ULONG</a> (rgb);
+<a id='L42' name='L42'></a>    42   color-&gt;green = <a href='../D/2583.html' title='Multiple defined in 6 places.'>GREEN_FROM_ULONG</a> (rgb);
+<a id='L43' name='L43'></a>    43   color-&gt;blue = <a href='../D/296.html' title='Multiple defined in 6 places.'>BLUE_FROM_ULONG</a> (rgb);
+<a id='L44' name='L44'></a>    44   color-&gt;alpha = 255;
+<a id='L45' name='L45'></a>    45 <em class='brace'>}</em>
+<a id='L46' name='L46'></a>    46 
+<a id='L47' name='L47'></a>    47 <strong class='reserved'>static</strong> BView *
+<a id='L48' name='L48'></a>    48 <a href='../R/9918.html' title='Multiple referred from 25 places.'>get_view</a> (<strong class='reserved'>void</strong> *vw)
+<a id='L49' name='L49'></a>    49 <em class='brace'>{</em>
+<a id='L50' name='L50'></a>    50   BView *view = (BView *) <a href='../S/2950.html#L4672' title='Defined at 4672 in src/haiku_support.cc.'>find_appropriate_view_for_draw</a> (vw);
+<a id='L51' name='L51'></a>    51   <strong class='reserved'>return</strong> view;
+<a id='L52' name='L52'></a>    52 <em class='brace'>}</em>
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54 <strong class='reserved'>void</strong>
+<a id='L55' name='L55'></a>    55 <a href='../R/396.html' title='Multiple referred from 19 places.'>BView_StartClip</a> (<strong class='reserved'>void</strong> *view)
+<a id='L56' name='L56'></a>    56 <em class='brace'>{</em>
+<a id='L57' name='L57'></a>    57   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L58' name='L58'></a>    58   vw-&gt;PushState ();
+<a id='L59' name='L59'></a>    59 <em class='brace'>}</em>
+<a id='L60' name='L60'></a>    60 
+<a id='L61' name='L61'></a>    61 <strong class='reserved'>void</strong>
+<a id='L62' name='L62'></a>    62 <a href='../R/385.html' title='Multiple referred from 19 places.'>BView_EndClip</a> (<strong class='reserved'>void</strong> *view)
+<a id='L63' name='L63'></a>    63 <em class='brace'>{</em>
+<a id='L64' name='L64'></a>    64   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L65' name='L65'></a>    65   vw-&gt;PopState ();
+<a id='L66' name='L66'></a>    66 <em class='brace'>}</em>
+<a id='L67' name='L67'></a>    67 
+<a id='L68' name='L68'></a>    68 <strong class='reserved'>void</strong>
+<a id='L69' name='L69'></a>    69 <a href='../R/392.html' title='Multiple referred from 45 places.'>BView_SetHighColor</a> (<strong class='reserved'>void</strong> *view, <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> color)
+<a id='L70' name='L70'></a>    70 <em class='brace'>{</em>
+<a id='L71' name='L71'></a>    71   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L72' name='L72'></a>    72   rgb_color col;
+<a id='L73' name='L73'></a>    73   <a href='../S/2881.html#L39' title='Defined at 39 in src/haiku_draw_support.cc.'>rgb32_to_rgb_color</a> (color, &amp;col);
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75   vw-&gt;SetHighColor (col);
+<a id='L76' name='L76'></a>    76 <em class='brace'>}</em>
+<a id='L77' name='L77'></a>    77 
+<a id='L78' name='L78'></a>    78 <strong class='reserved'>void</strong>
+<a id='L79' name='L79'></a>    79 <a href='../R/393.html' title='Multiple referred from 2 places.'>BView_SetLowColor</a> (<strong class='reserved'>void</strong> *view, <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> color)
+<a id='L80' name='L80'></a>    80 <em class='brace'>{</em>
+<a id='L81' name='L81'></a>    81   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L82' name='L82'></a>    82   rgb_color col;
+<a id='L83' name='L83'></a>    83   <a href='../S/2881.html#L39' title='Defined at 39 in src/haiku_draw_support.cc.'>rgb32_to_rgb_color</a> (color, &amp;col);
+<a id='L84' name='L84'></a>    84 
+<a id='L85' name='L85'></a>    85   vw-&gt;SetLowColor (col);
+<a id='L86' name='L86'></a>    86 <em class='brace'>}</em>
+<a id='L87' name='L87'></a>    87 
+<a id='L88' name='L88'></a>    88 <strong class='reserved'>void</strong>
+<a id='L89' name='L89'></a>    89 <a href='../R/394.html' title='Multiple referred from 8 places.'>BView_SetPenSize</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> u)
+<a id='L90' name='L90'></a>    90 <em class='brace'>{</em>
+<a id='L91' name='L91'></a>    91   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L92' name='L92'></a>    92   vw-&gt;SetPenSize (u);
+<a id='L93' name='L93'></a>    93 <em class='brace'>}</em>
+<a id='L94' name='L94'></a>    94 
+<a id='L95' name='L95'></a>    95 <strong class='reserved'>void</strong>
+<a id='L96' name='L96'></a>    96 <a href='../R/386.html' title='Multiple referred from 35 places.'>BView_FillRectangle</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height)
+<a id='L97' name='L97'></a>    97 <em class='brace'>{</em>
+<a id='L98' name='L98'></a>    98   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L99' name='L99'></a>    99   BRect rect = BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1);
+<a id='L100' name='L100'></a>   100 
+<a id='L101' name='L101'></a>   101   vw-&gt;FillRect (rect);
+<a id='L102' name='L102'></a>   102 <em class='brace'>}</em>
+<a id='L103' name='L103'></a>   103 
+<a id='L104' name='L104'></a>   104 <strong class='reserved'>void</strong>
+<a id='L105' name='L105'></a>   105 <a href='../R/387.html' title='Multiple referred from 2 places.'>BView_FillRectangleAbs</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> x1, <strong class='reserved'>int</strong> y1)
+<a id='L106' name='L106'></a>   106 <em class='brace'>{</em>
+<a id='L107' name='L107'></a>   107   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L108' name='L108'></a>   108   BRect rect = BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, x1, y1);
+<a id='L109' name='L109'></a>   109 
+<a id='L110' name='L110'></a>   110   vw-&gt;FillRect (rect);
+<a id='L111' name='L111'></a>   111 <em class='brace'>}</em>
+<a id='L112' name='L112'></a>   112 
+<a id='L113' name='L113'></a>   113 <strong class='reserved'>void</strong>
+<a id='L114' name='L114'></a>   114 <a href='../R/398.html' title='Multiple referred from 6 places.'>BView_StrokeRectangle</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height)
+<a id='L115' name='L115'></a>   115 <em class='brace'>{</em>
+<a id='L116' name='L116'></a>   116   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L117' name='L117'></a>   117   BRect rect = BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1);
+<a id='L118' name='L118'></a>   118 
+<a id='L119' name='L119'></a>   119   vw-&gt;StrokeRect (rect);
+<a id='L120' name='L120'></a>   120 <em class='brace'>}</em>
+<a id='L121' name='L121'></a>   121 
+<a id='L122' name='L122'></a>   122 <strong class='reserved'>void</strong>
+<a id='L123' name='L123'></a>   123 <a href='../R/395.html' title='Multiple referred from 2 places.'>BView_SetViewColor</a> (<strong class='reserved'>void</strong> *view, <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> color)
+<a id='L124' name='L124'></a>   124 <em class='brace'>{</em>
+<a id='L125' name='L125'></a>   125   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L126' name='L126'></a>   126   rgb_color col;
+<a id='L127' name='L127'></a>   127   <a href='../S/2881.html#L39' title='Defined at 39 in src/haiku_draw_support.cc.'>rgb32_to_rgb_color</a> (color, &amp;col);
+<a id='L128' name='L128'></a>   128 
+<a id='L129' name='L129'></a>   129 <em class='sharp'>#ifndef</em> USE_BE_CAIRO
+<a id='L130' name='L130'></a>   130   vw-&gt;SetViewColor (col);
+<a id='L131' name='L131'></a>   131 <em class='sharp'>#else</em>
+<a id='L132' name='L132'></a>   132   vw-&gt;SetViewColor (B_TRANSPARENT_32_BIT);
+<a id='L133' name='L133'></a>   133 <em class='sharp'>#endif</em>
+<a id='L134' name='L134'></a>   134 <em class='brace'>}</em>
+<a id='L135' name='L135'></a>   135 
+<a id='L136' name='L136'></a>   136 <strong class='reserved'>void</strong>
+<a id='L137' name='L137'></a>   137 <a href='../R/378.html' title='Multiple referred from 16 places.'>BView_ClipToRect</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height)
+<a id='L138' name='L138'></a>   138 <em class='brace'>{</em>
+<a id='L139' name='L139'></a>   139   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L140' name='L140'></a>   140   BRect rect = BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1);
+<a id='L141' name='L141'></a>   141 
+<a id='L142' name='L142'></a>   142   vw-&gt;ClipToRect (rect);
+<a id='L143' name='L143'></a>   143 <em class='brace'>}</em>
+<a id='L144' name='L144'></a>   144 
+<a id='L145' name='L145'></a>   145 <strong class='reserved'>void</strong>
+<a id='L146' name='L146'></a>   146 <a href='../S/2910.html#L584' title='Referred from 584 in src/haiku_support.h.'>BView_ClipToInverseRect</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height)
+<a id='L147' name='L147'></a>   147 <em class='brace'>{</em>
+<a id='L148' name='L148'></a>   148   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L149' name='L149'></a>   149   BRect rect = BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1);
+<a id='L150' name='L150'></a>   150 
+<a id='L151' name='L151'></a>   151   vw-&gt;ClipToInverseRect (rect);
+<a id='L152' name='L152'></a>   152 <em class='brace'>}</em>
+<a id='L153' name='L153'></a>   153 
+<a id='L154' name='L154'></a>   154 <strong class='reserved'>void</strong>
+<a id='L155' name='L155'></a>   155 <a href='../R/397.html' title='Multiple referred from 10 places.'>BView_StrokeLine</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> sx, <strong class='reserved'>int</strong> sy, <strong class='reserved'>int</strong> tx, <strong class='reserved'>int</strong> ty)
+<a id='L156' name='L156'></a>   156 <em class='brace'>{</em>
+<a id='L157' name='L157'></a>   157   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L158' name='L158'></a>   158   BPoint from = BPoint (sx, sy);
+<a id='L159' name='L159'></a>   159   BPoint to = BPoint (tx, ty);
+<a id='L160' name='L160'></a>   160 
+<a id='L161' name='L161'></a>   161   vw-&gt;StrokeLine (from, to);
+<a id='L162' name='L162'></a>   162 <em class='brace'>}</em>
+<a id='L163' name='L163'></a>   163 
+<a id='L164' name='L164'></a>   164 <strong class='reserved'>void</strong>
+<a id='L165' name='L165'></a>   165 <a href='../R/391.html' title='Multiple referred from 2 places.'>BView_SetFont</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>void</strong> *<a href='../S/2852.html#L272' title='Defined at 272 in src/font.h.'>font</a>)
+<a id='L166' name='L166'></a>   166 <em class='brace'>{</em>
+<a id='L167' name='L167'></a>   167   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L168' name='L168'></a>   168 
+<a id='L169' name='L169'></a>   169   vw-&gt;SetFont ((BFont *) <a href='../S/2852.html#L272' title='Defined at 272 in src/font.h.'>font</a>);
+<a id='L170' name='L170'></a>   170 <em class='brace'>}</em>
+<a id='L171' name='L171'></a>   171 
+<a id='L172' name='L172'></a>   172 <strong class='reserved'>void</strong>
+<a id='L173' name='L173'></a>   173 <a href='../R/390.html' title='Multiple referred from 2 places.'>BView_MovePenTo</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y)
+<a id='L174' name='L174'></a>   174 <em class='brace'>{</em>
+<a id='L175' name='L175'></a>   175   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L176' name='L176'></a>   176   BPoint pt = BPoint (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y);
+<a id='L177' name='L177'></a>   177 
+<a id='L178' name='L178'></a>   178   vw-&gt;MovePenTo (pt);
+<a id='L179' name='L179'></a>   179 <em class='brace'>}</em>
+<a id='L180' name='L180'></a>   180 
+<a id='L181' name='L181'></a>   181 <strong class='reserved'>void</strong>
+<a id='L182' name='L182'></a>   182 <a href='../R/384.html' title='Multiple referred from 3 places.'>BView_DrawString</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *chr, ptrdiff_t len)
+<a id='L183' name='L183'></a>   183 <em class='brace'>{</em>
+<a id='L184' name='L184'></a>   184   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186   vw-&gt;DrawString (chr, len);
+<a id='L187' name='L187'></a>   187 <em class='brace'>}</em>
+<a id='L188' name='L188'></a>   188 
+<a id='L189' name='L189'></a>   189 <strong class='reserved'>void</strong>
+<a id='L190' name='L190'></a>   190 <a href='../S/2910.html#L577' title='Referred from 577 in src/haiku_support.h.'>BView_DrawChar</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>char</strong> chr)
+<a id='L191' name='L191'></a>   191 <em class='brace'>{</em>
+<a id='L192' name='L192'></a>   192   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L193' name='L193'></a>   193 
+<a id='L194' name='L194'></a>   194   vw-&gt;DrawChar (chr);
+<a id='L195' name='L195'></a>   195 <em class='brace'>}</em>
+<a id='L196' name='L196'></a>   196 
+<a id='L197' name='L197'></a>   197 <strong class='reserved'>void</strong>
+<a id='L198' name='L198'></a>   198 <a href='../R/379.html' title='Multiple referred from 2 places.'>BView_CopyBits</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height,
+<a id='L199' name='L199'></a>   199                 <strong class='reserved'>int</strong> tox, <strong class='reserved'>int</strong> toy, <strong class='reserved'>int</strong> towidth, <strong class='reserved'>int</strong> toheight)
+<a id='L200' name='L200'></a>   200 <em class='brace'>{</em>
+<a id='L201' name='L201'></a>   201   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L202' name='L202'></a>   202 
+<a id='L203' name='L203'></a>   203   vw-&gt;CopyBits (BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1),
+<a id='L204' name='L204'></a>   204                 BRect (tox, toy, tox + towidth - 1, toy + toheight - 1));
+<a id='L205' name='L205'></a>   205   vw-&gt;Sync ();
+<a id='L206' name='L206'></a>   206 <em class='brace'>}</em>
+<a id='L207' name='L207'></a>   207 
+<a id='L208' name='L208'></a>   208 <em class='comment'>/* Convert RGB32 color color from RGB color space to its</em>
+<a id='L209' name='L209'></a>   209 <em class='comment'>   HSL components pointed to by H, S and L.  */</em>
+<a id='L210' name='L210'></a>   210 <strong class='reserved'>void</strong>
+<a id='L211' name='L211'></a>   211 <a href='../R/13713.html' title='Multiple referred from 2 places.'>rgb_color_hsl</a> (<a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> rgb, <strong class='reserved'>double</strong> *h, <strong class='reserved'>double</strong> *s, <strong class='reserved'>double</strong> *l)
+<a id='L212' name='L212'></a>   212 <em class='brace'>{</em>
+<a id='L213' name='L213'></a>   213   rgb_color col;
+<a id='L214' name='L214'></a>   214   <a href='../S/2881.html#L39' title='Defined at 39 in src/haiku_draw_support.cc.'>rgb32_to_rgb_color</a> (rgb, &amp;col);
+<a id='L215' name='L215'></a>   215 
+<a id='L216' name='L216'></a>   216   <strong class='reserved'>double</strong> red = col.red / 255.0;
+<a id='L217' name='L217'></a>   217   <strong class='reserved'>double</strong> green = col.green / 255.0;
+<a id='L218' name='L218'></a>   218   <strong class='reserved'>double</strong> blue = col.blue / 255.0;
+<a id='L219' name='L219'></a>   219 
+<a id='L220' name='L220'></a>   220   <strong class='reserved'>double</strong> <a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> = <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::fmax (<a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::fmax (red, blue), green);
+<a id='L221' name='L221'></a>   221   <strong class='reserved'>double</strong> <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a> = <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::fmin (<a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::fmin (red, blue), green);
+<a id='L222' name='L222'></a>   222   <strong class='reserved'>double</strong> delta = <a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> - <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a>;
+<a id='L223' name='L223'></a>   223   *l = (<a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> + <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a>) / 2.0;
+<a id='L224' name='L224'></a>   224 
+<a id='L225' name='L225'></a>   225   <strong class='reserved'>if</strong> (!delta)
+<a id='L226' name='L226'></a>   226     <em class='brace'>{</em>
+<a id='L227' name='L227'></a>   227       *h = 0;
+<a id='L228' name='L228'></a>   228       *s = 0;
+<a id='L229' name='L229'></a>   229       <strong class='reserved'>return</strong>;
+<a id='L230' name='L230'></a>   230     <em class='brace'>}</em>
+<a id='L231' name='L231'></a>   231 
+<a id='L232' name='L232'></a>   232   *s = (*l &lt; 0.5) ? delta / (<a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> + <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a>) :
+<a id='L233' name='L233'></a>   233     delta / (20 - <a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> - <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a>);
+<a id='L234' name='L234'></a>   234   <strong class='reserved'>double</strong> rc = (<a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> - red) / delta;
+<a id='L235' name='L235'></a>   235   <strong class='reserved'>double</strong> gc = (<a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> - green) / delta;
+<a id='L236' name='L236'></a>   236   <strong class='reserved'>double</strong> bc = (<a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a> - blue) / delta;
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238   <strong class='reserved'>if</strong> (red == <a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a>)
+<a id='L239' name='L239'></a>   239     *h = bc - gc;
+<a id='L240' name='L240'></a>   240   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (green == <a href='../D/12838.html' title='Multiple defined in 13 places.'>max</a>)
+<a id='L241' name='L241'></a>   241     *h = 2.0 + rc + -bc;
+<a id='L242' name='L242'></a>   242   <strong class='reserved'>else</strong>
+<a id='L243' name='L243'></a>   243     *h = 4.0 + gc + -rc;
+<a id='L244' name='L244'></a>   244   *h = <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::fmod (*h / 6, 1.0);
+<a id='L245' name='L245'></a>   245 <em class='brace'>}</em>
+<a id='L246' name='L246'></a>   246 
+<a id='L247' name='L247'></a>   247 <strong class='reserved'>static</strong> <strong class='reserved'>double</strong>
+<a id='L248' name='L248'></a>   248 <a href='../R/10672.html' title='Multiple referred from 3 places.'>hue_to_rgb</a> (<strong class='reserved'>double</strong> v1, <strong class='reserved'>double</strong> v2, <strong class='reserved'>double</strong> h)
+<a id='L249' name='L249'></a>   249 <em class='brace'>{</em>
+<a id='L250' name='L250'></a>   250   <strong class='reserved'>if</strong> (h &lt; 1 / 6)
+<a id='L251' name='L251'></a>   251     <strong class='reserved'>return</strong> v1 + (v2 - v1) * h * 6.0;
+<a id='L252' name='L252'></a>   252   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (h &lt; 0.5)
+<a id='L253' name='L253'></a>   253     <strong class='reserved'>return</strong> v2;
+<a id='L254' name='L254'></a>   254   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (h &lt; 2.0 / 3)
+<a id='L255' name='L255'></a>   255     <strong class='reserved'>return</strong> v1 + (v2 - v1) * (2.0 / 3 - h) * 6.0;
+<a id='L256' name='L256'></a>   256   <strong class='reserved'>return</strong> v1;
+<a id='L257' name='L257'></a>   257 <em class='brace'>}</em>
+<a id='L258' name='L258'></a>   258 
+<a id='L259' name='L259'></a>   259 <strong class='reserved'>void</strong>
+<a id='L260' name='L260'></a>   260 <a href='../R/10668.html' title='Multiple referred from 3 places.'>hsl_color_rgb</a> (<strong class='reserved'>double</strong> h, <strong class='reserved'>double</strong> s, <strong class='reserved'>double</strong> l, <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> *rgb)
+<a id='L261' name='L261'></a>   261 <em class='brace'>{</em>
+<a id='L262' name='L262'></a>   262   <strong class='reserved'>if</strong> (!s)
+<a id='L263' name='L263'></a>   263     *rgb = <a href='../S/2881.html#L31' title='Defined at 31 in src/haiku_draw_support.cc.'>RGB_TO_UINT32</a> (<a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::lrint (l * 255),
+<a id='L264' name='L264'></a>   264                           <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::lrint (l * 255),
+<a id='L265' name='L265'></a>   265                           <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::lrint (l * 255));
+<a id='L266' name='L266'></a>   266   <strong class='reserved'>else</strong>
+<a id='L267' name='L267'></a>   267     <em class='brace'>{</em>
+<a id='L268' name='L268'></a>   268       <strong class='reserved'>double</strong> m2 = l &lt;= 0.5 ? l * (1 + s) : l + s - l * s;
+<a id='L269' name='L269'></a>   269       <strong class='reserved'>double</strong> m1 = 2.0 * l - m2;
+<a id='L270' name='L270'></a>   270 
+<a id='L271' name='L271'></a>   271       *rgb = <a href='../S/2881.html#L31' title='Defined at 31 in src/haiku_draw_support.cc.'>RGB_TO_UINT32</a>
+<a id='L272' name='L272'></a>   272         (<a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::lrint (<a href='../S/2881.html#L248' title='Defined at 248 in src/haiku_draw_support.cc.'>hue_to_rgb</a> (m1, m2,
+<a id='L273' name='L273'></a>   273                                  <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::fmod (h + 1 / 3.0, 1)) * 255),
+<a id='L274' name='L274'></a>   274          <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::lrint (<a href='../S/2881.html#L248' title='Defined at 248 in src/haiku_draw_support.cc.'>hue_to_rgb</a> (m1, m2, h) * 255),
+<a id='L275' name='L275'></a>   275          <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::lrint (<a href='../S/2881.html#L248' title='Defined at 248 in src/haiku_draw_support.cc.'>hue_to_rgb</a> (m1, m2,
+<a id='L276' name='L276'></a>   276                                  <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::fmod (h - 1 / 3.0, 1)) * 255));
+<a id='L277' name='L277'></a>   277     <em class='brace'>}</em>
+<a id='L278' name='L278'></a>   278 <em class='brace'>}</em>
+<a id='L279' name='L279'></a>   279 
+<a id='L280' name='L280'></a>   280 <strong class='reserved'>void</strong>
+<a id='L281' name='L281'></a>   281 <a href='../R/380.html' title='Multiple referred from 2 places.'>BView_DrawBitmap</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>void</strong> *bitmap, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y,
+<a id='L282' name='L282'></a>   282                   <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height, <strong class='reserved'>int</strong> vx, <strong class='reserved'>int</strong> vy, <strong class='reserved'>int</strong> vwidth,
+<a id='L283' name='L283'></a>   283                   <strong class='reserved'>int</strong> vheight, <strong class='reserved'>bool</strong> use_bilinear_filtering)
+<a id='L284' name='L284'></a>   284 <em class='brace'>{</em>
+<a id='L285' name='L285'></a>   285   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L286' name='L286'></a>   286   BBitmap *bm = (BBitmap *) bitmap;
+<a id='L287' name='L287'></a>   287 
+<a id='L288' name='L288'></a>   288   vw-&gt;SetDrawingMode (B_OP_OVER);
+<a id='L289' name='L289'></a>   289   <strong class='reserved'>if</strong> (!use_bilinear_filtering)
+<a id='L290' name='L290'></a>   290     vw-&gt;DrawBitmap (bm, BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1),
+<a id='L291' name='L291'></a>   291                     BRect (vx, vy, vx + vwidth - 1, vy + vheight - 1));
+<a id='L292' name='L292'></a>   292   <strong class='reserved'>else</strong>
+<a id='L293' name='L293'></a>   293     vw-&gt;DrawBitmap (bm, BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1),
+<a id='L294' name='L294'></a>   294                     BRect (vx, vy, vx + vwidth - 1, vy + vheight - 1),
+<a id='L295' name='L295'></a>   295                     B_FILTER_BITMAP_BILINEAR);
+<a id='L296' name='L296'></a>   296   vw-&gt;SetDrawingMode (B_OP_COPY);
+<a id='L297' name='L297'></a>   297 <em class='brace'>}</em>
+<a id='L298' name='L298'></a>   298 
+<a id='L299' name='L299'></a>   299 <strong class='reserved'>void</strong>
+<a id='L300' name='L300'></a>   300 <a href='../R/381.html' title='Multiple referred from 3 places.'>BView_DrawBitmapTiled</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>void</strong> *bitmap, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y,
+<a id='L301' name='L301'></a>   301                        <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height, <strong class='reserved'>int</strong> vx, <strong class='reserved'>int</strong> vy,
+<a id='L302' name='L302'></a>   302                        <strong class='reserved'>int</strong> vwidth, <strong class='reserved'>int</strong> vheight)
+<a id='L303' name='L303'></a>   303 <em class='brace'>{</em>
+<a id='L304' name='L304'></a>   304   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L305' name='L305'></a>   305   BBitmap *bm = (BBitmap *) bitmap;
+<a id='L306' name='L306'></a>   306   BRect bounds = bm-&gt;Bounds ();
+<a id='L307' name='L307'></a>   307 
+<a id='L308' name='L308'></a>   308   <strong class='reserved'>if</strong> (width == -1)
+<a id='L309' name='L309'></a>   309     width = <a href='../S/2910.html#L491' title='Defined at 491 in src/haiku_support.h.'>BE_RECT_WIDTH</a> (bounds);
+<a id='L310' name='L310'></a>   310 
+<a id='L311' name='L311'></a>   311   <strong class='reserved'>if</strong> (height == -1)
+<a id='L312' name='L312'></a>   312     height = <a href='../S/2910.html#L490' title='Defined at 490 in src/haiku_support.h.'>BE_RECT_HEIGHT</a> (bounds);
+<a id='L313' name='L313'></a>   313 
+<a id='L314' name='L314'></a>   314   vw-&gt;SetDrawingMode (B_OP_OVER);
+<a id='L315' name='L315'></a>   315   vw-&gt;DrawBitmap (bm, BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1),
+<a id='L316' name='L316'></a>   316                   BRect (vx, vy, vx + vwidth - 1, vy + vheight - 1),
+<a id='L317' name='L317'></a>   317                   B_TILE_BITMAP);
+<a id='L318' name='L318'></a>   318   vw-&gt;SetDrawingMode (B_OP_COPY);
+<a id='L319' name='L319'></a>   319 <em class='brace'>}</em>
+<a id='L320' name='L320'></a>   320 
+<a id='L321' name='L321'></a>   321 <strong class='reserved'>void</strong>
+<a id='L322' name='L322'></a>   322 <a href='../R/382.html' title='Multiple referred from 2 places.'>BView_DrawBitmapWithEraseOp</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>void</strong> *bitmap, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>,
+<a id='L323' name='L323'></a>   323                              <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height)
+<a id='L324' name='L324'></a>   324 <em class='brace'>{</em>
+<a id='L325' name='L325'></a>   325   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L326' name='L326'></a>   326   BBitmap *bm = (BBitmap *) bitmap;
+<a id='L327' name='L327'></a>   327   BBitmap bc (bm-&gt;Bounds (), B_RGBA32);
+<a id='L328' name='L328'></a>   328   BRect rect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1);
+<a id='L329' name='L329'></a>   329   <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> *<a href='../S/2893.html#L984' title='Defined at 984 in src/emacs-module.c.'>bits</a>;
+<a id='L330' name='L330'></a>   330   size_t stride;
+<a id='L331' name='L331'></a>   331   rgb_color low_color;
+<a id='L332' name='L332'></a>   332   BRect bounds;
+<a id='L333' name='L333'></a>   333 
+<a id='L334' name='L334'></a>   334   <strong class='reserved'>if</strong> (bc.<a href='../D/3123.html' title='Multiple defined in 2 places.'>InitCheck</a> () != B_OK || bc.ImportBits (bm) != B_OK)
+<a id='L335' name='L335'></a>   335     <strong class='reserved'>return</strong>;
+<a id='L336' name='L336'></a>   336 
+<a id='L337' name='L337'></a>   337   <a href='../S/2893.html#L984' title='Defined at 984 in src/emacs-module.c.'>bits</a> = (<a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> *) bc.Bits ();
+<a id='L338' name='L338'></a>   338   stride = bc.BytesPerRow ();
+<a id='L339' name='L339'></a>   339 
+<a id='L340' name='L340'></a>   340   <strong class='reserved'>if</strong> (bm-&gt;ColorSpace () == B_GRAY1)
+<a id='L341' name='L341'></a>   341     <em class='brace'>{</em>
+<a id='L342' name='L342'></a>   342       low_color = vw-&gt;LowColor ();
+<a id='L343' name='L343'></a>   343       bounds = bc.Bounds ();
+<a id='L344' name='L344'></a>   344 
+<a id='L345' name='L345'></a>   345       <strong class='reserved'>for</strong> (<strong class='reserved'>int</strong> y = 0; y &lt; <a href='../S/2910.html#L490' title='Defined at 490 in src/haiku_support.h.'>BE_RECT_HEIGHT</a> (bounds); ++y)
+<a id='L346' name='L346'></a>   346         <em class='brace'>{</em>
+<a id='L347' name='L347'></a>   347           <strong class='reserved'>for</strong> (<strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> = 0; <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> &lt; <a href='../S/2910.html#L491' title='Defined at 491 in src/haiku_support.h.'>BE_RECT_WIDTH</a> (bounds); ++<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>)
+<a id='L348' name='L348'></a>   348             <em class='brace'>{</em>
+<a id='L349' name='L349'></a>   349               <strong class='reserved'>if</strong> (<a href='../S/2893.html#L984' title='Defined at 984 in src/emacs-module.c.'>bits</a>[y * (stride / 4) + <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>] == 0xFF000000)
+<a id='L350' name='L350'></a>   350                 <a href='../S/2893.html#L984' title='Defined at 984 in src/emacs-module.c.'>bits</a>[y * (stride / 4) + <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>] = <a href='../S/2881.html#L36' title='Defined at 36 in src/haiku_draw_support.cc.'>RGB_COLOR_UINT32</a> (low_color);
+<a id='L351' name='L351'></a>   351               <strong class='reserved'>else</strong>
+<a id='L352' name='L352'></a>   352                 <a href='../S/2893.html#L984' title='Defined at 984 in src/emacs-module.c.'>bits</a>[y * (stride / 4) + <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>] = 0;
+<a id='L353' name='L353'></a>   353             <em class='brace'>}</em>
+<a id='L354' name='L354'></a>   354         <em class='brace'>}</em>
+<a id='L355' name='L355'></a>   355     <em class='brace'>}</em>
+<a id='L356' name='L356'></a>   356 
+<a id='L357' name='L357'></a>   357   vw-&gt;SetDrawingMode ((bm-&gt;ColorSpace ()
+<a id='L358' name='L358'></a>   358                        == B_GRAY1)
+<a id='L359' name='L359'></a>   359                       ? B_OP_OVER : B_OP_ERASE);
+<a id='L360' name='L360'></a>   360   vw-&gt;DrawBitmap (&amp;bc, rect);
+<a id='L361' name='L361'></a>   361   vw-&gt;SetDrawingMode (B_OP_COPY);
+<a id='L362' name='L362'></a>   362 <em class='brace'>}</em>
+<a id='L363' name='L363'></a>   363 
+<a id='L364' name='L364'></a>   364 <strong class='reserved'>void</strong>
+<a id='L365' name='L365'></a>   365 <a href='../R/7079.html' title='Multiple referred from 2 places.'>be_draw_image_mask</a> (<strong class='reserved'>void</strong> *src, <strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width,
+<a id='L366' name='L366'></a>   366                     <strong class='reserved'>int</strong> height, <strong class='reserved'>int</strong> vx, <strong class='reserved'>int</strong> vy, <strong class='reserved'>int</strong> vwidth, <strong class='reserved'>int</strong> vheight,
+<a id='L367' name='L367'></a>   367                     <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> color)
+<a id='L368' name='L368'></a>   368 <em class='brace'>{</em>
+<a id='L369' name='L369'></a>   369   BBitmap *source = (BBitmap *) src;
+<a id='L370' name='L370'></a>   370   BBitmap bm (source-&gt;Bounds (), B_RGBA32);
+<a id='L371' name='L371'></a>   371   BRect bounds = bm.Bounds ();
+<a id='L372' name='L372'></a>   372   <strong class='reserved'>int</strong> bx, by, bit;
+<a id='L373' name='L373'></a>   373   BView *vw;
+<a id='L374' name='L374'></a>   374 
+<a id='L375' name='L375'></a>   375   <strong class='reserved'>if</strong> (bm.<a href='../D/3123.html' title='Multiple defined in 2 places.'>InitCheck</a> () != B_OK)
+<a id='L376' name='L376'></a>   376     <strong class='reserved'>return</strong>;
+<a id='L377' name='L377'></a>   377 
+<a id='L378' name='L378'></a>   378   <em class='comment'>/* Fill the background color or transparency into the bitmap,</em>
+<a id='L379' name='L379'></a>   379 <em class='comment'>     depending on the value of the mask.  */</em>
+<a id='L380' name='L380'></a>   380   <strong class='reserved'>for</strong> (by = 0; by &lt; <a href='../S/2910.html#L490' title='Defined at 490 in src/haiku_support.h.'>BE_RECT_HEIGHT</a> (bounds); ++by)
+<a id='L381' name='L381'></a>   381     <em class='brace'>{</em>
+<a id='L382' name='L382'></a>   382       <strong class='reserved'>for</strong> (bx = 0; bx &lt; <a href='../S/2910.html#L491' title='Defined at 491 in src/haiku_support.h.'>BE_RECT_WIDTH</a> (bounds); ++bx)
+<a id='L383' name='L383'></a>   383         <em class='brace'>{</em>
+<a id='L384' name='L384'></a>   384           bit = <a href='../S/2923.html#L1562' title='Defined at 1562 in src/haikufns.c.'>haiku_get_pixel</a> ((<strong class='reserved'>void</strong> *) source, bx, by);
+<a id='L385' name='L385'></a>   385 
+<a id='L386' name='L386'></a>   386           <strong class='reserved'>if</strong> (!bit)
+<a id='L387' name='L387'></a>   387             <a href='../S/2923.html#L1583' title='Defined at 1583 in src/haikufns.c.'>haiku_put_pixel</a> ((<strong class='reserved'>void</strong> *) &amp;bm, bx, by,
+<a id='L388' name='L388'></a>   388                              ((<a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a>) 255 &lt;&lt; 24) | color);
+<a id='L389' name='L389'></a>   389           <strong class='reserved'>else</strong>
+<a id='L390' name='L390'></a>   390             <a href='../S/2923.html#L1583' title='Defined at 1583 in src/haikufns.c.'>haiku_put_pixel</a> ((<strong class='reserved'>void</strong> *) &amp;bm, bx, by, 0);
+<a id='L391' name='L391'></a>   391         <em class='brace'>}</em>
+<a id='L392' name='L392'></a>   392     <em class='brace'>}</em>
+<a id='L393' name='L393'></a>   393 
+<a id='L394' name='L394'></a>   394   vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L395' name='L395'></a>   395   vw-&gt;SetDrawingMode (B_OP_OVER);
+<a id='L396' name='L396'></a>   396   vw-&gt;DrawBitmap (&amp;bm, BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1),
+<a id='L397' name='L397'></a>   397                   BRect (vx, vy, vx + vwidth - 1, vy + vheight - 1));
+<a id='L398' name='L398'></a>   398   vw-&gt;SetDrawingMode (B_OP_COPY);
+<a id='L399' name='L399'></a>   399 <em class='brace'>}</em>
+<a id='L400' name='L400'></a>   400 
+<a id='L401' name='L401'></a>   401 <strong class='reserved'>void</strong>
+<a id='L402' name='L402'></a>   402 <a href='../R/7063.html' title='Multiple referred from 3 places.'>be_apply_affine_transform</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>double</strong> m0, <strong class='reserved'>double</strong> m1, <strong class='reserved'>double</strong> tx,
+<a id='L403' name='L403'></a>   403                            <strong class='reserved'>double</strong> m2, <strong class='reserved'>double</strong> m3, <strong class='reserved'>double</strong> ty)
+<a id='L404' name='L404'></a>   404 <em class='brace'>{</em>
+<a id='L405' name='L405'></a>   405   BAffineTransform <a href='../S/2945.html#L1891' title='Defined at 1891 in src/w32term.c.'>transform</a> (m0, m2, m1, m3, tx, ty);
+<a id='L406' name='L406'></a>   406 
+<a id='L407' name='L407'></a>   407   <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view)-&gt;SetTransform (<a href='../S/2945.html#L1891' title='Defined at 1891 in src/w32term.c.'>transform</a>);
+<a id='L408' name='L408'></a>   408 <em class='brace'>}</em>
+<a id='L409' name='L409'></a>   409 
+<a id='L410' name='L410'></a>   410 <strong class='reserved'>void</strong>
+<a id='L411' name='L411'></a>   411 <a href='../S/2910.html#L603' title='Referred from 603 in src/haiku_support.h.'>be_apply_inverse_transform</a> (<strong class='reserved'>double</strong> (*<a href='../S/3095.html#L2534' title='Defined at 2534 in src/image.c.'>matrix3x3</a>)[3], <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y,
+<a id='L412' name='L412'></a>   412                             <strong class='reserved'>int</strong> *x_out, <strong class='reserved'>int</strong> *y_out)
+<a id='L413' name='L413'></a>   413 <em class='brace'>{</em>
+<a id='L414' name='L414'></a>   414   BAffineTransform <a href='../S/2945.html#L1891' title='Defined at 1891 in src/w32term.c.'>transform</a> (<a href='../S/3095.html#L2534' title='Defined at 2534 in src/image.c.'>matrix3x3</a>[0][0], <a href='../S/3095.html#L2534' title='Defined at 2534 in src/image.c.'>matrix3x3</a>[1][0],
+<a id='L415' name='L415'></a>   415                               <a href='../S/3095.html#L2534' title='Defined at 2534 in src/image.c.'>matrix3x3</a>[0][1], <a href='../S/3095.html#L2534' title='Defined at 2534 in src/image.c.'>matrix3x3</a>[1][1],
+<a id='L416' name='L416'></a>   416                               <a href='../S/3095.html#L2534' title='Defined at 2534 in src/image.c.'>matrix3x3</a>[0][2], <a href='../S/3095.html#L2534' title='Defined at 2534 in src/image.c.'>matrix3x3</a>[1][2]);
+<a id='L417' name='L417'></a>   417   BPoint point (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y);
+<a id='L418' name='L418'></a>   418 
+<a id='L419' name='L419'></a>   419   <a href='../S/2945.html#L1891' title='Defined at 1891 in src/w32term.c.'>transform</a>.ApplyInverse (&amp;point);
+<a id='L420' name='L420'></a>   420 
+<a id='L421' name='L421'></a>   421   *x_out = <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::floor (point.<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>);
+<a id='L422' name='L422'></a>   422   *y_out = <a href='../S/3146.html#L24' title='Defined at 24 in test/lisp/cedet/semantic-utest-ia-resources/testtypedefs.cpp.'>std</a>::floor (point.y);
+<a id='L423' name='L423'></a>   423 <em class='brace'>}</em>
+<a id='L424' name='L424'></a>   424 
+<a id='L425' name='L425'></a>   425 <strong class='reserved'>void</strong>
+<a id='L426' name='L426'></a>   426 <a href='../R/388.html' title='Multiple referred from 3 places.'>BView_FillTriangle</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> x1, <strong class='reserved'>int</strong> y1,
+<a id='L427' name='L427'></a>   427                     <strong class='reserved'>int</strong> x2, <strong class='reserved'>int</strong> y2, <strong class='reserved'>int</strong> x3, <strong class='reserved'>int</strong> y3)
+<a id='L428' name='L428'></a>   428 <em class='brace'>{</em>
+<a id='L429' name='L429'></a>   429   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L430' name='L430'></a>   430   vw-&gt;FillTriangle (BPoint (x1, y1), BPoint (x2, y2),
+<a id='L431' name='L431'></a>   431                     BPoint (x3, y3));
+<a id='L432' name='L432'></a>   432 <em class='brace'>}</em>
+<a id='L433' name='L433'></a>   433 
+<a id='L434' name='L434'></a>   434 <strong class='reserved'>void</strong>
+<a id='L435' name='L435'></a>   435 <a href='../R/389.html' title='Multiple referred from 7 places.'>BView_InvertRect</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height)
+<a id='L436' name='L436'></a>   436 <em class='brace'>{</em>
+<a id='L437' name='L437'></a>   437   BView *vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L438' name='L438'></a>   438 
+<a id='L439' name='L439'></a>   439   vw-&gt;InvertRect (BRect (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1));
+<a id='L440' name='L440'></a>   440 <em class='brace'>}</em>
+<a id='L441' name='L441'></a>   441 
+<a id='L442' name='L442'></a>   442 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L443' name='L443'></a>   443 <a href='../S/2881.html#L475' title='Referred from 475 in src/haiku_draw_support.cc.'>be_draw_cross_on_pixmap_1</a> (BBitmap *bitmap, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width,
+<a id='L444' name='L444'></a>   444                            <strong class='reserved'>int</strong> height, <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> color)
+<a id='L445' name='L445'></a>   445 <em class='brace'>{</em>
+<a id='L446' name='L446'></a>   446   BBitmap dest (bitmap-&gt;Bounds (),
+<a id='L447' name='L447'></a>   447                 bitmap-&gt;ColorSpace (),
+<a id='L448' name='L448'></a>   448                 <strong class='reserved'>true</strong>, <strong class='reserved'>false</strong>);
+<a id='L449' name='L449'></a>   449   BView view (bitmap-&gt;Bounds (), <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, B_FOLLOW_NONE, 0);
+<a id='L450' name='L450'></a>   450   rgb_color high_color;
+<a id='L451' name='L451'></a>   451 
+<a id='L452' name='L452'></a>   452   <a href='../S/2881.html#L39' title='Defined at 39 in src/haiku_draw_support.cc.'>rgb32_to_rgb_color</a> (color, &amp;high_color);
+<a id='L453' name='L453'></a>   453   dest.ImportBits (bitmap);
+<a id='L454' name='L454'></a>   454 
+<a id='L455' name='L455'></a>   455   <strong class='reserved'>if</strong> (!dest.Lock ())
+<a id='L456' name='L456'></a>   456     <strong class='reserved'>return</strong>;
+<a id='L457' name='L457'></a>   457 
+<a id='L458' name='L458'></a>   458   dest.AddChild (&amp;view);
+<a id='L459' name='L459'></a>   459 
+<a id='L460' name='L460'></a>   460   view.SetHighColor (high_color);
+<a id='L461' name='L461'></a>   461   view.StrokeLine (BPoint (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y),
+<a id='L462' name='L462'></a>   462                    BPoint (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y + height - 1));
+<a id='L463' name='L463'></a>   463   view.StrokeLine (BPoint (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y + height - 1),
+<a id='L464' name='L464'></a>   464                    BPoint (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + width - 1, y));
+<a id='L465' name='L465'></a>   465   view.RemoveSelf ();
+<a id='L466' name='L466'></a>   466   bitmap-&gt;ImportBits (&amp;dest);
+<a id='L467' name='L467'></a>   467 <em class='brace'>}</em>
+<a id='L468' name='L468'></a>   468 
+<a id='L469' name='L469'></a>   469 <strong class='reserved'>void</strong>
+<a id='L470' name='L470'></a>   470 <a href='../R/7077.html' title='Multiple referred from 2 places.'>be_draw_cross_on_pixmap</a> (<strong class='reserved'>void</strong> *bitmap, <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width,
+<a id='L471' name='L471'></a>   471                          <strong class='reserved'>int</strong> height, <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> color)
+<a id='L472' name='L472'></a>   472 <em class='brace'>{</em>
+<a id='L473' name='L473'></a>   473   BBitmap *target = (BBitmap *) bitmap;
+<a id='L474' name='L474'></a>   474 
+<a id='L475' name='L475'></a>   475   <a href='../S/2881.html#L443' title='Defined at 443 in src/haiku_draw_support.cc.'>be_draw_cross_on_pixmap_1</a> (target, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, width, height,
+<a id='L476' name='L476'></a>   476                              color);
+<a id='L477' name='L477'></a>   477 <em class='brace'>}</em>
+<a id='L478' name='L478'></a>   478 
+<a id='L479' name='L479'></a>   479 <strong class='reserved'>void</strong>
+<a id='L480' name='L480'></a>   480 <a href='../R/7076.html' title='Multiple referred from 2 places.'>be_draw_bitmap_with_mask</a> (<strong class='reserved'>void</strong> *view, <strong class='reserved'>void</strong> *bitmap, <strong class='reserved'>void</strong> *mask,
+<a id='L481' name='L481'></a>   481                           <strong class='reserved'>int</strong> dx, <strong class='reserved'>int</strong> dy, <strong class='reserved'>int</strong> width, <strong class='reserved'>int</strong> height,
+<a id='L482' name='L482'></a>   482                           <strong class='reserved'>int</strong> vx, <strong class='reserved'>int</strong> vy, <strong class='reserved'>int</strong> vwidth, <strong class='reserved'>int</strong> vheight,
+<a id='L483' name='L483'></a>   483                           <strong class='reserved'>bool</strong> use_bilinear_filtering)
+<a id='L484' name='L484'></a>   484 <em class='brace'>{</em>
+<a id='L485' name='L485'></a>   485   BBitmap *source ((BBitmap *) bitmap);
+<a id='L486' name='L486'></a>   486   BBitmap combined (source-&gt;Bounds (), B_RGBA32);
+<a id='L487' name='L487'></a>   487   BRect bounds;
+<a id='L488' name='L488'></a>   488   <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, bit;
+<a id='L489' name='L489'></a>   489   BView *vw;
+<a id='L490' name='L490'></a>   490   <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> source_mask;
+<a id='L491' name='L491'></a>   491   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> pixel;
+<a id='L492' name='L492'></a>   492 
+<a id='L493' name='L493'></a>   493   <strong class='reserved'>if</strong> (combined.<a href='../D/3123.html' title='Multiple defined in 2 places.'>InitCheck</a> () != B_OK)
+<a id='L494' name='L494'></a>   494     <strong class='reserved'>return</strong>;
+<a id='L495' name='L495'></a>   495 
+<a id='L496' name='L496'></a>   496   <strong class='reserved'>if</strong> (combined.ImportBits (source) != B_OK)
+<a id='L497' name='L497'></a>   497     <strong class='reserved'>return</strong>;
+<a id='L498' name='L498'></a>   498 
+<a id='L499' name='L499'></a>   499   bounds = source-&gt;Bounds ();
+<a id='L500' name='L500'></a>   500 
+<a id='L501' name='L501'></a>   501   <strong class='reserved'>if</strong> (source-&gt;ColorSpace () == B_RGB32)
+<a id='L502' name='L502'></a>   502     source_mask = 255u &lt;&lt; 24;
+<a id='L503' name='L503'></a>   503   <strong class='reserved'>else</strong>
+<a id='L504' name='L504'></a>   504     source_mask = 0;
+<a id='L505' name='L505'></a>   505 
+<a id='L506' name='L506'></a>   506   <strong class='reserved'>for</strong> (y = 0; y &lt; <a href='../S/2910.html#L490' title='Defined at 490 in src/haiku_support.h.'>BE_RECT_HEIGHT</a> (bounds); ++y)
+<a id='L507' name='L507'></a>   507     <em class='brace'>{</em>
+<a id='L508' name='L508'></a>   508       <strong class='reserved'>for</strong> (<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> = 0; <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> &lt; <a href='../S/2910.html#L491' title='Defined at 491 in src/haiku_support.h.'>BE_RECT_WIDTH</a> (bounds); ++<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>)
+<a id='L509' name='L509'></a>   509         <em class='brace'>{</em>
+<a id='L510' name='L510'></a>   510           bit = <a href='../S/2923.html#L1562' title='Defined at 1562 in src/haikufns.c.'>haiku_get_pixel</a> (mask, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y);
+<a id='L511' name='L511'></a>   511 
+<a id='L512' name='L512'></a>   512           <strong class='reserved'>if</strong> (bit)
+<a id='L513' name='L513'></a>   513             <em class='brace'>{</em>
+<a id='L514' name='L514'></a>   514               pixel = <a href='../S/2923.html#L1562' title='Defined at 1562 in src/haikufns.c.'>haiku_get_pixel</a> (bitmap, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y);
+<a id='L515' name='L515'></a>   515               <a href='../S/2923.html#L1583' title='Defined at 1583 in src/haikufns.c.'>haiku_put_pixel</a> ((<strong class='reserved'>void</strong> *) &amp;combined, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y,
+<a id='L516' name='L516'></a>   516                                source_mask | pixel);
+<a id='L517' name='L517'></a>   517             <em class='brace'>}</em>
+<a id='L518' name='L518'></a>   518           <strong class='reserved'>else</strong>
+<a id='L519' name='L519'></a>   519             <a href='../S/2923.html#L1583' title='Defined at 1583 in src/haikufns.c.'>haiku_put_pixel</a> ((<strong class='reserved'>void</strong> *) &amp;combined, <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, 0);
+<a id='L520' name='L520'></a>   520         <em class='brace'>}</em>
+<a id='L521' name='L521'></a>   521     <em class='brace'>}</em>
+<a id='L522' name='L522'></a>   522 
+<a id='L523' name='L523'></a>   523   vw = <a href='../S/2881.html#L48' title='Defined at 48 in src/haiku_draw_support.cc.'>get_view</a> (view);
+<a id='L524' name='L524'></a>   524 
+<a id='L525' name='L525'></a>   525   vw-&gt;SetDrawingMode (B_OP_OVER);
+<a id='L526' name='L526'></a>   526   <strong class='reserved'>if</strong> (!use_bilinear_filtering)
+<a id='L527' name='L527'></a>   527     vw-&gt;DrawBitmap (&amp;combined,
+<a id='L528' name='L528'></a>   528                     BRect (dx, dy, dx + width - 1, dy + height - 1),
+<a id='L529' name='L529'></a>   529                     BRect (vx, vy, vx + vwidth - 1, vy + vheight - 1));
+<a id='L530' name='L530'></a>   530   <strong class='reserved'>else</strong>
+<a id='L531' name='L531'></a>   531     vw-&gt;DrawBitmap (&amp;combined,
+<a id='L532' name='L532'></a>   532                     BRect (dx, dy, dx + width - 1, dy + height - 1),
+<a id='L533' name='L533'></a>   533                     BRect (vx, vy, vx + vwidth - 1, vy + vheight - 1),
+<a id='L534' name='L534'></a>   534                     B_FILTER_BITMAP_BILINEAR);
+<a id='L535' name='L535'></a>   535   vw-&gt;SetDrawingMode (B_OP_COPY);
+<a id='L536' name='L536'></a>   536 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L39'>[^]</a><a href='#L480'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/widget.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/widget.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L147'>[^]</a><a href='#L501'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L147' title='Defined at 147.'>emacsFrameClass</a></li>
+<li><a href='#L158' title='Defined at 158.'>get_default_char_pixel_size</a></li>
+<li><a href='#L167' title='Defined at 167.'>pixel_to_char_size</a></li>
+<li><a href='#L177' title='Defined at 177.'>char_to_pixel_size</a></li>
+<li><a href='#L187' title='Defined at 187.'>round_size_to_char</a></li>
+<li><a href='#L199' title='Defined at 199.'>get_wm_shell</a></li>
+<li><a href='#L213' title='Defined at 213.'>mark_shell_size_user_specified</a></li>
+<li><a href='#L225' title='Defined at 225.'>set_frame_size</a></li>
+<li><a href='#L273' title='Defined at 273.'>update_wm_hints</a></li>
+<li><a href='#L321' title='Defined at 321.'>widget_update_wm_size_hints</a></li>
+<li><a href='#L327' title='Defined at 327.'>update_various_frame_slots</a></li>
+<li><a href='#L335' title='Defined at 335.'>update_from_various_frame_slots</a></li>
+<li><a href='#L357' title='Defined at 357.'>EmacsFrameInitialize</a></li>
+<li><a href='#L373' title='Defined at 373.'>resize_cb</a></li>
+<li><a href='#L383' title='Defined at 383.'>EmacsFrameRealize</a></li>
+<li><a href='#L411' title='Defined at 411.'>EmacsFrameDestroy</a></li>
+<li><a href='#L417' title='Defined at 417.'>EmacsFrameResize</a></li>
+<li><a href='#L440' title='Defined at 440.'>EmacsFrameQueryGeometry</a></li>
+<li><a href='#L470' title='Defined at 470.'>EmacsFrameSetCharSize</a></li>
+<li><a href='#L489' title='Defined at 489.'>EmacsFrameExpose</a></li>
+<li><a href='#L501' title='Defined at 501.'>widget_store_internal_border</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* The emacs frame widget.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1992-1993, 2000-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L18' name='L18'></a>    18 
+<a id='L19' name='L19'></a>    19 <em class='comment'>/* Emacs 19 face widget ported by Fred Pierresteguy */</em>
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='comment'>/* This file has been censored by the Communications Decency Act.</em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>   That law was passed under the guise of a ban on pornography, but</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'>   it bans far more than that.  This file did not contain pornography,</em>
+<a id='L24' name='L24'></a>    24 <em class='comment'>   but it was censored nonetheless.  */</em>
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> "<a href='3107.html'>widget.h</a>"
+<a id='L28' name='L28'></a>    28 
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L30' name='L30'></a>    30 
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> "<a href='2996.html'>sysstdio.h</a>"
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#include</em> "<a href='3018.html'>xterm.h</a>"
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#include</em> "<a href='3036.html'>frame.h</a>"
+<a id='L35' name='L35'></a>    35 
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#include</em> &lt;X11/StringDefs.h&gt;
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#include</em> &lt;X11/IntrinsicP.h&gt;
+<a id='L38' name='L38'></a>    38 <em class='sharp'>#include</em> &lt;X11/cursorfont.h&gt;
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> "<a href='3096.html'>widgetprv.h</a>"
+<a id='L40' name='L40'></a>    40 <em class='sharp'>#include</em> &lt;X11/ObjectP.h&gt;
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#include</em> &lt;X11/Shell.h&gt;
+<a id='L42' name='L42'></a>    42 <em class='sharp'>#include</em> &lt;X11/ShellP.h&gt;
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#include</em> "<a href='2534.html'>../lwlib/lwlib.h</a>"
+<a id='L44' name='L44'></a>    44 
+<a id='L45' name='L45'></a>    45 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2976.html#L357' title='Defined at 357 in src/widget.c.'>EmacsFrameInitialize</a> (Widget, Widget, ArgList, Cardinal *);
+<a id='L46' name='L46'></a>    46 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2976.html#L411' title='Defined at 411 in src/widget.c.'>EmacsFrameDestroy</a> (Widget);
+<a id='L47' name='L47'></a>    47 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2976.html#L383' title='Defined at 383 in src/widget.c.'>EmacsFrameRealize</a> (Widget, XtValueMask *, XSetWindowAttributes *);
+<a id='L48' name='L48'></a>    48 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2976.html#L417' title='Defined at 417 in src/widget.c.'>EmacsFrameResize</a> (Widget);
+<a id='L49' name='L49'></a>    49 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2976.html#L489' title='Defined at 489 in src/widget.c.'>EmacsFrameExpose</a> (Widget, XEvent *, Region);
+<a id='L50' name='L50'></a>    50 <strong class='reserved'>static</strong> XtGeometryResult <a href='../S/2976.html#L440' title='Defined at 440 in src/widget.c.'>EmacsFrameQueryGeometry</a> (Widget, XtWidgetGeometry *,
+<a id='L51' name='L51'></a>    51                                                  XtWidgetGeometry *);
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54 <em class='sharp'>#define</em> <a href='../R/12494.html' title='Multiple referred from 790 places.'>offset</a>(field) offsetof (<a href='../S/3096.html#L59' title='Defined at 59 in src/widgetprv.h.'>EmacsFrameRec</a>, emacs_frame.field)
+<a id='L55' name='L55'></a>    55 
+<a id='L56' name='L56'></a>    56 <strong class='reserved'>static</strong> XtResource resources[] = <em class='brace'>{</em>
+<a id='L57' name='L57'></a>    57   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L70' title='Defined at 70 in src/widget.h.'>XtNgeometry</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L73' title='Defined at 73 in src/widget.h.'>XtCGeometry</a>, XtRString, <strong class='reserved'>sizeof</strong> (String),
+<a id='L58' name='L58'></a>    58      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (geometry), XtRString, (XtPointer) 0<em class='brace'>}</em>,
+<a id='L59' name='L59'></a>    59   <em class='brace'>{</em>XtNiconic, XtCIconic, XtRBoolean, <strong class='reserved'>sizeof</strong> (Boolean),
+<a id='L60' name='L60'></a>    60      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (iconic), XtRImmediate, (XtPointer) False<em class='brace'>}</em>,
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L66' title='Defined at 66 in src/widget.h.'>XtNemacsFrame</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L67' title='Defined at 67 in src/widget.h.'>XtCEmacsFrame</a>,
+<a id='L63' name='L63'></a>    63      XtRPointer, <strong class='reserved'>sizeof</strong> (XtPointer),
+<a id='L64' name='L64'></a>    64      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>), XtRImmediate, 0<em class='brace'>}</em>,
+<a id='L65' name='L65'></a>    65 
+<a id='L66' name='L66'></a>    66   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L26' title='Defined at 26 in src/widget.h.'>XtNminibuffer</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L27' title='Defined at 27 in src/widget.h.'>XtCMinibuffer</a>, XtRInt, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>int</strong>),
+<a id='L67' name='L67'></a>    67      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (minibuffer), XtRImmediate, (XtPointer)0<em class='brace'>}</em>,
+<a id='L68' name='L68'></a>    68   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L28' title='Defined at 28 in src/widget.h.'>XtNunsplittable</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L29' title='Defined at 29 in src/widget.h.'>XtCUnsplittable</a>,
+<a id='L69' name='L69'></a>    69      XtRBoolean, <strong class='reserved'>sizeof</strong> (Boolean),
+<a id='L70' name='L70'></a>    70      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (unsplittable), XtRImmediate, (XtPointer)0<em class='brace'>}</em>,
+<a id='L71' name='L71'></a>    71   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L30' title='Defined at 30 in src/widget.h.'>XtNinternalBorderWidth</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L31' title='Defined at 31 in src/widget.h.'>XtCInternalBorderWidth</a>,
+<a id='L72' name='L72'></a>    72      XtRInt, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>int</strong>),
+<a id='L73' name='L73'></a>    73      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (internal_border_width), XtRImmediate, (XtPointer)4<em class='brace'>}</em>,
+<a id='L74' name='L74'></a>    74   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L32' title='Defined at 32 in src/widget.h.'>XtNinterline</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L33' title='Defined at 33 in src/widget.h.'>XtCInterline</a>, XtRInt, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>int</strong>),
+<a id='L75' name='L75'></a>    75      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (interline), XtRImmediate, (XtPointer)0<em class='brace'>}</em>,
+<a id='L76' name='L76'></a>    76   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L42' title='Defined at 42 in src/widget.h.'>XtNforeground</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L45' title='Defined at 45 in src/widget.h.'>XtCForeground</a>, XtRPixel, <strong class='reserved'>sizeof</strong> (<a href='../S/2791.html#L65' title='Defined at 65 in oldXMenu/XMenuInt.h.'>Pixel</a>),
+<a id='L77' name='L77'></a>    77      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (foreground_pixel), XtRString, (<strong class='reserved'>char</strong> *) "XtDefaultForeground"<em class='brace'>}</em>,
+<a id='L78' name='L78'></a>    78   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L48' title='Defined at 48 in src/widget.h.'>XtNcursorColor</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L45' title='Defined at 45 in src/widget.h.'>XtCForeground</a>, XtRPixel, <strong class='reserved'>sizeof</strong> (<a href='../S/2791.html#L65' title='Defined at 65 in oldXMenu/XMenuInt.h.'>Pixel</a>),
+<a id='L79' name='L79'></a>    79      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (cursor_color), XtRString, (<strong class='reserved'>char</strong> *) "XtDefaultForeground"<em class='brace'>}</em>,
+<a id='L80' name='L80'></a>    80   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L50' title='Defined at 50 in src/widget.h.'>XtNbarCursor</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L51' title='Defined at 51 in src/widget.h.'>XtCBarCursor</a>, XtRBoolean, <strong class='reserved'>sizeof</strong> (Boolean),
+<a id='L81' name='L81'></a>    81      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (bar_cursor), XtRImmediate, (XtPointer)0<em class='brace'>}</em>,
+<a id='L82' name='L82'></a>    82   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L53' title='Defined at 53 in src/widget.h.'>XtNvisualBell</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L54' title='Defined at 54 in src/widget.h.'>XtCVisualBell</a>, XtRBoolean, <strong class='reserved'>sizeof</strong> (Boolean),
+<a id='L83' name='L83'></a>    83      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (visual_bell), XtRImmediate, (XtPointer)0<em class='brace'>}</em>,
+<a id='L84' name='L84'></a>    84   <em class='brace'>{</em>(<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L56' title='Defined at 56 in src/widget.h.'>XtNbellVolume</a>, (<strong class='reserved'>char</strong> *) <a href='../S/3107.html#L55' title='Defined at 55 in src/widget.h.'>XtCBellVolume</a>, XtRInt, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>int</strong>),
+<a id='L85' name='L85'></a>    85      <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a> (bell_volume), XtRImmediate, (XtPointer)0<em class='brace'>}</em>,
+<a id='L86' name='L86'></a>    86 <em class='brace'>}</em>;
+<a id='L87' name='L87'></a>    87 
+<a id='L88' name='L88'></a>    88 <em class='sharp'>#undef</em> <a href='../R/12494.html' title='Multiple referred from 790 places.'>offset</a>
+<a id='L89' name='L89'></a>    89 
+<a id='L90' name='L90'></a>    90 <em class='comment'>/*</em>
+<a id='L91' name='L91'></a>    91 <em class='comment'>static XtActionsRec</em>
+<a id='L92' name='L92'></a>    92 <em class='comment'>emacsFrameActionsTable [] = {</em>
+<a id='L93' name='L93'></a>    93 <em class='comment'>  {"keypress",  key_press},</em>
+<a id='L94' name='L94'></a>    94 <em class='comment'>  {"focus_in",  emacs_frame_focus_handler},</em>
+<a id='L95' name='L95'></a>    95 <em class='comment'>  {"focus_out", emacs_frame_focus_handler},</em>
+<a id='L96' name='L96'></a>    96 <em class='comment'>};</em>
+<a id='L97' name='L97'></a>    97 <em class='comment'></em>
+<a id='L98' name='L98'></a>    98 <em class='comment'>static char</em>
+<a id='L99' name='L99'></a>    99 <em class='comment'>emacsFrameTranslations [] = "\</em>
+<a id='L100' name='L100'></a>   100 <em class='comment'>&lt;KeyPress&gt;: keypress()\n\</em>
+<a id='L101' name='L101'></a>   101 <em class='comment'>&lt;FocusIn&gt;:  focus_in()\n\</em>
+<a id='L102' name='L102'></a>   102 <em class='comment'>&lt;FocusOut&gt;: focus_out()\n\</em>
+<a id='L103' name='L103'></a>   103 <em class='comment'>";</em>
+<a id='L104' name='L104'></a>   104 <em class='comment'>*/</em>
+<a id='L105' name='L105'></a>   105 
+<a id='L106' name='L106'></a>   106 <strong class='reserved'>static</strong> <a href='../S/3096.html#L68' title='Defined at 68 in src/widgetprv.h.'>EmacsFrameClassRec</a> emacsFrameClassRec = <em class='brace'>{</em>
+<a id='L107' name='L107'></a>   107     <em class='brace'>{</em> <em class='comment'>/* core fields */</em>
+<a id='L108' name='L108'></a>   108     <em class='comment'>/* superclass               */</em>      0, <em class='comment'>/* filled in by emacsFrameClass */</em>
+<a id='L109' name='L109'></a>   109     <em class='comment'>/* class_name               */</em>      (<strong class='reserved'>char</strong> *) "EmacsFrame",
+<a id='L110' name='L110'></a>   110     <em class='comment'>/* widget_size              */</em>      <strong class='reserved'>sizeof</strong> (<a href='../S/3096.html#L59' title='Defined at 59 in src/widgetprv.h.'>EmacsFrameRec</a>),
+<a id='L111' name='L111'></a>   111     <em class='comment'>/* class_initialize         */</em>      0,
+<a id='L112' name='L112'></a>   112     <em class='comment'>/* class_part_initialize    */</em>      0,
+<a id='L113' name='L113'></a>   113     <em class='comment'>/* class_inited             */</em>      <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>,
+<a id='L114' name='L114'></a>   114     <em class='comment'>/* initialize               */</em>      <a href='../S/2976.html#L357' title='Defined at 357 in src/widget.c.'>EmacsFrameInitialize</a>,
+<a id='L115' name='L115'></a>   115     <em class='comment'>/* initialize_hook          */</em>      0,
+<a id='L116' name='L116'></a>   116     <em class='comment'>/* realize                  */</em>      <a href='../S/2976.html#L383' title='Defined at 383 in src/widget.c.'>EmacsFrameRealize</a>,
+<a id='L117' name='L117'></a>   117     <em class='comment'>/* actions                  */</em>      0, <em class='comment'>/*emacsFrameActionsTable*/</em>
+<a id='L118' name='L118'></a>   118     <em class='comment'>/* num_actions              */</em>      0, <em class='comment'>/*XtNumber (emacsFrameActionsTable)*/</em>
+<a id='L119' name='L119'></a>   119     <em class='comment'>/* resources                */</em>      resources,
+<a id='L120' name='L120'></a>   120     <em class='comment'>/* resource_count           */</em>      XtNumber (resources),
+<a id='L121' name='L121'></a>   121     <em class='comment'>/* xrm_class                */</em>      NULLQUARK,
+<a id='L122' name='L122'></a>   122     <em class='comment'>/* compress_motion          */</em>      <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>,
+<a id='L123' name='L123'></a>   123     <em class='comment'>/* compress_exposure        */</em>      XtExposeNoCompress,
+<a id='L124' name='L124'></a>   124     <em class='comment'>/* compress_enterleave      */</em>      <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>,
+<a id='L125' name='L125'></a>   125     <em class='comment'>/* visible_interest         */</em>      <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>,
+<a id='L126' name='L126'></a>   126     <em class='comment'>/* destroy                  */</em>      <a href='../S/2976.html#L411' title='Defined at 411 in src/widget.c.'>EmacsFrameDestroy</a>,
+<a id='L127' name='L127'></a>   127     <em class='comment'>/* resize                   */</em>      <a href='../S/2976.html#L417' title='Defined at 417 in src/widget.c.'>EmacsFrameResize</a>,
+<a id='L128' name='L128'></a>   128     <em class='comment'>/* expose                   */</em>      <a href='../S/2976.html#L489' title='Defined at 489 in src/widget.c.'>EmacsFrameExpose</a>,
+<a id='L129' name='L129'></a>   129 
+<a id='L130' name='L130'></a>   130     <em class='comment'>/* Emacs never does XtSetvalues on this widget, so we have no code</em>
+<a id='L131' name='L131'></a>   131 <em class='comment'>       for it. */</em>
+<a id='L132' name='L132'></a>   132     <em class='comment'>/* set_values               */</em>      0, <em class='comment'>/* Not supported */</em>
+<a id='L133' name='L133'></a>   133     <em class='comment'>/* set_values_hook          */</em>      0,
+<a id='L134' name='L134'></a>   134     <em class='comment'>/* set_values_almost        */</em>      XtInheritSetValuesAlmost,
+<a id='L135' name='L135'></a>   135     <em class='comment'>/* get_values_hook          */</em>      0,
+<a id='L136' name='L136'></a>   136     <em class='comment'>/* accept_focus             */</em>      XtInheritAcceptFocus,
+<a id='L137' name='L137'></a>   137     <em class='comment'>/* version                  */</em>      XtVersion,
+<a id='L138' name='L138'></a>   138     <em class='comment'>/* callback_private         */</em>      0,
+<a id='L139' name='L139'></a>   139     <em class='comment'>/* tm_table                 */</em>      0, <em class='comment'>/*emacsFrameTranslations*/</em>
+<a id='L140' name='L140'></a>   140     <em class='comment'>/* query_geometry           */</em>      <a href='../S/2976.html#L440' title='Defined at 440 in src/widget.c.'>EmacsFrameQueryGeometry</a>,
+<a id='L141' name='L141'></a>   141     <em class='comment'>/* display_accelerator      */</em>      XtInheritDisplayAccelerator,
+<a id='L142' name='L142'></a>   142     <em class='comment'>/* extension                */</em>      0
+<a id='L143' name='L143'></a>   143     <em class='brace'>}</em>
+<a id='L144' name='L144'></a>   144 <em class='brace'>}</em>;
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146 WidgetClass
+<a id='L147' name='L147'></a>   147 <a href='../R/8733.html' title='Multiple referred from 2 places.'>emacsFrameClass</a> (<strong class='reserved'>void</strong>)
+<a id='L148' name='L148'></a>   148 <em class='brace'>{</em>
+<a id='L149' name='L149'></a>   149   <em class='comment'>/* Set the superclass here rather than relying on static</em>
+<a id='L150' name='L150'></a>   150 <em class='comment'>     initialization, to work around an unexelf.c bug on x86 platforms</em>
+<a id='L151' name='L151'></a>   151 <em class='comment'>     that use the GNU Gold linker (Bug#27248).  */</em>
+<a id='L152' name='L152'></a>   152   emacsFrameClassRec.core_class.superclass = &amp;widgetClassRec;
+<a id='L153' name='L153'></a>   153 
+<a id='L154' name='L154'></a>   154   <strong class='reserved'>return</strong> (WidgetClass) &amp;emacsFrameClassRec;
+<a id='L155' name='L155'></a>   155 <em class='brace'>}</em>
+<a id='L156' name='L156'></a>   156 
+<a id='L157' name='L157'></a>   157 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L158' name='L158'></a>   158 <a href='../S/2976.html#L294' title='Referred from 294 in src/widget.c.'>get_default_char_pixel_size</a> (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew, <strong class='reserved'>int</strong> *pixel_width, <strong class='reserved'>int</strong> *pixel_height)
+<a id='L159' name='L159'></a>   159 <em class='brace'>{</em>
+<a id='L160' name='L160'></a>   160   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L161' name='L161'></a>   161 
+<a id='L162' name='L162'></a>   162   *pixel_width = <a href='../S/3036.html#L1392' title='Defined at 1392 in src/frame.h.'>FRAME_COLUMN_WIDTH</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L163' name='L163'></a>   163   *pixel_height = <a href='../S/3036.html#L1388' title='Defined at 1388 in src/frame.h.'>FRAME_LINE_HEIGHT</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L164' name='L164'></a>   164 <em class='brace'>}</em>
+<a id='L165' name='L165'></a>   165 
+<a id='L166' name='L166'></a>   166 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L167' name='L167'></a>   167 <a href='../R/12947.html' title='Multiple referred from 2 places.'>pixel_to_char_size</a> (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew, Dimension pixel_width,
+<a id='L168' name='L168'></a>   168                     Dimension pixel_height, <strong class='reserved'>int</strong> *<a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a>, <strong class='reserved'>int</strong> *char_height)
+<a id='L169' name='L169'></a>   169 <em class='brace'>{</em>
+<a id='L170' name='L170'></a>   170   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L171' name='L171'></a>   171 
+<a id='L172' name='L172'></a>   172   *<a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a> = <a href='../S/3036.html#L1605' title='Defined at 1605 in src/frame.h.'>FRAME_PIXEL_WIDTH_TO_TEXT_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, (<strong class='reserved'>int</strong>) pixel_width);
+<a id='L173' name='L173'></a>   173   *char_height = <a href='../S/3036.html#L1612' title='Defined at 1612 in src/frame.h.'>FRAME_PIXEL_HEIGHT_TO_TEXT_LINES</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, (<strong class='reserved'>int</strong>) pixel_height);
+<a id='L174' name='L174'></a>   174 <em class='brace'>}</em>
+<a id='L175' name='L175'></a>   175 
+<a id='L176' name='L176'></a>   176 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L177' name='L177'></a>   177 <a href='../R/7542.html' title='Multiple referred from 2 places.'>char_to_pixel_size</a> (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew, <strong class='reserved'>int</strong> <a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a>, <strong class='reserved'>int</strong> char_height,
+<a id='L178' name='L178'></a>   178                     Dimension *pixel_width, Dimension *pixel_height)
+<a id='L179' name='L179'></a>   179 <em class='brace'>{</em>
+<a id='L180' name='L180'></a>   180   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L181' name='L181'></a>   181 
+<a id='L182' name='L182'></a>   182   *pixel_width = <a href='../S/3036.html#L1573' title='Defined at 1573 in src/frame.h.'>FRAME_TEXT_COLS_TO_PIXEL_WIDTH</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a>);
+<a id='L183' name='L183'></a>   183   *pixel_height = <a href='../S/3036.html#L1579' title='Defined at 1579 in src/frame.h.'>FRAME_TEXT_LINES_TO_PIXEL_HEIGHT</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, char_height);
+<a id='L184' name='L184'></a>   184 <em class='brace'>}</em>
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L187' name='L187'></a>   187 <a href='../S/2976.html#L450' title='Referred from 450 in src/widget.c.'>round_size_to_char</a> (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew, Dimension in_width, Dimension in_height,
+<a id='L188' name='L188'></a>   188                     Dimension *out_width, Dimension *out_height)
+<a id='L189' name='L189'></a>   189 <em class='brace'>{</em>
+<a id='L190' name='L190'></a>   190   <strong class='reserved'>int</strong> <a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a>;
+<a id='L191' name='L191'></a>   191   <strong class='reserved'>int</strong> char_height;
+<a id='L192' name='L192'></a>   192   <a href='../S/2976.html#L167' title='Defined at 167 in src/widget.c.'>pixel_to_char_size</a> (ew, in_width, in_height,
+<a id='L193' name='L193'></a>   193                       &amp;<a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a>, &amp;char_height);
+<a id='L194' name='L194'></a>   194   <a href='../S/2976.html#L177' title='Defined at 177 in src/widget.c.'>char_to_pixel_size</a> (ew, <a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a>, char_height,
+<a id='L195' name='L195'></a>   195                       out_width, out_height);
+<a id='L196' name='L196'></a>   196 <em class='brace'>}</em>
+<a id='L197' name='L197'></a>   197 
+<a id='L198' name='L198'></a>   198 <strong class='reserved'>static</strong> WMShellWidget
+<a id='L199' name='L199'></a>   199 <a href='../R/9926.html' title='Multiple referred from 4 places.'>get_wm_shell</a> (Widget w)
+<a id='L200' name='L200'></a>   200 <em class='brace'>{</em>
+<a id='L201' name='L201'></a>   201   Widget wmshell;
+<a id='L202' name='L202'></a>   202 
+<a id='L203' name='L203'></a>   203   <strong class='reserved'>for</strong> (wmshell = XtParent (w);
+<a id='L204' name='L204'></a>   204        wmshell &amp;&amp; !XtIsWMShell (wmshell);
+<a id='L205' name='L205'></a>   205        wmshell = XtParent (wmshell));
+<a id='L206' name='L206'></a>   206 
+<a id='L207' name='L207'></a>   207   <strong class='reserved'>return</strong> (WMShellWidget) wmshell;
+<a id='L208' name='L208'></a>   208 <em class='brace'>}</em>
+<a id='L209' name='L209'></a>   209 
+<a id='L210' name='L210'></a>   210 <em class='sharp'>#if</em> 0 <em class='comment'>/* Currently not used.  */</em>
+<a id='L211' name='L211'></a>   211 
+<a id='L212' name='L212'></a>   212 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L213' name='L213'></a>   213 mark_shell_size_user_specified (Widget wmshell)
+<a id='L214' name='L214'></a>   214 <em class='brace'>{</em>
+<a id='L215' name='L215'></a>   215   <strong class='reserved'>if</strong> (! XtIsWMShell (wmshell)) <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> ();
+<a id='L216' name='L216'></a>   216   <em class='comment'>/* This is kind of sleazy, but I can't see how else to tell it to make it</em>
+<a id='L217' name='L217'></a>   217 <em class='comment'>     mark the WM_SIZE_HINTS size as user specified when appropriate. */</em>
+<a id='L218' name='L218'></a>   218   ((WMShellWidget) wmshell)-&gt;wm.size_hints.flags |= <a href='../D/5956.html' title='Multiple defined in 4 places.'>USSize</a>;
+<a id='L219' name='L219'></a>   219 <em class='brace'>}</em>
+<a id='L220' name='L220'></a>   220 
+<a id='L221' name='L221'></a>   221 <em class='sharp'>#endif</em>
+<a id='L222' name='L222'></a>   222 
+<a id='L223' name='L223'></a>   223 
+<a id='L224' name='L224'></a>   224 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L225' name='L225'></a>   225 <a href='../S/2976.html#L369' title='Referred from 369 in src/widget.c.'>set_frame_size</a> (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew)
+<a id='L226' name='L226'></a>   226 <em class='brace'>{</em>
+<a id='L227' name='L227'></a>   227   <em class='comment'>/* The widget hierarchy is</em>
+<a id='L228' name='L228'></a>   228 <em class='comment'></em>
+<a id='L229' name='L229'></a>   229 <em class='comment'>        argv[0]                 emacsShell      pane    Frame-NAME</em>
+<a id='L230' name='L230'></a>   230 <em class='comment'>        ApplicationShell        EmacsShell      Paned   EmacsFrame</em>
+<a id='L231' name='L231'></a>   231 <em class='comment'></em>
+<a id='L232' name='L232'></a>   232 <em class='comment'>     We accept geometry specs in this order:</em>
+<a id='L233' name='L233'></a>   233 <em class='comment'></em>
+<a id='L234' name='L234'></a>   234 <em class='comment'>        *Frame-NAME.geometry</em>
+<a id='L235' name='L235'></a>   235 <em class='comment'>        *EmacsFrame.geometry</em>
+<a id='L236' name='L236'></a>   236 <em class='comment'>        Emacs.geometry</em>
+<a id='L237' name='L237'></a>   237 <em class='comment'></em>
+<a id='L238' name='L238'></a>   238 <em class='comment'>     Other possibilities for widget hierarchies might be</em>
+<a id='L239' name='L239'></a>   239 <em class='comment'></em>
+<a id='L240' name='L240'></a>   240 <em class='comment'>        argv[0]                 frame           pane    Frame-NAME</em>
+<a id='L241' name='L241'></a>   241 <em class='comment'>        ApplicationShell        EmacsShell      Paned   EmacsFrame</em>
+<a id='L242' name='L242'></a>   242 <em class='comment'>     or</em>
+<a id='L243' name='L243'></a>   243 <em class='comment'>        argv[0]                 Frame-NAME      pane    Frame-NAME</em>
+<a id='L244' name='L244'></a>   244 <em class='comment'>        ApplicationShell        EmacsShell      Paned   EmacsFrame</em>
+<a id='L245' name='L245'></a>   245 <em class='comment'>     or</em>
+<a id='L246' name='L246'></a>   246 <em class='comment'>        argv[0]                 Frame-NAME      pane    emacsTextPane</em>
+<a id='L247' name='L247'></a>   247 <em class='comment'>        ApplicationShell        EmacsFrame      Paned   EmacsTextPane</em>
+<a id='L248' name='L248'></a>   248 <em class='comment'></em>
+<a id='L249' name='L249'></a>   249 <em class='comment'>     With the current setup, the text-display-area is the part which is</em>
+<a id='L250' name='L250'></a>   250 <em class='comment'>     an emacs "frame", since that's the only part managed by emacs proper</em>
+<a id='L251' name='L251'></a>   251 <em class='comment'>     (the menubar and the parent of the menubar and all that sort of thing</em>
+<a id='L252' name='L252'></a>   252 <em class='comment'>     are managed by lwlib.)</em>
+<a id='L253' name='L253'></a>   253 <em class='comment'></em>
+<a id='L254' name='L254'></a>   254 <em class='comment'>     The EmacsShell widget is simply a replacement for the Shell widget</em>
+<a id='L255' name='L255'></a>   255 <em class='comment'>     which is able to deal with using an externally-supplied window instead</em>
+<a id='L256' name='L256'></a>   256 <em class='comment'>     of always creating its own.  It is not actually emacs specific, and</em>
+<a id='L257' name='L257'></a>   257 <em class='comment'>     should possibly have class "Shell" instead of "EmacsShell" to simplify</em>
+<a id='L258' name='L258'></a>   258 <em class='comment'>     the resources.</em>
+<a id='L259' name='L259'></a>   259 <em class='comment'></em>
+<a id='L260' name='L260'></a>   260 <em class='comment'>   */</em>
+<a id='L261' name='L261'></a>   261 
+<a id='L262' name='L262'></a>   262   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L263' name='L263'></a>   263 
+<a id='L264' name='L264'></a>   264   ew-&gt;core.width = <a href='../S/3036.html#L953' title='Defined at 953 in src/frame.h.'>FRAME_PIXEL_WIDTH</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L265' name='L265'></a>   265   ew-&gt;core.height = <a href='../S/3036.html#L954' title='Defined at 954 in src/frame.h.'>FRAME_PIXEL_HEIGHT</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L266' name='L266'></a>   266 
+<a id='L267' name='L267'></a>   267   <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (frame_size_history))
+<a id='L268' name='L268'></a>   268     <a href='../S/3015.html#L550' title='Defined at 550 in src/frame.c.'>frame_size_history_plain</a>
+<a id='L269' name='L269'></a>   269       (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> ("set_frame_size"));
+<a id='L270' name='L270'></a>   270 <em class='brace'>}</em>
+<a id='L271' name='L271'></a>   271 
+<a id='L272' name='L272'></a>   272 <strong class='reserved'>static</strong> <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L273' name='L273'></a>   273 <a href='../R/15405.html' title='Multiple referred from 3 places.'>update_wm_hints</a> (WMShellWidget wmshell, <a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew)
+<a id='L274' name='L274'></a>   274 <em class='brace'>{</em>
+<a id='L275' name='L275'></a>   275   <strong class='reserved'>int</strong> cw;
+<a id='L276' name='L276'></a>   276   <strong class='reserved'>int</strong> ch;
+<a id='L277' name='L277'></a>   277   Dimension rounded_width;
+<a id='L278' name='L278'></a>   278   Dimension rounded_height;
+<a id='L279' name='L279'></a>   279   <strong class='reserved'>int</strong> <a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a>;
+<a id='L280' name='L280'></a>   280   <strong class='reserved'>int</strong> char_height;
+<a id='L281' name='L281'></a>   281   <strong class='reserved'>int</strong> base_width;
+<a id='L282' name='L282'></a>   282   <strong class='reserved'>int</strong> base_height;
+<a id='L283' name='L283'></a>   283   <strong class='reserved'>char</strong> <a href='../S/2952.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>[<strong class='reserved'>sizeof</strong> wmshell-&gt;wm.size_hints];
+<a id='L284' name='L284'></a>   284   <strong class='reserved'>char</strong> *hints_ptr;
+<a id='L285' name='L285'></a>   285 
+<a id='L286' name='L286'></a>   286   <em class='comment'>/* Copy the old size hints to the buffer.  */</em>
+<a id='L287' name='L287'></a>   287   memcpy (<a href='../S/2952.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, &amp;wmshell-&gt;wm.size_hints,
+<a id='L288' name='L288'></a>   288           <strong class='reserved'>sizeof</strong> wmshell-&gt;wm.size_hints);
+<a id='L289' name='L289'></a>   289 
+<a id='L290' name='L290'></a>   290   <a href='../S/2976.html#L167' title='Defined at 167 in src/widget.c.'>pixel_to_char_size</a> (ew, ew-&gt;core.width, ew-&gt;core.height,
+<a id='L291' name='L291'></a>   291                       &amp;<a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a>, &amp;char_height);
+<a id='L292' name='L292'></a>   292   <a href='../S/2976.html#L177' title='Defined at 177 in src/widget.c.'>char_to_pixel_size</a> (ew, <a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a>, char_height,
+<a id='L293' name='L293'></a>   293                       &amp;rounded_width, &amp;rounded_height);
+<a id='L294' name='L294'></a>   294   <a href='../S/2976.html#L158' title='Defined at 158 in src/widget.c.'>get_default_char_pixel_size</a> (ew, &amp;cw, &amp;ch);
+<a id='L295' name='L295'></a>   295 
+<a id='L296' name='L296'></a>   296   base_width = (wmshell-&gt;core.width - ew-&gt;core.width
+<a id='L297' name='L297'></a>   297                 + (rounded_width - (<a href='../S/3029.html#L232' title='Defined at 232 in src/character.c.'>char_width</a> * cw)));
+<a id='L298' name='L298'></a>   298   base_height = (wmshell-&gt;core.height - ew-&gt;core.height
+<a id='L299' name='L299'></a>   299                  + (rounded_height - (char_height * ch)));
+<a id='L300' name='L300'></a>   300 
+<a id='L301' name='L301'></a>   301   XtVaSetValues ((Widget) wmshell,
+<a id='L302' name='L302'></a>   302                  XtNbaseWidth, (XtArgVal) base_width,
+<a id='L303' name='L303'></a>   303                  XtNbaseHeight, (XtArgVal) base_height,
+<a id='L304' name='L304'></a>   304                  XtNwidthInc, (XtArgVal) (frame_resize_pixelwise ? 1 : cw),
+<a id='L305' name='L305'></a>   305                  XtNheightInc, (XtArgVal) (frame_resize_pixelwise ? 1 : ch),
+<a id='L306' name='L306'></a>   306                  XtNminWidth, (XtArgVal) base_width,
+<a id='L307' name='L307'></a>   307                  XtNminHeight, (XtArgVal) base_height,
+<a id='L308' name='L308'></a>   308                  <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L309' name='L309'></a>   309 
+<a id='L310' name='L310'></a>   310   <em class='comment'>/* Return if size hints really changed.  If they did not, then Xt</em>
+<a id='L311' name='L311'></a>   311 <em class='comment'>     probably didn't set them either (or take the flags into</em>
+<a id='L312' name='L312'></a>   312 <em class='comment'>     account.)  */</em>
+<a id='L313' name='L313'></a>   313   hints_ptr = (<strong class='reserved'>char</strong> *) &amp;wmshell-&gt;wm.size_hints;
+<a id='L314' name='L314'></a>   314 
+<a id='L315' name='L315'></a>   315   <em class='comment'>/* Skip flags, which is unsigned long.  */</em>
+<a id='L316' name='L316'></a>   316   <strong class='reserved'>return</strong> memcmp (hints_ptr + <strong class='reserved'>sizeof</strong> (<strong class='reserved'>long</strong>), <a href='../S/2952.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> + <strong class='reserved'>sizeof</strong> (<strong class='reserved'>long</strong>),
+<a id='L317' name='L317'></a>   317                  <strong class='reserved'>sizeof</strong> wmshell-&gt;wm.wm_hints - <strong class='reserved'>sizeof</strong> (<strong class='reserved'>long</strong>));
+<a id='L318' name='L318'></a>   318 <em class='brace'>}</em>
+<a id='L319' name='L319'></a>   319 
+<a id='L320' name='L320'></a>   320 <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L321' name='L321'></a>   321 <a href='../R/15896.html' title='Multiple referred from 3 places.'>widget_update_wm_size_hints</a> (Widget widget, Widget <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)
+<a id='L322' name='L322'></a>   322 <em class='brace'>{</em>
+<a id='L323' name='L323'></a>   323   <strong class='reserved'>return</strong> <a href='../S/2976.html#L273' title='Defined at 273 in src/widget.c.'>update_wm_hints</a> ((WMShellWidget) widget, (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a>) <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>);
+<a id='L324' name='L324'></a>   324 <em class='brace'>}</em>
+<a id='L325' name='L325'></a>   325 
+<a id='L326' name='L326'></a>   326 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L327' name='L327'></a>   327 <a href='../S/2976.html#L434' title='Referred from 434 in src/widget.c.'>update_various_frame_slots</a> (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew)
+<a id='L328' name='L328'></a>   328 <em class='brace'>{</em>
+<a id='L329' name='L329'></a>   329   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L330' name='L330'></a>   330 
+<a id='L331' name='L331'></a>   331   <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;internal_border_width = ew-&gt;emacs_frame.internal_border_width;
+<a id='L332' name='L332'></a>   332 <em class='brace'>}</em>
+<a id='L333' name='L333'></a>   333 
+<a id='L334' name='L334'></a>   334 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L335' name='L335'></a>   335 <a href='../S/2976.html#L368' title='Referred from 368 in src/widget.c.'>update_from_various_frame_slots</a> (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew)
+<a id='L336' name='L336'></a>   336 <em class='brace'>{</em>
+<a id='L337' name='L337'></a>   337   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L338' name='L338'></a>   338   <strong class='reserved'>struct</strong> <a href='../D/17455.html' title='Multiple defined in 5 places.'>x_output</a> *<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> = <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;<a href='../S/3036.html#L587' title='Defined at 587 in src/frame.h.'>output_data</a>.<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>;
+<a id='L339' name='L339'></a>   339 
+<a id='L340' name='L340'></a>   340   ew-&gt;core.height = <a href='../S/3036.html#L954' title='Defined at 954 in src/frame.h.'>FRAME_PIXEL_HEIGHT</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) - <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>-&gt;menubar_height;
+<a id='L341' name='L341'></a>   341   ew-&gt;core.width = <a href='../S/3036.html#L953' title='Defined at 953 in src/frame.h.'>FRAME_PIXEL_WIDTH</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L342' name='L342'></a>   342   ew-&gt;core.background_pixel = <a href='../S/3036.html#L1222' title='Defined at 1222 in src/frame.h.'>FRAME_BACKGROUND_PIXEL</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L343' name='L343'></a>   343   ew-&gt;emacs_frame.internal_border_width = <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;internal_border_width;
+<a id='L344' name='L344'></a>   344   ew-&gt;emacs_frame.foreground_pixel = <a href='../S/3036.html#L1221' title='Defined at 1221 in src/frame.h.'>FRAME_FOREGROUND_PIXEL</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L345' name='L345'></a>   345   ew-&gt;emacs_frame.cursor_color = <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>-&gt;cursor_pixel;
+<a id='L346' name='L346'></a>   346   ew-&gt;core.border_pixel = <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>-&gt;border_pixel;
+<a id='L347' name='L347'></a>   347 
+<a id='L348' name='L348'></a>   348   <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (frame_size_history))
+<a id='L349' name='L349'></a>   349     <a href='../S/3015.html#L566' title='Defined at 566 in src/frame.c.'>frame_size_history_extra</a>
+<a id='L350' name='L350'></a>   350       (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> ("update_from_various_frame_slots"),
+<a id='L351' name='L351'></a>   351        <a href='../S/3036.html#L953' title='Defined at 953 in src/frame.h.'>FRAME_PIXEL_WIDTH</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>), <a href='../S/3036.html#L954' title='Defined at 954 in src/frame.h.'>FRAME_PIXEL_HEIGHT</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L352' name='L352'></a>   352        ew-&gt;core.width, ew-&gt;core.height,
+<a id='L353' name='L353'></a>   353        <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;new_width, <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;new_height);
+<a id='L354' name='L354'></a>   354 <em class='brace'>}</em>
+<a id='L355' name='L355'></a>   355 
+<a id='L356' name='L356'></a>   356 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L357' name='L357'></a>   357 <a href='../R/1592.html' title='Multiple referred from 2 places.'>EmacsFrameInitialize</a> (Widget <a href='../S/4147.html#L133' title='Defined at 133 in test/manual/etags/c-src/c.c.'>request</a>, Widget new,
+<a id='L358' name='L358'></a>   358                       ArgList dum1, Cardinal *dum2)
+<a id='L359' name='L359'></a>   359 <em class='brace'>{</em>
+<a id='L360' name='L360'></a>   360   <a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew = (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a>) new;
+<a id='L361' name='L361'></a>   361 
+<a id='L362' name='L362'></a>   362   <strong class='reserved'>if</strong> (!ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)
+<a id='L363' name='L363'></a>   363     <em class='brace'>{</em>
+<a id='L364' name='L364'></a>   364       <a href='../D/10350.html' title='Multiple defined in 4 places.'>fputs</a> ("can't create an emacs frame widget without a frame\n", <a href='../S/2512.html#L50' title='Defined at 50 in nt/cmdproxy.c.'>stderr</a>);
+<a id='L365' name='L365'></a>   365       exit (1);
+<a id='L366' name='L366'></a>   366     <em class='brace'>}</em>
+<a id='L367' name='L367'></a>   367 
+<a id='L368' name='L368'></a>   368   <a href='../S/2976.html#L335' title='Defined at 335 in src/widget.c.'>update_from_various_frame_slots</a> (ew);
+<a id='L369' name='L369'></a>   369   <a href='../S/2976.html#L225' title='Defined at 225 in src/widget.c.'>set_frame_size</a> (ew);
+<a id='L370' name='L370'></a>   370 <em class='brace'>}</em>
+<a id='L371' name='L371'></a>   371 
+<a id='L372' name='L372'></a>   372 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L373' name='L373'></a>   373 <a href='../S/2976.html#L400' title='Referred from 400 in src/widget.c.'>resize_cb</a> (Widget widget,
+<a id='L374' name='L374'></a>   374            XtPointer closure,
+<a id='L375' name='L375'></a>   375            XEvent *event,
+<a id='L376' name='L376'></a>   376            Boolean *continue_to_dispatch)
+<a id='L377' name='L377'></a>   377 <em class='brace'>{</em>
+<a id='L378' name='L378'></a>   378   <a href='../S/2976.html#L417' title='Defined at 417 in src/widget.c.'>EmacsFrameResize</a> (widget);
+<a id='L379' name='L379'></a>   379 <em class='brace'>}</em>
+<a id='L380' name='L380'></a>   380 
+<a id='L381' name='L381'></a>   381 
+<a id='L382' name='L382'></a>   382 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L383' name='L383'></a>   383 <a href='../R/1595.html' title='Multiple referred from 2 places.'>EmacsFrameRealize</a> (Widget widget, XtValueMask *mask,
+<a id='L384' name='L384'></a>   384                    XSetWindowAttributes *attrs)
+<a id='L385' name='L385'></a>   385 <em class='brace'>{</em>
+<a id='L386' name='L386'></a>   386   <a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew = (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a>) widget;
+<a id='L387' name='L387'></a>   387   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L388' name='L388'></a>   388 
+<a id='L389' name='L389'></a>   389   <em class='comment'>/* This used to contain SubstructureRedirectMask, but this turns out</em>
+<a id='L390' name='L390'></a>   390 <em class='comment'>     to be a problem with XIM on Solaris, and events from that mask</em>
+<a id='L391' name='L391'></a>   391 <em class='comment'>     don't seem to be used.  Let's check that.  */</em>
+<a id='L392' name='L392'></a>   392   attrs-&gt;event_mask = (<a href='../S/3018.html#L128' title='Defined at 128 in src/xterm.h.'>STANDARD_EVENT_SET</a>
+<a id='L393' name='L393'></a>   393                        | PropertyChangeMask
+<a id='L394' name='L394'></a>   394                        | SubstructureNotifyMask);
+<a id='L395' name='L395'></a>   395   *mask |= CWEventMask;
+<a id='L396' name='L396'></a>   396   XtCreateWindow (widget, InputOutput, (Visual *) CopyFromParent, *mask,
+<a id='L397' name='L397'></a>   397                   attrs);
+<a id='L398' name='L398'></a>   398   <em class='comment'>/* Some ConfigureNotify events does not end up in EmacsFrameResize so</em>
+<a id='L399' name='L399'></a>   399 <em class='comment'>     make sure we get them all.  Seen with xfcwm4 for example.  */</em>
+<a id='L400' name='L400'></a>   400   XtAddRawEventHandler (widget, StructureNotifyMask, False, <a href='../S/2976.html#L373' title='Defined at 373 in src/widget.c.'>resize_cb</a>, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L401' name='L401'></a>   401 
+<a id='L402' name='L402'></a>   402   <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (frame_size_history))
+<a id='L403' name='L403'></a>   403     <a href='../S/3015.html#L550' title='Defined at 550 in src/frame.c.'>frame_size_history_plain</a>
+<a id='L404' name='L404'></a>   404       (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> ("EmacsFrameRealize"));
+<a id='L405' name='L405'></a>   405 
+<a id='L406' name='L406'></a>   406   <strong class='reserved'>if</strong> (<a href='../S/2976.html#L199' title='Defined at 199 in src/widget.c.'>get_wm_shell</a> (widget))
+<a id='L407' name='L407'></a>   407     <a href='../S/2976.html#L273' title='Defined at 273 in src/widget.c.'>update_wm_hints</a> (<a href='../S/2976.html#L199' title='Defined at 199 in src/widget.c.'>get_wm_shell</a> (widget), ew);
+<a id='L408' name='L408'></a>   408 <em class='brace'>}</em>
+<a id='L409' name='L409'></a>   409 
+<a id='L410' name='L410'></a>   410 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L411' name='L411'></a>   411 <a href='../R/1590.html' title='Multiple referred from 2 places.'>EmacsFrameDestroy</a> (Widget widget)
+<a id='L412' name='L412'></a>   412 <em class='brace'>{</em>
+<a id='L413' name='L413'></a>   413   <em class='comment'>/* All GCs are now freed in x_free_frame_resources.  */</em>
+<a id='L414' name='L414'></a>   414 <em class='brace'>}</em>
+<a id='L415' name='L415'></a>   415 
+<a id='L416' name='L416'></a>   416 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L417' name='L417'></a>   417 <a href='../R/1597.html' title='Multiple referred from 3 places.'>EmacsFrameResize</a> (Widget widget)
+<a id='L418' name='L418'></a>   418 <em class='brace'>{</em>
+<a id='L419' name='L419'></a>   419   <a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew = (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a>) widget;
+<a id='L420' name='L420'></a>   420   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L421' name='L421'></a>   421 
+<a id='L422' name='L422'></a>   422   <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (frame_size_history))
+<a id='L423' name='L423'></a>   423     <a href='../S/3015.html#L566' title='Defined at 566 in src/frame.c.'>frame_size_history_extra</a>
+<a id='L424' name='L424'></a>   424       (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> ("EmacsFrameResize"),
+<a id='L425' name='L425'></a>   425        <a href='../S/3036.html#L953' title='Defined at 953 in src/frame.h.'>FRAME_PIXEL_WIDTH</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>), <a href='../S/3036.html#L954' title='Defined at 954 in src/frame.h.'>FRAME_PIXEL_HEIGHT</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L426' name='L426'></a>   426        ew-&gt;core.width, ew-&gt;core.height,
+<a id='L427' name='L427'></a>   427        <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;new_width, <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;new_height);
+<a id='L428' name='L428'></a>   428 
+<a id='L429' name='L429'></a>   429   <a href='../S/3032.html#L6009' title='Defined at 6009 in src/dispnew.c.'>change_frame_size</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, ew-&gt;core.width, ew-&gt;core.height,
+<a id='L430' name='L430'></a>   430                      <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>, <a href='../S/2501.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L431' name='L431'></a>   431 
+<a id='L432' name='L432'></a>   432   <strong class='reserved'>if</strong> (<a href='../S/2976.html#L199' title='Defined at 199 in src/widget.c.'>get_wm_shell</a> (widget))
+<a id='L433' name='L433'></a>   433     <a href='../S/2976.html#L273' title='Defined at 273 in src/widget.c.'>update_wm_hints</a> (<a href='../S/2976.html#L199' title='Defined at 199 in src/widget.c.'>get_wm_shell</a> (widget), ew);
+<a id='L434' name='L434'></a>   434   <a href='../S/2976.html#L327' title='Defined at 327 in src/widget.c.'>update_various_frame_slots</a> (ew);
+<a id='L435' name='L435'></a>   435 
+<a id='L436' name='L436'></a>   436   <a href='../S/3116.html#L35687' title='Defined at 35687 in src/xdisp.c.'>cancel_mouse_face</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L437' name='L437'></a>   437 <em class='brace'>}</em>
+<a id='L438' name='L438'></a>   438 
+<a id='L439' name='L439'></a>   439 <strong class='reserved'>static</strong> XtGeometryResult
+<a id='L440' name='L440'></a>   440 <a href='../R/1594.html' title='Multiple referred from 2 places.'>EmacsFrameQueryGeometry</a> (Widget widget, XtWidgetGeometry *<a href='../S/4147.html#L133' title='Defined at 133 in test/manual/etags/c-src/c.c.'>request</a>,
+<a id='L441' name='L441'></a>   441                          XtWidgetGeometry *result)
+<a id='L442' name='L442'></a>   442 <em class='brace'>{</em>
+<a id='L443' name='L443'></a>   443   <strong class='reserved'>int</strong> mask = <a href='../S/4147.html#L133' title='Defined at 133 in test/manual/etags/c-src/c.c.'>request</a>-&gt;request_mode;
+<a id='L444' name='L444'></a>   444 
+<a id='L445' name='L445'></a>   445   <strong class='reserved'>if</strong> (mask &amp; (CWWidth | CWHeight) &amp;&amp; !frame_resize_pixelwise)
+<a id='L446' name='L446'></a>   446     <em class='brace'>{</em>
+<a id='L447' name='L447'></a>   447       <a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew = (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a>) widget;
+<a id='L448' name='L448'></a>   448       Dimension ok_width, ok_height;
+<a id='L449' name='L449'></a>   449 
+<a id='L450' name='L450'></a>   450       <a href='../S/2976.html#L187' title='Defined at 187 in src/widget.c.'>round_size_to_char</a> (ew,
+<a id='L451' name='L451'></a>   451                           mask &amp; CWWidth ? <a href='../S/4147.html#L133' title='Defined at 133 in test/manual/etags/c-src/c.c.'>request</a>-&gt;width : ew-&gt;core.width,
+<a id='L452' name='L452'></a>   452                           mask &amp; CWHeight ? <a href='../S/4147.html#L133' title='Defined at 133 in test/manual/etags/c-src/c.c.'>request</a>-&gt;height : ew-&gt;core.height,
+<a id='L453' name='L453'></a>   453                           &amp;ok_width, &amp;ok_height);
+<a id='L454' name='L454'></a>   454       <strong class='reserved'>if</strong> ((mask &amp; CWWidth) &amp;&amp; (ok_width != <a href='../S/4147.html#L133' title='Defined at 133 in test/manual/etags/c-src/c.c.'>request</a>-&gt;width))
+<a id='L455' name='L455'></a>   455         <em class='brace'>{</em>
+<a id='L456' name='L456'></a>   456           result-&gt;request_mode |= CWWidth;
+<a id='L457' name='L457'></a>   457           result-&gt;width = ok_width;
+<a id='L458' name='L458'></a>   458         <em class='brace'>}</em>
+<a id='L459' name='L459'></a>   459       <strong class='reserved'>if</strong> ((mask &amp; CWHeight) &amp;&amp; (ok_height != <a href='../S/4147.html#L133' title='Defined at 133 in test/manual/etags/c-src/c.c.'>request</a>-&gt;height))
+<a id='L460' name='L460'></a>   460         <em class='brace'>{</em>
+<a id='L461' name='L461'></a>   461           result-&gt;request_mode |= CWHeight;
+<a id='L462' name='L462'></a>   462           result-&gt;height = ok_height;
+<a id='L463' name='L463'></a>   463         <em class='brace'>}</em>
+<a id='L464' name='L464'></a>   464     <em class='brace'>}</em>
+<a id='L465' name='L465'></a>   465   <strong class='reserved'>return</strong> result-&gt;request_mode ? XtGeometryAlmost : XtGeometryYes;
+<a id='L466' name='L466'></a>   466 <em class='brace'>}</em>
+<a id='L467' name='L467'></a>   467 
+<a id='L468' name='L468'></a>   468 <em class='comment'>/* Special entry points */</em>
+<a id='L469' name='L469'></a>   469 <strong class='reserved'>void</strong>
+<a id='L470' name='L470'></a>   470 <a href='../S/3107.html#L98' title='Referred from 98 in src/widget.h.'>EmacsFrameSetCharSize</a> (Widget widget, <strong class='reserved'>int</strong> columns, <strong class='reserved'>int</strong> rows)
+<a id='L471' name='L471'></a>   471 <em class='brace'>{</em>
+<a id='L472' name='L472'></a>   472   <a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew = (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a>) widget;
+<a id='L473' name='L473'></a>   473   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L474' name='L474'></a>   474 
+<a id='L475' name='L475'></a>   475   <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (frame_size_history))
+<a id='L476' name='L476'></a>   476     <a href='../S/3015.html#L566' title='Defined at 566 in src/frame.c.'>frame_size_history_extra</a>
+<a id='L477' name='L477'></a>   477       (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> ("EmacsFrameSetCharSize"),
+<a id='L478' name='L478'></a>   478        <a href='../S/3036.html#L953' title='Defined at 953 in src/frame.h.'>FRAME_PIXEL_WIDTH</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>), <a href='../S/3036.html#L954' title='Defined at 954 in src/frame.h.'>FRAME_PIXEL_HEIGHT</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L479' name='L479'></a>   479        columns, rows,
+<a id='L480' name='L480'></a>   480        <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;new_width, <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;new_height);
+<a id='L481' name='L481'></a>   481 
+<a id='L482' name='L482'></a>   482   <strong class='reserved'>if</strong> (!<a href='../S/3015.html#L158' title='Defined at 158 in src/frame.c.'>frame_inhibit_resize</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, 0, Qfont)
+<a id='L483' name='L483'></a>   483       &amp;&amp; !<a href='../S/3015.html#L158' title='Defined at 158 in src/frame.c.'>frame_inhibit_resize</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, 1, Qfont))
+<a id='L484' name='L484'></a>   484     x_set_window_size (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, 0, columns * <a href='../S/3036.html#L1392' title='Defined at 1392 in src/frame.h.'>FRAME_COLUMN_WIDTH</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L485' name='L485'></a>   485                        rows * <a href='../S/3036.html#L1388' title='Defined at 1388 in src/frame.h.'>FRAME_LINE_HEIGHT</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>));
+<a id='L486' name='L486'></a>   486 <em class='brace'>}</em>
+<a id='L487' name='L487'></a>   487 
+<a id='L488' name='L488'></a>   488 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L489' name='L489'></a>   489 <a href='../R/1591.html' title='Multiple referred from 2 places.'>EmacsFrameExpose</a> (Widget widget, XEvent *event, Region region)
+<a id='L490' name='L490'></a>   490 <em class='brace'>{</em>
+<a id='L491' name='L491'></a>   491   <a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew = (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a>) widget;
+<a id='L492' name='L492'></a>   492   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L493' name='L493'></a>   493 
+<a id='L494' name='L494'></a>   494   <a href='../S/3116.html#L36176' title='Defined at 36176 in src/xdisp.c.'>expose_frame</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, event-&gt;xexpose.<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, event-&gt;xexpose.y,
+<a id='L495' name='L495'></a>   495                 event-&gt;xexpose.width, event-&gt;xexpose.height);
+<a id='L496' name='L496'></a>   496   <a href='../S/3036.html#L1742' title='Defined at 1742 in src/frame.h.'>flush_frame</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L497' name='L497'></a>   497 <em class='brace'>}</em>
+<a id='L498' name='L498'></a>   498 
+<a id='L499' name='L499'></a>   499 
+<a id='L500' name='L500'></a>   500 <strong class='reserved'>void</strong>
+<a id='L501' name='L501'></a>   501 <a href='../R/15895.html' title='Multiple referred from 3 places.'>widget_store_internal_border</a> (Widget widget)
+<a id='L502' name='L502'></a>   502 <em class='brace'>{</em>
+<a id='L503' name='L503'></a>   503   <a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a> ew = (<a href='../S/3107.html#L90' title='Defined at 90 in src/widget.h.'>EmacsFrame</a>) widget;
+<a id='L504' name='L504'></a>   504   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = ew-&gt;emacs_frame.<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>;
+<a id='L505' name='L505'></a>   505 
+<a id='L506' name='L506'></a>   506   ew-&gt;emacs_frame.internal_border_width = <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>-&gt;internal_border_width;
+<a id='L507' name='L507'></a>   507 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L147'>[^]</a><a href='#L501'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

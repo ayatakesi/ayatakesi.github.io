@@ -1,0 +1,934 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/w32console.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/w32console.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L78'>[^]</a><a href='#L862'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L78' title='Defined at 78.'>ctrl_c_handler</a></li>
+<li><a href='#L88' title='Defined at 88.'>w32con_move_cursor</a></li>
+<li><a href='#L99' title='Defined at 99.'>w32con_hide_cursor</a></li>
+<li><a href='#L107' title='Defined at 107.'>w32con_show_cursor</a></li>
+<li><a href='#L116' title='Defined at 116.'>w32con_clear_to_end</a></li>
+<li><a href='#L124' title='Defined at 124.'>w32con_clear_frame</a></li>
+<li><a href='#L151' title='Defined at 151.'>w32con_clear_end_of_line</a></li>
+<li><a href='#L178' title='Defined at 178.'>w32con_ins_del_lines</a></li>
+<li><a href='#L251' title='Defined at 251.'>scroll_line</a></li>
+<li><a href='#L286' title='Defined at 286.'>w32con_insert_glyphs</a></li>
+<li><a href='#L306' title='Defined at 306.'>w32con_write_glyphs</a></li>
+<li><a href='#L375' title='Defined at 375.'>w32con_write_glyphs_with_face</a></li>
+<li><a href='#L422' title='Defined at 422.'>tty_draw_row_with_mouse_face</a></li>
+<li><a href='#L453' title='Defined at 453.'>w32con_delete_glyphs</a></li>
+<li><a href='#L464' title='Defined at 464.'>w32con_reset_terminal_modes</a></li>
+<li><a href='#L495' title='Defined at 495.'>w32con_set_terminal_modes</a></li>
+<li><a href='#L525' title='Defined at 525.'>w32con_update_begin</a></li>
+<li><a href='#L530' title='Defined at 530.'>w32con_update_end</a></li>
+<li><a href='#L542' title='Defined at 542.'>sys_tputs</a></li>
+<li><a href='#L549' title='Defined at 549.'>sys_tgetstr</a></li>
+<li><a href='#L565' title='Defined at 565.'>evalcost</a></li>
+<li><a href='#L573' title='Defined at 573.'>cmputc</a></li>
+<li><a href='#L581' title='Defined at 581.'>cmcheckmagic</a></li>
+<li><a href='#L588' title='Defined at 588.'>cmcostinit</a></li>
+<li><a href='#L595' title='Defined at 595.'>cmgoto</a></li>
+<li><a href='#L602' title='Defined at 602.'>Wcm_clear</a></li>
+<li><a href='#L611' title='Defined at 611.'>cursorX</a></li>
+<li><a href='#L617' title='Defined at 617.'>cursorY</a></li>
+<li><a href='#L630' title='Defined at 630.'>w32_face_attributes</a></li>
+<li><a href='#L663' title='Defined at 663.'>initialize_w32_display</a></li>
+<li><a href='#L837' title='Defined at 837.'>DEFUN</a></li>
+<li><a href='#L849' title='Defined at 849.'>DEFUN</a></li>
+<li><a href='#L862' title='Defined at 862.'>syms_of_ntterm</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Terminal hooks for GNU Emacs on the Microsoft Windows API.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1992, 1999, 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L18' name='L18'></a>    18 
+<a id='L19' name='L19'></a>    19 <em class='comment'>/*</em>
+<a id='L20' name='L20'></a>    20 <em class='comment'>   Tim Fleehart (apollo@online.com)             1-17-92</em>
+<a id='L21' name='L21'></a>    21 <em class='comment'>   Geoff Voelker (voelker@cs.washington.edu)    9-12-93</em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>*/</em>
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;windows.h&gt;
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> "<a href='2920.html'>coding.h</a>"
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> "<a href='3039.html'>termchar.h</a>"   <em class='comment'>/* for FRAME_TTY */</em>
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#include</em> "<a href='2876.html'>dispextern.h</a>" <em class='comment'>/* for tty_defined_color */</em>
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#include</em> "<a href='2856.html'>menu.h</a>"       <em class='comment'>/* for tty_menu_show */</em>
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#include</em> "<a href='2918.html'>w32term.h</a>"
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#include</em> "<a href='2994.html'>w32common.h</a>"  <em class='comment'>/* for os_subtype */</em>
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#include</em> "<a href='2965.html'>w32inevt.h</a>"
+<a id='L38' name='L38'></a>    38 
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#ifdef</em> <a href='../D/6117.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L40' name='L40'></a>    40 <em class='sharp'>#include</em> "<a href='3062.html'>w32.h</a>"        <em class='comment'>/* for syms_of_ntterm */</em>
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#endif</em>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L88' title='Defined at 88 in src/w32console.c.'>w32con_move_cursor</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> row, <strong class='reserved'>int</strong> col);
+<a id='L44' name='L44'></a>    44 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L116' title='Defined at 116 in src/w32console.c.'>w32con_clear_to_end</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L45' name='L45'></a>    45 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L124' title='Defined at 124 in src/w32console.c.'>w32con_clear_frame</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L46' name='L46'></a>    46 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L151' title='Defined at 151 in src/w32console.c.'>w32con_clear_end_of_line</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong>);
+<a id='L47' name='L47'></a>    47 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L178' title='Defined at 178 in src/w32console.c.'>w32con_ins_del_lines</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> vpos, <strong class='reserved'>int</strong> n);
+<a id='L48' name='L48'></a>    48 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L286' title='Defined at 286 in src/w32console.c.'>w32con_insert_glyphs</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>struct</strong> <a href='../S/2876.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a> *<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>, <strong class='reserved'>int</strong> len);
+<a id='L49' name='L49'></a>    49 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L306' title='Defined at 306 in src/w32console.c.'>w32con_write_glyphs</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>struct</strong> <a href='../S/2876.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a> *string, <strong class='reserved'>int</strong> len);
+<a id='L50' name='L50'></a>    50 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L453' title='Defined at 453 in src/w32console.c.'>w32con_delete_glyphs</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> n);
+<a id='L51' name='L51'></a>    51 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L464' title='Defined at 464 in src/w32console.c.'>w32con_reset_terminal_modes</a> (<strong class='reserved'>struct</strong> <a href='../S/2900.html#L454' title='Defined at 454 in src/termhooks.h.'>terminal</a> *t);
+<a id='L52' name='L52'></a>    52 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L495' title='Defined at 495 in src/w32console.c.'>w32con_set_terminal_modes</a> (<strong class='reserved'>struct</strong> <a href='../S/2900.html#L454' title='Defined at 454 in src/termhooks.h.'>terminal</a> *t);
+<a id='L53' name='L53'></a>    53 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L525' title='Defined at 525 in src/w32console.c.'>w32con_update_begin</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> * <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L54' name='L54'></a>    54 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2956.html#L530' title='Defined at 530 in src/w32console.c.'>w32con_update_end</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> * <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L55' name='L55'></a>    55 <strong class='reserved'>static</strong> WORD <a href='../S/2956.html#L630' title='Defined at 630 in src/w32console.c.'>w32_face_attributes</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a>);
+<a id='L56' name='L56'></a>    56 
+<a id='L57' name='L57'></a>    57 <strong class='reserved'>static</strong> COORD    cursor_coords;
+<a id='L58' name='L58'></a>    58 <strong class='reserved'>static</strong> HANDLE   prev_screen, cur_screen;
+<a id='L59' name='L59'></a>    59 <strong class='reserved'>static</strong> WORD     char_attr_normal;
+<a id='L60' name='L60'></a>    60 <strong class='reserved'>static</strong> DWORD    prev_console_mode;
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62 <strong class='reserved'>static</strong> CONSOLE_CURSOR_INFO console_cursor_info;
+<a id='L63' name='L63'></a>    63 <em class='sharp'>#ifndef</em> USE_SEPARATE_SCREEN
+<a id='L64' name='L64'></a>    64 <strong class='reserved'>static</strong> CONSOLE_CURSOR_INFO prev_console_cursor;
+<a id='L65' name='L65'></a>    65 <em class='sharp'>#endif</em>
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67 HANDLE  keyboard_handle;
+<a id='L68' name='L68'></a>    68 <strong class='reserved'>int</strong> w32_console_unicode_input;
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70 
+<a id='L71' name='L71'></a>    71 <em class='comment'>/* Setting this as the ctrl handler prevents emacs from being killed when</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>   someone hits ^C in a 'suspended' session (child shell).</em>
+<a id='L73' name='L73'></a>    73 <em class='comment'>   Also ignore Ctrl-Break signals.  */</em>
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75 <a href='../D/313.html' title='Multiple defined in 3 places.'>BOOL</a> <a href='../S/2956.html#L78' title='Defined at 78 in src/w32console.c.'>ctrl_c_handler</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong>);
+<a id='L76' name='L76'></a>    76 
+<a id='L77' name='L77'></a>    77 <a href='../D/313.html' title='Multiple defined in 3 places.'>BOOL</a>
+<a id='L78' name='L78'></a>    78 <a href='../R/8122.html' title='Multiple referred from 3 places.'>ctrl_c_handler</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> type)
+<a id='L79' name='L79'></a>    79 <em class='brace'>{</em>
+<a id='L80' name='L80'></a>    80   <em class='comment'>/* Only ignore "interrupt" events when running interactively.  */</em>
+<a id='L81' name='L81'></a>    81   <strong class='reserved'>return</strong> (!noninteractive
+<a id='L82' name='L82'></a>    82           &amp;&amp; (type == CTRL_C_EVENT || type == CTRL_BREAK_EVENT));
+<a id='L83' name='L83'></a>    83 <em class='brace'>}</em>
+<a id='L84' name='L84'></a>    84 
+<a id='L85' name='L85'></a>    85 
+<a id='L86' name='L86'></a>    86 <em class='comment'>/* Move the cursor to (ROW, COL) on FRAME.  */</em>
+<a id='L87' name='L87'></a>    87 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L88' name='L88'></a>    88 <a href='../R/15801.html' title='Multiple referred from 9 places.'>w32con_move_cursor</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> row, <strong class='reserved'>int</strong> col)
+<a id='L89' name='L89'></a>    89 <em class='brace'>{</em>
+<a id='L90' name='L90'></a>    90   cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> = col;
+<a id='L91' name='L91'></a>    91   cursor_coords.Y = row;
+<a id='L92' name='L92'></a>    92 
+<a id='L93' name='L93'></a>    93   <em class='comment'>/* TODO: for multi-tty support, cur_screen should be replaced with a</em>
+<a id='L94' name='L94'></a>    94 <em class='comment'>     reference to the terminal for this frame.  */</em>
+<a id='L95' name='L95'></a>    95   SetConsoleCursorPosition (cur_screen, cursor_coords);
+<a id='L96' name='L96'></a>    96 <em class='brace'>}</em>
+<a id='L97' name='L97'></a>    97 
+<a id='L98' name='L98'></a>    98 <strong class='reserved'>void</strong>
+<a id='L99' name='L99'></a>    99 <a href='../R/15798.html' title='Multiple referred from 2 places.'>w32con_hide_cursor</a> (<strong class='reserved'>void</strong>)
+<a id='L100' name='L100'></a>   100 <em class='brace'>{</em>
+<a id='L101' name='L101'></a>   101   GetConsoleCursorInfo (cur_screen, &amp;console_cursor_info);
+<a id='L102' name='L102'></a>   102   console_cursor_info.bVisible = <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L103' name='L103'></a>   103   SetConsoleCursorInfo (cur_screen, &amp;console_cursor_info);
+<a id='L104' name='L104'></a>   104 <em class='brace'>}</em>
+<a id='L105' name='L105'></a>   105 
+<a id='L106' name='L106'></a>   106 <strong class='reserved'>void</strong>
+<a id='L107' name='L107'></a>   107 <a href='../R/15804.html' title='Multiple referred from 2 places.'>w32con_show_cursor</a> (<strong class='reserved'>void</strong>)
+<a id='L108' name='L108'></a>   108 <em class='brace'>{</em>
+<a id='L109' name='L109'></a>   109   GetConsoleCursorInfo (cur_screen, &amp;console_cursor_info);
+<a id='L110' name='L110'></a>   110   console_cursor_info.bVisible = <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L111' name='L111'></a>   111   SetConsoleCursorInfo (cur_screen, &amp;console_cursor_info);
+<a id='L112' name='L112'></a>   112 <em class='brace'>}</em>
+<a id='L113' name='L113'></a>   113 
+<a id='L114' name='L114'></a>   114 <em class='comment'>/* Clear from cursor to end of screen.  */</em>
+<a id='L115' name='L115'></a>   115 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L116' name='L116'></a>   116 <a href='../R/15796.html' title='Multiple referred from 2 places.'>w32con_clear_to_end</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L117' name='L117'></a>   117 <em class='brace'>{</em>
+<a id='L118' name='L118'></a>   118   <a href='../S/2956.html#L151' title='Defined at 151 in src/w32console.c.'>w32con_clear_end_of_line</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/3036.html#L962' title='Defined at 962 in src/frame.h.'>FRAME_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) - 1);
+<a id='L119' name='L119'></a>   119   <a href='../S/2956.html#L178' title='Defined at 178 in src/w32console.c.'>w32con_ins_del_lines</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, cursor_coords.Y, <a href='../S/3036.html#L956' title='Defined at 956 in src/frame.h.'>FRAME_TOTAL_LINES</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) - cursor_coords.Y - 1);
+<a id='L120' name='L120'></a>   120 <em class='brace'>}</em>
+<a id='L121' name='L121'></a>   121 
+<a id='L122' name='L122'></a>   122 <em class='comment'>/* Clear the frame.  */</em>
+<a id='L123' name='L123'></a>   123 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L124' name='L124'></a>   124 <a href='../R/15795.html' title='Multiple referred from 2 places.'>w32con_clear_frame</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L125' name='L125'></a>   125 <em class='brace'>{</em>
+<a id='L126' name='L126'></a>   126   COORD      dest;
+<a id='L127' name='L127'></a>   127   <strong class='reserved'>int</strong>        n;
+<a id='L128' name='L128'></a>   128   DWORD      r;
+<a id='L129' name='L129'></a>   129   CONSOLE_SCREEN_BUFFER_INFO <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>;
+<a id='L130' name='L130'></a>   130 
+<a id='L131' name='L131'></a>   131   GetConsoleScreenBufferInfo (GetStdHandle (STD_OUTPUT_HANDLE), &amp;<a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>);
+<a id='L132' name='L132'></a>   132 
+<a id='L133' name='L133'></a>   133   <em class='comment'>/* Remember that the screen buffer might be wider than the window.  */</em>
+<a id='L134' name='L134'></a>   134   n = <a href='../S/3036.html#L956' title='Defined at 956 in src/frame.h.'>FRAME_TOTAL_LINES</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) * <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>;
+<a id='L135' name='L135'></a>   135   dest.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> = dest.Y = 0;
+<a id='L136' name='L136'></a>   136 
+<a id='L137' name='L137'></a>   137   FillConsoleOutputAttribute (cur_screen, char_attr_normal, n, dest, &amp;r);
+<a id='L138' name='L138'></a>   138   FillConsoleOutputCharacter (cur_screen, ' ', n, dest, &amp;r);
+<a id='L139' name='L139'></a>   139 
+<a id='L140' name='L140'></a>   140   <a href='../S/2956.html#L88' title='Defined at 88 in src/w32console.c.'>w32con_move_cursor</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, 0, 0);
+<a id='L141' name='L141'></a>   141 <em class='brace'>}</em>
+<a id='L142' name='L142'></a>   142 
+<a id='L143' name='L143'></a>   143 
+<a id='L144' name='L144'></a>   144 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2876.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a> glyph_base[80];
+<a id='L145' name='L145'></a>   145 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2876.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a> *glyphs = glyph_base;
+<a id='L146' name='L146'></a>   146 <strong class='reserved'>static</strong> size_t glyphs_len = <a href='../D/75.html' title='Multiple defined in 2 places.'>ARRAYELTS</a> (glyph_base);
+<a id='L147' name='L147'></a>   147 <strong class='reserved'>static</strong> <a href='../D/313.html' title='Multiple defined in 3 places.'>BOOL</a>  ceol_initialized = <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L148' name='L148'></a>   148 
+<a id='L149' name='L149'></a>   149 <em class='comment'>/* Clear from Cursor to end (what's "standout marker"?).  */</em>
+<a id='L150' name='L150'></a>   150 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L151' name='L151'></a>   151 <a href='../R/15794.html' title='Multiple referred from 6 places.'>w32con_clear_end_of_line</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> end)
+<a id='L152' name='L152'></a>   152 <em class='brace'>{</em>
+<a id='L153' name='L153'></a>   153   <em class='comment'>/* Time to reallocate our "empty row"?  With today's large screens,</em>
+<a id='L154' name='L154'></a>   154 <em class='comment'>     it is not unthinkable to see TTY frames well in excess of</em>
+<a id='L155' name='L155'></a>   155 <em class='comment'>     80-character width.  */</em>
+<a id='L156' name='L156'></a>   156   <strong class='reserved'>if</strong> (end - cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> &gt; glyphs_len)
+<a id='L157' name='L157'></a>   157     <em class='brace'>{</em>
+<a id='L158' name='L158'></a>   158       <strong class='reserved'>if</strong> (glyphs == glyph_base)
+<a id='L159' name='L159'></a>   159         glyphs = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L160' name='L160'></a>   160       glyphs = <a href='../D/17925.html' title='Multiple defined in 6 places.'>xrealloc</a> (glyphs, <a href='../S/3036.html#L962' title='Defined at 962 in src/frame.h.'>FRAME_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) * <strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../S/2876.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a>));
+<a id='L161' name='L161'></a>   161       glyphs_len = <a href='../S/3036.html#L962' title='Defined at 962 in src/frame.h.'>FRAME_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L162' name='L162'></a>   162       ceol_initialized = <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L163' name='L163'></a>   163     <em class='brace'>}</em>
+<a id='L164' name='L164'></a>   164   <strong class='reserved'>if</strong> (!ceol_initialized)
+<a id='L165' name='L165'></a>   165     <em class='brace'>{</em>
+<a id='L166' name='L166'></a>   166       <strong class='reserved'>int</strong> i;
+<a id='L167' name='L167'></a>   167       <strong class='reserved'>for</strong> (i = 0; i &lt; glyphs_len; i++)
+<a id='L168' name='L168'></a>   168         <em class='brace'>{</em>
+<a id='L169' name='L169'></a>   169           memcpy (&amp;glyphs[i], &amp;space_glyph, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../S/2876.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a>));
+<a id='L170' name='L170'></a>   170         <em class='brace'>}</em>
+<a id='L171' name='L171'></a>   171       ceol_initialized = <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L172' name='L172'></a>   172     <em class='brace'>}</em>
+<a id='L173' name='L173'></a>   173   <a href='../S/2956.html#L306' title='Defined at 306 in src/w32console.c.'>w32con_write_glyphs</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, glyphs, end - cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>);
+<a id='L174' name='L174'></a>   174 <em class='brace'>}</em>
+<a id='L175' name='L175'></a>   175 
+<a id='L176' name='L176'></a>   176 <em class='comment'>/* Insert n lines at vpos. if n is negative delete -n lines.  */</em>
+<a id='L177' name='L177'></a>   177 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L178' name='L178'></a>   178 <a href='../R/15799.html' title='Multiple referred from 3 places.'>w32con_ins_del_lines</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> vpos, <strong class='reserved'>int</strong> n)
+<a id='L179' name='L179'></a>   179 <em class='brace'>{</em>
+<a id='L180' name='L180'></a>   180   <strong class='reserved'>int</strong>        i, nb;
+<a id='L181' name='L181'></a>   181   SMALL_RECT scroll;
+<a id='L182' name='L182'></a>   182   SMALL_RECT clip;
+<a id='L183' name='L183'></a>   183   COORD      dest;
+<a id='L184' name='L184'></a>   184   CHAR_INFO  fill;
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186   <strong class='reserved'>if</strong> (n &lt; 0)
+<a id='L187' name='L187'></a>   187     <em class='brace'>{</em>
+<a id='L188' name='L188'></a>   188       scroll.Top = vpos - n;
+<a id='L189' name='L189'></a>   189       scroll.Bottom = <a href='../S/3036.html#L956' title='Defined at 956 in src/frame.h.'>FRAME_TOTAL_LINES</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L190' name='L190'></a>   190       dest.Y = vpos;
+<a id='L191' name='L191'></a>   191     <em class='brace'>}</em>
+<a id='L192' name='L192'></a>   192   <strong class='reserved'>else</strong>
+<a id='L193' name='L193'></a>   193     <em class='brace'>{</em>
+<a id='L194' name='L194'></a>   194       scroll.Top = vpos;
+<a id='L195' name='L195'></a>   195       scroll.Bottom = <a href='../S/3036.html#L956' title='Defined at 956 in src/frame.h.'>FRAME_TOTAL_LINES</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) - n;
+<a id='L196' name='L196'></a>   196       dest.Y = vpos + n;
+<a id='L197' name='L197'></a>   197     <em class='brace'>}</em>
+<a id='L198' name='L198'></a>   198   clip.Top = clip.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a> = scroll.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a> = 0;
+<a id='L199' name='L199'></a>   199   clip.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> = scroll.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> = <a href='../S/3036.html#L962' title='Defined at 962 in src/frame.h.'>FRAME_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L200' name='L200'></a>   200   clip.Bottom = <a href='../S/3036.html#L956' title='Defined at 956 in src/frame.h.'>FRAME_TOTAL_LINES</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L201' name='L201'></a>   201 
+<a id='L202' name='L202'></a>   202   dest.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> = 0;
+<a id='L203' name='L203'></a>   203 
+<a id='L204' name='L204'></a>   204   fill.Char.AsciiChar = 0x20;
+<a id='L205' name='L205'></a>   205   fill.Attributes = char_attr_normal;
+<a id='L206' name='L206'></a>   206 
+<a id='L207' name='L207'></a>   207   ScrollConsoleScreenBuffer (cur_screen, &amp;scroll, &amp;clip, dest, &amp;fill);
+<a id='L208' name='L208'></a>   208 
+<a id='L209' name='L209'></a>   209   <em class='comment'>/* Here we have to deal with a w32 console flake: If the scroll</em>
+<a id='L210' name='L210'></a>   210 <em class='comment'>     region looks like abc and we scroll c to a and fill with d we get</em>
+<a id='L211' name='L211'></a>   211 <em class='comment'>     cbd... if we scroll block c one line at a time to a, we get cdd...</em>
+<a id='L212' name='L212'></a>   212 <em class='comment'>     Emacs expects cdd consistently... So we have to deal with that</em>
+<a id='L213' name='L213'></a>   213 <em class='comment'>     here... (this also occurs scrolling the same way in the other</em>
+<a id='L214' name='L214'></a>   214 <em class='comment'>     direction.  */</em>
+<a id='L215' name='L215'></a>   215 
+<a id='L216' name='L216'></a>   216   <strong class='reserved'>if</strong> (n &gt; 0)
+<a id='L217' name='L217'></a>   217     <em class='brace'>{</em>
+<a id='L218' name='L218'></a>   218       <strong class='reserved'>if</strong> (scroll.Bottom &lt; dest.Y)
+<a id='L219' name='L219'></a>   219         <em class='brace'>{</em>
+<a id='L220' name='L220'></a>   220           <strong class='reserved'>for</strong> (i = scroll.Bottom; i &lt; dest.Y; i++)
+<a id='L221' name='L221'></a>   221             <em class='brace'>{</em>
+<a id='L222' name='L222'></a>   222               <a href='../S/2956.html#L88' title='Defined at 88 in src/w32console.c.'>w32con_move_cursor</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, i, 0);
+<a id='L223' name='L223'></a>   223               <a href='../S/2956.html#L151' title='Defined at 151 in src/w32console.c.'>w32con_clear_end_of_line</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/3036.html#L962' title='Defined at 962 in src/frame.h.'>FRAME_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>));
+<a id='L224' name='L224'></a>   224             <em class='brace'>}</em>
+<a id='L225' name='L225'></a>   225         <em class='brace'>}</em>
+<a id='L226' name='L226'></a>   226     <em class='brace'>}</em>
+<a id='L227' name='L227'></a>   227   <strong class='reserved'>else</strong>
+<a id='L228' name='L228'></a>   228     <em class='brace'>{</em>
+<a id='L229' name='L229'></a>   229       nb = dest.Y + (scroll.Bottom - scroll.Top) + 1;
+<a id='L230' name='L230'></a>   230 
+<a id='L231' name='L231'></a>   231       <strong class='reserved'>if</strong> (nb &lt; scroll.Top)
+<a id='L232' name='L232'></a>   232         <em class='brace'>{</em>
+<a id='L233' name='L233'></a>   233           <strong class='reserved'>for</strong> (i = nb; i &lt; scroll.Top; i++)
+<a id='L234' name='L234'></a>   234             <em class='brace'>{</em>
+<a id='L235' name='L235'></a>   235               <a href='../S/2956.html#L88' title='Defined at 88 in src/w32console.c.'>w32con_move_cursor</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, i, 0);
+<a id='L236' name='L236'></a>   236               <a href='../S/2956.html#L151' title='Defined at 151 in src/w32console.c.'>w32con_clear_end_of_line</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/3036.html#L962' title='Defined at 962 in src/frame.h.'>FRAME_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>));
+<a id='L237' name='L237'></a>   237             <em class='brace'>}</em>
+<a id='L238' name='L238'></a>   238         <em class='brace'>}</em>
+<a id='L239' name='L239'></a>   239     <em class='brace'>}</em>
+<a id='L240' name='L240'></a>   240 
+<a id='L241' name='L241'></a>   241   cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> = 0;
+<a id='L242' name='L242'></a>   242   cursor_coords.Y = vpos;
+<a id='L243' name='L243'></a>   243 <em class='brace'>}</em>
+<a id='L244' name='L244'></a>   244 
+<a id='L245' name='L245'></a>   245 <em class='sharp'>#undef</em>  <a href='../R/2923.html' title='Multiple referred from 11 places.'>LEFT</a>
+<a id='L246' name='L246'></a>   246 <em class='sharp'>#undef</em>  <a href='../R/4411.html' title='Multiple referred from 8 places.'>RIGHT</a>
+<a id='L247' name='L247'></a>   247 <em class='sharp'>#define</em> <a href='../R/2923.html' title='Multiple referred from 11 places.'>LEFT</a>    1
+<a id='L248' name='L248'></a>   248 <em class='sharp'>#define</em> <a href='../R/4411.html' title='Multiple referred from 8 places.'>RIGHT</a>   0
+<a id='L249' name='L249'></a>   249 
+<a id='L250' name='L250'></a>   250 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L251' name='L251'></a>   251 <a href='../R/13919.html' title='Multiple referred from 2 places.'>scroll_line</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> dist, <strong class='reserved'>int</strong> direction)
+<a id='L252' name='L252'></a>   252 <em class='brace'>{</em>
+<a id='L253' name='L253'></a>   253   <em class='comment'>/* The idea here is to implement a horizontal scroll in one line to</em>
+<a id='L254' name='L254'></a>   254 <em class='comment'>     implement delete and half of insert.  */</em>
+<a id='L255' name='L255'></a>   255   SMALL_RECT scroll, clip;
+<a id='L256' name='L256'></a>   256   COORD      dest;
+<a id='L257' name='L257'></a>   257   CHAR_INFO  fill;
+<a id='L258' name='L258'></a>   258 
+<a id='L259' name='L259'></a>   259   clip.Top = scroll.Top = clip.Bottom = scroll.Bottom = cursor_coords.Y;
+<a id='L260' name='L260'></a>   260   clip.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a> = 0;
+<a id='L261' name='L261'></a>   261   clip.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> = <a href='../S/3036.html#L962' title='Defined at 962 in src/frame.h.'>FRAME_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L262' name='L262'></a>   262 
+<a id='L263' name='L263'></a>   263   <strong class='reserved'>if</strong> (direction == <a href='../D/3240.html' title='Multiple defined in 3 places.'>LEFT</a>)
+<a id='L264' name='L264'></a>   264     <em class='brace'>{</em>
+<a id='L265' name='L265'></a>   265       scroll.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a> = cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> + dist;
+<a id='L266' name='L266'></a>   266       scroll.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> = <a href='../S/3036.html#L962' title='Defined at 962 in src/frame.h.'>FRAME_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) - 1;
+<a id='L267' name='L267'></a>   267     <em class='brace'>}</em>
+<a id='L268' name='L268'></a>   268   <strong class='reserved'>else</strong>
+<a id='L269' name='L269'></a>   269     <em class='brace'>{</em>
+<a id='L270' name='L270'></a>   270       scroll.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a> = cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>;
+<a id='L271' name='L271'></a>   271       scroll.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> = <a href='../S/3036.html#L962' title='Defined at 962 in src/frame.h.'>FRAME_COLS</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) - dist - 1;
+<a id='L272' name='L272'></a>   272     <em class='brace'>}</em>
+<a id='L273' name='L273'></a>   273 
+<a id='L274' name='L274'></a>   274   dest.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> = cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>;
+<a id='L275' name='L275'></a>   275   dest.Y = cursor_coords.Y;
+<a id='L276' name='L276'></a>   276 
+<a id='L277' name='L277'></a>   277   fill.Char.AsciiChar = 0x20;
+<a id='L278' name='L278'></a>   278   fill.Attributes = char_attr_normal;
+<a id='L279' name='L279'></a>   279 
+<a id='L280' name='L280'></a>   280   ScrollConsoleScreenBuffer (cur_screen, &amp;scroll, &amp;clip, dest, &amp;fill);
+<a id='L281' name='L281'></a>   281 <em class='brace'>}</em>
+<a id='L282' name='L282'></a>   282 
+<a id='L283' name='L283'></a>   283 
+<a id='L284' name='L284'></a>   284 <em class='comment'>/* If start is zero insert blanks instead of a string at start ?. */</em>
+<a id='L285' name='L285'></a>   285 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L286' name='L286'></a>   286 <a href='../R/15800.html' title='Multiple referred from 2 places.'>w32con_insert_glyphs</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../S/2876.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a> *<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>,
+<a id='L287' name='L287'></a>   287                       <strong class='reserved'>register</strong> <strong class='reserved'>int</strong> len)
+<a id='L288' name='L288'></a>   288 <em class='brace'>{</em>
+<a id='L289' name='L289'></a>   289   <a href='../S/2956.html#L251' title='Defined at 251 in src/w32console.c.'>scroll_line</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, len, <a href='../D/4917.html' title='Multiple defined in 3 places.'>RIGHT</a>);
+<a id='L290' name='L290'></a>   290 
+<a id='L291' name='L291'></a>   291   <em class='comment'>/* Move len chars to the right starting at cursor_coords, fill with blanks */</em>
+<a id='L292' name='L292'></a>   292   <strong class='reserved'>if</strong> (<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>)
+<a id='L293' name='L293'></a>   293     <em class='brace'>{</em>
+<a id='L294' name='L294'></a>   294       <em class='comment'>/* Print the first len characters of start, cursor_coords.X adjusted</em>
+<a id='L295' name='L295'></a>   295 <em class='comment'>         by write_glyphs.  */</em>
+<a id='L296' name='L296'></a>   296 
+<a id='L297' name='L297'></a>   297       <a href='../S/2956.html#L306' title='Defined at 306 in src/w32console.c.'>w32con_write_glyphs</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>, len);
+<a id='L298' name='L298'></a>   298     <em class='brace'>}</em>
+<a id='L299' name='L299'></a>   299   <strong class='reserved'>else</strong>
+<a id='L300' name='L300'></a>   300     <em class='brace'>{</em>
+<a id='L301' name='L301'></a>   301       <a href='../S/2956.html#L151' title='Defined at 151 in src/w32console.c.'>w32con_clear_end_of_line</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> + len);
+<a id='L302' name='L302'></a>   302     <em class='brace'>}</em>
+<a id='L303' name='L303'></a>   303 <em class='brace'>}</em>
+<a id='L304' name='L304'></a>   304 
+<a id='L305' name='L305'></a>   305 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L306' name='L306'></a>   306 <a href='../R/15807.html' title='Multiple referred from 4 places.'>w32con_write_glyphs</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../S/2876.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a> *string,
+<a id='L307' name='L307'></a>   307                      <strong class='reserved'>register</strong> <strong class='reserved'>int</strong> len)
+<a id='L308' name='L308'></a>   308 <em class='brace'>{</em>
+<a id='L309' name='L309'></a>   309   DWORD r;
+<a id='L310' name='L310'></a>   310   WORD char_attr;
+<a id='L311' name='L311'></a>   311   LPCSTR conversion_buffer;
+<a id='L312' name='L312'></a>   312   <strong class='reserved'>struct</strong> <a href='../S/2920.html#L396' title='Defined at 396 in src/coding.h.'>coding_system</a> *coding;
+<a id='L313' name='L313'></a>   313 
+<a id='L314' name='L314'></a>   314   <strong class='reserved'>if</strong> (len &lt;= 0)
+<a id='L315' name='L315'></a>   315     <strong class='reserved'>return</strong>;
+<a id='L316' name='L316'></a>   316 
+<a id='L317' name='L317'></a>   317   <em class='comment'>/* If terminal_coding does any conversion, use it, otherwise use</em>
+<a id='L318' name='L318'></a>   318 <em class='comment'>     safe_terminal_coding.  We can't use CODING_REQUIRE_ENCODING here</em>
+<a id='L319' name='L319'></a>   319 <em class='comment'>     because it always return 1 if the member src_multibyte is 1.  */</em>
+<a id='L320' name='L320'></a>   320   coding = (<a href='../S/2900.html#L901' title='Defined at 901 in src/termhooks.h.'>FRAME_TERMINAL_CODING</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)-&gt;common_flags &amp; <a href='../S/2920.html#L509' title='Defined at 509 in src/coding.h.'>CODING_REQUIRE_ENCODING_MASK</a>
+<a id='L321' name='L321'></a>   321             ? <a href='../S/2900.html#L901' title='Defined at 901 in src/termhooks.h.'>FRAME_TERMINAL_CODING</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) : &amp;safe_terminal_coding);
+<a id='L322' name='L322'></a>   322   <em class='comment'>/* The mode bit CODING_MODE_LAST_BLOCK should be set to 1 only at</em>
+<a id='L323' name='L323'></a>   323 <em class='comment'>     the tail.  */</em>
+<a id='L324' name='L324'></a>   324   coding-&gt;mode &amp;= ~<a href='../S/2920.html#L267' title='Defined at 267 in src/coding.h.'>CODING_MODE_LAST_BLOCK</a>;
+<a id='L325' name='L325'></a>   325 
+<a id='L326' name='L326'></a>   326   <strong class='reserved'>while</strong> (len &gt; 0)
+<a id='L327' name='L327'></a>   327     <em class='brace'>{</em>
+<a id='L328' name='L328'></a>   328       <em class='comment'>/* Identify a run of glyphs with the same face.  */</em>
+<a id='L329' name='L329'></a>   329       <strong class='reserved'>int</strong> <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a> = string-&gt;<a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a>;
+<a id='L330' name='L330'></a>   330       <strong class='reserved'>int</strong> n;
+<a id='L331' name='L331'></a>   331 
+<a id='L332' name='L332'></a>   332       <strong class='reserved'>for</strong> (n = 1; n &lt; len; ++n)
+<a id='L333' name='L333'></a>   333         <strong class='reserved'>if</strong> (string[n].<a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a> != <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a>)
+<a id='L334' name='L334'></a>   334           <strong class='reserved'>break</strong>;
+<a id='L335' name='L335'></a>   335 
+<a id='L336' name='L336'></a>   336       <em class='comment'>/* Turn appearance modes of the face of the run on.  */</em>
+<a id='L337' name='L337'></a>   337       char_attr = <a href='../S/2956.html#L630' title='Defined at 630 in src/w32console.c.'>w32_face_attributes</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a>);
+<a id='L338' name='L338'></a>   338 
+<a id='L339' name='L339'></a>   339       <strong class='reserved'>if</strong> (n == len)
+<a id='L340' name='L340'></a>   340         <em class='comment'>/* This is the last run.  */</em>
+<a id='L341' name='L341'></a>   341         coding-&gt;mode |= <a href='../S/2920.html#L267' title='Defined at 267 in src/coding.h.'>CODING_MODE_LAST_BLOCK</a>;
+<a id='L342' name='L342'></a>   342       conversion_buffer = (LPCSTR) <a href='../S/2914.html#L522' title='Defined at 522 in src/term.c.'>encode_terminal_code</a> (string, n, coding);
+<a id='L343' name='L343'></a>   343       <strong class='reserved'>if</strong> (coding-&gt;produced &gt; 0)
+<a id='L344' name='L344'></a>   344         <em class='brace'>{</em>
+<a id='L345' name='L345'></a>   345           <em class='comment'>/* Set the attribute for these characters.  */</em>
+<a id='L346' name='L346'></a>   346           <strong class='reserved'>if</strong> (!FillConsoleOutputAttribute (cur_screen, char_attr,
+<a id='L347' name='L347'></a>   347                                            coding-&gt;produced, cursor_coords,
+<a id='L348' name='L348'></a>   348                                            &amp;r))
+<a id='L349' name='L349'></a>   349             <em class='brace'>{</em>
+<a id='L350' name='L350'></a>   350               <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("Failed writing console attributes: %lu\n",
+<a id='L351' name='L351'></a>   351                       GetLastError ());
+<a id='L352' name='L352'></a>   352               <a href='../D/10035.html' title='Multiple defined in 4 places.'>fflush</a> (<a href='../S/2512.html#L49' title='Defined at 49 in nt/cmdproxy.c.'>stdout</a>);
+<a id='L353' name='L353'></a>   353             <em class='brace'>}</em>
+<a id='L354' name='L354'></a>   354 
+<a id='L355' name='L355'></a>   355           <em class='comment'>/* Write the characters.  */</em>
+<a id='L356' name='L356'></a>   356           <strong class='reserved'>if</strong> (!WriteConsoleOutputCharacter (cur_screen, conversion_buffer,
+<a id='L357' name='L357'></a>   357                                             coding-&gt;produced, cursor_coords,
+<a id='L358' name='L358'></a>   358                                             &amp;r))
+<a id='L359' name='L359'></a>   359             <em class='brace'>{</em>
+<a id='L360' name='L360'></a>   360               <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("Failed writing console characters: %lu\n",
+<a id='L361' name='L361'></a>   361                       GetLastError ());
+<a id='L362' name='L362'></a>   362               <a href='../D/10035.html' title='Multiple defined in 4 places.'>fflush</a> (<a href='../S/2512.html#L49' title='Defined at 49 in nt/cmdproxy.c.'>stdout</a>);
+<a id='L363' name='L363'></a>   363             <em class='brace'>}</em>
+<a id='L364' name='L364'></a>   364 
+<a id='L365' name='L365'></a>   365           cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> += coding-&gt;produced;
+<a id='L366' name='L366'></a>   366           <a href='../S/2956.html#L88' title='Defined at 88 in src/w32console.c.'>w32con_move_cursor</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, cursor_coords.Y, cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>);
+<a id='L367' name='L367'></a>   367         <em class='brace'>}</em>
+<a id='L368' name='L368'></a>   368       len -= n;
+<a id='L369' name='L369'></a>   369       string += n;
+<a id='L370' name='L370'></a>   370     <em class='brace'>}</em>
+<a id='L371' name='L371'></a>   371 <em class='brace'>}</em>
+<a id='L372' name='L372'></a>   372 
+<a id='L373' name='L373'></a>   373 <em class='comment'>/* Used for mouse highlight.  */</em>
+<a id='L374' name='L374'></a>   374 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L375' name='L375'></a>   375 <a href='../S/2956.html#L439' title='Referred from 439 in src/w32console.c.'>w32con_write_glyphs_with_face</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>register</strong> <strong class='reserved'>int</strong> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>register</strong> <strong class='reserved'>int</strong> y,
+<a id='L376' name='L376'></a>   376                                <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../S/2876.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a> *string, <strong class='reserved'>register</strong> <strong class='reserved'>int</strong> len,
+<a id='L377' name='L377'></a>   377                                <strong class='reserved'>register</strong> <strong class='reserved'>int</strong> <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a>)
+<a id='L378' name='L378'></a>   378 <em class='brace'>{</em>
+<a id='L379' name='L379'></a>   379   LPCSTR conversion_buffer;
+<a id='L380' name='L380'></a>   380   <strong class='reserved'>struct</strong> <a href='../S/2920.html#L396' title='Defined at 396 in src/coding.h.'>coding_system</a> *coding;
+<a id='L381' name='L381'></a>   381 
+<a id='L382' name='L382'></a>   382   <strong class='reserved'>if</strong> (len &lt;= 0)
+<a id='L383' name='L383'></a>   383     <strong class='reserved'>return</strong>;
+<a id='L384' name='L384'></a>   384 
+<a id='L385' name='L385'></a>   385   <em class='comment'>/* If terminal_coding does any conversion, use it, otherwise use</em>
+<a id='L386' name='L386'></a>   386 <em class='comment'>     safe_terminal_coding.  We can't use CODING_REQUIRE_ENCODING here</em>
+<a id='L387' name='L387'></a>   387 <em class='comment'>     because it always return 1 if the member src_multibyte is 1.  */</em>
+<a id='L388' name='L388'></a>   388   coding = (<a href='../S/2900.html#L901' title='Defined at 901 in src/termhooks.h.'>FRAME_TERMINAL_CODING</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)-&gt;common_flags &amp; <a href='../S/2920.html#L509' title='Defined at 509 in src/coding.h.'>CODING_REQUIRE_ENCODING_MASK</a>
+<a id='L389' name='L389'></a>   389             ? <a href='../S/2900.html#L901' title='Defined at 901 in src/termhooks.h.'>FRAME_TERMINAL_CODING</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>) : &amp;safe_terminal_coding);
+<a id='L390' name='L390'></a>   390   <em class='comment'>/* We are going to write the entire block of glyphs in one go, as</em>
+<a id='L391' name='L391'></a>   391 <em class='comment'>     they all have the same face.  So this _is_ the last block.  */</em>
+<a id='L392' name='L392'></a>   392   coding-&gt;mode |= <a href='../S/2920.html#L267' title='Defined at 267 in src/coding.h.'>CODING_MODE_LAST_BLOCK</a>;
+<a id='L393' name='L393'></a>   393 
+<a id='L394' name='L394'></a>   394   conversion_buffer = (LPCSTR) <a href='../S/2914.html#L522' title='Defined at 522 in src/term.c.'>encode_terminal_code</a> (string, len, coding);
+<a id='L395' name='L395'></a>   395   <strong class='reserved'>if</strong> (coding-&gt;produced &gt; 0)
+<a id='L396' name='L396'></a>   396     <em class='brace'>{</em>
+<a id='L397' name='L397'></a>   397       DWORD filled, written;
+<a id='L398' name='L398'></a>   398       <em class='comment'>/* Compute the character attributes corresponding to the face.  */</em>
+<a id='L399' name='L399'></a>   399       DWORD char_attr = <a href='../S/2956.html#L630' title='Defined at 630 in src/w32console.c.'>w32_face_attributes</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a>);
+<a id='L400' name='L400'></a>   400       COORD start_coords;
+<a id='L401' name='L401'></a>   401 
+<a id='L402' name='L402'></a>   402       start_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> = <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>;
+<a id='L403' name='L403'></a>   403       start_coords.Y = y;
+<a id='L404' name='L404'></a>   404       <em class='comment'>/* Set the attribute for these characters.  */</em>
+<a id='L405' name='L405'></a>   405       <strong class='reserved'>if</strong> (!FillConsoleOutputAttribute (cur_screen, char_attr,
+<a id='L406' name='L406'></a>   406                                        coding-&gt;produced, start_coords,
+<a id='L407' name='L407'></a>   407                                        &amp;filled))
+<a id='L408' name='L408'></a>   408         <a href='../D/1456.html' title='Multiple defined in 2 places.'>DebPrint</a> (("Failed writing console attributes: %d\n", GetLastError ()));
+<a id='L409' name='L409'></a>   409       <strong class='reserved'>else</strong>
+<a id='L410' name='L410'></a>   410         <em class='brace'>{</em>
+<a id='L411' name='L411'></a>   411           <em class='comment'>/* Write the characters.  */</em>
+<a id='L412' name='L412'></a>   412           <strong class='reserved'>if</strong> (!WriteConsoleOutputCharacter (cur_screen, conversion_buffer,
+<a id='L413' name='L413'></a>   413                                             filled, start_coords, &amp;written))
+<a id='L414' name='L414'></a>   414             <a href='../D/1456.html' title='Multiple defined in 2 places.'>DebPrint</a> (("Failed writing console characters: %d\n",
+<a id='L415' name='L415'></a>   415                        GetLastError ()));
+<a id='L416' name='L416'></a>   416         <em class='brace'>}</em>
+<a id='L417' name='L417'></a>   417     <em class='brace'>}</em>
+<a id='L418' name='L418'></a>   418 <em class='brace'>}</em>
+<a id='L419' name='L419'></a>   419 
+<a id='L420' name='L420'></a>   420 <em class='comment'>/* Implementation of draw_row_with_mouse_face for W32 console.  */</em>
+<a id='L421' name='L421'></a>   421 <strong class='reserved'>void</strong>
+<a id='L422' name='L422'></a>   422 <a href='../R/15159.html' title='Multiple referred from 2 places.'>tty_draw_row_with_mouse_face</a> (<strong class='reserved'>struct</strong> <a href='../S/2909.html#L100' title='Defined at 100 in src/window.h.'>window</a> *w, <strong class='reserved'>struct</strong> <a href='../S/2876.html#L856' title='Defined at 856 in src/dispextern.h.'>glyph_row</a> *row,
+<a id='L423' name='L423'></a>   423                               <strong class='reserved'>int</strong> start_hpos, <strong class='reserved'>int</strong> end_hpos,
+<a id='L424' name='L424'></a>   424                               <strong class='reserved'>enum</strong> <a href='../S/2876.html#L1286' title='Defined at 1286 in src/dispextern.h.'>draw_glyphs_face</a> draw)
+<a id='L425' name='L425'></a>   425 <em class='brace'>{</em>
+<a id='L426' name='L426'></a>   426   <strong class='reserved'>int</strong> nglyphs = end_hpos - start_hpos;
+<a id='L427' name='L427'></a>   427   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/3036.html#L839' title='Defined at 839 in src/frame.h.'>XFRAME</a> (<a href='../S/3036.html#L844' title='Defined at 844 in src/frame.h.'>WINDOW_FRAME</a> (w));
+<a id='L428' name='L428'></a>   428   <strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *tty = <a href='../S/3039.html#L233' title='Defined at 233 in src/termchar.h.'>FRAME_TTY</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L429' name='L429'></a>   429   <strong class='reserved'>int</strong> <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a> = tty-&gt;mouse_highlight.mouse_face_face_id;
+<a id='L430' name='L430'></a>   430   <strong class='reserved'>int</strong> pos_x, pos_y;
+<a id='L431' name='L431'></a>   431 
+<a id='L432' name='L432'></a>   432   <strong class='reserved'>if</strong> (end_hpos &gt;= row-&gt;used[<a href='../S/2876.html#L823' title='Defined at 823 in src/dispextern.h.'>TEXT_AREA</a>])
+<a id='L433' name='L433'></a>   433     nglyphs = row-&gt;used[<a href='../S/2876.html#L823' title='Defined at 823 in src/dispextern.h.'>TEXT_AREA</a>] - start_hpos;
+<a id='L434' name='L434'></a>   434 
+<a id='L435' name='L435'></a>   435   pos_y = row-&gt;y + <a href='../S/2909.html#L771' title='Defined at 771 in src/window.h.'>WINDOW_TOP_EDGE_Y</a> (w);
+<a id='L436' name='L436'></a>   436   pos_x = row-&gt;used[<a href='../S/2876.html#L822' title='Defined at 822 in src/dispextern.h.'>LEFT_MARGIN_AREA</a>] + start_hpos + <a href='../S/2909.html#L732' title='Defined at 732 in src/window.h.'>WINDOW_LEFT_EDGE_X</a> (w);
+<a id='L437' name='L437'></a>   437 
+<a id='L438' name='L438'></a>   438   <strong class='reserved'>if</strong> (draw == <a href='../S/2876.html#L1291' title='Defined at 1291 in src/dispextern.h.'>DRAW_MOUSE_FACE</a>)
+<a id='L439' name='L439'></a>   439     <a href='../S/2956.html#L375' title='Defined at 375 in src/w32console.c.'>w32con_write_glyphs_with_face</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, pos_x, pos_y,
+<a id='L440' name='L440'></a>   440                                    row-&gt;glyphs[<a href='../S/2876.html#L823' title='Defined at 823 in src/dispextern.h.'>TEXT_AREA</a>] + start_hpos,
+<a id='L441' name='L441'></a>   441                                    nglyphs, <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a>);
+<a id='L442' name='L442'></a>   442   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (draw == <a href='../S/2876.html#L1288' title='Defined at 1288 in src/dispextern.h.'>DRAW_NORMAL_TEXT</a>)
+<a id='L443' name='L443'></a>   443     <em class='brace'>{</em>
+<a id='L444' name='L444'></a>   444       COORD save_coords = cursor_coords;
+<a id='L445' name='L445'></a>   445 
+<a id='L446' name='L446'></a>   446       <a href='../S/2956.html#L88' title='Defined at 88 in src/w32console.c.'>w32con_move_cursor</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, pos_y, pos_x);
+<a id='L447' name='L447'></a>   447       <a href='../S/2913.html#L160' title='Defined at 160 in src/terminal.c.'>write_glyphs</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, row-&gt;glyphs[<a href='../S/2876.html#L823' title='Defined at 823 in src/dispextern.h.'>TEXT_AREA</a>] + start_hpos, nglyphs);
+<a id='L448' name='L448'></a>   448       <a href='../S/2956.html#L88' title='Defined at 88 in src/w32console.c.'>w32con_move_cursor</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, save_coords.Y, save_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>);
+<a id='L449' name='L449'></a>   449     <em class='brace'>}</em>
+<a id='L450' name='L450'></a>   450 <em class='brace'>}</em>
+<a id='L451' name='L451'></a>   451 
+<a id='L452' name='L452'></a>   452 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L453' name='L453'></a>   453 <a href='../R/15797.html' title='Multiple referred from 2 places.'>w32con_delete_glyphs</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> n)
+<a id='L454' name='L454'></a>   454 <em class='brace'>{</em>
+<a id='L455' name='L455'></a>   455   <em class='comment'>/* delete chars means scroll chars from cursor_coords.X + n to</em>
+<a id='L456' name='L456'></a>   456 <em class='comment'>     cursor_coords.X, anything beyond the edge of the screen should</em>
+<a id='L457' name='L457'></a>   457 <em class='comment'>     come out empty...  */</em>
+<a id='L458' name='L458'></a>   458 
+<a id='L459' name='L459'></a>   459   <a href='../S/2956.html#L251' title='Defined at 251 in src/w32console.c.'>scroll_line</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, n, <a href='../D/3240.html' title='Multiple defined in 3 places.'>LEFT</a>);
+<a id='L460' name='L460'></a>   460 <em class='brace'>}</em>
+<a id='L461' name='L461'></a>   461 
+<a id='L462' name='L462'></a>   462 
+<a id='L463' name='L463'></a>   463 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L464' name='L464'></a>   464 <a href='../R/15802.html' title='Multiple referred from 2 places.'>w32con_reset_terminal_modes</a> (<strong class='reserved'>struct</strong> <a href='../S/2900.html#L454' title='Defined at 454 in src/termhooks.h.'>terminal</a> *t)
+<a id='L465' name='L465'></a>   465 <em class='brace'>{</em>
+<a id='L466' name='L466'></a>   466   COORD dest;
+<a id='L467' name='L467'></a>   467   CONSOLE_SCREEN_BUFFER_INFO <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>;
+<a id='L468' name='L468'></a>   468   <strong class='reserved'>int</strong> n;
+<a id='L469' name='L469'></a>   469   DWORD r;
+<a id='L470' name='L470'></a>   470 
+<a id='L471' name='L471'></a>   471   <em class='comment'>/* Clear the complete screen buffer.  This is required because Emacs</em>
+<a id='L472' name='L472'></a>   472 <em class='comment'>     sets the cursor position to the top of the buffer, but there might</em>
+<a id='L473' name='L473'></a>   473 <em class='comment'>     be other output below the bottom of the Emacs frame if the screen buffer</em>
+<a id='L474' name='L474'></a>   474 <em class='comment'>     is larger than the window size.  */</em>
+<a id='L475' name='L475'></a>   475   GetConsoleScreenBufferInfo (cur_screen, &amp;<a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>);
+<a id='L476' name='L476'></a>   476   dest.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> = 0;
+<a id='L477' name='L477'></a>   477   dest.Y = 0;
+<a id='L478' name='L478'></a>   478   n = <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> * <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.Y;
+<a id='L479' name='L479'></a>   479 
+<a id='L480' name='L480'></a>   480   FillConsoleOutputAttribute (cur_screen, char_attr_normal, n, dest, &amp;r);
+<a id='L481' name='L481'></a>   481   FillConsoleOutputCharacter (cur_screen, ' ', n, dest, &amp;r);
+<a id='L482' name='L482'></a>   482   <em class='comment'>/* Now that the screen is clear, put the cursor at the top.  */</em>
+<a id='L483' name='L483'></a>   483   SetConsoleCursorPosition (cur_screen, dest);
+<a id='L484' name='L484'></a>   484 
+<a id='L485' name='L485'></a>   485 <em class='sharp'>#ifdef</em> USE_SEPARATE_SCREEN
+<a id='L486' name='L486'></a>   486   SetConsoleActiveScreenBuffer (prev_screen);
+<a id='L487' name='L487'></a>   487 <em class='sharp'>#else</em>
+<a id='L488' name='L488'></a>   488   SetConsoleCursorInfo (prev_screen, &amp;prev_console_cursor);
+<a id='L489' name='L489'></a>   489 <em class='sharp'>#endif</em>
+<a id='L490' name='L490'></a>   490 
+<a id='L491' name='L491'></a>   491   SetConsoleMode (keyboard_handle, prev_console_mode);
+<a id='L492' name='L492'></a>   492 <em class='brace'>}</em>
+<a id='L493' name='L493'></a>   493 
+<a id='L494' name='L494'></a>   494 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L495' name='L495'></a>   495 <a href='../R/15803.html' title='Multiple referred from 2 places.'>w32con_set_terminal_modes</a> (<strong class='reserved'>struct</strong> <a href='../S/2900.html#L454' title='Defined at 454 in src/termhooks.h.'>terminal</a> *t)
+<a id='L496' name='L496'></a>   496 <em class='brace'>{</em>
+<a id='L497' name='L497'></a>   497   CONSOLE_CURSOR_INFO cci;
+<a id='L498' name='L498'></a>   498 
+<a id='L499' name='L499'></a>   499   <em class='comment'>/* make cursor big and visible (100 on Windows 95 makes it disappear)  */</em>
+<a id='L500' name='L500'></a>   500   cci.dwSize = 99;
+<a id='L501' name='L501'></a>   501   cci.bVisible = <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L502' name='L502'></a>   502   (<strong class='reserved'>void</strong>) SetConsoleCursorInfo (cur_screen, &amp;cci);
+<a id='L503' name='L503'></a>   503 
+<a id='L504' name='L504'></a>   504   SetConsoleActiveScreenBuffer (cur_screen);
+<a id='L505' name='L505'></a>   505 
+<a id='L506' name='L506'></a>   506   <em class='comment'>/* If Quick Edit is enabled for the console, it will get in the way</em>
+<a id='L507' name='L507'></a>   507 <em class='comment'>     of receiving mouse events, so we disable it.  But leave the</em>
+<a id='L508' name='L508'></a>   508 <em class='comment'>     Insert Mode as it was set by the user.  */</em>
+<a id='L509' name='L509'></a>   509   DWORD new_console_mode
+<a id='L510' name='L510'></a>   510     = ENABLE_MOUSE_INPUT | ENABLE_WINDOW_INPUT | ENABLE_EXTENDED_FLAGS;
+<a id='L511' name='L511'></a>   511   <strong class='reserved'>if</strong> ((prev_console_mode &amp; ENABLE_INSERT_MODE) != 0)
+<a id='L512' name='L512'></a>   512     new_console_mode |= ENABLE_INSERT_MODE;
+<a id='L513' name='L513'></a>   513   SetConsoleMode (keyboard_handle, new_console_mode);
+<a id='L514' name='L514'></a>   514 
+<a id='L515' name='L515'></a>   515   <em class='comment'>/* Initialize input mode: interrupt_input off, no flow control, allow</em>
+<a id='L516' name='L516'></a>   516 <em class='comment'>     8 bit character input, standard quit char.  */</em>
+<a id='L517' name='L517'></a>   517   Fset_input_mode (Qnil, Qnil, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (2), Qnil);
+<a id='L518' name='L518'></a>   518 <em class='brace'>}</em>
+<a id='L519' name='L519'></a>   519 
+<a id='L520' name='L520'></a>   520 <em class='comment'>/* hmmm... perhaps these let us bracket screen changes so that we can flush</em>
+<a id='L521' name='L521'></a>   521 <em class='comment'>   clumps rather than one-character-at-a-time...</em>
+<a id='L522' name='L522'></a>   522 <em class='comment'></em>
+<a id='L523' name='L523'></a>   523 <em class='comment'>   we'll start with not moving the cursor while an update is in progress.  */</em>
+<a id='L524' name='L524'></a>   524 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L525' name='L525'></a>   525 <a href='../R/15805.html' title='Multiple referred from 2 places.'>w32con_update_begin</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> * <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L526' name='L526'></a>   526 <em class='brace'>{</em>
+<a id='L527' name='L527'></a>   527 <em class='brace'>}</em>
+<a id='L528' name='L528'></a>   528 
+<a id='L529' name='L529'></a>   529 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L530' name='L530'></a>   530 <a href='../R/15806.html' title='Multiple referred from 2 places.'>w32con_update_end</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> * <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L531' name='L531'></a>   531 <em class='brace'>{</em>
+<a id='L532' name='L532'></a>   532   SetConsoleCursorPosition (cur_screen, cursor_coords);
+<a id='L533' name='L533'></a>   533 <em class='brace'>}</em>
+<a id='L534' name='L534'></a>   534 
+<a id='L535' name='L535'></a>   535 <em class='comment'>/***********************************************************************</em>
+<a id='L536' name='L536'></a>   536 <em class='comment'>                        stubs from termcap.c</em>
+<a id='L537' name='L537'></a>   537 <em class='comment'> ***********************************************************************/</em>
+<a id='L538' name='L538'></a>   538 
+<a id='L539' name='L539'></a>   539 <strong class='reserved'>void</strong> <a href='../S/2956.html#L542' title='Defined at 542 in src/w32console.c.'>sys_tputs</a> (<strong class='reserved'>char</strong> *, <strong class='reserved'>int</strong>, <strong class='reserved'>int</strong> (*) (<strong class='reserved'>int</strong>));
+<a id='L540' name='L540'></a>   540 
+<a id='L541' name='L541'></a>   541 <strong class='reserved'>void</strong>
+<a id='L542' name='L542'></a>   542 <a href='../R/14841.html' title='Multiple referred from 2 places.'>sys_tputs</a> (<strong class='reserved'>char</strong> *str, <strong class='reserved'>int</strong> nlines, <strong class='reserved'>int</strong> (*outfun) (<strong class='reserved'>int</strong>))
+<a id='L543' name='L543'></a>   543 <em class='brace'>{</em>
+<a id='L544' name='L544'></a>   544 <em class='brace'>}</em>
+<a id='L545' name='L545'></a>   545 
+<a id='L546' name='L546'></a>   546 <strong class='reserved'>char</strong> *<a href='../S/2956.html#L549' title='Defined at 549 in src/w32console.c.'>sys_tgetstr</a> (<strong class='reserved'>char</strong> *, <strong class='reserved'>char</strong> **);
+<a id='L547' name='L547'></a>   547 
+<a id='L548' name='L548'></a>   548 <strong class='reserved'>char</strong> *
+<a id='L549' name='L549'></a>   549 <a href='../R/14834.html' title='Multiple referred from 2 places.'>sys_tgetstr</a> (<strong class='reserved'>char</strong> *cap, <strong class='reserved'>char</strong> **area)
+<a id='L550' name='L550'></a>   550 <em class='brace'>{</em>
+<a id='L551' name='L551'></a>   551   <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L552' name='L552'></a>   552 <em class='brace'>}</em>
+<a id='L553' name='L553'></a>   553 
+<a id='L554' name='L554'></a>   554 
+<a id='L555' name='L555'></a>   555 <em class='comment'>/***********************************************************************</em>
+<a id='L556' name='L556'></a>   556 <em class='comment'>                        stubs from cm.c</em>
+<a id='L557' name='L557'></a>   557 <em class='comment'> ***********************************************************************/</em>
+<a id='L558' name='L558'></a>   558 
+<a id='L559' name='L559'></a>   559 <strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *current_tty = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L560' name='L560'></a>   560 <strong class='reserved'>int</strong> cost = 0;
+<a id='L561' name='L561'></a>   561 
+<a id='L562' name='L562'></a>   562 <strong class='reserved'>int</strong> <a href='../D/9882.html' title='Multiple defined in 2 places.'>evalcost</a> (<strong class='reserved'>int</strong>);
+<a id='L563' name='L563'></a>   563 
+<a id='L564' name='L564'></a>   564 <strong class='reserved'>int</strong>
+<a id='L565' name='L565'></a>   565 <a href='../R/8966.html' title='Multiple referred from 18 places.'>evalcost</a> (<strong class='reserved'>int</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L566' name='L566'></a>   566 <em class='brace'>{</em>
+<a id='L567' name='L567'></a>   567   <strong class='reserved'>return</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L568' name='L568'></a>   568 <em class='brace'>}</em>
+<a id='L569' name='L569'></a>   569 
+<a id='L570' name='L570'></a>   570 <strong class='reserved'>int</strong> <a href='../D/8632.html' title='Multiple defined in 3 places.'>cmputc</a> (<strong class='reserved'>int</strong>);
+<a id='L571' name='L571'></a>   571 
+<a id='L572' name='L572'></a>   572 <strong class='reserved'>int</strong>
+<a id='L573' name='L573'></a>   573 <a href='../R/7768.html' title='Multiple referred from 16 places.'>cmputc</a> (<strong class='reserved'>int</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L574' name='L574'></a>   574 <em class='brace'>{</em>
+<a id='L575' name='L575'></a>   575   <strong class='reserved'>return</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L576' name='L576'></a>   576 <em class='brace'>}</em>
+<a id='L577' name='L577'></a>   577 
+<a id='L578' name='L578'></a>   578 <strong class='reserved'>void</strong> <a href='../D/8621.html' title='Multiple defined in 2 places.'>cmcheckmagic</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *);
+<a id='L579' name='L579'></a>   579 
+<a id='L580' name='L580'></a>   580 <strong class='reserved'>void</strong>
+<a id='L581' name='L581'></a>   581 <a href='../R/7757.html' title='Multiple referred from 5 places.'>cmcheckmagic</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *tty)
+<a id='L582' name='L582'></a>   582 <em class='brace'>{</em>
+<a id='L583' name='L583'></a>   583 <em class='brace'>}</em>
+<a id='L584' name='L584'></a>   584 
+<a id='L585' name='L585'></a>   585 <strong class='reserved'>void</strong> <a href='../D/8622.html' title='Multiple defined in 3 places.'>cmcostinit</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *);
+<a id='L586' name='L586'></a>   586 
+<a id='L587' name='L587'></a>   587 <strong class='reserved'>void</strong>
+<a id='L588' name='L588'></a>   588 <a href='../R/7758.html' title='Multiple referred from 3 places.'>cmcostinit</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *tty)
+<a id='L589' name='L589'></a>   589 <em class='brace'>{</em>
+<a id='L590' name='L590'></a>   590 <em class='brace'>}</em>
+<a id='L591' name='L591'></a>   591 
+<a id='L592' name='L592'></a>   592 <strong class='reserved'>void</strong> <a href='../D/8625.html' title='Multiple defined in 3 places.'>cmgoto</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *, <strong class='reserved'>int</strong>, <strong class='reserved'>int</strong>);
+<a id='L593' name='L593'></a>   593 
+<a id='L594' name='L594'></a>   594 <strong class='reserved'>void</strong>
+<a id='L595' name='L595'></a>   595 <a href='../R/7761.html' title='Multiple referred from 6 places.'>cmgoto</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *tty, <strong class='reserved'>int</strong> row, <strong class='reserved'>int</strong> col)
+<a id='L596' name='L596'></a>   596 <em class='brace'>{</em>
+<a id='L597' name='L597'></a>   597 <em class='brace'>}</em>
+<a id='L598' name='L598'></a>   598 
+<a id='L599' name='L599'></a>   599 <strong class='reserved'>void</strong> <a href='../D/6289.html' title='Multiple defined in 3 places.'>Wcm_clear</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *);
+<a id='L600' name='L600'></a>   600 
+<a id='L601' name='L601'></a>   601 <strong class='reserved'>void</strong>
+<a id='L602' name='L602'></a>   602 <a href='../R/5668.html' title='Multiple referred from 4 places.'>Wcm_clear</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *tty)
+<a id='L603' name='L603'></a>   603 <em class='brace'>{</em>
+<a id='L604' name='L604'></a>   604 <em class='brace'>}</em>
+<a id='L605' name='L605'></a>   605 
+<a id='L606' name='L606'></a>   606 
+<a id='L607' name='L607'></a>   607 <em class='comment'>/* Report the current cursor position.  The following two functions</em>
+<a id='L608' name='L608'></a>   608 <em class='comment'>   are used in term.c's tty menu code, so they are not really</em>
+<a id='L609' name='L609'></a>   609 <em class='comment'>   "stubs".  */</em>
+<a id='L610' name='L610'></a>   610 <strong class='reserved'>int</strong>
+<a id='L611' name='L611'></a>   611 <a href='../R/8139.html' title='Multiple referred from 5 places.'>cursorX</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *tty)
+<a id='L612' name='L612'></a>   612 <em class='brace'>{</em>
+<a id='L613' name='L613'></a>   613   <strong class='reserved'>return</strong> cursor_coords.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>;
+<a id='L614' name='L614'></a>   614 <em class='brace'>}</em>
+<a id='L615' name='L615'></a>   615 
+<a id='L616' name='L616'></a>   616 <strong class='reserved'>int</strong>
+<a id='L617' name='L617'></a>   617 <a href='../R/8140.html' title='Multiple referred from 4 places.'>cursorY</a> (<strong class='reserved'>struct</strong> <a href='../S/3039.html#L41' title='Defined at 41 in src/termchar.h.'>tty_display_info</a> *tty)
+<a id='L618' name='L618'></a>   618 <em class='brace'>{</em>
+<a id='L619' name='L619'></a>   619   <strong class='reserved'>return</strong> cursor_coords.Y;
+<a id='L620' name='L620'></a>   620 <em class='brace'>}</em>
+<a id='L621' name='L621'></a>   621 
+<a id='L622' name='L622'></a>   622 <em class='comment'>/***********************************************************************</em>
+<a id='L623' name='L623'></a>   623 <em class='comment'>                                Faces</em>
+<a id='L624' name='L624'></a>   624 <em class='comment'> ***********************************************************************/</em>
+<a id='L625' name='L625'></a>   625 
+<a id='L626' name='L626'></a>   626 
+<a id='L627' name='L627'></a>   627 <em class='comment'>/* Turn appearances of face FACE_ID on tty frame F on.  */</em>
+<a id='L628' name='L628'></a>   628 
+<a id='L629' name='L629'></a>   629 <strong class='reserved'>static</strong> WORD
+<a id='L630' name='L630'></a>   630 <a href='../R/15606.html' title='Multiple referred from 3 places.'>w32_face_attributes</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a>)
+<a id='L631' name='L631'></a>   631 <em class='brace'>{</em>
+<a id='L632' name='L632'></a>   632   WORD char_attr;
+<a id='L633' name='L633'></a>   633   <strong class='reserved'>struct</strong> <a href='../S/2876.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a> *<a href='../S/2876.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a> = <a href='../S/3036.html#L1477' title='Defined at 1477 in src/frame.h.'>FACE_FROM_ID</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/2876.html#L1838' title='Defined at 1838 in src/dispextern.h.'>face_id</a>);
+<a id='L634' name='L634'></a>   634 
+<a id='L635' name='L635'></a>   635   char_attr = char_attr_normal;
+<a id='L636' name='L636'></a>   636 
+<a id='L637' name='L637'></a>   637   <em class='comment'>/* Reverse the default color if requested. If background and</em>
+<a id='L638' name='L638'></a>   638 <em class='comment'>     foreground are specified, then they have been reversed already.  */</em>
+<a id='L639' name='L639'></a>   639   <strong class='reserved'>if</strong> (<a href='../S/2876.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;tty_reverse_p)
+<a id='L640' name='L640'></a>   640     char_attr = (char_attr &amp; 0xff00) + ((char_attr &amp; 0x000f) &lt;&lt; 4)
+<a id='L641' name='L641'></a>   641       + ((char_attr &amp; 0x00f0) &gt;&gt; 4);
+<a id='L642' name='L642'></a>   642 
+<a id='L643' name='L643'></a>   643   <em class='comment'>/* Before the terminal is properly initialized, all colors map to 0.</em>
+<a id='L644' name='L644'></a>   644 <em class='comment'>     Don't try to resolve them.  */</em>
+<a id='L645' name='L645'></a>   645   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (Vtty_defined_color_alist))
+<a id='L646' name='L646'></a>   646     <strong class='reserved'>return</strong> char_attr;
+<a id='L647' name='L647'></a>   647 
+<a id='L648' name='L648'></a>   648   <em class='comment'>/* Colors should be in the range 0...15 unless they are one of</em>
+<a id='L649' name='L649'></a>   649 <em class='comment'>     FACE_TTY_DEFAULT_COLOR, FACE_TTY_DEFAULT_FG_COLOR or</em>
+<a id='L650' name='L650'></a>   650 <em class='comment'>     FACE_TTY_DEFAULT_BG_COLOR.  Other out of range colors are</em>
+<a id='L651' name='L651'></a>   651 <em class='comment'>     invalid, so it is better to use the default color if they ever</em>
+<a id='L652' name='L652'></a>   652 <em class='comment'>     get through to here.  */</em>
+<a id='L653' name='L653'></a>   653   <strong class='reserved'>if</strong> (<a href='../S/2876.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;foreground &gt;= 0 &amp;&amp; <a href='../S/2876.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;foreground &lt; 16)
+<a id='L654' name='L654'></a>   654     char_attr = (char_attr &amp; 0xfff0) + <a href='../S/2876.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;foreground;
+<a id='L655' name='L655'></a>   655 
+<a id='L656' name='L656'></a>   656   <strong class='reserved'>if</strong> (<a href='../S/2876.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;background &gt;= 0 &amp;&amp; <a href='../S/2876.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;background &lt; 16)
+<a id='L657' name='L657'></a>   657     char_attr = (char_attr &amp; 0xff0f) + (<a href='../S/2876.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;background &lt;&lt; 4);
+<a id='L658' name='L658'></a>   658 
+<a id='L659' name='L659'></a>   659   <strong class='reserved'>return</strong> char_attr;
+<a id='L660' name='L660'></a>   660 <em class='brace'>}</em>
+<a id='L661' name='L661'></a>   661 
+<a id='L662' name='L662'></a>   662 <strong class='reserved'>void</strong>
+<a id='L663' name='L663'></a>   663 <a href='../R/10919.html' title='Multiple referred from 2 places.'>initialize_w32_display</a> (<strong class='reserved'>struct</strong> <a href='../S/2900.html#L454' title='Defined at 454 in src/termhooks.h.'>terminal</a> *term, <strong class='reserved'>int</strong> *width, <strong class='reserved'>int</strong> *height)
+<a id='L664' name='L664'></a>   664 <em class='brace'>{</em>
+<a id='L665' name='L665'></a>   665   CONSOLE_SCREEN_BUFFER_INFO    <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>;
+<a id='L666' name='L666'></a>   666 
+<a id='L667' name='L667'></a>   667   term-&gt;rif = 0; <em class='comment'>/* No window based redisplay on the console.  */</em>
+<a id='L668' name='L668'></a>   668   term-&gt;cursor_to_hook          = <a href='../S/2956.html#L88' title='Defined at 88 in src/w32console.c.'>w32con_move_cursor</a>;
+<a id='L669' name='L669'></a>   669   term-&gt;raw_cursor_to_hook      = <a href='../S/2956.html#L88' title='Defined at 88 in src/w32console.c.'>w32con_move_cursor</a>;
+<a id='L670' name='L670'></a>   670   term-&gt;clear_to_end_hook       = <a href='../S/2956.html#L116' title='Defined at 116 in src/w32console.c.'>w32con_clear_to_end</a>;
+<a id='L671' name='L671'></a>   671   term-&gt;clear_frame_hook        = <a href='../S/2956.html#L124' title='Defined at 124 in src/w32console.c.'>w32con_clear_frame</a>;
+<a id='L672' name='L672'></a>   672   term-&gt;clear_end_of_line_hook  = <a href='../S/2956.html#L151' title='Defined at 151 in src/w32console.c.'>w32con_clear_end_of_line</a>;
+<a id='L673' name='L673'></a>   673   term-&gt;ins_del_lines_hook      = <a href='../S/2956.html#L178' title='Defined at 178 in src/w32console.c.'>w32con_ins_del_lines</a>;
+<a id='L674' name='L674'></a>   674   term-&gt;insert_glyphs_hook      = <a href='../S/2956.html#L286' title='Defined at 286 in src/w32console.c.'>w32con_insert_glyphs</a>;
+<a id='L675' name='L675'></a>   675   term-&gt;write_glyphs_hook       = <a href='../S/2956.html#L306' title='Defined at 306 in src/w32console.c.'>w32con_write_glyphs</a>;
+<a id='L676' name='L676'></a>   676   term-&gt;delete_glyphs_hook      = <a href='../S/2956.html#L453' title='Defined at 453 in src/w32console.c.'>w32con_delete_glyphs</a>;
+<a id='L677' name='L677'></a>   677   term-&gt;ring_bell_hook          = <a href='../S/2967.html#L9810' title='Defined at 9810 in src/w32fns.c.'>w32_sys_ring_bell</a>;
+<a id='L678' name='L678'></a>   678   term-&gt;reset_terminal_modes_hook = <a href='../S/2956.html#L464' title='Defined at 464 in src/w32console.c.'>w32con_reset_terminal_modes</a>;
+<a id='L679' name='L679'></a>   679   term-&gt;set_terminal_modes_hook = <a href='../S/2956.html#L495' title='Defined at 495 in src/w32console.c.'>w32con_set_terminal_modes</a>;
+<a id='L680' name='L680'></a>   680   term-&gt;set_terminal_window_hook = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L681' name='L681'></a>   681   term-&gt;update_begin_hook       = <a href='../S/2956.html#L525' title='Defined at 525 in src/w32console.c.'>w32con_update_begin</a>;
+<a id='L682' name='L682'></a>   682   term-&gt;update_end_hook         = <a href='../S/2956.html#L530' title='Defined at 530 in src/w32console.c.'>w32con_update_end</a>;
+<a id='L683' name='L683'></a>   683 
+<a id='L684' name='L684'></a>   684   term-&gt;defined_color_hook = &amp;<a href='../S/3074.html#L1078' title='Defined at 1078 in src/xfaces.c.'>tty_defined_color</a>; <em class='comment'>/* xfaces.c */</em>
+<a id='L685' name='L685'></a>   685   term-&gt;read_socket_hook = <a href='../S/2981.html#L761' title='Defined at 761 in src/w32inevt.c.'>w32_console_read_socket</a>;
+<a id='L686' name='L686'></a>   686   term-&gt;mouse_position_hook = <a href='../S/2981.html#L408' title='Defined at 408 in src/w32inevt.c.'>w32_console_mouse_position</a>;
+<a id='L687' name='L687'></a>   687   term-&gt;menu_show_hook = <a href='../S/2914.html#L3545' title='Defined at 3545 in src/term.c.'>tty_menu_show</a>;
+<a id='L688' name='L688'></a>   688 
+<a id='L689' name='L689'></a>   689   <em class='comment'>/* The following are not used on the console.  */</em>
+<a id='L690' name='L690'></a>   690   term-&gt;frame_rehighlight_hook = 0;
+<a id='L691' name='L691'></a>   691   term-&gt;frame_raise_lower_hook = 0;
+<a id='L692' name='L692'></a>   692   term-&gt;set_vertical_scroll_bar_hook = 0;
+<a id='L693' name='L693'></a>   693   term-&gt;set_horizontal_scroll_bar_hook = 0;
+<a id='L694' name='L694'></a>   694   term-&gt;condemn_scroll_bars_hook = 0;
+<a id='L695' name='L695'></a>   695   term-&gt;redeem_scroll_bar_hook = 0;
+<a id='L696' name='L696'></a>   696   term-&gt;judge_scroll_bars_hook = 0;
+<a id='L697' name='L697'></a>   697   term-&gt;frame_up_to_date_hook = 0;
+<a id='L698' name='L698'></a>   698 
+<a id='L699' name='L699'></a>   699   <em class='comment'>/* Initialize the mouse-highlight data.  */</em>
+<a id='L700' name='L700'></a>   700   <a href='../S/2876.html#L2882' title='Defined at 2882 in src/dispextern.h.'>reset_mouse_highlight</a> (&amp;term-&gt;<a href='../S/2900.html#L517' title='Defined at 517 in src/termhooks.h.'>display_info</a>.tty-&gt;mouse_highlight);
+<a id='L701' name='L701'></a>   701 
+<a id='L702' name='L702'></a>   702   <em class='comment'>/* Initialize interrupt_handle.  */</em>
+<a id='L703' name='L703'></a>   703   <a href='../S/3067.html#L43' title='Defined at 43 in src/w32xfns.c.'>init_crit</a> ();
+<a id='L704' name='L704'></a>   704 
+<a id='L705' name='L705'></a>   705   <em class='comment'>/* Remember original console settings.  */</em>
+<a id='L706' name='L706'></a>   706   keyboard_handle = GetStdHandle (STD_INPUT_HANDLE);
+<a id='L707' name='L707'></a>   707   GetConsoleMode (keyboard_handle, &amp;prev_console_mode);
+<a id='L708' name='L708'></a>   708 
+<a id='L709' name='L709'></a>   709   prev_screen = GetStdHandle (STD_OUTPUT_HANDLE);
+<a id='L710' name='L710'></a>   710 
+<a id='L711' name='L711'></a>   711 <em class='sharp'>#ifdef</em> USE_SEPARATE_SCREEN
+<a id='L712' name='L712'></a>   712   cur_screen = CreateConsoleScreenBuffer (GENERIC_READ | GENERIC_WRITE,
+<a id='L713' name='L713'></a>   713                                           0, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>,
+<a id='L714' name='L714'></a>   714                                           CONSOLE_TEXTMODE_BUFFER,
+<a id='L715' name='L715'></a>   715                                           <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L716' name='L716'></a>   716 
+<a id='L717' name='L717'></a>   717   <strong class='reserved'>if</strong> (cur_screen == INVALID_HANDLE_VALUE)
+<a id='L718' name='L718'></a>   718     <em class='brace'>{</em>
+<a id='L719' name='L719'></a>   719       <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("CreateConsoleScreenBuffer failed in initialize_w32_display\n");
+<a id='L720' name='L720'></a>   720       <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("LastError = 0x%lx\n", GetLastError ());
+<a id='L721' name='L721'></a>   721       <a href='../D/10035.html' title='Multiple defined in 4 places.'>fflush</a> (<a href='../S/2512.html#L49' title='Defined at 49 in nt/cmdproxy.c.'>stdout</a>);
+<a id='L722' name='L722'></a>   722       exit (1);
+<a id='L723' name='L723'></a>   723     <em class='brace'>}</em>
+<a id='L724' name='L724'></a>   724 <em class='sharp'>#else</em>
+<a id='L725' name='L725'></a>   725   cur_screen = prev_screen;
+<a id='L726' name='L726'></a>   726   GetConsoleCursorInfo (prev_screen, &amp;prev_console_cursor);
+<a id='L727' name='L727'></a>   727 <em class='sharp'>#endif</em>
+<a id='L728' name='L728'></a>   728 
+<a id='L729' name='L729'></a>   729   <em class='comment'>/* Respect setting of LINES and COLUMNS environment variables.  */</em>
+<a id='L730' name='L730'></a>   730   <em class='brace'>{</em>
+<a id='L731' name='L731'></a>   731     <strong class='reserved'>char</strong> * lines = getenv ("LINES");
+<a id='L732' name='L732'></a>   732     <strong class='reserved'>char</strong> * columns = getenv ("COLUMNS");
+<a id='L733' name='L733'></a>   733 
+<a id='L734' name='L734'></a>   734     <strong class='reserved'>if</strong> (lines != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a> &amp;&amp; columns != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L735' name='L735'></a>   735       <em class='brace'>{</em>
+<a id='L736' name='L736'></a>   736         SMALL_RECT new_win_dims;
+<a id='L737' name='L737'></a>   737         COORD new_size;
+<a id='L738' name='L738'></a>   738 
+<a id='L739' name='L739'></a>   739         new_size.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> = atoi (columns);
+<a id='L740' name='L740'></a>   740         new_size.Y = atoi (lines);
+<a id='L741' name='L741'></a>   741 
+<a id='L742' name='L742'></a>   742         GetConsoleScreenBufferInfo (cur_screen, &amp;<a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>);
+<a id='L743' name='L743'></a>   743 
+<a id='L744' name='L744'></a>   744         <em class='comment'>/* Shrink the window first, so the buffer dimensions can be</em>
+<a id='L745' name='L745'></a>   745 <em class='comment'>           reduced if necessary.  */</em>
+<a id='L746' name='L746'></a>   746         new_win_dims.Top = 0;
+<a id='L747' name='L747'></a>   747         new_win_dims.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a> = 0;
+<a id='L748' name='L748'></a>   748         new_win_dims.Bottom = <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a> (new_size.Y, <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.Y) - 1;
+<a id='L749' name='L749'></a>   749         new_win_dims.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> = <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a> (new_size.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>, <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>) - 1;
+<a id='L750' name='L750'></a>   750         SetConsoleWindowInfo (cur_screen, <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>, &amp;new_win_dims);
+<a id='L751' name='L751'></a>   751 
+<a id='L752' name='L752'></a>   752         SetConsoleScreenBufferSize (cur_screen, new_size);
+<a id='L753' name='L753'></a>   753 
+<a id='L754' name='L754'></a>   754         <em class='comment'>/* Set the window size to match the buffer dimension.  */</em>
+<a id='L755' name='L755'></a>   755         new_win_dims.Top = 0;
+<a id='L756' name='L756'></a>   756         new_win_dims.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a> = 0;
+<a id='L757' name='L757'></a>   757         new_win_dims.Bottom = new_size.Y - 1;
+<a id='L758' name='L758'></a>   758         new_win_dims.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> = new_size.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> - 1;
+<a id='L759' name='L759'></a>   759         SetConsoleWindowInfo (cur_screen, <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>, &amp;new_win_dims);
+<a id='L760' name='L760'></a>   760       <em class='brace'>}</em>
+<a id='L761' name='L761'></a>   761   <em class='brace'>}</em>
+<a id='L762' name='L762'></a>   762 
+<a id='L763' name='L763'></a>   763   <strong class='reserved'>if</strong> (!GetConsoleScreenBufferInfo (cur_screen, &amp;<a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>))
+<a id='L764' name='L764'></a>   764     <em class='brace'>{</em>
+<a id='L765' name='L765'></a>   765       <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("GetConsoleScreenBufferInfo failed in initialize_w32_display\n");
+<a id='L766' name='L766'></a>   766       <a href='../D/14229.html' title='Multiple defined in 4 places.'>printf</a> ("LastError = 0x%lx\n", GetLastError ());
+<a id='L767' name='L767'></a>   767       <a href='../D/10035.html' title='Multiple defined in 4 places.'>fflush</a> (<a href='../S/2512.html#L49' title='Defined at 49 in nt/cmdproxy.c.'>stdout</a>);
+<a id='L768' name='L768'></a>   768       exit (1);
+<a id='L769' name='L769'></a>   769     <em class='brace'>}</em>
+<a id='L770' name='L770'></a>   770 
+<a id='L771' name='L771'></a>   771   char_attr_normal = <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.wAttributes;
+<a id='L772' name='L772'></a>   772 
+<a id='L773' name='L773'></a>   773   <em class='comment'>/* Determine if the info returned by GetConsoleScreenBufferInfo</em>
+<a id='L774' name='L774'></a>   774 <em class='comment'>     is realistic.  Old MS Telnet servers used to only fill out</em>
+<a id='L775' name='L775'></a>   775 <em class='comment'>     the dwSize portion, even modern one fill the whole struct with</em>
+<a id='L776' name='L776'></a>   776 <em class='comment'>     garbage when using non-MS telnet clients.  */</em>
+<a id='L777' name='L777'></a>   777   <strong class='reserved'>if</strong> ((w32_use_full_screen_buffer
+<a id='L778' name='L778'></a>   778        &amp;&amp; (<a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.Y &lt; 20 || <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.Y &gt; 100
+<a id='L779' name='L779'></a>   779            || <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> &lt; 40 || <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a> &gt; 200))
+<a id='L780' name='L780'></a>   780       || (!w32_use_full_screen_buffer
+<a id='L781' name='L781'></a>   781           &amp;&amp; (<a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.Bottom - <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.Top &lt; 20
+<a id='L782' name='L782'></a>   782               || <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.Bottom - <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.Top &gt; 100
+<a id='L783' name='L783'></a>   783               || <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> - <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a> &lt; 40
+<a id='L784' name='L784'></a>   784               || <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> - <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a> &gt; 100)))
+<a id='L785' name='L785'></a>   785     <em class='brace'>{</em>
+<a id='L786' name='L786'></a>   786       *height = 25;
+<a id='L787' name='L787'></a>   787       *width = 80;
+<a id='L788' name='L788'></a>   788     <em class='brace'>}</em>
+<a id='L789' name='L789'></a>   789 
+<a id='L790' name='L790'></a>   790   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (w32_use_full_screen_buffer)
+<a id='L791' name='L791'></a>   791     <em class='brace'>{</em>
+<a id='L792' name='L792'></a>   792       *height = <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.Y;  <em class='comment'>/* lines per page */</em>
+<a id='L793' name='L793'></a>   793       *width = <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.dwSize.<a href='../D/6311.html' title='Multiple defined in 2 places.'>X</a>;   <em class='comment'>/* characters per line */</em>
+<a id='L794' name='L794'></a>   794     <em class='brace'>}</em>
+<a id='L795' name='L795'></a>   795   <strong class='reserved'>else</strong>
+<a id='L796' name='L796'></a>   796     <em class='brace'>{</em>
+<a id='L797' name='L797'></a>   797       <em class='comment'>/* Lines per page.  Use buffer coords instead of buffer size.  */</em>
+<a id='L798' name='L798'></a>   798       *height = 1 + <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.Bottom - <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.Top;
+<a id='L799' name='L799'></a>   799       <em class='comment'>/* Characters per line.  Use buffer coords instead of buffer size.  */</em>
+<a id='L800' name='L800'></a>   800       *width = 1 + <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.<a href='../D/4962.html' title='Multiple defined in 2 places.'>Right</a> - <a href='../D/11772.html' title='Multiple defined in 2 places.'>info</a>.srWindow.<a href='../D/3443.html' title='Multiple defined in 2 places.'>Left</a>;
+<a id='L801' name='L801'></a>   801     <em class='brace'>}</em>
+<a id='L802' name='L802'></a>   802 
+<a id='L803' name='L803'></a>   803   <em class='comment'>/* Force reinitialization of the "empty row" buffer, in case they</em>
+<a id='L804' name='L804'></a>   804 <em class='comment'>     dumped from a running session.  */</em>
+<a id='L805' name='L805'></a>   805   <strong class='reserved'>if</strong> (glyphs != glyph_base)
+<a id='L806' name='L806'></a>   806     <em class='brace'>{</em>
+<a id='L807' name='L807'></a>   807       glyphs = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L808' name='L808'></a>   808       glyphs_len = 0;
+<a id='L809' name='L809'></a>   809       ceol_initialized = <a href='../D/1793.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L810' name='L810'></a>   810     <em class='brace'>}</em>
+<a id='L811' name='L811'></a>   811 
+<a id='L812' name='L812'></a>   812   <strong class='reserved'>if</strong> (os_subtype == <a href='../S/2994.html#L45' title='Defined at 45 in src/w32common.h.'>OS_SUBTYPE_NT</a>)
+<a id='L813' name='L813'></a>   813     w32_console_unicode_input = 1;
+<a id='L814' name='L814'></a>   814   <strong class='reserved'>else</strong>
+<a id='L815' name='L815'></a>   815     w32_console_unicode_input = 0;
+<a id='L816' name='L816'></a>   816 
+<a id='L817' name='L817'></a>   817   <em class='comment'>/* Setup w32_display_info structure for this frame. */</em>
+<a id='L818' name='L818'></a>   818   <a href='../S/2945.html#L7369' title='Defined at 7369 in src/w32term.c.'>w32_initialize_display_info</a> (<a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> ("Console"));
+<a id='L819' name='L819'></a>   819 
+<a id='L820' name='L820'></a>   820   <em class='comment'>/* Set up the keyboard hook.  */</em>
+<a id='L821' name='L821'></a>   821   <a href='../S/2967.html#L2709' title='Defined at 2709 in src/w32fns.c.'>setup_w32_kbdhook</a> ();
+<a id='L822' name='L822'></a>   822 <em class='brace'>}</em>
+<a id='L823' name='L823'></a>   823 
+<a id='L824' name='L824'></a>   824 
+<a id='L825' name='L825'></a>   825 <a href='../D/1294.html' title='Multiple defined in 980 places.'>DEFUN</a> ("set-screen-color", Fset_screen_color, Sset_screen_color, 2, 2, 0,
+<a id='L826' name='L826'></a>   826        doc: <em class='comment'>/* Set screen foreground and background colors.</em>
+<a id='L827' name='L827'></a>   827 <em class='comment'></em>
+<a id='L828' name='L828'></a>   828 <em class='comment'>Arguments should be indices between 0 and 15, see w32console.el.  */</em>)
+<a id='L829' name='L829'></a>   829   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> foreground, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> background)
+<a id='L830' name='L830'></a>   830 <em class='brace'>{</em>
+<a id='L831' name='L831'></a>   831   char_attr_normal = <a href='../S/2974.html#L3016' title='Defined at 3016 in src/lisp.h.'>XFIXNAT</a> (foreground) + (<a href='../S/2974.html#L3016' title='Defined at 3016 in src/lisp.h.'>XFIXNAT</a> (background) &lt;&lt; 4);
+<a id='L832' name='L832'></a>   832 
+<a id='L833' name='L833'></a>   833   Frecenter (Qnil, Qt);
+<a id='L834' name='L834'></a>   834   <strong class='reserved'>return</strong> Qt;
+<a id='L835' name='L835'></a>   835 <em class='brace'>}</em>
+<a id='L836' name='L836'></a>   836 
+<a id='L837' name='L837'></a>   837 <a href='../R/1201.html' title='Multiple referred from 820 places.'>DEFUN</a> ("get-screen-color", Fget_screen_color, Sget_screen_color, 0, 0, 0,
+<a id='L838' name='L838'></a>   838        doc: <em class='comment'>/* Get color indices of the current screen foreground and background.</em>
+<a id='L839' name='L839'></a>   839 <em class='comment'></em>
+<a id='L840' name='L840'></a>   840 <em class='comment'>The colors are returned as a list of 2 indices (FOREGROUND BACKGROUND).</em>
+<a id='L841' name='L841'></a>   841 <em class='comment'>See w32console.el and `tty-defined-color-alist' for mapping of indices</em>
+<a id='L842' name='L842'></a>   842 <em class='comment'>to colors.  */</em>)
+<a id='L843' name='L843'></a>   843   (<strong class='reserved'>void</strong>)
+<a id='L844' name='L844'></a>   844 <em class='brace'>{</em>
+<a id='L845' name='L845'></a>   845   <strong class='reserved'>return</strong> Fcons (<a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (char_attr_normal &amp; 0x000f),
+<a id='L846' name='L846'></a>   846                 Fcons (<a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> ((char_attr_normal &gt;&gt; 4) &amp; 0x000f), Qnil));
+<a id='L847' name='L847'></a>   847 <em class='brace'>}</em>
+<a id='L848' name='L848'></a>   848 
+<a id='L849' name='L849'></a>   849 <a href='../R/1201.html' title='Multiple referred from 820 places.'>DEFUN</a> ("set-cursor-size", Fset_cursor_size, Sset_cursor_size, 1, 1, 0,
+<a id='L850' name='L850'></a>   850        doc: <em class='comment'>/* Set cursor size.  */</em>)
+<a id='L851' name='L851'></a>   851   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L852' name='L852'></a>   852 <em class='brace'>{</em>
+<a id='L853' name='L853'></a>   853   CONSOLE_CURSOR_INFO cci;
+<a id='L854' name='L854'></a>   854   cci.dwSize = <a href='../S/2974.html#L3016' title='Defined at 3016 in src/lisp.h.'>XFIXNAT</a> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L855' name='L855'></a>   855   cci.bVisible = <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L856' name='L856'></a>   856   (<strong class='reserved'>void</strong>) SetConsoleCursorInfo (cur_screen, &amp;cci);
+<a id='L857' name='L857'></a>   857 
+<a id='L858' name='L858'></a>   858   <strong class='reserved'>return</strong> Qt;
+<a id='L859' name='L859'></a>   859 <em class='brace'>}</em>
+<a id='L860' name='L860'></a>   860 
+<a id='L861' name='L861'></a>   861 <strong class='reserved'>void</strong>
+<a id='L862' name='L862'></a>   862 <a href='../R/14698.html' title='Multiple referred from 2 places.'>syms_of_ntterm</a> (<strong class='reserved'>void</strong>)
+<a id='L863' name='L863'></a>   863 <em class='brace'>{</em>
+<a id='L864' name='L864'></a>   864   <a href='../D/1310.html' title='Multiple defined in 2 places.'>DEFVAR_BOOL</a> ("w32-use-full-screen-buffer",
+<a id='L865' name='L865'></a>   865                w32_use_full_screen_buffer,
+<a id='L866' name='L866'></a>   866                doc: <em class='comment'>/* Non-nil means make terminal frames use the full screen buffer dimensions.</em>
+<a id='L867' name='L867'></a>   867 <em class='comment'>This is desirable when running Emacs over telnet.</em>
+<a id='L868' name='L868'></a>   868 <em class='comment'>A value of nil means use the current console window dimensions; this</em>
+<a id='L869' name='L869'></a>   869 <em class='comment'>may be preferable when working directly at the console with a large</em>
+<a id='L870' name='L870'></a>   870 <em class='comment'>scroll-back buffer.  */</em>);
+<a id='L871' name='L871'></a>   871   w32_use_full_screen_buffer = 0;
+<a id='L872' name='L872'></a>   872 
+<a id='L873' name='L873'></a>   873   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sset_screen_color);
+<a id='L874' name='L874'></a>   874   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sget_screen_color);
+<a id='L875' name='L875'></a>   875   <a href='../S/2997.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sset_cursor_size);
+<a id='L876' name='L876'></a>   876 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L78'>[^]</a><a href='#L862'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>exec/loader-x86.s</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4778.html'>exec</a>/loader-x86.s</h2>
+<em class='comment'>/* [&lt;][&gt;][^][v][top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 define(`CC', `
+<a id='L2' name='L2'></a>     2 dnl')
+<a id='L3' name='L3'></a>     3 
+<a id='L4' name='L4'></a>     4 CC Copyright (C) 2023 Free Software Foundation, Inc.
+<a id='L5' name='L5'></a>     5 CC
+<a id='L6' name='L6'></a>     6 CC This file is part of GNU Emacs.
+<a id='L7' name='L7'></a>     7 CC
+<a id='L8' name='L8'></a>     8 CC GNU Emacs is free software: you can redistribute it and/or modify
+<a id='L9' name='L9'></a>     9 CC it under the terms of the GNU General Public License as published
+<a id='L10' name='L10'></a>    10 CC by the Free Software Foundation, either version 3 of the License,
+<a id='L11' name='L11'></a>    11 CC or (at your option) any later version.
+<a id='L12' name='L12'></a>    12 CC
+<a id='L13' name='L13'></a>    13 CC GNU Emacs is distributed in the hope that it will be useful, but
+<a id='L14' name='L14'></a>    14 CC WITHOUT ANY WARRANTY; without even the implied warranty of
+<a id='L15' name='L15'></a>    15 CC MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+<a id='L16' name='L16'></a>    16 CC General Public License for more details.
+<a id='L17' name='L17'></a>    17 CC
+<a id='L18' name='L18'></a>    18 CC You should have received a copy of the GNU General Public License
+<a id='L19' name='L19'></a>    19 CC along with GNU Emacs.  If not, see &lt;https:<em class='comment'>//www.gnu.org/licenses/&gt;.</em>
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21         .section .text
+<a id='L22' name='L22'></a>    22         .global _start
+<a id='L23' name='L23'></a>    23 _start:
+<a id='L24' name='L24'></a>    24 dnl     movl    $162, %eax              CC SYS_nanosleep
+<a id='L25' name='L25'></a>    25 dnl     leal    timespec, %ebx
+<a id='L26' name='L26'></a>    26 dnl     xorl    %ecx, %ecx
+<a id='L27' name='L27'></a>    27 dnl     int     $0x80
+<a id='L28' name='L28'></a>    28         leal    8(%esp), %ebp           CC ebp = start of load area
+<a id='L29' name='L29'></a>    29         subl    $8, %esp                CC (%esp) = primary fd, 4(%esp) = secondary fd
+<a id='L30' name='L30'></a>    30         movl    $-1, 4(%esp)
+<a id='L31' name='L31'></a>    31 .next_action:
+<a id='L32' name='L32'></a>    32         movl    (%ebp), %edx            CC edx = action number
+<a id='L33' name='L33'></a>    33         andl    $-17, %edx
+<a id='L34' name='L34'></a>    34         cmpl    $0, %edx                CC open file?
+<a id='L35' name='L35'></a>    35         je      .open_file
+<a id='L36' name='L36'></a>    36         cmpl    $3, %edx                CC jump?
+<a id='L37' name='L37'></a>    37         je      .rest_of_exec
+<a id='L38' name='L38'></a>    38         cmpl    $4, %edx                CC anonymous mmap?
+<a id='L39' name='L39'></a>    39         je      .do_mmap_anon
+<a id='L40' name='L40'></a>    40 .do_mmap:
+<a id='L41' name='L41'></a>    41         subl    $24, %esp
+<a id='L42' name='L42'></a>    42         movl    $90, %eax               CC SYS_old_mmap
+<a id='L43' name='L43'></a>    43         movl    %esp, %ebx
+<a id='L44' name='L44'></a>    44         movl    4(%ebp), %ecx           CC address
+<a id='L45' name='L45'></a>    45         movl    %ecx, (%esp)
+<a id='L46' name='L46'></a>    46         movl    16(%ebp), %ecx          CC length
+<a id='L47' name='L47'></a>    47         movl    %ecx, 4(%esp)
+<a id='L48' name='L48'></a>    48         movl    12(%ebp), %ecx          CC protection
+<a id='L49' name='L49'></a>    49         movl    %ecx, 8(%esp)
+<a id='L50' name='L50'></a>    50         movl    20(%ebp), %ecx          CC flags
+<a id='L51' name='L51'></a>    51         movl    %ecx, 12(%esp)
+<a id='L52' name='L52'></a>    52         testl   $16, (%ebp)             CC primary?
+<a id='L53' name='L53'></a>    53         movl    28(%esp), %ecx
+<a id='L54' name='L54'></a>    54         cmovzl  24(%esp), %ecx
+<a id='L55' name='L55'></a>    55         movl    %ecx, 16(%esp)          CC fd
+<a id='L56' name='L56'></a>    56         movl    8(%ebp), %ecx           CC offset
+<a id='L57' name='L57'></a>    57         movl    %ecx, 20(%esp)
+<a id='L58' name='L58'></a>    58 .do_mmap_1:
+<a id='L59' name='L59'></a>    59         int     $0x80
+<a id='L60' name='L60'></a>    60         addl    $24, %esp               CC restore esp
+<a id='L61' name='L61'></a>    61         cmpl    $-1, %eax               CC mmap failed?
+<a id='L62' name='L62'></a>    62         je      .perror
+<a id='L63' name='L63'></a>    63         movl    24(%ebp), %ecx          CC clear
+<a id='L64' name='L64'></a>    64         testl   %ecx, %ecx
+<a id='L65' name='L65'></a>    65         jz      .continue
+<a id='L66' name='L66'></a>    66         movl    4(%ebp), %esi           CC start of mapping
+<a id='L67' name='L67'></a>    67         addl    16(%ebp), %esi          CC end of mapping
+<a id='L68' name='L68'></a>    68         subl    %ecx, %esi              CC start of clear area
+<a id='L69' name='L69'></a>    69 .again:
+<a id='L70' name='L70'></a>    70         testl   %ecx, %ecx
+<a id='L71' name='L71'></a>    71         jz      .continue
+<a id='L72' name='L72'></a>    72         subl    $1, %ecx
+<a id='L73' name='L73'></a>    73         movb    $0, (%esi, %ecx, 1)
+<a id='L74' name='L74'></a>    74         jmp     .again
+<a id='L75' name='L75'></a>    75 .continue:
+<a id='L76' name='L76'></a>    76         leal    28(%ebp), %ebp
+<a id='L77' name='L77'></a>    77         jmp     .next_action
+<a id='L78' name='L78'></a>    78 .do_mmap_anon:
+<a id='L79' name='L79'></a>    79         subl    $24, %esp
+<a id='L80' name='L80'></a>    80         movl    $90, %eax               CC SYS_old_mmap
+<a id='L81' name='L81'></a>    81         movl    %esp, %ebx
+<a id='L82' name='L82'></a>    82         movl    4(%ebp), %ecx           CC address
+<a id='L83' name='L83'></a>    83         movl    %ecx, (%esp)
+<a id='L84' name='L84'></a>    84         movl    16(%ebp), %ecx          CC length
+<a id='L85' name='L85'></a>    85         movl    %ecx, 4(%esp)
+<a id='L86' name='L86'></a>    86         movl    12(%ebp), %ecx          CC protection
+<a id='L87' name='L87'></a>    87         movl    %ecx, 8(%esp)
+<a id='L88' name='L88'></a>    88         movl    20(%ebp), %ecx          CC flags
+<a id='L89' name='L89'></a>    89         movl    %ecx, 12(%esp)
+<a id='L90' name='L90'></a>    90         movl    $-1, 16(%esp)           CC fd
+<a id='L91' name='L91'></a>    91         movl    8(%ebp), %ecx           CC offset
+<a id='L92' name='L92'></a>    92         movl    %ecx, 20(%esp)
+<a id='L93' name='L93'></a>    93         jmp     .do_mmap_1
+<a id='L94' name='L94'></a>    94 .open_file:
+<a id='L95' name='L95'></a>    95         movl    $5, %eax                CC SYS_open
+<a id='L96' name='L96'></a>    96         leal    4(%ebp), %ebx           CC ebx = %esp + 8
+<a id='L97' name='L97'></a>    97         pushl   %ebx
+<a id='L98' name='L98'></a>    98         xorl    %ecx, %ecx              CC flags = O_RDONLY
+<a id='L99' name='L99'></a>    99         xorl    %edx, %edx              CC mode = 0
+<a id='L100' name='L100'></a>   100         int     $0x80
+<a id='L101' name='L101'></a>   101         cmpl    $-1, %eax               CC open failed?
+<a id='L102' name='L102'></a>   102         jle     .perror
+<a id='L103' name='L103'></a>   103         movl    %ebp, %esi              CC (esi) = original action number
+<a id='L104' name='L104'></a>   104         popl    %ebp                    CC ebp = start of string
+<a id='L105' name='L105'></a>   105         movl    %ebp, %ecx              CC char past separator
+<a id='L106' name='L106'></a>   106         decl    %ebp
+<a id='L107' name='L107'></a>   107 .nextc:
+<a id='L108' name='L108'></a>   108         incl    %ebp
+<a id='L109' name='L109'></a>   109         movb    (%ebp), %dl             CC dl = *ebp
+<a id='L110' name='L110'></a>   110         cmpb    $47, %dl                CC dl == '\?'?
+<a id='L111' name='L111'></a>   111         jne     .nextc1
+<a id='L112' name='L112'></a>   112         leal    1(%ebp), %ecx           CC ecx = char past separator
+<a id='L113' name='L113'></a>   113 .nextc1:
+<a id='L114' name='L114'></a>   114         cmpb    $0, %dl                 CC dl == 0?
+<a id='L115' name='L115'></a>   115         jne     .nextc
+<a id='L116' name='L116'></a>   116         addl    $4, %ebp                CC adjust past ebp prior to rounding
+<a id='L117' name='L117'></a>   117         andl    $-4, %ebp               CC round ebp up to the next long
+<a id='L118' name='L118'></a>   118         testl   $16, (%esi)             CC original action number &amp; 16?
+<a id='L119' name='L119'></a>   119         jz      .primary
+<a id='L120' name='L120'></a>   120         movl    %eax, 4(%esp)           CC secondary fd = eax
+<a id='L121' name='L121'></a>   121         jmp     .next_action
+<a id='L122' name='L122'></a>   122 .primary:
+<a id='L123' name='L123'></a>   123         pushl   %ebp
+<a id='L124' name='L124'></a>   124         xorl    %esi, %esi              CC arg3
+<a id='L125' name='L125'></a>   125         movl    %eax, 4(%esp)           CC primary fd = eax
+<a id='L126' name='L126'></a>   126         xorl    %edx, %edx              CC arg2
+<a id='L127' name='L127'></a>   127         movl    $15, %ebx               CC PR_SET_NAME, arg1 = ecx
+<a id='L128' name='L128'></a>   128         xorl    %edi, %edi              CC arg4
+<a id='L129' name='L129'></a>   129         movl    $172, %eax              CC SYS_prctl
+<a id='L130' name='L130'></a>   130         xorl    %ebp, %ebp              CC arg5
+<a id='L131' name='L131'></a>   131         int     $0x80                   CC syscall
+<a id='L132' name='L132'></a>   132         popl    %ebp
+<a id='L133' name='L133'></a>   133         jmp     .next_action
+<a id='L134' name='L134'></a>   134 .perror:
+<a id='L135' name='L135'></a>   135         movl    %eax, %ebx
+<a id='L136' name='L136'></a>   136         negl    %ebx
+<a id='L137' name='L137'></a>   137         movl    $1, %eax
+<a id='L138' name='L138'></a>   138         int     $0x80
+<a id='L139' name='L139'></a>   139 .rest_of_exec:
+<a id='L140' name='L140'></a>   140         movl    8(%esp), %ecx           CC ecx = original stack pointer
+<a id='L141' name='L141'></a>   141         movl    (%ecx), %esi            CC esi = argc
+<a id='L142' name='L142'></a>   142         leal    8(%ecx, %esi, 4), %ecx  CC ecx = start of environ
+<a id='L143' name='L143'></a>   143 .skip_environ:
+<a id='L144' name='L144'></a>   144         movl    (%ecx), %esi            CC envp[N]
+<a id='L145' name='L145'></a>   145         addl    $4, %ecx
+<a id='L146' name='L146'></a>   146         testl   %esi, %esi              CC envp[n] ?
+<a id='L147' name='L147'></a>   147         jnz     .skip_environ           CC otherwise, esi is now at the start of auxv
+<a id='L148' name='L148'></a>   148 .one_auxv:
+<a id='L149' name='L149'></a>   149         movl    (%ecx), %esi            CC auxv type
+<a id='L150' name='L150'></a>   150         leal    8(%ecx), %ecx           CC skip to next auxv
+<a id='L151' name='L151'></a>   151         testl   %esi, %esi              CC is 0?
+<a id='L152' name='L152'></a>   152         jz      .cleanup
+<a id='L153' name='L153'></a>   153         cmpl    $3, %esi                CC is AT_PHDR
+<a id='L154' name='L154'></a>   154         je      .replace_phdr
+<a id='L155' name='L155'></a>   155         cmpl    $4, %esi                CC is AT_PHENT?
+<a id='L156' name='L156'></a>   156         je      .replace_phent
+<a id='L157' name='L157'></a>   157         cmpl    $5, %esi                CC is AT_PHNUM?
+<a id='L158' name='L158'></a>   158         je      .replace_phnum
+<a id='L159' name='L159'></a>   159         cmpl    $9, %esi                CC is AT_ENTRY?
+<a id='L160' name='L160'></a>   160         je      .replace_entry
+<a id='L161' name='L161'></a>   161         cmpl    $7, %esi                CC is AT_BASE
+<a id='L162' name='L162'></a>   162         je      .replace_base
+<a id='L163' name='L163'></a>   163         jmp     .one_auxv
+<a id='L164' name='L164'></a>   164 .replace_phdr:
+<a id='L165' name='L165'></a>   165         movl    20(%ebp), %esi
+<a id='L166' name='L166'></a>   166         movl    %esi, -4(%ecx)
+<a id='L167' name='L167'></a>   167         jmp     .one_auxv
+<a id='L168' name='L168'></a>   168 .replace_phent:
+<a id='L169' name='L169'></a>   169         movl    12(%ebp), %esi
+<a id='L170' name='L170'></a>   170         movl    %esi, -4(%ecx)
+<a id='L171' name='L171'></a>   171         jmp     .one_auxv
+<a id='L172' name='L172'></a>   172 .replace_phnum:
+<a id='L173' name='L173'></a>   173         movl    16(%ebp), %esi
+<a id='L174' name='L174'></a>   174         movl    %esi, -4(%ecx)
+<a id='L175' name='L175'></a>   175         jmp     .one_auxv
+<a id='L176' name='L176'></a>   176 .replace_entry:
+<a id='L177' name='L177'></a>   177         movl    8(%ebp), %esi
+<a id='L178' name='L178'></a>   178         movl    %esi, -4(%ecx)
+<a id='L179' name='L179'></a>   179         jmp     .one_auxv
+<a id='L180' name='L180'></a>   180 .replace_base:
+<a id='L181' name='L181'></a>   181         movl    24(%ebp), %esi
+<a id='L182' name='L182'></a>   182         movl    %esi, -4(%ecx)
+<a id='L183' name='L183'></a>   183         jmp     .one_auxv
+<a id='L184' name='L184'></a>   184 .cleanup:
+<a id='L185' name='L185'></a>   185         movl    $6, %eax                CC SYS_close
+<a id='L186' name='L186'></a>   186         cmpl    $-1, 4(%esp)            CC see if interpreter fd is set
+<a id='L187' name='L187'></a>   187         je      .cleanup_1
+<a id='L188' name='L188'></a>   188         movl    4(%esp), %ebx
+<a id='L189' name='L189'></a>   189         int     $0x80
+<a id='L190' name='L190'></a>   190         movl    $6, %eax                CC SYS_close
+<a id='L191' name='L191'></a>   191 .cleanup_1:
+<a id='L192' name='L192'></a>   192         movl    (%esp), %ebx
+<a id='L193' name='L193'></a>   193         int     $0x80
+<a id='L194' name='L194'></a>   194 .enter:
+<a id='L195' name='L195'></a>   195         pushl   $0
+<a id='L196' name='L196'></a>   196         popfl                           CC restore floating point state
+<a id='L197' name='L197'></a>   197         movl    8(%esp), %esp           CC restore initial stack pointer
+<a id='L198' name='L198'></a>   198         xorl    %edx, %edx              CC clear rtld_fini
+<a id='L199' name='L199'></a>   199         jmpl    *4(%ebp)                CC entry
+<a id='L200' name='L200'></a>   200 
+<a id='L201' name='L201'></a>   201 timespec:
+<a id='L202' name='L202'></a>   202         .long   10
+<a id='L203' name='L203'></a>   203         .long   10
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;][^][v]<a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

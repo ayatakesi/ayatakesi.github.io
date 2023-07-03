@@ -1,0 +1,676 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>lib/utimens.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4784.html'>lib</a>/utimens.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L89'>[^]</a><a href='#L531'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L89' title='Defined at 89.'>validate_timespec</a></li>
+<li><a href='#L135' title='Defined at 135.'>update_timespec</a></li>
+<li><a href='#L172' title='Defined at 172.'>fdutimens</a></li>
+<li><a href='#L521' title='Defined at 521.'>utimens</a></li>
+<li><a href='#L531' title='Defined at 531.'>lutimens</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Set file access and modification times.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright (C) 2003-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>   This file is free software: you can redistribute it and/or modify</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>   it under the terms of the GNU Lesser General Public License as</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>   published by the Free Software Foundation, either version 3 of the</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>   License, or (at your option) any later version.</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'></em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>   This file is distributed in the hope that it will be useful,</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>   GNU Lesser General Public License for more details.</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'></em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>   You should have received a copy of the GNU Lesser General Public License</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L17' name='L17'></a>    17 
+<a id='L18' name='L18'></a>    18 <em class='comment'>/* Written by Paul Eggert.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='comment'>/* derived from a function in touch.c */</em>
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#define</em> <a href='../R/7016.html' title='Multiple referred from 2 places.'>_GL_UTIMENS_INLINE</a> _GL_EXTERN_INLINE
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='1911.html'>utimens.h</a>"
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;string.h&gt;
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;<a href='2621.html'>sys/stat.h</a>&gt;
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;<a href='2618.html'>sys/time.h</a>&gt;
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;<a href='2612.html'>unistd.h</a>&gt;
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#include</em> &lt;utime.h&gt;
+<a id='L34' name='L34'></a>    34 
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#include</em> "<a href='1882.html'>stat-time.h</a>"
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#include</em> "<a href='1827.html'>timespec.h</a>"
+<a id='L37' name='L37'></a>    37 
+<a id='L38' name='L38'></a>    38 <em class='comment'>/* On native Windows, use SetFileTime; but avoid this when compiling</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>   GNU Emacs, which arranges for this in some other way and which</em>
+<a id='L40' name='L40'></a>    40 <em class='comment'>   defines WIN32_LEAN_AND_MEAN itself.  */</em>
+<a id='L41' name='L41'></a>    41 
+<a id='L42' name='L42'></a>    42 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> _WIN32 &amp;&amp; ! <strong class='reserved'>defined</strong> __CYGWIN__ &amp;&amp; ! <strong class='reserved'>defined</strong> <a href='../S/2632.html#L472' title='Defined at 472 in nt/inc/ms-w32.h.'>EMACS_CONFIGURATION</a>
+<a id='L43' name='L43'></a>    43 <em class='sharp'># define</em> <a href='../R/5971.html' title='Multiple referred from 2 places.'>USE_SETFILETIME</a>
+<a id='L44' name='L44'></a>    44 <em class='sharp'># define</em> WIN32_LEAN_AND_MEAN
+<a id='L45' name='L45'></a>    45 <em class='sharp'># include</em> &lt;windows.h&gt;
+<a id='L46' name='L46'></a>    46 <em class='sharp'># if</em> GNULIB_MSVC_NOTHROW
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#  include</em> "msvc-nothrow.h"
+<a id='L48' name='L48'></a>    48 <em class='sharp'># else</em>
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#  include</em> &lt;io.h&gt;
+<a id='L50' name='L50'></a>    50 <em class='sharp'># endif</em>
+<a id='L51' name='L51'></a>    51 <em class='sharp'>#endif</em>
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 <em class='comment'>/* Avoid recursion with rpl_futimens or rpl_utimensat.  */</em>
+<a id='L54' name='L54'></a>    54 <em class='sharp'>#undef</em> <a href='../R/10884.html' title='Multiple referred from 10 places.'>futimens</a>
+<a id='L55' name='L55'></a>    55 <em class='sharp'>#if</em> !HAVE_NEARLY_WORKING_UTIMENSAT
+<a id='L56' name='L56'></a>    56 <em class='sharp'># undef</em> <a href='../R/17433.html' title='Multiple referred from 20 places.'>utimensat</a>
+<a id='L57' name='L57'></a>    57 <em class='sharp'>#endif</em>
+<a id='L58' name='L58'></a>    58 
+<a id='L59' name='L59'></a>    59 <em class='comment'>/* Solaris 9 mistakenly succeeds when given a non-directory with a</em>
+<a id='L60' name='L60'></a>    60 <em class='comment'>   trailing slash.  Force the use of rpl_stat for a fix.  */</em>
+<a id='L61' name='L61'></a>    61 <em class='sharp'>#ifndef</em> <a href='../S/1856.html#L62' title='Defined at 62 in lib/utimens.c.'>REPLACE_FUNC_STAT_FILE</a>
+<a id='L62' name='L62'></a>    62 <em class='sharp'># define</em> <a href='../R/4716.html' title='Multiple referred from 4 places.'>REPLACE_FUNC_STAT_FILE</a> 0
+<a id='L63' name='L63'></a>    63 <em class='sharp'>#endif</em>
+<a id='L64' name='L64'></a>    64 
+<a id='L65' name='L65'></a>    65 <em class='sharp'>#if</em> HAVE_UTIMENSAT || HAVE_FUTIMENS
+<a id='L66' name='L66'></a>    66 <em class='comment'>/* Cache variables for whether the utimensat syscall works; used to</em>
+<a id='L67' name='L67'></a>    67 <em class='comment'>   avoid calling the syscall if we know it will just fail with ENOSYS,</em>
+<a id='L68' name='L68'></a>    68 <em class='comment'>   and to avoid unnecessary work in massaging timestamps if the</em>
+<a id='L69' name='L69'></a>    69 <em class='comment'>   syscall will work.  Multiple variables are needed, to distinguish</em>
+<a id='L70' name='L70'></a>    70 <em class='comment'>   between the following scenarios on Linux:</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>   utimensat doesn't exist, or is in glibc but kernel 2.6.18 fails with ENOSYS</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>   kernel 2.6.22 and earlier rejects AT_SYMLINK_NOFOLLOW</em>
+<a id='L73' name='L73'></a>    73 <em class='comment'>   kernel 2.6.25 and earlier reject UTIME_NOW/UTIME_OMIT with non-zero tv_sec</em>
+<a id='L74' name='L74'></a>    74 <em class='comment'>   kernel 2.6.32 used with xfs or ntfs-3g fail to honor UTIME_OMIT</em>
+<a id='L75' name='L75'></a>    75 <em class='comment'>   utimensat completely works</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>   For each cache variable: 0 = unknown, 1 = yes, -1 = no.  */</em>
+<a id='L77' name='L77'></a>    77 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> utimensat_works_really;
+<a id='L78' name='L78'></a>    78 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> lutimensat_works_really;
+<a id='L79' name='L79'></a>    79 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_UTIMENSAT || HAVE_FUTIMENS */</em>
+<a id='L80' name='L80'></a>    80 
+<a id='L81' name='L81'></a>    81 <em class='comment'>/* Validate the requested timestamps.  Return 0 if the resulting</em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>   timespec can be used for utimensat (after possibly modifying it to</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>   work around bugs in utimensat).  Return a positive value if the</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>   timespec needs further adjustment based on stat results: 1 if any</em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>   adjustment is needed for utimes, and 2 if any adjustment is needed</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>   for Linux utimensat.  Return -1, with errno set to EINVAL, if</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'>   timespec is out of range.  */</em>
+<a id='L88' name='L88'></a>    88 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L89' name='L89'></a>    89 <a href='../R/17455.html' title='Multiple referred from 2 places.'>validate_timespec</a> (<strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[2])
+<a id='L90' name='L90'></a>    90 <em class='brace'>{</em>
+<a id='L91' name='L91'></a>    91   <strong class='reserved'>int</strong> result = 0;
+<a id='L92' name='L92'></a>    92   <strong class='reserved'>int</strong> utime_omit_count = 0;
+<a id='L93' name='L93'></a>    93   <strong class='reserved'>if</strong> ((<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec != <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>
+<a id='L94' name='L94'></a>    94        &amp;&amp; <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec != <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>
+<a id='L95' name='L95'></a>    95        &amp;&amp; ! (0 &lt;= <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec
+<a id='L96' name='L96'></a>    96              &amp;&amp; <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec &lt; <a href='../S/1827.html#L44' title='Defined at 44 in lib/timespec.h.'>TIMESPEC_HZ</a>))
+<a id='L97' name='L97'></a>    97       || (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec != <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>
+<a id='L98' name='L98'></a>    98           &amp;&amp; <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec != <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>
+<a id='L99' name='L99'></a>    99           &amp;&amp; ! (0 &lt;= <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec
+<a id='L100' name='L100'></a>   100                 &amp;&amp; <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec &lt; <a href='../S/1827.html#L44' title='Defined at 44 in lib/timespec.h.'>TIMESPEC_HZ</a>)))
+<a id='L101' name='L101'></a>   101     <em class='brace'>{</em>
+<a id='L102' name='L102'></a>   102       errno = EINVAL;
+<a id='L103' name='L103'></a>   103       <strong class='reserved'>return</strong> -1;
+<a id='L104' name='L104'></a>   104     <em class='brace'>}</em>
+<a id='L105' name='L105'></a>   105   <em class='comment'>/* Work around Linux kernel 2.6.25 bug, where utimensat fails with</em>
+<a id='L106' name='L106'></a>   106 <em class='comment'>     EINVAL if tv_sec is not 0 when using the flag values of tv_nsec.</em>
+<a id='L107' name='L107'></a>   107 <em class='comment'>     Flag a Linux kernel 2.6.32 bug, where an mtime of UTIME_OMIT</em>
+<a id='L108' name='L108'></a>   108 <em class='comment'>     fails to bump ctime.  */</em>
+<a id='L109' name='L109'></a>   109   <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>
+<a id='L110' name='L110'></a>   110       || <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L111' name='L111'></a>   111     <em class='brace'>{</em>
+<a id='L112' name='L112'></a>   112       <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_sec = 0;
+<a id='L113' name='L113'></a>   113       result = 1;
+<a id='L114' name='L114'></a>   114       <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L115' name='L115'></a>   115         utime_omit_count++;
+<a id='L116' name='L116'></a>   116     <em class='brace'>}</em>
+<a id='L117' name='L117'></a>   117   <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>
+<a id='L118' name='L118'></a>   118       || <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L119' name='L119'></a>   119     <em class='brace'>{</em>
+<a id='L120' name='L120'></a>   120       <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_sec = 0;
+<a id='L121' name='L121'></a>   121       result = 1;
+<a id='L122' name='L122'></a>   122       <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L123' name='L123'></a>   123         utime_omit_count++;
+<a id='L124' name='L124'></a>   124     <em class='brace'>}</em>
+<a id='L125' name='L125'></a>   125   <strong class='reserved'>return</strong> result + (utime_omit_count == 1);
+<a id='L126' name='L126'></a>   126 <em class='brace'>}</em>
+<a id='L127' name='L127'></a>   127 
+<a id='L128' name='L128'></a>   128 <em class='comment'>/* Normalize any UTIME_NOW or UTIME_OMIT values in (*TS)[0] and (*TS)[1],</em>
+<a id='L129' name='L129'></a>   129 <em class='comment'>   using STATBUF to obtain the current timestamps of the file.  If</em>
+<a id='L130' name='L130'></a>   130 <em class='comment'>   both times are UTIME_NOW, set *TS to NULL (as this can avoid some</em>
+<a id='L131' name='L131'></a>   131 <em class='comment'>   permissions issues).  If both times are UTIME_OMIT, return true</em>
+<a id='L132' name='L132'></a>   132 <em class='comment'>   (nothing further beyond the prior collection of STATBUF is</em>
+<a id='L133' name='L133'></a>   133 <em class='comment'>   necessary); otherwise return false.  */</em>
+<a id='L134' name='L134'></a>   134 <strong class='reserved'>static</strong> <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L135' name='L135'></a>   135 <a href='../R/17397.html' title='Multiple referred from 2 places.'>update_timespec</a> (<strong class='reserved'>struct</strong> <a href='../D/17664.html' title='Multiple defined in 13 places.'>stat</a> <strong class='reserved'>const</strong> *statbuf, <strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> **ts)
+<a id='L136' name='L136'></a>   136 <em class='brace'>{</em>
+<a id='L137' name='L137'></a>   137   <strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> *<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> = *ts;
+<a id='L138' name='L138'></a>   138   <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>
+<a id='L139' name='L139'></a>   139       &amp;&amp; <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L140' name='L140'></a>   140     <strong class='reserved'>return</strong> <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L141' name='L141'></a>   141   <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>
+<a id='L142' name='L142'></a>   142       &amp;&amp; <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>)
+<a id='L143' name='L143'></a>   143     <em class='brace'>{</em>
+<a id='L144' name='L144'></a>   144       *ts = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L145' name='L145'></a>   145       <strong class='reserved'>return</strong> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L146' name='L146'></a>   146     <em class='brace'>}</em>
+<a id='L147' name='L147'></a>   147 
+<a id='L148' name='L148'></a>   148   <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L149' name='L149'></a>   149     <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0] = <a href='../S/1882.html#L120' title='Defined at 120 in lib/stat-time.h.'>get_stat_atime</a> (statbuf);
+<a id='L150' name='L150'></a>   150   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>)
+<a id='L151' name='L151'></a>   151     <a href='../D/12316.html' title='Multiple defined in 5 places.'>gettime</a> (&amp;<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0]);
+<a id='L152' name='L152'></a>   152 
+<a id='L153' name='L153'></a>   153   <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L154' name='L154'></a>   154     <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1] = <a href='../S/1882.html#L144' title='Defined at 144 in lib/stat-time.h.'>get_stat_mtime</a> (statbuf);
+<a id='L155' name='L155'></a>   155   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>)
+<a id='L156' name='L156'></a>   156     <a href='../D/12316.html' title='Multiple defined in 5 places.'>gettime</a> (&amp;<a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1]);
+<a id='L157' name='L157'></a>   157 
+<a id='L158' name='L158'></a>   158   <strong class='reserved'>return</strong> <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L159' name='L159'></a>   159 <em class='brace'>}</em>
+<a id='L160' name='L160'></a>   160 
+<a id='L161' name='L161'></a>   161 <em class='comment'>/* Set the access and modification timestamps of FD (a.k.a. FILE) to be</em>
+<a id='L162' name='L162'></a>   162 <em class='comment'>   TIMESPEC[0] and TIMESPEC[1], respectively.</em>
+<a id='L163' name='L163'></a>   163 <em class='comment'>   FD must be either negative -- in which case it is ignored --</em>
+<a id='L164' name='L164'></a>   164 <em class='comment'>   or a file descriptor that is open on FILE.</em>
+<a id='L165' name='L165'></a>   165 <em class='comment'>   If FD is nonnegative, then FILE can be NULL, which means</em>
+<a id='L166' name='L166'></a>   166 <em class='comment'>   use just futimes (or equivalent) instead of utimes (or equivalent),</em>
+<a id='L167' name='L167'></a>   167 <em class='comment'>   and fail if on an old system without futimes (or equivalent).</em>
+<a id='L168' name='L168'></a>   168 <em class='comment'>   If TIMESPEC is null, set the timestamps to the current time.</em>
+<a id='L169' name='L169'></a>   169 <em class='comment'>   Return 0 on success, -1 (setting errno) on failure.  */</em>
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171 <strong class='reserved'>int</strong>
+<a id='L172' name='L172'></a>   172 <a href='../R/10305.html' title='Multiple referred from 4 places.'>fdutimens</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file, <strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> <strong class='reserved'>const</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[2])
+<a id='L173' name='L173'></a>   173 <em class='brace'>{</em>
+<a id='L174' name='L174'></a>   174   <strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> adjusted_timespec[2];
+<a id='L175' name='L175'></a>   175   <strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> *ts = <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> ? adjusted_timespec : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L176' name='L176'></a>   176   <strong class='reserved'>int</strong> adjustment_needed = 0;
+<a id='L177' name='L177'></a>   177   <strong class='reserved'>struct</strong> <a href='../D/17664.html' title='Multiple defined in 13 places.'>stat</a> st;
+<a id='L178' name='L178'></a>   178 
+<a id='L179' name='L179'></a>   179   <strong class='reserved'>if</strong> (ts)
+<a id='L180' name='L180'></a>   180     <em class='brace'>{</em>
+<a id='L181' name='L181'></a>   181       adjusted_timespec[0] = <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0];
+<a id='L182' name='L182'></a>   182       adjusted_timespec[1] = <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1];
+<a id='L183' name='L183'></a>   183       adjustment_needed = <a href='../S/1856.html#L89' title='Defined at 89 in lib/utimens.c.'>validate_timespec</a> (ts);
+<a id='L184' name='L184'></a>   184     <em class='brace'>}</em>
+<a id='L185' name='L185'></a>   185   <strong class='reserved'>if</strong> (adjustment_needed &lt; 0)
+<a id='L186' name='L186'></a>   186     <strong class='reserved'>return</strong> -1;
+<a id='L187' name='L187'></a>   187 
+<a id='L188' name='L188'></a>   188   <em class='comment'>/* Require that at least one of FD or FILE are potentially valid, to avoid</em>
+<a id='L189' name='L189'></a>   189 <em class='comment'>     a Linux bug where futimens (AT_FDCWD, NULL) changes "." rather</em>
+<a id='L190' name='L190'></a>   190 <em class='comment'>     than failing.  */</em>
+<a id='L191' name='L191'></a>   191   <strong class='reserved'>if</strong> (fd &lt; 0 &amp;&amp; !file)
+<a id='L192' name='L192'></a>   192     <em class='brace'>{</em>
+<a id='L193' name='L193'></a>   193       errno = EBADF;
+<a id='L194' name='L194'></a>   194       <strong class='reserved'>return</strong> -1;
+<a id='L195' name='L195'></a>   195     <em class='brace'>}</em>
+<a id='L196' name='L196'></a>   196 
+<a id='L197' name='L197'></a>   197   <em class='comment'>/* Some Linux-based NFS clients are buggy, and mishandle timestamps</em>
+<a id='L198' name='L198'></a>   198 <em class='comment'>     of files in NFS file systems in some cases.  We have no</em>
+<a id='L199' name='L199'></a>   199 <em class='comment'>     configure-time test for this, but please see</em>
+<a id='L200' name='L200'></a>   200 <em class='comment'>     &lt;https://bugs.gentoo.org/show_bug.cgi?id=132673&gt; for references to</em>
+<a id='L201' name='L201'></a>   201 <em class='comment'>     some of the problems with Linux 2.6.16.  If this affects you,</em>
+<a id='L202' name='L202'></a>   202 <em class='comment'>     compile with -DHAVE_BUGGY_NFS_TIME_STAMPS; this is reported to</em>
+<a id='L203' name='L203'></a>   203 <em class='comment'>     help in some cases, albeit at a cost in performance.  But you</em>
+<a id='L204' name='L204'></a>   204 <em class='comment'>     really should upgrade your kernel to a fixed version, since the</em>
+<a id='L205' name='L205'></a>   205 <em class='comment'>     problem affects many applications.  */</em>
+<a id='L206' name='L206'></a>   206 
+<a id='L207' name='L207'></a>   207 <em class='sharp'>#if</em> HAVE_BUGGY_NFS_TIME_STAMPS
+<a id='L208' name='L208'></a>   208   <strong class='reserved'>if</strong> (fd &lt; 0)
+<a id='L209' name='L209'></a>   209     sync ();
+<a id='L210' name='L210'></a>   210   <strong class='reserved'>else</strong>
+<a id='L211' name='L211'></a>   211     <a href='../D/11819.html' title='Multiple defined in 3 places.'>fsync</a> (fd);
+<a id='L212' name='L212'></a>   212 <em class='sharp'>#endif</em>
+<a id='L213' name='L213'></a>   213 
+<a id='L214' name='L214'></a>   214   <em class='comment'>/* POSIX 2008 added two interfaces to set file timestamps with</em>
+<a id='L215' name='L215'></a>   215 <em class='comment'>     nanosecond resolution; newer Linux implements both functions via</em>
+<a id='L216' name='L216'></a>   216 <em class='comment'>     a single syscall.  We provide a fallback for ENOSYS (for example,</em>
+<a id='L217' name='L217'></a>   217 <em class='comment'>     compiling against Linux 2.6.25 kernel headers and glibc 2.7, but</em>
+<a id='L218' name='L218'></a>   218 <em class='comment'>     running on Linux 2.6.18 kernel).  */</em>
+<a id='L219' name='L219'></a>   219 <em class='sharp'>#if</em> HAVE_UTIMENSAT || HAVE_FUTIMENS
+<a id='L220' name='L220'></a>   220   <strong class='reserved'>if</strong> (0 &lt;= utimensat_works_really)
+<a id='L221' name='L221'></a>   221     <em class='brace'>{</em>
+<a id='L222' name='L222'></a>   222       <strong class='reserved'>int</strong> result;
+<a id='L223' name='L223'></a>   223 <em class='sharp'># if</em> __linux__ || __sun
+<a id='L224' name='L224'></a>   224       <em class='comment'>/* As recently as Linux kernel 2.6.32 (Dec 2009), several file</em>
+<a id='L225' name='L225'></a>   225 <em class='comment'>         systems (xfs, ntfs-3g) have bugs with a single UTIME_OMIT,</em>
+<a id='L226' name='L226'></a>   226 <em class='comment'>         but work if both times are either explicitly specified or</em>
+<a id='L227' name='L227'></a>   227 <em class='comment'>         UTIME_NOW.  Work around it with a preparatory [f]stat prior</em>
+<a id='L228' name='L228'></a>   228 <em class='comment'>         to calling futimens/utimensat; fortunately, there is not much</em>
+<a id='L229' name='L229'></a>   229 <em class='comment'>         timing impact due to the extra syscall even on file systems</em>
+<a id='L230' name='L230'></a>   230 <em class='comment'>         where UTIME_OMIT would have worked.</em>
+<a id='L231' name='L231'></a>   231 <em class='comment'></em>
+<a id='L232' name='L232'></a>   232 <em class='comment'>         The same bug occurs in Solaris 11.1 (Apr 2013).</em>
+<a id='L233' name='L233'></a>   233 <em class='comment'></em>
+<a id='L234' name='L234'></a>   234 <em class='comment'>         FIXME: Simplify this for Linux in 2016 and for Solaris in</em>
+<a id='L235' name='L235'></a>   235 <em class='comment'>         2024, when file system bugs are no longer common.  */</em>
+<a id='L236' name='L236'></a>   236       <strong class='reserved'>if</strong> (adjustment_needed == 2)
+<a id='L237' name='L237'></a>   237         <em class='brace'>{</em>
+<a id='L238' name='L238'></a>   238           <strong class='reserved'>if</strong> (fd &lt; 0 ? <a href='../D/17664.html' title='Multiple defined in 13 places.'>stat</a> (file, &amp;st) : <a href='../D/11817.html' title='Multiple defined in 9 places.'>fstat</a> (fd, &amp;st))
+<a id='L239' name='L239'></a>   239             <strong class='reserved'>return</strong> -1;
+<a id='L240' name='L240'></a>   240           <strong class='reserved'>if</strong> (ts[0].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L241' name='L241'></a>   241             ts[0] = <a href='../S/1882.html#L120' title='Defined at 120 in lib/stat-time.h.'>get_stat_atime</a> (&amp;st);
+<a id='L242' name='L242'></a>   242           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (ts[1].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L243' name='L243'></a>   243             ts[1] = <a href='../S/1882.html#L144' title='Defined at 144 in lib/stat-time.h.'>get_stat_mtime</a> (&amp;st);
+<a id='L244' name='L244'></a>   244           <em class='comment'>/* Note that st is good, in case utimensat gives ENOSYS.  */</em>
+<a id='L245' name='L245'></a>   245           adjustment_needed++;
+<a id='L246' name='L246'></a>   246         <em class='brace'>}</em>
+<a id='L247' name='L247'></a>   247 <em class='sharp'># endif</em>
+<a id='L248' name='L248'></a>   248 <em class='sharp'># if</em> HAVE_UTIMENSAT
+<a id='L249' name='L249'></a>   249       <strong class='reserved'>if</strong> (fd &lt; 0)
+<a id='L250' name='L250'></a>   250         <em class='brace'>{</em>
+<a id='L251' name='L251'></a>   251 <em class='sharp'>#  if</em> <strong class='reserved'>defined</strong> __APPLE__ &amp;&amp; <strong class='reserved'>defined</strong> __MACH__
+<a id='L252' name='L252'></a>   252           size_t len = strlen (file);
+<a id='L253' name='L253'></a>   253           <strong class='reserved'>if</strong> (len &gt; 0 &amp;&amp; file[len - 1] == '/')
+<a id='L254' name='L254'></a>   254             <em class='brace'>{</em>
+<a id='L255' name='L255'></a>   255               <strong class='reserved'>struct</strong> <a href='../D/17664.html' title='Multiple defined in 13 places.'>stat</a> statbuf;
+<a id='L256' name='L256'></a>   256               <strong class='reserved'>if</strong> (<a href='../D/17664.html' title='Multiple defined in 13 places.'>stat</a> (file, &amp;statbuf) &lt; 0)
+<a id='L257' name='L257'></a>   257                 <strong class='reserved'>return</strong> -1;
+<a id='L258' name='L258'></a>   258               <strong class='reserved'>if</strong> (!<a href='../D/6129.html' title='Multiple defined in 4 places.'>S_ISDIR</a> (statbuf.st_mode))
+<a id='L259' name='L259'></a>   259                 <em class='brace'>{</em>
+<a id='L260' name='L260'></a>   260                   errno = ENOTDIR;
+<a id='L261' name='L261'></a>   261                   <strong class='reserved'>return</strong> -1;
+<a id='L262' name='L262'></a>   262                 <em class='brace'>}</em>
+<a id='L263' name='L263'></a>   263             <em class='brace'>}</em>
+<a id='L264' name='L264'></a>   264 <em class='sharp'>#  endif</em>
+<a id='L265' name='L265'></a>   265           result = <a href='../D/18794.html' title='Multiple defined in 6 places.'>utimensat</a> (<a href='../D/266.html' title='Multiple defined in 4 places.'>AT_FDCWD</a>, file, ts, 0);
+<a id='L266' name='L266'></a>   266 <em class='sharp'>#  ifdef</em> __linux__
+<a id='L267' name='L267'></a>   267           <em class='comment'>/* Work around a kernel bug:</em>
+<a id='L268' name='L268'></a>   268 <em class='comment'>             https://bugzilla.redhat.com/show_bug.cgi?id=442352</em>
+<a id='L269' name='L269'></a>   269 <em class='comment'>             https://bugzilla.redhat.com/show_bug.cgi?id=449910</em>
+<a id='L270' name='L270'></a>   270 <em class='comment'>             It appears that utimensat can mistakenly return 280 rather</em>
+<a id='L271' name='L271'></a>   271 <em class='comment'>             than -1 upon ENOSYS failure.</em>
+<a id='L272' name='L272'></a>   272 <em class='comment'>             FIXME: remove in 2010 or whenever the offending kernels</em>
+<a id='L273' name='L273'></a>   273 <em class='comment'>             are no longer in common use.  */</em>
+<a id='L274' name='L274'></a>   274           <strong class='reserved'>if</strong> (0 &lt; result)
+<a id='L275' name='L275'></a>   275             errno = ENOSYS;
+<a id='L276' name='L276'></a>   276 <em class='sharp'>#  endif</em> <em class='comment'>/* __linux__ */</em>
+<a id='L277' name='L277'></a>   277           <strong class='reserved'>if</strong> (result == 0 || errno != ENOSYS)
+<a id='L278' name='L278'></a>   278             <em class='brace'>{</em>
+<a id='L279' name='L279'></a>   279               utimensat_works_really = 1;
+<a id='L280' name='L280'></a>   280               <strong class='reserved'>return</strong> result;
+<a id='L281' name='L281'></a>   281             <em class='brace'>}</em>
+<a id='L282' name='L282'></a>   282         <em class='brace'>}</em>
+<a id='L283' name='L283'></a>   283 <em class='sharp'># endif</em> <em class='comment'>/* HAVE_UTIMENSAT */</em>
+<a id='L284' name='L284'></a>   284 <em class='sharp'># if</em> HAVE_FUTIMENS
+<a id='L285' name='L285'></a>   285       <strong class='reserved'>if</strong> (0 &lt;= fd)
+<a id='L286' name='L286'></a>   286         <em class='brace'>{</em>
+<a id='L287' name='L287'></a>   287           result = <a href='../D/11928.html' title='Multiple defined in 6 places.'>futimens</a> (fd, ts);
+<a id='L288' name='L288'></a>   288 <em class='sharp'>#  ifdef</em> __linux__
+<a id='L289' name='L289'></a>   289           <em class='comment'>/* Work around the same bug as above.  */</em>
+<a id='L290' name='L290'></a>   290           <strong class='reserved'>if</strong> (0 &lt; result)
+<a id='L291' name='L291'></a>   291             errno = ENOSYS;
+<a id='L292' name='L292'></a>   292 <em class='sharp'>#  endif</em> <em class='comment'>/* __linux__ */</em>
+<a id='L293' name='L293'></a>   293           <strong class='reserved'>if</strong> (result == 0 || errno != ENOSYS)
+<a id='L294' name='L294'></a>   294             <em class='brace'>{</em>
+<a id='L295' name='L295'></a>   295               utimensat_works_really = 1;
+<a id='L296' name='L296'></a>   296               <strong class='reserved'>return</strong> result;
+<a id='L297' name='L297'></a>   297             <em class='brace'>}</em>
+<a id='L298' name='L298'></a>   298         <em class='brace'>}</em>
+<a id='L299' name='L299'></a>   299 <em class='sharp'># endif</em> <em class='comment'>/* HAVE_FUTIMENS */</em>
+<a id='L300' name='L300'></a>   300     <em class='brace'>}</em>
+<a id='L301' name='L301'></a>   301   utimensat_works_really = -1;
+<a id='L302' name='L302'></a>   302   lutimensat_works_really = -1;
+<a id='L303' name='L303'></a>   303 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_UTIMENSAT || HAVE_FUTIMENS */</em>
+<a id='L304' name='L304'></a>   304 
+<a id='L305' name='L305'></a>   305 <em class='sharp'>#ifdef</em> <a href='../S/1856.html#L43' title='Defined at 43 in lib/utimens.c.'>USE_SETFILETIME</a>
+<a id='L306' name='L306'></a>   306   <em class='comment'>/* On native Windows, use SetFileTime(). See</em>
+<a id='L307' name='L307'></a>   307 <em class='comment'>     &lt;https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-setfiletime&gt;</em>
+<a id='L308' name='L308'></a>   308 <em class='comment'>     &lt;https://docs.microsoft.com/en-us/windows/desktop/api/minwinbase/ns-minwinbase-filetime&gt;  */</em>
+<a id='L309' name='L309'></a>   309   <strong class='reserved'>if</strong> (0 &lt;= fd)
+<a id='L310' name='L310'></a>   310     <em class='brace'>{</em>
+<a id='L311' name='L311'></a>   311       HANDLE handle;
+<a id='L312' name='L312'></a>   312       FILETIME current_time;
+<a id='L313' name='L313'></a>   313       FILETIME last_access_time;
+<a id='L314' name='L314'></a>   314       FILETIME last_write_time;
+<a id='L315' name='L315'></a>   315 
+<a id='L316' name='L316'></a>   316       handle = (HANDLE) _get_osfhandle (fd);
+<a id='L317' name='L317'></a>   317       <strong class='reserved'>if</strong> (handle == INVALID_HANDLE_VALUE)
+<a id='L318' name='L318'></a>   318         <em class='brace'>{</em>
+<a id='L319' name='L319'></a>   319           errno = EBADF;
+<a id='L320' name='L320'></a>   320           <strong class='reserved'>return</strong> -1;
+<a id='L321' name='L321'></a>   321         <em class='brace'>}</em>
+<a id='L322' name='L322'></a>   322 
+<a id='L323' name='L323'></a>   323       <strong class='reserved'>if</strong> (ts == <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a> || ts[0].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a> || ts[1].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>)
+<a id='L324' name='L324'></a>   324         <em class='brace'>{</em>
+<a id='L325' name='L325'></a>   325           <em class='comment'>/* GetSystemTimeAsFileTime</em>
+<a id='L326' name='L326'></a>   326 <em class='comment'>             &lt;https://docs.microsoft.com/en-us/windows/desktop/api/sysinfoapi/nf-sysinfoapi-getsystemtimeasfiletime&gt;.</em>
+<a id='L327' name='L327'></a>   327 <em class='comment'>             It would be overkill to use</em>
+<a id='L328' name='L328'></a>   328 <em class='comment'>             GetSystemTimePreciseAsFileTime</em>
+<a id='L329' name='L329'></a>   329 <em class='comment'>             &lt;https://docs.microsoft.com/en-us/windows/desktop/api/sysinfoapi/nf-sysinfoapi-getsystemtimepreciseasfiletime&gt;.  */</em>
+<a id='L330' name='L330'></a>   330           GetSystemTimeAsFileTime (&amp;current_time);
+<a id='L331' name='L331'></a>   331         <em class='brace'>}</em>
+<a id='L332' name='L332'></a>   332 
+<a id='L333' name='L333'></a>   333       <strong class='reserved'>if</strong> (ts == <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a> || ts[0].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>)
+<a id='L334' name='L334'></a>   334         <em class='brace'>{</em>
+<a id='L335' name='L335'></a>   335           last_access_time = current_time;
+<a id='L336' name='L336'></a>   336         <em class='brace'>}</em>
+<a id='L337' name='L337'></a>   337       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (ts[0].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L338' name='L338'></a>   338         <em class='brace'>{</em>
+<a id='L339' name='L339'></a>   339           last_access_time.dwLowDateTime = 0;
+<a id='L340' name='L340'></a>   340           last_access_time.dwHighDateTime = 0;
+<a id='L341' name='L341'></a>   341         <em class='brace'>}</em>
+<a id='L342' name='L342'></a>   342       <strong class='reserved'>else</strong>
+<a id='L343' name='L343'></a>   343         <em class='brace'>{</em>
+<a id='L344' name='L344'></a>   344           ULONGLONG time_since_16010101 =
+<a id='L345' name='L345'></a>   345             (ULONGLONG) ts[0].tv_sec * 10000000 + ts[0].tv_nsec / 100 + 116444736000000000LL;
+<a id='L346' name='L346'></a>   346           last_access_time.dwLowDateTime = (DWORD) time_since_16010101;
+<a id='L347' name='L347'></a>   347           last_access_time.dwHighDateTime = time_since_16010101 &gt;&gt; 32;
+<a id='L348' name='L348'></a>   348         <em class='brace'>}</em>
+<a id='L349' name='L349'></a>   349 
+<a id='L350' name='L350'></a>   350       <strong class='reserved'>if</strong> (ts == <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a> || ts[1].tv_nsec == <a href='../D/6637.html' title='Multiple defined in 2 places.'>UTIME_NOW</a>)
+<a id='L351' name='L351'></a>   351         <em class='brace'>{</em>
+<a id='L352' name='L352'></a>   352           last_write_time = current_time;
+<a id='L353' name='L353'></a>   353         <em class='brace'>}</em>
+<a id='L354' name='L354'></a>   354       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (ts[1].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L355' name='L355'></a>   355         <em class='brace'>{</em>
+<a id='L356' name='L356'></a>   356           last_write_time.dwLowDateTime = 0;
+<a id='L357' name='L357'></a>   357           last_write_time.dwHighDateTime = 0;
+<a id='L358' name='L358'></a>   358         <em class='brace'>}</em>
+<a id='L359' name='L359'></a>   359       <strong class='reserved'>else</strong>
+<a id='L360' name='L360'></a>   360         <em class='brace'>{</em>
+<a id='L361' name='L361'></a>   361           ULONGLONG time_since_16010101 =
+<a id='L362' name='L362'></a>   362             (ULONGLONG) ts[1].tv_sec * 10000000 + ts[1].tv_nsec / 100 + 116444736000000000LL;
+<a id='L363' name='L363'></a>   363           last_write_time.dwLowDateTime = (DWORD) time_since_16010101;
+<a id='L364' name='L364'></a>   364           last_write_time.dwHighDateTime = time_since_16010101 &gt;&gt; 32;
+<a id='L365' name='L365'></a>   365         <em class='brace'>}</em>
+<a id='L366' name='L366'></a>   366 
+<a id='L367' name='L367'></a>   367       <strong class='reserved'>if</strong> (SetFileTime (handle, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>, &amp;last_access_time, &amp;last_write_time))
+<a id='L368' name='L368'></a>   368         <strong class='reserved'>return</strong> 0;
+<a id='L369' name='L369'></a>   369       <strong class='reserved'>else</strong>
+<a id='L370' name='L370'></a>   370         <em class='brace'>{</em>
+<a id='L371' name='L371'></a>   371           DWORD sft_error = GetLastError ();
+<a id='L372' name='L372'></a>   372 <em class='sharp'>          #if</em> 0
+<a id='L373' name='L373'></a>   373           <a href='../D/11669.html' title='Multiple defined in 4 places.'>fprintf</a> (<a href='../S/2641.html#L50' title='Defined at 50 in nt/cmdproxy.c.'>stderr</a>, "fdutimens SetFileTime error 0x%x\n", (<strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong>) sft_error);
+<a id='L374' name='L374'></a>   374 <em class='sharp'>          #endif</em>
+<a id='L375' name='L375'></a>   375           <strong class='reserved'>switch</strong> (sft_error)
+<a id='L376' name='L376'></a>   376             <em class='brace'>{</em>
+<a id='L377' name='L377'></a>   377             <strong class='reserved'>case</strong> ERROR_ACCESS_DENIED: <em class='comment'>/* fd was opened without O_RDWR */</em>
+<a id='L378' name='L378'></a>   378               errno = EACCES; <em class='comment'>/* not specified by POSIX */</em>
+<a id='L379' name='L379'></a>   379               <strong class='reserved'>break</strong>;
+<a id='L380' name='L380'></a>   380             <strong class='reserved'>default</strong>:
+<a id='L381' name='L381'></a>   381               errno = EINVAL;
+<a id='L382' name='L382'></a>   382               <strong class='reserved'>break</strong>;
+<a id='L383' name='L383'></a>   383             <em class='brace'>}</em>
+<a id='L384' name='L384'></a>   384           <strong class='reserved'>return</strong> -1;
+<a id='L385' name='L385'></a>   385         <em class='brace'>}</em>
+<a id='L386' name='L386'></a>   386     <em class='brace'>}</em>
+<a id='L387' name='L387'></a>   387 <em class='sharp'>#endif</em>
+<a id='L388' name='L388'></a>   388 
+<a id='L389' name='L389'></a>   389   <em class='comment'>/* The platform lacks an interface to set file timestamps with</em>
+<a id='L390' name='L390'></a>   390 <em class='comment'>     nanosecond resolution, so do the best we can, discarding any</em>
+<a id='L391' name='L391'></a>   391 <em class='comment'>     fractional part of the timestamp.  */</em>
+<a id='L392' name='L392'></a>   392 
+<a id='L393' name='L393'></a>   393   <strong class='reserved'>if</strong> (adjustment_needed || (<a href='../S/1856.html#L62' title='Defined at 62 in lib/utimens.c.'>REPLACE_FUNC_STAT_FILE</a> &amp;&amp; fd &lt; 0))
+<a id='L394' name='L394'></a>   394     <em class='brace'>{</em>
+<a id='L395' name='L395'></a>   395       <strong class='reserved'>if</strong> (adjustment_needed != 3
+<a id='L396' name='L396'></a>   396           &amp;&amp; (fd &lt; 0 ? <a href='../D/17664.html' title='Multiple defined in 13 places.'>stat</a> (file, &amp;st) : <a href='../D/11817.html' title='Multiple defined in 9 places.'>fstat</a> (fd, &amp;st)))
+<a id='L397' name='L397'></a>   397         <strong class='reserved'>return</strong> -1;
+<a id='L398' name='L398'></a>   398       <strong class='reserved'>if</strong> (ts &amp;&amp; <a href='../S/1856.html#L135' title='Defined at 135 in lib/utimens.c.'>update_timespec</a> (&amp;st, &amp;ts))
+<a id='L399' name='L399'></a>   399         <strong class='reserved'>return</strong> 0;
+<a id='L400' name='L400'></a>   400     <em class='brace'>}</em>
+<a id='L401' name='L401'></a>   401 
+<a id='L402' name='L402'></a>   402   <em class='brace'>{</em>
+<a id='L403' name='L403'></a>   403 <em class='sharp'>#if</em> HAVE_FUTIMESAT || HAVE_WORKING_UTIMES
+<a id='L404' name='L404'></a>   404     <strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>[2];
+<a id='L405' name='L405'></a>   405     <strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a> *t;
+<a id='L406' name='L406'></a>   406     <strong class='reserved'>if</strong> (ts)
+<a id='L407' name='L407'></a>   407       <em class='brace'>{</em>
+<a id='L408' name='L408'></a>   408         <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>[0] = (<strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>) <em class='brace'>{</em> .tv_sec  = ts[0].tv_sec,
+<a id='L409' name='L409'></a>   409                                         .tv_usec = ts[0].tv_nsec / 1000 <em class='brace'>}</em>;
+<a id='L410' name='L410'></a>   410         <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>[1] = (<strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>) <em class='brace'>{</em> .tv_sec  = ts[1].tv_sec,
+<a id='L411' name='L411'></a>   411                                         .tv_usec = ts[1].tv_nsec / 1000 <em class='brace'>}</em>;
+<a id='L412' name='L412'></a>   412         t = <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>;
+<a id='L413' name='L413'></a>   413       <em class='brace'>}</em>
+<a id='L414' name='L414'></a>   414     <strong class='reserved'>else</strong>
+<a id='L415' name='L415'></a>   415       t = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L416' name='L416'></a>   416 
+<a id='L417' name='L417'></a>   417     <strong class='reserved'>if</strong> (fd &lt; 0)
+<a id='L418' name='L418'></a>   418       <em class='brace'>{</em>
+<a id='L419' name='L419'></a>   419 <em class='sharp'># if</em> HAVE_FUTIMESAT
+<a id='L420' name='L420'></a>   420         <strong class='reserved'>return</strong> futimesat (<a href='../D/266.html' title='Multiple defined in 4 places.'>AT_FDCWD</a>, file, t);
+<a id='L421' name='L421'></a>   421 <em class='sharp'># endif</em>
+<a id='L422' name='L422'></a>   422       <em class='brace'>}</em>
+<a id='L423' name='L423'></a>   423     <strong class='reserved'>else</strong>
+<a id='L424' name='L424'></a>   424       <em class='brace'>{</em>
+<a id='L425' name='L425'></a>   425         <em class='comment'>/* If futimesat or futimes fails here, don't try to speed things</em>
+<a id='L426' name='L426'></a>   426 <em class='comment'>           up by returning right away.  glibc can incorrectly fail with</em>
+<a id='L427' name='L427'></a>   427 <em class='comment'>           errno == ENOENT if /proc isn't mounted.  Also, Mandrake 10.0</em>
+<a id='L428' name='L428'></a>   428 <em class='comment'>           in high security mode doesn't allow ordinary users to read</em>
+<a id='L429' name='L429'></a>   429 <em class='comment'>           /proc/self, so glibc incorrectly fails with errno == EACCES.</em>
+<a id='L430' name='L430'></a>   430 <em class='comment'>           If errno == EIO, EPERM, or EROFS, it's probably safe to fail</em>
+<a id='L431' name='L431'></a>   431 <em class='comment'>           right away, but these cases are rare enough that they're not</em>
+<a id='L432' name='L432'></a>   432 <em class='comment'>           worth optimizing, and who knows what other messed-up systems</em>
+<a id='L433' name='L433'></a>   433 <em class='comment'>           are out there?  So play it safe and fall back on the code</em>
+<a id='L434' name='L434'></a>   434 <em class='comment'>           below.  */</em>
+<a id='L435' name='L435'></a>   435 
+<a id='L436' name='L436'></a>   436 <em class='sharp'># if</em> (HAVE_FUTIMESAT &amp;&amp; !FUTIMESAT_NULL_BUG) || HAVE_FUTIMES
+<a id='L437' name='L437'></a>   437 <em class='sharp'>#  if</em> HAVE_FUTIMESAT &amp;&amp; !FUTIMESAT_NULL_BUG
+<a id='L438' name='L438'></a>   438 <em class='sharp'>#   undef</em> <a href='../R/10885.html' title='Multiple referred from 2 places.'>futimes</a>
+<a id='L439' name='L439'></a>   439 <em class='sharp'>#   define</em> <a href='../R/10885.html' title='Multiple referred from 2 places.'>futimes</a>(fd, t) futimesat (fd, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>, t)
+<a id='L440' name='L440'></a>   440 <em class='sharp'>#  endif</em>
+<a id='L441' name='L441'></a>   441         <strong class='reserved'>if</strong> (<a href='../D/11929.html' title='Multiple defined in 2 places.'>futimes</a> (fd, t) == 0)
+<a id='L442' name='L442'></a>   442           <em class='brace'>{</em>
+<a id='L443' name='L443'></a>   443 <em class='sharp'>#  if</em> __linux__ &amp;&amp; __GLIBC__
+<a id='L444' name='L444'></a>   444             <em class='comment'>/* Work around a longstanding glibc bug, still present as</em>
+<a id='L445' name='L445'></a>   445 <em class='comment'>               of 2010-12-27.  On older Linux kernels that lack both</em>
+<a id='L446' name='L446'></a>   446 <em class='comment'>               utimensat and utimes, glibc's futimes rounds instead of</em>
+<a id='L447' name='L447'></a>   447 <em class='comment'>               truncating when falling back on utime.  The same bug</em>
+<a id='L448' name='L448'></a>   448 <em class='comment'>               occurs in futimesat with a null 2nd arg.  */</em>
+<a id='L449' name='L449'></a>   449             <strong class='reserved'>if</strong> (t)
+<a id='L450' name='L450'></a>   450               <em class='brace'>{</em>
+<a id='L451' name='L451'></a>   451                 <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a> abig = 500000 &lt;= t[0].tv_usec;
+<a id='L452' name='L452'></a>   452                 <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a> mbig = 500000 &lt;= t[1].tv_usec;
+<a id='L453' name='L453'></a>   453                 <strong class='reserved'>if</strong> ((abig | mbig) &amp;&amp; <a href='../D/11817.html' title='Multiple defined in 9 places.'>fstat</a> (fd, &amp;st) == 0)
+<a id='L454' name='L454'></a>   454                   <em class='brace'>{</em>
+<a id='L455' name='L455'></a>   455                     <em class='comment'>/* If these two subtractions overflow, they'll</em>
+<a id='L456' name='L456'></a>   456 <em class='comment'>                       track the overflows inside the buggy glibc.  */</em>
+<a id='L457' name='L457'></a>   457                     time_t adiff = st.<a href='../S/1854.html#L141' title='Defined at 141 in lib/sys_stat.in.h.'>st_atime</a> - t[0].tv_sec;
+<a id='L458' name='L458'></a>   458                     time_t mdiff = st.<a href='../S/1854.html#L142' title='Defined at 142 in lib/sys_stat.in.h.'>st_mtime</a> - t[1].tv_sec;
+<a id='L459' name='L459'></a>   459 
+<a id='L460' name='L460'></a>   460                     <strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a> *tt = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L461' name='L461'></a>   461                     <strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a> truncated_timeval[2];
+<a id='L462' name='L462'></a>   462                     truncated_timeval[0] = t[0];
+<a id='L463' name='L463'></a>   463                     truncated_timeval[1] = t[1];
+<a id='L464' name='L464'></a>   464                     <strong class='reserved'>if</strong> (abig &amp;&amp; adiff == 1 &amp;&amp; <a href='../S/1882.html#L68' title='Defined at 68 in lib/stat-time.h.'>get_stat_atime_ns</a> (&amp;st) == 0)
+<a id='L465' name='L465'></a>   465                       <em class='brace'>{</em>
+<a id='L466' name='L466'></a>   466                         tt = truncated_timeval;
+<a id='L467' name='L467'></a>   467                         tt[0].tv_usec = 0;
+<a id='L468' name='L468'></a>   468                       <em class='brace'>}</em>
+<a id='L469' name='L469'></a>   469                     <strong class='reserved'>if</strong> (mbig &amp;&amp; mdiff == 1 &amp;&amp; <a href='../S/1882.html#L94' title='Defined at 94 in lib/stat-time.h.'>get_stat_mtime_ns</a> (&amp;st) == 0)
+<a id='L470' name='L470'></a>   470                       <em class='brace'>{</em>
+<a id='L471' name='L471'></a>   471                         tt = truncated_timeval;
+<a id='L472' name='L472'></a>   472                         tt[1].tv_usec = 0;
+<a id='L473' name='L473'></a>   473                       <em class='brace'>}</em>
+<a id='L474' name='L474'></a>   474                     <strong class='reserved'>if</strong> (tt)
+<a id='L475' name='L475'></a>   475                       <a href='../D/11929.html' title='Multiple defined in 2 places.'>futimes</a> (fd, tt);
+<a id='L476' name='L476'></a>   476                   <em class='brace'>}</em>
+<a id='L477' name='L477'></a>   477               <em class='brace'>}</em>
+<a id='L478' name='L478'></a>   478 <em class='sharp'>#  endif</em>
+<a id='L479' name='L479'></a>   479 
+<a id='L480' name='L480'></a>   480             <strong class='reserved'>return</strong> 0;
+<a id='L481' name='L481'></a>   481           <em class='brace'>}</em>
+<a id='L482' name='L482'></a>   482 <em class='sharp'># endif</em>
+<a id='L483' name='L483'></a>   483       <em class='brace'>}</em>
+<a id='L484' name='L484'></a>   484 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_FUTIMESAT || HAVE_WORKING_UTIMES */</em>
+<a id='L485' name='L485'></a>   485 
+<a id='L486' name='L486'></a>   486     <strong class='reserved'>if</strong> (!file)
+<a id='L487' name='L487'></a>   487       <em class='brace'>{</em>
+<a id='L488' name='L488'></a>   488 <em class='sharp'>#if</em> ! ((HAVE_FUTIMESAT &amp;&amp; !FUTIMESAT_NULL_BUG)          \
+<a id='L489' name='L489'></a>   489         || (HAVE_WORKING_UTIMES &amp;&amp; HAVE_FUTIMES))
+<a id='L490' name='L490'></a>   490         errno = ENOSYS;
+<a id='L491' name='L491'></a>   491 <em class='sharp'>#endif</em>
+<a id='L492' name='L492'></a>   492         <strong class='reserved'>return</strong> -1;
+<a id='L493' name='L493'></a>   493       <em class='brace'>}</em>
+<a id='L494' name='L494'></a>   494 
+<a id='L495' name='L495'></a>   495 <em class='sharp'>#ifdef</em> <a href='../S/1856.html#L43' title='Defined at 43 in lib/utimens.c.'>USE_SETFILETIME</a>
+<a id='L496' name='L496'></a>   496     <strong class='reserved'>return</strong> _gl_utimens_windows (file, ts);
+<a id='L497' name='L497'></a>   497 <em class='sharp'>#elif</em> HAVE_WORKING_UTIMES
+<a id='L498' name='L498'></a>   498     <strong class='reserved'>return</strong> utimes (file, t);
+<a id='L499' name='L499'></a>   499 <em class='sharp'>#else</em>
+<a id='L500' name='L500'></a>   500     <em class='brace'>{</em>
+<a id='L501' name='L501'></a>   501       <strong class='reserved'>struct</strong> utimbuf utimbuf;
+<a id='L502' name='L502'></a>   502       <strong class='reserved'>struct</strong> utimbuf *ut;
+<a id='L503' name='L503'></a>   503       <strong class='reserved'>if</strong> (ts)
+<a id='L504' name='L504'></a>   504         <em class='brace'>{</em>
+<a id='L505' name='L505'></a>   505           utimbuf = (<strong class='reserved'>struct</strong> utimbuf) <em class='brace'>{</em> .actime  = ts[0].tv_sec,
+<a id='L506' name='L506'></a>   506                                        .modtime = ts[1].tv_sec <em class='brace'>}</em>;
+<a id='L507' name='L507'></a>   507           ut = &amp;utimbuf;
+<a id='L508' name='L508'></a>   508         <em class='brace'>}</em>
+<a id='L509' name='L509'></a>   509       <strong class='reserved'>else</strong>
+<a id='L510' name='L510'></a>   510         ut = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L511' name='L511'></a>   511 
+<a id='L512' name='L512'></a>   512       <strong class='reserved'>return</strong> <a href='../D/18792.html' title='Multiple defined in 2 places.'>utime</a> (file, ut);
+<a id='L513' name='L513'></a>   513     <em class='brace'>}</em>
+<a id='L514' name='L514'></a>   514 <em class='sharp'>#endif</em> <em class='comment'>/* !HAVE_WORKING_UTIMES */</em>
+<a id='L515' name='L515'></a>   515   <em class='brace'>}</em>
+<a id='L516' name='L516'></a>   516 <em class='brace'>}</em>
+<a id='L517' name='L517'></a>   517 
+<a id='L518' name='L518'></a>   518 <em class='comment'>/* Set the access and modification timestamps of FILE to be</em>
+<a id='L519' name='L519'></a>   519 <em class='comment'>   TIMESPEC[0] and TIMESPEC[1], respectively.  */</em>
+<a id='L520' name='L520'></a>   520 <strong class='reserved'>int</strong>
+<a id='L521' name='L521'></a>   521 <a href='../R/17432.html' title='Multiple referred from 2 places.'>utimens</a> (<strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file, <strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> <strong class='reserved'>const</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[2])
+<a id='L522' name='L522'></a>   522 <em class='brace'>{</em>
+<a id='L523' name='L523'></a>   523   <strong class='reserved'>return</strong> <a href='../D/11313.html' title='Multiple defined in 2 places.'>fdutimens</a> (-1, file, <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>);
+<a id='L524' name='L524'></a>   524 <em class='brace'>}</em>
+<a id='L525' name='L525'></a>   525 
+<a id='L526' name='L526'></a>   526 <em class='comment'>/* Set the access and modification timestamps of FILE to be</em>
+<a id='L527' name='L527'></a>   527 <em class='comment'>   TIMESPEC[0] and TIMESPEC[1], respectively, without dereferencing</em>
+<a id='L528' name='L528'></a>   528 <em class='comment'>   symlinks.  Fail with ENOSYS if the platform does not support</em>
+<a id='L529' name='L529'></a>   529 <em class='comment'>   changing symlink timestamps, but FILE was a symlink.  */</em>
+<a id='L530' name='L530'></a>   530 <strong class='reserved'>int</strong>
+<a id='L531' name='L531'></a>   531 <a href='../R/12893.html' title='Multiple referred from 2 places.'>lutimens</a> (<strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file, <strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> <strong class='reserved'>const</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[2])
+<a id='L532' name='L532'></a>   532 <em class='brace'>{</em>
+<a id='L533' name='L533'></a>   533   <strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> adjusted_timespec[2];
+<a id='L534' name='L534'></a>   534   <strong class='reserved'>struct</strong> <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> *ts = <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a> ? adjusted_timespec : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L535' name='L535'></a>   535   <strong class='reserved'>int</strong> adjustment_needed = 0;
+<a id='L536' name='L536'></a>   536   <strong class='reserved'>struct</strong> <a href='../D/17664.html' title='Multiple defined in 13 places.'>stat</a> st;
+<a id='L537' name='L537'></a>   537 
+<a id='L538' name='L538'></a>   538   <strong class='reserved'>if</strong> (ts)
+<a id='L539' name='L539'></a>   539     <em class='brace'>{</em>
+<a id='L540' name='L540'></a>   540       adjusted_timespec[0] = <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[0];
+<a id='L541' name='L541'></a>   541       adjusted_timespec[1] = <a href='../D/18272.html' title='Multiple defined in 3 places.'>timespec</a>[1];
+<a id='L542' name='L542'></a>   542       adjustment_needed = <a href='../S/1856.html#L89' title='Defined at 89 in lib/utimens.c.'>validate_timespec</a> (ts);
+<a id='L543' name='L543'></a>   543     <em class='brace'>}</em>
+<a id='L544' name='L544'></a>   544   <strong class='reserved'>if</strong> (adjustment_needed &lt; 0)
+<a id='L545' name='L545'></a>   545     <strong class='reserved'>return</strong> -1;
+<a id='L546' name='L546'></a>   546 
+<a id='L547' name='L547'></a>   547   <em class='comment'>/* The Linux kernel did not support symlink timestamps until</em>
+<a id='L548' name='L548'></a>   548 <em class='comment'>     utimensat, in version 2.6.22, so we don't need to mimic</em>
+<a id='L549' name='L549'></a>   549 <em class='comment'>     fdutimens' worry about buggy NFS clients.  But we do have to</em>
+<a id='L550' name='L550'></a>   550 <em class='comment'>     worry about bogus return values.  */</em>
+<a id='L551' name='L551'></a>   551 
+<a id='L552' name='L552'></a>   552 <em class='sharp'>#if</em> HAVE_UTIMENSAT
+<a id='L553' name='L553'></a>   553   <strong class='reserved'>if</strong> (0 &lt;= lutimensat_works_really)
+<a id='L554' name='L554'></a>   554     <em class='brace'>{</em>
+<a id='L555' name='L555'></a>   555       <strong class='reserved'>int</strong> result;
+<a id='L556' name='L556'></a>   556 <em class='sharp'># if</em> __linux__ || __sun
+<a id='L557' name='L557'></a>   557       <em class='comment'>/* As recently as Linux kernel 2.6.32 (Dec 2009), several file</em>
+<a id='L558' name='L558'></a>   558 <em class='comment'>         systems (xfs, ntfs-3g) have bugs with a single UTIME_OMIT,</em>
+<a id='L559' name='L559'></a>   559 <em class='comment'>         but work if both times are either explicitly specified or</em>
+<a id='L560' name='L560'></a>   560 <em class='comment'>         UTIME_NOW.  Work around it with a preparatory lstat prior to</em>
+<a id='L561' name='L561'></a>   561 <em class='comment'>         calling utimensat; fortunately, there is not much timing</em>
+<a id='L562' name='L562'></a>   562 <em class='comment'>         impact due to the extra syscall even on file systems where</em>
+<a id='L563' name='L563'></a>   563 <em class='comment'>         UTIME_OMIT would have worked.</em>
+<a id='L564' name='L564'></a>   564 <em class='comment'></em>
+<a id='L565' name='L565'></a>   565 <em class='comment'>         The same bug occurs in Solaris 11.1 (Apr 2013).</em>
+<a id='L566' name='L566'></a>   566 <em class='comment'></em>
+<a id='L567' name='L567'></a>   567 <em class='comment'>         FIXME: Simplify this for Linux in 2016 and for Solaris in</em>
+<a id='L568' name='L568'></a>   568 <em class='comment'>         2024, when file system bugs are no longer common.  */</em>
+<a id='L569' name='L569'></a>   569       <strong class='reserved'>if</strong> (adjustment_needed == 2)
+<a id='L570' name='L570'></a>   570         <em class='brace'>{</em>
+<a id='L571' name='L571'></a>   571           <strong class='reserved'>if</strong> (<a href='../D/14005.html' title='Multiple defined in 11 places.'>lstat</a> (file, &amp;st))
+<a id='L572' name='L572'></a>   572             <strong class='reserved'>return</strong> -1;
+<a id='L573' name='L573'></a>   573           <strong class='reserved'>if</strong> (ts[0].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L574' name='L574'></a>   574             ts[0] = <a href='../S/1882.html#L120' title='Defined at 120 in lib/stat-time.h.'>get_stat_atime</a> (&amp;st);
+<a id='L575' name='L575'></a>   575           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (ts[1].tv_nsec == <a href='../D/6638.html' title='Multiple defined in 2 places.'>UTIME_OMIT</a>)
+<a id='L576' name='L576'></a>   576             ts[1] = <a href='../S/1882.html#L144' title='Defined at 144 in lib/stat-time.h.'>get_stat_mtime</a> (&amp;st);
+<a id='L577' name='L577'></a>   577           <em class='comment'>/* Note that st is good, in case utimensat gives ENOSYS.  */</em>
+<a id='L578' name='L578'></a>   578           adjustment_needed++;
+<a id='L579' name='L579'></a>   579         <em class='brace'>}</em>
+<a id='L580' name='L580'></a>   580 <em class='sharp'># endif</em>
+<a id='L581' name='L581'></a>   581       result = <a href='../D/18794.html' title='Multiple defined in 6 places.'>utimensat</a> (<a href='../D/266.html' title='Multiple defined in 4 places.'>AT_FDCWD</a>, file, ts, <a href='../D/279.html' title='Multiple defined in 2 places.'>AT_SYMLINK_NOFOLLOW</a>);
+<a id='L582' name='L582'></a>   582 <em class='sharp'># ifdef</em> __linux__
+<a id='L583' name='L583'></a>   583       <em class='comment'>/* Work around a kernel bug:</em>
+<a id='L584' name='L584'></a>   584 <em class='comment'>         https://bugzilla.redhat.com/show_bug.cgi?id=442352</em>
+<a id='L585' name='L585'></a>   585 <em class='comment'>         https://bugzilla.redhat.com/show_bug.cgi?id=449910</em>
+<a id='L586' name='L586'></a>   586 <em class='comment'>         It appears that utimensat can mistakenly return 280 rather</em>
+<a id='L587' name='L587'></a>   587 <em class='comment'>         than -1 upon ENOSYS failure.</em>
+<a id='L588' name='L588'></a>   588 <em class='comment'>         FIXME: remove in 2010 or whenever the offending kernels</em>
+<a id='L589' name='L589'></a>   589 <em class='comment'>         are no longer in common use.  */</em>
+<a id='L590' name='L590'></a>   590       <strong class='reserved'>if</strong> (0 &lt; result)
+<a id='L591' name='L591'></a>   591         errno = ENOSYS;
+<a id='L592' name='L592'></a>   592 <em class='sharp'># endif</em>
+<a id='L593' name='L593'></a>   593       <strong class='reserved'>if</strong> (result == 0 || errno != ENOSYS)
+<a id='L594' name='L594'></a>   594         <em class='brace'>{</em>
+<a id='L595' name='L595'></a>   595           utimensat_works_really = 1;
+<a id='L596' name='L596'></a>   596           lutimensat_works_really = 1;
+<a id='L597' name='L597'></a>   597           <strong class='reserved'>return</strong> result;
+<a id='L598' name='L598'></a>   598         <em class='brace'>}</em>
+<a id='L599' name='L599'></a>   599     <em class='brace'>}</em>
+<a id='L600' name='L600'></a>   600   lutimensat_works_really = -1;
+<a id='L601' name='L601'></a>   601 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_UTIMENSAT */</em>
+<a id='L602' name='L602'></a>   602 
+<a id='L603' name='L603'></a>   603   <em class='comment'>/* The platform lacks an interface to set file timestamps with</em>
+<a id='L604' name='L604'></a>   604 <em class='comment'>     nanosecond resolution, so do the best we can, discarding any</em>
+<a id='L605' name='L605'></a>   605 <em class='comment'>     fractional part of the timestamp.  */</em>
+<a id='L606' name='L606'></a>   606 
+<a id='L607' name='L607'></a>   607   <strong class='reserved'>if</strong> (adjustment_needed || <a href='../S/1856.html#L62' title='Defined at 62 in lib/utimens.c.'>REPLACE_FUNC_STAT_FILE</a>)
+<a id='L608' name='L608'></a>   608     <em class='brace'>{</em>
+<a id='L609' name='L609'></a>   609       <strong class='reserved'>if</strong> (adjustment_needed != 3 &amp;&amp; <a href='../D/14005.html' title='Multiple defined in 11 places.'>lstat</a> (file, &amp;st))
+<a id='L610' name='L610'></a>   610         <strong class='reserved'>return</strong> -1;
+<a id='L611' name='L611'></a>   611       <strong class='reserved'>if</strong> (ts &amp;&amp; <a href='../S/1856.html#L135' title='Defined at 135 in lib/utimens.c.'>update_timespec</a> (&amp;st, &amp;ts))
+<a id='L612' name='L612'></a>   612         <strong class='reserved'>return</strong> 0;
+<a id='L613' name='L613'></a>   613     <em class='brace'>}</em>
+<a id='L614' name='L614'></a>   614 
+<a id='L615' name='L615'></a>   615   <em class='comment'>/* On Linux, lutimes is a thin wrapper around utimensat, so there is</em>
+<a id='L616' name='L616'></a>   616 <em class='comment'>     no point trying lutimes if utimensat failed with ENOSYS.  */</em>
+<a id='L617' name='L617'></a>   617 <em class='sharp'>#if</em> HAVE_LUTIMES &amp;&amp; !HAVE_UTIMENSAT
+<a id='L618' name='L618'></a>   618   <em class='brace'>{</em>
+<a id='L619' name='L619'></a>   619     <strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>[2];
+<a id='L620' name='L620'></a>   620     <strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a> *t;
+<a id='L621' name='L621'></a>   621     <strong class='reserved'>int</strong> result;
+<a id='L622' name='L622'></a>   622     <strong class='reserved'>if</strong> (ts)
+<a id='L623' name='L623'></a>   623       <em class='brace'>{</em>
+<a id='L624' name='L624'></a>   624         <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>[0] = (<strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>) <em class='brace'>{</em> .tv_sec = ts[0].tv_sec,
+<a id='L625' name='L625'></a>   625                                         .tv_usec = ts[0].tv_nsec / 1000 <em class='brace'>}</em>;
+<a id='L626' name='L626'></a>   626         <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>[1] = (<strong class='reserved'>struct</strong> <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>) <em class='brace'>{</em> .tv_sec = ts[1].tv_sec,
+<a id='L627' name='L627'></a>   627                                         .tv_usec = ts[1].tv_nsec / 1000 <em class='brace'>}</em>;
+<a id='L628' name='L628'></a>   628         t = <a href='../D/18284.html' title='Multiple defined in 8 places.'>timeval</a>;
+<a id='L629' name='L629'></a>   629       <em class='brace'>}</em>
+<a id='L630' name='L630'></a>   630     <strong class='reserved'>else</strong>
+<a id='L631' name='L631'></a>   631       t = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L632' name='L632'></a>   632 
+<a id='L633' name='L633'></a>   633     result = lutimes (file, t);
+<a id='L634' name='L634'></a>   634     <strong class='reserved'>if</strong> (result == 0 || errno != ENOSYS)
+<a id='L635' name='L635'></a>   635       <strong class='reserved'>return</strong> result;
+<a id='L636' name='L636'></a>   636   <em class='brace'>}</em>
+<a id='L637' name='L637'></a>   637 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_LUTIMES &amp;&amp; !HAVE_UTIMENSAT */</em>
+<a id='L638' name='L638'></a>   638 
+<a id='L639' name='L639'></a>   639   <em class='comment'>/* Out of luck for symlinks, but we still handle regular files.  */</em>
+<a id='L640' name='L640'></a>   640   <strong class='reserved'>if</strong> (!(adjustment_needed || <a href='../S/1856.html#L62' title='Defined at 62 in lib/utimens.c.'>REPLACE_FUNC_STAT_FILE</a>) &amp;&amp; <a href='../D/14005.html' title='Multiple defined in 11 places.'>lstat</a> (file, &amp;st))
+<a id='L641' name='L641'></a>   641     <strong class='reserved'>return</strong> -1;
+<a id='L642' name='L642'></a>   642   <strong class='reserved'>if</strong> (!<a href='../D/6133.html' title='Multiple defined in 4 places.'>S_ISLNK</a> (st.st_mode))
+<a id='L643' name='L643'></a>   643     <strong class='reserved'>return</strong> <a href='../D/11313.html' title='Multiple defined in 2 places.'>fdutimens</a> (-1, file, ts);
+<a id='L644' name='L644'></a>   644   errno = ENOSYS;
+<a id='L645' name='L645'></a>   645   <strong class='reserved'>return</strong> -1;
+<a id='L646' name='L646'></a>   646 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L89'>[^]</a><a href='#L531'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

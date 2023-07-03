@@ -1,0 +1,615 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>lib/mktime.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4493.html'>lib</a>/mktime.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L69'>[^]</a><a href='#L555'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L69' title='Defined at 69.'>my_tzset</a></li>
+<li><a href='#L139' title='Defined at 139.'>shr</a></li>
+<li><a href='#L163' title='Defined at 163.'>leapyear</a></li>
+<li><a href='#L189' title='Defined at 189.'>isdst_differ</a></li>
+<li><a href='#L205' title='Defined at 205.'>ydhms_diff</a></li>
+<li><a href='#L232' title='Defined at 232.'>long_int_avg</a></li>
+<li><a href='#L245' title='Defined at 245.'>tm_diff</a></li>
+<li><a href='#L257' title='Defined at 257.'>convert_time</a></li>
+<li><a href='#L270' title='Defined at 270.'>ranged_convert</a></li>
+<li><a href='#L321' title='Defined at 321.'>__mktime_internal</a></li>
+<li><a href='#L536' title='Defined at 536.'>__mktime64</a></li>
+<li><a href='#L555' title='Defined at 555.'>libc_hidden_def</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Convert a 'struct tm' to a time_t value.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1993-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   This file is part of the GNU C Library.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>   Contributed by Paul Eggert &lt;eggert@twinsun.com&gt;.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>   The GNU C Library is free software; you can redistribute it and/or</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>   modify it under the terms of the GNU Lesser General Public</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>   License as published by the Free Software Foundation; either</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>   version 2.1 of the License, or (at your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>   The GNU C Library is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>   Lesser General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>   You should have received a copy of the GNU Lesser General Public</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>   License along with the GNU C Library; if not, see</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>   &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='comment'>/* The following macros influence what gets defined when this file is compiled:</em>
+<a id='L21' name='L21'></a>    21 <em class='comment'></em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>   Macro/expression            Which gnulib module    This compilation unit</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'>                                                      should define</em>
+<a id='L24' name='L24'></a>    24 <em class='comment'></em>
+<a id='L25' name='L25'></a>    25 <em class='comment'>   _LIBC                       (glibc proper)         mktime</em>
+<a id='L26' name='L26'></a>    26 <em class='comment'></em>
+<a id='L27' name='L27'></a>    27 <em class='comment'>   NEED_MKTIME_WORKING         mktime                 rpl_mktime</em>
+<a id='L28' name='L28'></a>    28 <em class='comment'>   || NEED_MKTIME_WINDOWS</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'></em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>   NEED_MKTIME_INTERNAL        mktime-internal        mktime_internal</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'> */</em>
+<a id='L32' name='L32'></a>    32 
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#ifndef</em> _LIBC
+<a id='L34' name='L34'></a>    34 <em class='sharp'># include</em> &lt;<a href='1752.html'>libc-config.h</a>&gt;
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#endif</em>
+<a id='L36' name='L36'></a>    36 
+<a id='L37' name='L37'></a>    37 <em class='comment'>/* Assume that leap seconds are possible, unless told otherwise.</em>
+<a id='L38' name='L38'></a>    38 <em class='comment'>   If the host has a 'zic' command with a '-L leapsecondfilename' option,</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>   then it supports leap seconds; otherwise it probably doesn't.  */</em>
+<a id='L40' name='L40'></a>    40 <em class='sharp'>#ifndef</em> <a href='../S/1750.html#L41' title='Defined at 41 in lib/mktime.c.'>LEAP_SECONDS_POSSIBLE</a>
+<a id='L41' name='L41'></a>    41 <em class='sharp'># define</em> <a href='../R/2922.html' title='Multiple referred from 3 places.'>LEAP_SECONDS_POSSIBLE</a> 1
+<a id='L42' name='L42'></a>    42 <em class='sharp'>#endif</em>
+<a id='L43' name='L43'></a>    43 
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#include</em> &lt;<a href='2489.html'>time.h</a>&gt;
+<a id='L45' name='L45'></a>    45 
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#include</em> &lt;limits.h&gt;
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#include</em> &lt;<a href='2501.html'>stdbool.h</a>&gt;
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L50' name='L50'></a>    50 <em class='sharp'>#include</em> &lt;string.h&gt;
+<a id='L51' name='L51'></a>    51 
+<a id='L52' name='L52'></a>    52 <em class='sharp'>#include</em> &lt;<a href='1870.html'>intprops.h</a>&gt;
+<a id='L53' name='L53'></a>    53 <em class='sharp'>#include</em> &lt;<a href='1925.html'>verify.h</a>&gt;
+<a id='L54' name='L54'></a>    54 
+<a id='L55' name='L55'></a>    55 <em class='sharp'>#ifndef</em> <a href='../S/1750.html#L56' title='Defined at 56 in lib/mktime.c.'>NEED_MKTIME_INTERNAL</a>
+<a id='L56' name='L56'></a>    56 <em class='sharp'># define</em> <a href='../R/3551.html' title='Multiple referred from 2 places.'>NEED_MKTIME_INTERNAL</a> 0
+<a id='L57' name='L57'></a>    57 <em class='sharp'>#endif</em>
+<a id='L58' name='L58'></a>    58 <em class='sharp'>#ifndef</em> <a href='../S/1750.html#L59' title='Defined at 59 in lib/mktime.c.'>NEED_MKTIME_WINDOWS</a>
+<a id='L59' name='L59'></a>    59 <em class='sharp'># define</em> <a href='../R/3552.html' title='Multiple referred from 4 places.'>NEED_MKTIME_WINDOWS</a> 0
+<a id='L60' name='L60'></a>    60 <em class='sharp'>#endif</em>
+<a id='L61' name='L61'></a>    61 <em class='sharp'>#ifndef</em> <a href='../S/1750.html#L62' title='Defined at 62 in lib/mktime.c.'>NEED_MKTIME_WORKING</a>
+<a id='L62' name='L62'></a>    62 <em class='sharp'># define</em> <a href='../R/3553.html' title='Multiple referred from 5 places.'>NEED_MKTIME_WORKING</a> 0
+<a id='L63' name='L63'></a>    63 <em class='sharp'>#endif</em>
+<a id='L64' name='L64'></a>    64 
+<a id='L65' name='L65'></a>    65 <em class='sharp'>#include</em> "<a href='1886.html'>mktime-internal.h</a>"
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67 <em class='sharp'>#if</em> !<strong class='reserved'>defined</strong> _LIBC &amp;&amp; (<a href='../S/1750.html#L62' title='Defined at 62 in lib/mktime.c.'>NEED_MKTIME_WORKING</a> || <a href='../S/1750.html#L59' title='Defined at 59 in lib/mktime.c.'>NEED_MKTIME_WINDOWS</a>)
+<a id='L68' name='L68'></a>    68 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L69' name='L69'></a>    69 <a href='../S/1750.html#L102' title='Referred from 102 in lib/mktime.c.'>my_tzset</a> (<strong class='reserved'>void</strong>)
+<a id='L70' name='L70'></a>    70 <em class='brace'>{</em>
+<a id='L71' name='L71'></a>    71 <em class='sharp'># if</em> <a href='../S/1750.html#L59' title='Defined at 59 in lib/mktime.c.'>NEED_MKTIME_WINDOWS</a>
+<a id='L72' name='L72'></a>    72   <em class='comment'>/* Rectify the value of the environment variable TZ.</em>
+<a id='L73' name='L73'></a>    73 <em class='comment'>     There are four possible kinds of such values:</em>
+<a id='L74' name='L74'></a>    74 <em class='comment'>       - Traditional US time zone names, e.g. "PST8PDT".  Syntax: see</em>
+<a id='L75' name='L75'></a>    75 <em class='comment'>         &lt;https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/tzset&gt;</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>       - Time zone names based on geography, that contain one or more</em>
+<a id='L77' name='L77'></a>    77 <em class='comment'>         slashes, e.g. "Europe/Moscow".</em>
+<a id='L78' name='L78'></a>    78 <em class='comment'>       - Time zone names based on geography, without slashes, e.g.</em>
+<a id='L79' name='L79'></a>    79 <em class='comment'>         "Singapore".</em>
+<a id='L80' name='L80'></a>    80 <em class='comment'>       - Time zone names that contain explicit DST rules.  Syntax: see</em>
+<a id='L81' name='L81'></a>    81 <em class='comment'>         &lt;https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap08.html#tag_08_03&gt;</em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>     The Microsoft CRT understands only the first kind.  It produces incorrect</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>     results if the value of TZ is of the other kinds.</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>     But in a Cygwin environment, /etc/profile.d/tzset.sh sets TZ to a value</em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>     of the second kind for most geographies, or of the first kind in a few</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>     other geographies.  If it is of the second kind, neutralize it.  For the</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'>     Microsoft CRT, an absent or empty TZ means the time zone that the user</em>
+<a id='L88' name='L88'></a>    88 <em class='comment'>     has set in the Windows Control Panel.</em>
+<a id='L89' name='L89'></a>    89 <em class='comment'>     If the value of TZ is of the third or fourth kind -- Cygwin programs</em>
+<a id='L90' name='L90'></a>    90 <em class='comment'>     understand these syntaxes as well --, it does not matter whether we</em>
+<a id='L91' name='L91'></a>    91 <em class='comment'>     neutralize it or not, since these values occur only when a Cygwin user</em>
+<a id='L92' name='L92'></a>    92 <em class='comment'>     has set TZ explicitly; this case is 1. rare and 2. under the user's</em>
+<a id='L93' name='L93'></a>    93 <em class='comment'>     responsibility.  */</em>
+<a id='L94' name='L94'></a>    94   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/1754.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a> = getenv ("TZ");
+<a id='L95' name='L95'></a>    95   <strong class='reserved'>if</strong> (<a href='../S/1754.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a> != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a> &amp;&amp; <a href='../S/1788.html#L438' title='Defined at 438 in lib/string.in.h.'>strchr</a> (<a href='../S/1754.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>, '/') != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L96' name='L96'></a>    96     _putenv ("TZ=");
+<a id='L97' name='L97'></a>    97 <em class='sharp'># else</em>
+<a id='L98' name='L98'></a>    98   <a href='../D/16420.html' title='Multiple defined in 9 places.'>tzset</a> ();
+<a id='L99' name='L99'></a>    99 <em class='sharp'># endif</em>
+<a id='L100' name='L100'></a>   100 <em class='brace'>}</em>
+<a id='L101' name='L101'></a>   101 <em class='sharp'># undef</em> <a href='../R/6667.html' title='Multiple referred from 2 places.'>__tzset</a>
+<a id='L102' name='L102'></a>   102 <em class='sharp'># define</em> <a href='../R/6667.html' title='Multiple referred from 2 places.'>__tzset</a>() <a href='../S/1750.html#L69' title='Defined at 69 in lib/mktime.c.'>my_tzset</a> ()
+<a id='L103' name='L103'></a>   103 <em class='sharp'>#endif</em>
+<a id='L104' name='L104'></a>   104 
+<a id='L105' name='L105'></a>   105 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> _LIBC || <a href='../S/1750.html#L62' title='Defined at 62 in lib/mktime.c.'>NEED_MKTIME_WORKING</a> || <a href='../S/1750.html#L56' title='Defined at 56 in lib/mktime.c.'>NEED_MKTIME_INTERNAL</a>
+<a id='L106' name='L106'></a>   106 
+<a id='L107' name='L107'></a>   107 <em class='comment'>/* A signed type that can represent an integer number of years</em>
+<a id='L108' name='L108'></a>   108 <em class='comment'>   multiplied by four times the number of seconds in a year.  It is</em>
+<a id='L109' name='L109'></a>   109 <em class='comment'>   needed when converting a tm_year value times the number of seconds</em>
+<a id='L110' name='L110'></a>   110 <em class='comment'>   in a year.  The factor of four comes because these products need</em>
+<a id='L111' name='L111'></a>   111 <em class='comment'>   to be subtracted from each other, and sometimes with an offset</em>
+<a id='L112' name='L112'></a>   112 <em class='comment'>   added to them, and then with another timestamp added, without</em>
+<a id='L113' name='L113'></a>   113 <em class='comment'>   worrying about overflow.</em>
+<a id='L114' name='L114'></a>   114 <em class='comment'></em>
+<a id='L115' name='L115'></a>   115 <em class='comment'>   Much of the code uses long_int to represent __time64_t values, to</em>
+<a id='L116' name='L116'></a>   116 <em class='comment'>   lessen the hassle of dealing with platforms where __time64_t is</em>
+<a id='L117' name='L117'></a>   117 <em class='comment'>   unsigned, and because long_int should suffice to represent all</em>
+<a id='L118' name='L118'></a>   118 <em class='comment'>   __time64_t values that mktime can generate even on platforms where</em>
+<a id='L119' name='L119'></a>   119 <em class='comment'>   __time64_t is wider than the int components of struct tm.  */</em>
+<a id='L120' name='L120'></a>   120 
+<a id='L121' name='L121'></a>   121 <em class='sharp'>#if</em> INT_MAX &lt;= LONG_MAX / 4 / 366 / 24 / 60 / 60
+<a id='L122' name='L122'></a>   122 <strong class='reserved'>typedef</strong> <strong class='reserved'>long</strong> <strong class='reserved'>int</strong> <a href='../R/11479.html' title='Multiple referred from 38 places.'>long_int</a>;
+<a id='L123' name='L123'></a>   123 <em class='sharp'>#else</em>
+<a id='L124' name='L124'></a>   124 <strong class='reserved'>typedef</strong> <strong class='reserved'>long</strong> <strong class='reserved'>long</strong> <strong class='reserved'>int</strong> <a href='../R/11479.html' title='Multiple referred from 38 places.'>long_int</a>;
+<a id='L125' name='L125'></a>   125 <em class='sharp'>#endif</em>
+<a id='L126' name='L126'></a>   126 <a href='../D/16680.html' title='Multiple defined in 4 places.'>verify</a> (INT_MAX &lt;= <a href='../S/1870.html#L47' title='Defined at 47 in lib/intprops.h.'>TYPE_MAXIMUM</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a>) / 4 / 366 / 24 / 60 / 60);
+<a id='L127' name='L127'></a>   127 
+<a id='L128' name='L128'></a>   128 <em class='comment'>/* Shift A right by B bits portably, by dividing A by 2**B and</em>
+<a id='L129' name='L129'></a>   129 <em class='comment'>   truncating towards minus infinity.  B should be in the range 0 &lt;= B</em>
+<a id='L130' name='L130'></a>   130 <em class='comment'>   &lt;= LONG_INT_BITS - 2, where LONG_INT_BITS is the number of useful</em>
+<a id='L131' name='L131'></a>   131 <em class='comment'>   bits in a long_int.  LONG_INT_BITS is at least 32.</em>
+<a id='L132' name='L132'></a>   132 <em class='comment'></em>
+<a id='L133' name='L133'></a>   133 <em class='comment'>   ISO C99 says that A &gt;&gt; B is implementation-defined if A &lt; 0.  Some</em>
+<a id='L134' name='L134'></a>   134 <em class='comment'>   implementations (e.g., UNICOS 9.0 on a Cray Y-MP EL) don't shift</em>
+<a id='L135' name='L135'></a>   135 <em class='comment'>   right in the usual way when A &lt; 0, so SHR falls back on division if</em>
+<a id='L136' name='L136'></a>   136 <em class='comment'>   ordinary A &gt;&gt; B doesn't seem to be the usual signed shift.  */</em>
+<a id='L137' name='L137'></a>   137 
+<a id='L138' name='L138'></a>   138 <strong class='reserved'>static</strong> <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a>
+<a id='L139' name='L139'></a>   139 <a href='../R/14209.html' title='Multiple referred from 5 places.'>shr</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, <strong class='reserved'>int</strong> <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L140' name='L140'></a>   140 <em class='brace'>{</em>
+<a id='L141' name='L141'></a>   141   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> one = 1;
+<a id='L142' name='L142'></a>   142   <strong class='reserved'>return</strong> (-one &gt;&gt; 1 == -1
+<a id='L143' name='L143'></a>   143           ? <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> &gt;&gt; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>
+<a id='L144' name='L144'></a>   144           : (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> + (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> &lt; 0)) / (one &lt;&lt; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>) - (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> &lt; 0));
+<a id='L145' name='L145'></a>   145 <em class='brace'>}</em>
+<a id='L146' name='L146'></a>   146 
+<a id='L147' name='L147'></a>   147 <em class='comment'>/* Bounds for the intersection of __time64_t and long_int.  */</em>
+<a id='L148' name='L148'></a>   148 
+<a id='L149' name='L149'></a>   149 <strong class='reserved'>static</strong> <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> <strong class='reserved'>const</strong> mktime_min
+<a id='L150' name='L150'></a>   150   = ((<a href='../S/1870.html#L31' title='Defined at 31 in lib/intprops.h.'>TYPE_SIGNED</a> (<a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a>)
+<a id='L151' name='L151'></a>   151       &amp;&amp; <a href='../S/1870.html#L46' title='Defined at 46 in lib/intprops.h.'>TYPE_MINIMUM</a> (<a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a>) &lt; <a href='../S/1870.html#L46' title='Defined at 46 in lib/intprops.h.'>TYPE_MINIMUM</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a>))
+<a id='L152' name='L152'></a>   152      ? <a href='../S/1870.html#L46' title='Defined at 46 in lib/intprops.h.'>TYPE_MINIMUM</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a>) : <a href='../S/1870.html#L46' title='Defined at 46 in lib/intprops.h.'>TYPE_MINIMUM</a> (<a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a>));
+<a id='L153' name='L153'></a>   153 <strong class='reserved'>static</strong> <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> <strong class='reserved'>const</strong> mktime_max
+<a id='L154' name='L154'></a>   154   = (<a href='../S/1870.html#L47' title='Defined at 47 in lib/intprops.h.'>TYPE_MAXIMUM</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a>) &lt; <a href='../S/1870.html#L47' title='Defined at 47 in lib/intprops.h.'>TYPE_MAXIMUM</a> (<a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a>)
+<a id='L155' name='L155'></a>   155      ? <a href='../S/1870.html#L47' title='Defined at 47 in lib/intprops.h.'>TYPE_MAXIMUM</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a>) : <a href='../S/1870.html#L47' title='Defined at 47 in lib/intprops.h.'>TYPE_MAXIMUM</a> (<a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a>));
+<a id='L156' name='L156'></a>   156 
+<a id='L157' name='L157'></a>   157 <em class='sharp'>#define</em> <a href='../S/1750.html#L384' title='Referred from 384 in lib/mktime.c.'>EPOCH_YEAR</a> 1970
+<a id='L158' name='L158'></a>   158 <em class='sharp'>#define</em> <a href='../R/5165.html' title='Multiple referred from 26 places.'>TM_YEAR_BASE</a> 1900
+<a id='L159' name='L159'></a>   159 <a href='../D/16680.html' title='Multiple defined in 4 places.'>verify</a> (<a href='../D/5721.html' title='Multiple defined in 3 places.'>TM_YEAR_BASE</a> % 100 == 0);
+<a id='L160' name='L160'></a>   160 
+<a id='L161' name='L161'></a>   161 <em class='comment'>/* Is YEAR + TM_YEAR_BASE a leap year?  */</em>
+<a id='L162' name='L162'></a>   162 <strong class='reserved'>static</strong> <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L163' name='L163'></a>   163 <a href='../S/1750.html#L358' title='Referred from 358 in lib/mktime.c.'>leapyear</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> year)
+<a id='L164' name='L164'></a>   164 <em class='brace'>{</em>
+<a id='L165' name='L165'></a>   165   <em class='comment'>/* Don't add YEAR to TM_YEAR_BASE, as that might overflow.</em>
+<a id='L166' name='L166'></a>   166 <em class='comment'>     Also, work even if YEAR is negative.  */</em>
+<a id='L167' name='L167'></a>   167   <strong class='reserved'>return</strong>
+<a id='L168' name='L168'></a>   168     ((year &amp; 3) == 0
+<a id='L169' name='L169'></a>   169      &amp;&amp; (year % 100 != 0
+<a id='L170' name='L170'></a>   170          || ((year / 100) &amp; 3) == (- (<a href='../D/5721.html' title='Multiple defined in 3 places.'>TM_YEAR_BASE</a> / 100) &amp; 3)));
+<a id='L171' name='L171'></a>   171 <em class='brace'>}</em>
+<a id='L172' name='L172'></a>   172 
+<a id='L173' name='L173'></a>   173 <em class='comment'>/* How many days come before each month (0-12).  */</em>
+<a id='L174' name='L174'></a>   174 <em class='sharp'>#ifndef</em> _LIBC
+<a id='L175' name='L175'></a>   175 <strong class='reserved'>static</strong>
+<a id='L176' name='L176'></a>   176 <em class='sharp'>#endif</em>
+<a id='L177' name='L177'></a>   177 <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> <strong class='reserved'>int</strong> __mon_yday[2][13] =
+<a id='L178' name='L178'></a>   178   <em class='brace'>{</em>
+<a id='L179' name='L179'></a>   179     <em class='comment'>/* Normal years.  */</em>
+<a id='L180' name='L180'></a>   180     <em class='brace'>{</em> 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 <em class='brace'>}</em>,
+<a id='L181' name='L181'></a>   181     <em class='comment'>/* Leap years.  */</em>
+<a id='L182' name='L182'></a>   182     <em class='brace'>{</em> 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 <em class='brace'>}</em>
+<a id='L183' name='L183'></a>   183   <em class='brace'>}</em>;
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186 <em class='comment'>/* Do the values A and B differ according to the rules for tm_isdst?</em>
+<a id='L187' name='L187'></a>   187 <em class='comment'>   A and B differ if one is zero and the other positive.  */</em>
+<a id='L188' name='L188'></a>   188 <strong class='reserved'>static</strong> <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L189' name='L189'></a>   189 <a href='../R/11046.html' title='Multiple referred from 2 places.'>isdst_differ</a> (<strong class='reserved'>int</strong> <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, <strong class='reserved'>int</strong> <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L190' name='L190'></a>   190 <em class='brace'>{</em>
+<a id='L191' name='L191'></a>   191   <strong class='reserved'>return</strong> (!<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> != !<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>) &amp;&amp; (0 &lt;= <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>) &amp;&amp; (0 &lt;= <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L192' name='L192'></a>   192 <em class='brace'>}</em>
+<a id='L193' name='L193'></a>   193 
+<a id='L194' name='L194'></a>   194 <em class='comment'>/* Return an integer value measuring (YEAR1-YDAY1 HOUR1:MIN1:SEC1) -</em>
+<a id='L195' name='L195'></a>   195 <em class='comment'>   (YEAR0-YDAY0 HOUR0:MIN0:SEC0) in seconds, assuming that the clocks</em>
+<a id='L196' name='L196'></a>   196 <em class='comment'>   were not adjusted between the timestamps.</em>
+<a id='L197' name='L197'></a>   197 <em class='comment'></em>
+<a id='L198' name='L198'></a>   198 <em class='comment'>   The YEAR values uses the same numbering as TP-&gt;tm_year.  Values</em>
+<a id='L199' name='L199'></a>   199 <em class='comment'>   need not be in the usual range.  However, YEAR1 - YEAR0 must not</em>
+<a id='L200' name='L200'></a>   200 <em class='comment'>   overflow even when multiplied by three times the number of seconds</em>
+<a id='L201' name='L201'></a>   201 <em class='comment'>   in a year, and likewise for YDAY1 - YDAY0 and three times the</em>
+<a id='L202' name='L202'></a>   202 <em class='comment'>   number of seconds in a day.  */</em>
+<a id='L203' name='L203'></a>   203 
+<a id='L204' name='L204'></a>   204 <strong class='reserved'>static</strong> <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a>
+<a id='L205' name='L205'></a>   205 <a href='../R/16744.html' title='Multiple referred from 2 places.'>ydhms_diff</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> year1, <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> yday1, <strong class='reserved'>int</strong> hour1, <strong class='reserved'>int</strong> min1, <strong class='reserved'>int</strong> sec1,
+<a id='L206' name='L206'></a>   206             <strong class='reserved'>int</strong> year0, <strong class='reserved'>int</strong> yday0, <strong class='reserved'>int</strong> hour0, <strong class='reserved'>int</strong> min0, <strong class='reserved'>int</strong> sec0)
+<a id='L207' name='L207'></a>   207 <em class='brace'>{</em>
+<a id='L208' name='L208'></a>   208   <a href='../D/16680.html' title='Multiple defined in 4 places.'>verify</a> (-1 / 2 == 0);
+<a id='L209' name='L209'></a>   209 
+<a id='L210' name='L210'></a>   210   <em class='comment'>/* Compute intervening leap days correctly even if year is negative.</em>
+<a id='L211' name='L211'></a>   211 <em class='comment'>     Take care to avoid integer overflow here.  */</em>
+<a id='L212' name='L212'></a>   212   <strong class='reserved'>int</strong> a4 = <a href='../S/1750.html#L139' title='Defined at 139 in lib/mktime.c.'>shr</a> (year1, 2) + <a href='../S/1750.html#L139' title='Defined at 139 in lib/mktime.c.'>shr</a> (<a href='../D/5721.html' title='Multiple defined in 3 places.'>TM_YEAR_BASE</a>, 2) - ! (year1 &amp; 3);
+<a id='L213' name='L213'></a>   213   <strong class='reserved'>int</strong> b4 = <a href='../S/1750.html#L139' title='Defined at 139 in lib/mktime.c.'>shr</a> (year0, 2) + <a href='../S/1750.html#L139' title='Defined at 139 in lib/mktime.c.'>shr</a> (<a href='../D/5721.html' title='Multiple defined in 3 places.'>TM_YEAR_BASE</a>, 2) - ! (year0 &amp; 3);
+<a id='L214' name='L214'></a>   214   <strong class='reserved'>int</strong> a100 = (a4 + (a4 &lt; 0)) / 25 - (a4 &lt; 0);
+<a id='L215' name='L215'></a>   215   <strong class='reserved'>int</strong> b100 = (b4 + (b4 &lt; 0)) / 25 - (b4 &lt; 0);
+<a id='L216' name='L216'></a>   216   <strong class='reserved'>int</strong> a400 = <a href='../S/1750.html#L139' title='Defined at 139 in lib/mktime.c.'>shr</a> (a100, 2);
+<a id='L217' name='L217'></a>   217   <strong class='reserved'>int</strong> b400 = <a href='../S/1750.html#L139' title='Defined at 139 in lib/mktime.c.'>shr</a> (b100, 2);
+<a id='L218' name='L218'></a>   218   <strong class='reserved'>int</strong> intervening_leap_days = (a4 - b4) - (a100 - b100) + (a400 - b400);
+<a id='L219' name='L219'></a>   219 
+<a id='L220' name='L220'></a>   220   <em class='comment'>/* Compute the desired time without overflowing.  */</em>
+<a id='L221' name='L221'></a>   221   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> years = year1 - year0;
+<a id='L222' name='L222'></a>   222   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> days = 365 * years + yday1 - yday0 + intervening_leap_days;
+<a id='L223' name='L223'></a>   223   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> hours = 24 * days + hour1 - hour0;
+<a id='L224' name='L224'></a>   224   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> minutes = 60 * hours + min1 - min0;
+<a id='L225' name='L225'></a>   225   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> seconds = 60 * minutes + sec1 - sec0;
+<a id='L226' name='L226'></a>   226   <strong class='reserved'>return</strong> seconds;
+<a id='L227' name='L227'></a>   227 <em class='brace'>}</em>
+<a id='L228' name='L228'></a>   228 
+<a id='L229' name='L229'></a>   229 <em class='comment'>/* Return the average of A and B, even if A + B would overflow.</em>
+<a id='L230' name='L230'></a>   230 <em class='comment'>   Round toward positive infinity.  */</em>
+<a id='L231' name='L231'></a>   231 <strong class='reserved'>static</strong> <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a>
+<a id='L232' name='L232'></a>   232 <a href='../S/1750.html#L293' title='Referred from 293 in lib/mktime.c.'>long_int_avg</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L233' name='L233'></a>   233 <em class='brace'>{</em>
+<a id='L234' name='L234'></a>   234   <strong class='reserved'>return</strong> <a href='../S/1750.html#L139' title='Defined at 139 in lib/mktime.c.'>shr</a> (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, 1) + <a href='../S/1750.html#L139' title='Defined at 139 in lib/mktime.c.'>shr</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, 1) + ((<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> | <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>) &amp; 1);
+<a id='L235' name='L235'></a>   235 <em class='brace'>}</em>
+<a id='L236' name='L236'></a>   236 
+<a id='L237' name='L237'></a>   237 <em class='comment'>/* Return a long_int value corresponding to (YEAR-YDAY HOUR:MIN:SEC)</em>
+<a id='L238' name='L238'></a>   238 <em class='comment'>   minus *TP seconds, assuming no clock adjustments occurred between</em>
+<a id='L239' name='L239'></a>   239 <em class='comment'>   the two timestamps.</em>
+<a id='L240' name='L240'></a>   240 <em class='comment'></em>
+<a id='L241' name='L241'></a>   241 <em class='comment'>   YEAR and YDAY must not be so large that multiplying them by three times the</em>
+<a id='L242' name='L242'></a>   242 <em class='comment'>   number of seconds in a year (or day, respectively) would overflow long_int.</em>
+<a id='L243' name='L243'></a>   243 <em class='comment'>   *TP should be in the usual range.  */</em>
+<a id='L244' name='L244'></a>   244 <strong class='reserved'>static</strong> <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a>
+<a id='L245' name='L245'></a>   245 <a href='../R/14978.html' title='Multiple referred from 6 places.'>tm_diff</a> (<a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> year, <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> yday, <strong class='reserved'>int</strong> hour, <strong class='reserved'>int</strong> <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a>, <strong class='reserved'>int</strong> sec,
+<a id='L246' name='L246'></a>   246          <strong class='reserved'>struct</strong> tm <strong class='reserved'>const</strong> *tp)
+<a id='L247' name='L247'></a>   247 <em class='brace'>{</em>
+<a id='L248' name='L248'></a>   248   <strong class='reserved'>return</strong> <a href='../S/1750.html#L205' title='Defined at 205 in lib/mktime.c.'>ydhms_diff</a> (year, yday, hour, <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a>, sec,
+<a id='L249' name='L249'></a>   249                      tp-&gt;tm_year, tp-&gt;tm_yday,
+<a id='L250' name='L250'></a>   250                      tp-&gt;tm_hour, tp-&gt;tm_min, tp-&gt;tm_sec);
+<a id='L251' name='L251'></a>   251 <em class='brace'>}</em>
+<a id='L252' name='L252'></a>   252 
+<a id='L253' name='L253'></a>   253 <em class='comment'>/* Use CONVERT to convert T to a struct tm value in *TM.  T must be in</em>
+<a id='L254' name='L254'></a>   254 <em class='comment'>   range for __time64_t.  Return TM if successful, NULL (setting errno) on</em>
+<a id='L255' name='L255'></a>   255 <em class='comment'>   failure.  */</em>
+<a id='L256' name='L256'></a>   256 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> tm *
+<a id='L257' name='L257'></a>   257 <a href='../R/8007.html' title='Multiple referred from 17 places.'>convert_time</a> (<strong class='reserved'>struct</strong> tm *(*convert) (<strong class='reserved'>const</strong> <a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a> *, <strong class='reserved'>struct</strong> tm *),
+<a id='L258' name='L258'></a>   258               <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> t, <strong class='reserved'>struct</strong> tm *tm)
+<a id='L259' name='L259'></a>   259 <em class='brace'>{</em>
+<a id='L260' name='L260'></a>   260   <a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a> <a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> = t;
+<a id='L261' name='L261'></a>   261   <strong class='reserved'>return</strong> convert (&amp;<a href='../S/4177.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, tm);
+<a id='L262' name='L262'></a>   262 <em class='brace'>}</em>
+<a id='L263' name='L263'></a>   263 
+<a id='L264' name='L264'></a>   264 <em class='comment'>/* Use CONVERT to convert *T to a broken down time in *TP.</em>
+<a id='L265' name='L265'></a>   265 <em class='comment'>   If *T is out of range for conversion, adjust it so that</em>
+<a id='L266' name='L266'></a>   266 <em class='comment'>   it is the nearest in-range value and then convert that.</em>
+<a id='L267' name='L267'></a>   267 <em class='comment'>   A value is in range if it fits in both __time64_t and long_int.</em>
+<a id='L268' name='L268'></a>   268 <em class='comment'>   Return TP on success, NULL (setting errno) on failure.  */</em>
+<a id='L269' name='L269'></a>   269 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> tm *
+<a id='L270' name='L270'></a>   270 <a href='../R/13282.html' title='Multiple referred from 2 places.'>ranged_convert</a> (<strong class='reserved'>struct</strong> tm *(*convert) (<strong class='reserved'>const</strong> <a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a> *, <strong class='reserved'>struct</strong> tm *),
+<a id='L271' name='L271'></a>   271                 <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> *t, <strong class='reserved'>struct</strong> tm *tp)
+<a id='L272' name='L272'></a>   272 <em class='brace'>{</em>
+<a id='L273' name='L273'></a>   273   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> <a href='../S/4167.html#L34' title='Defined at 34 in test/manual/etags/cp-src/c.C.'>t1</a> = (*t &lt; mktime_min ? mktime_min
+<a id='L274' name='L274'></a>   274                  : *t &lt;= mktime_max ? *t : mktime_max);
+<a id='L275' name='L275'></a>   275   <strong class='reserved'>struct</strong> tm *r = <a href='../D/8873.html' title='Multiple defined in 3 places.'>convert_time</a> (convert, <a href='../S/4167.html#L34' title='Defined at 34 in test/manual/etags/cp-src/c.C.'>t1</a>, tp);
+<a id='L276' name='L276'></a>   276   <strong class='reserved'>if</strong> (r)
+<a id='L277' name='L277'></a>   277     <em class='brace'>{</em>
+<a id='L278' name='L278'></a>   278       *t = <a href='../S/4167.html#L34' title='Defined at 34 in test/manual/etags/cp-src/c.C.'>t1</a>;
+<a id='L279' name='L279'></a>   279       <strong class='reserved'>return</strong> r;
+<a id='L280' name='L280'></a>   280     <em class='brace'>}</em>
+<a id='L281' name='L281'></a>   281   <strong class='reserved'>if</strong> (errno != <a href='../D/1635.html' title='Multiple defined in 4 places.'>EOVERFLOW</a>)
+<a id='L282' name='L282'></a>   282     <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L283' name='L283'></a>   283 
+<a id='L284' name='L284'></a>   284   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> bad = <a href='../S/4167.html#L34' title='Defined at 34 in test/manual/etags/cp-src/c.C.'>t1</a>;
+<a id='L285' name='L285'></a>   285   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> ok = 0;
+<a id='L286' name='L286'></a>   286   <strong class='reserved'>struct</strong> tm oktm; oktm.tm_sec = -1;
+<a id='L287' name='L287'></a>   287 
+<a id='L288' name='L288'></a>   288   <em class='comment'>/* BAD is a known out-of-range value, and OK is a known in-range one.</em>
+<a id='L289' name='L289'></a>   289 <em class='comment'>     Use binary search to narrow the range between BAD and OK until</em>
+<a id='L290' name='L290'></a>   290 <em class='comment'>     they differ by 1.  */</em>
+<a id='L291' name='L291'></a>   291   <strong class='reserved'>while</strong> (<a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>)
+<a id='L292' name='L292'></a>   292     <em class='brace'>{</em>
+<a id='L293' name='L293'></a>   293       <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> mid = <a href='../S/1750.html#L232' title='Defined at 232 in lib/mktime.c.'>long_int_avg</a> (ok, bad);
+<a id='L294' name='L294'></a>   294       <strong class='reserved'>if</strong> (mid == ok || mid == bad)
+<a id='L295' name='L295'></a>   295         <strong class='reserved'>break</strong>;
+<a id='L296' name='L296'></a>   296       <strong class='reserved'>if</strong> (<a href='../D/8873.html' title='Multiple defined in 3 places.'>convert_time</a> (convert, mid, tp))
+<a id='L297' name='L297'></a>   297         ok = mid, oktm = *tp;
+<a id='L298' name='L298'></a>   298       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (errno != <a href='../D/1635.html' title='Multiple defined in 4 places.'>EOVERFLOW</a>)
+<a id='L299' name='L299'></a>   299         <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L300' name='L300'></a>   300       <strong class='reserved'>else</strong>
+<a id='L301' name='L301'></a>   301         bad = mid;
+<a id='L302' name='L302'></a>   302     <em class='brace'>}</em>
+<a id='L303' name='L303'></a>   303 
+<a id='L304' name='L304'></a>   304   <strong class='reserved'>if</strong> (oktm.tm_sec &lt; 0)
+<a id='L305' name='L305'></a>   305     <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L306' name='L306'></a>   306   *t = ok;
+<a id='L307' name='L307'></a>   307   *tp = oktm;
+<a id='L308' name='L308'></a>   308   <strong class='reserved'>return</strong> tp;
+<a id='L309' name='L309'></a>   309 <em class='brace'>}</em>
+<a id='L310' name='L310'></a>   310 
+<a id='L311' name='L311'></a>   311 
+<a id='L312' name='L312'></a>   312 <em class='comment'>/* Convert *TP to a __time64_t value, inverting</em>
+<a id='L313' name='L313'></a>   313 <em class='comment'>   the monotonic and mostly-unit-linear conversion function CONVERT.</em>
+<a id='L314' name='L314'></a>   314 <em class='comment'>   Use *OFFSET to keep track of a guess at the offset of the result,</em>
+<a id='L315' name='L315'></a>   315 <em class='comment'>   compared to what the result would be for UTC without leap seconds.</em>
+<a id='L316' name='L316'></a>   316 <em class='comment'>   If *OFFSET's guess is correct, only one CONVERT call is needed.</em>
+<a id='L317' name='L317'></a>   317 <em class='comment'>   If successful, set *TP to the canonicalized struct tm;</em>
+<a id='L318' name='L318'></a>   318 <em class='comment'>   otherwise leave *TP alone, return ((time_t) -1) and set errno.</em>
+<a id='L319' name='L319'></a>   319 <em class='comment'>   This function is external because it is used also by timegm.c.  */</em>
+<a id='L320' name='L320'></a>   320 <a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a>
+<a id='L321' name='L321'></a>   321 <a href='../R/6633.html' title='Multiple referred from 3 places.'>__mktime_internal</a> (<strong class='reserved'>struct</strong> tm *tp,
+<a id='L322' name='L322'></a>   322                    <strong class='reserved'>struct</strong> tm *(*convert) (<strong class='reserved'>const</strong> <a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a> *, <strong class='reserved'>struct</strong> tm *),
+<a id='L323' name='L323'></a>   323                    <a href='../D/13009.html' title='Multiple defined in 3 places.'>mktime_offset_t</a> *<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>)
+<a id='L324' name='L324'></a>   324 <em class='brace'>{</em>
+<a id='L325' name='L325'></a>   325   <strong class='reserved'>struct</strong> tm tm;
+<a id='L326' name='L326'></a>   326 
+<a id='L327' name='L327'></a>   327   <em class='comment'>/* The maximum number of probes (calls to CONVERT) should be enough</em>
+<a id='L328' name='L328'></a>   328 <em class='comment'>     to handle any combinations of time zone rule changes, solar time,</em>
+<a id='L329' name='L329'></a>   329 <em class='comment'>     leap seconds, and oscillations around a spring-forward gap.</em>
+<a id='L330' name='L330'></a>   330 <em class='comment'>     POSIX.1 prohibits leap seconds, but some hosts have them anyway.  */</em>
+<a id='L331' name='L331'></a>   331   <strong class='reserved'>int</strong> remaining_probes = 6;
+<a id='L332' name='L332'></a>   332 
+<a id='L333' name='L333'></a>   333   <em class='comment'>/* Time requested.  Copy it in case CONVERT modifies *TP; this can</em>
+<a id='L334' name='L334'></a>   334 <em class='comment'>     occur if TP is localtime's returned value and CONVERT is localtime.  */</em>
+<a id='L335' name='L335'></a>   335   <strong class='reserved'>int</strong> sec = tp-&gt;tm_sec;
+<a id='L336' name='L336'></a>   336   <strong class='reserved'>int</strong> <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a> = tp-&gt;tm_min;
+<a id='L337' name='L337'></a>   337   <strong class='reserved'>int</strong> hour = tp-&gt;tm_hour;
+<a id='L338' name='L338'></a>   338   <strong class='reserved'>int</strong> mday = tp-&gt;tm_mday;
+<a id='L339' name='L339'></a>   339   <strong class='reserved'>int</strong> mon = tp-&gt;tm_mon;
+<a id='L340' name='L340'></a>   340   <strong class='reserved'>int</strong> year_requested = tp-&gt;tm_year;
+<a id='L341' name='L341'></a>   341   <strong class='reserved'>int</strong> isdst = tp-&gt;tm_isdst;
+<a id='L342' name='L342'></a>   342 
+<a id='L343' name='L343'></a>   343   <em class='comment'>/* 1 if the previous probe was DST.  */</em>
+<a id='L344' name='L344'></a>   344   <strong class='reserved'>int</strong> dst2 = 0;
+<a id='L345' name='L345'></a>   345 
+<a id='L346' name='L346'></a>   346   <em class='comment'>/* Ensure that mon is in range, and set year accordingly.  */</em>
+<a id='L347' name='L347'></a>   347   <strong class='reserved'>int</strong> mon_remainder = mon % 12;
+<a id='L348' name='L348'></a>   348   <strong class='reserved'>int</strong> negative_mon_remainder = mon_remainder &lt; 0;
+<a id='L349' name='L349'></a>   349   <strong class='reserved'>int</strong> mon_years = mon / 12 - negative_mon_remainder;
+<a id='L350' name='L350'></a>   350   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> lyear_requested = year_requested;
+<a id='L351' name='L351'></a>   351   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> year = lyear_requested + mon_years;
+<a id='L352' name='L352'></a>   352 
+<a id='L353' name='L353'></a>   353   <em class='comment'>/* The other values need not be in range:</em>
+<a id='L354' name='L354'></a>   354 <em class='comment'>     the remaining code handles overflows correctly.  */</em>
+<a id='L355' name='L355'></a>   355 
+<a id='L356' name='L356'></a>   356   <em class='comment'>/* Calculate day of year from year, month, and day of month.</em>
+<a id='L357' name='L357'></a>   357 <em class='comment'>     The result need not be in range.  */</em>
+<a id='L358' name='L358'></a>   358   <strong class='reserved'>int</strong> mon_yday = ((__mon_yday[<a href='../S/1750.html#L163' title='Defined at 163 in lib/mktime.c.'>leapyear</a> (year)]
+<a id='L359' name='L359'></a>   359                    [mon_remainder + 12 * negative_mon_remainder])
+<a id='L360' name='L360'></a>   360                   - 1);
+<a id='L361' name='L361'></a>   361   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> lmday = mday;
+<a id='L362' name='L362'></a>   362   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> yday = mon_yday + lmday;
+<a id='L363' name='L363'></a>   363 
+<a id='L364' name='L364'></a>   364   <a href='../D/13009.html' title='Multiple defined in 3 places.'>mktime_offset_t</a> <a href='../D/13568.html' title='Multiple defined in 3 places.'>off</a> = *<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>;
+<a id='L365' name='L365'></a>   365   <strong class='reserved'>int</strong> negative_offset_guess;
+<a id='L366' name='L366'></a>   366 
+<a id='L367' name='L367'></a>   367   <strong class='reserved'>int</strong> sec_requested = sec;
+<a id='L368' name='L368'></a>   368 
+<a id='L369' name='L369'></a>   369   <strong class='reserved'>if</strong> (<a href='../S/1750.html#L41' title='Defined at 41 in lib/mktime.c.'>LEAP_SECONDS_POSSIBLE</a>)
+<a id='L370' name='L370'></a>   370     <em class='brace'>{</em>
+<a id='L371' name='L371'></a>   371       <em class='comment'>/* Handle out-of-range seconds specially,</em>
+<a id='L372' name='L372'></a>   372 <em class='comment'>         since ydhms_diff assumes every minute has 60 seconds.  */</em>
+<a id='L373' name='L373'></a>   373       <strong class='reserved'>if</strong> (sec &lt; 0)
+<a id='L374' name='L374'></a>   374         sec = 0;
+<a id='L375' name='L375'></a>   375       <strong class='reserved'>if</strong> (59 &lt; sec)
+<a id='L376' name='L376'></a>   376         sec = 59;
+<a id='L377' name='L377'></a>   377     <em class='brace'>}</em>
+<a id='L378' name='L378'></a>   378 
+<a id='L379' name='L379'></a>   379   <em class='comment'>/* Invert CONVERT by probing.  First assume the same offset as last</em>
+<a id='L380' name='L380'></a>   380 <em class='comment'>     time.  */</em>
+<a id='L381' name='L381'></a>   381 
+<a id='L382' name='L382'></a>   382   <a href='../S/1870.html#L301' title='Defined at 301 in lib/intprops.h.'>INT_SUBTRACT_WRAPV</a> (0, <a href='../D/13568.html' title='Multiple defined in 3 places.'>off</a>, &amp;negative_offset_guess);
+<a id='L383' name='L383'></a>   383   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> t0 = <a href='../S/1750.html#L205' title='Defined at 205 in lib/mktime.c.'>ydhms_diff</a> (year, yday, hour, <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a>, sec,
+<a id='L384' name='L384'></a>   384                             <a href='../S/1750.html#L157' title='Defined at 157 in lib/mktime.c.'>EPOCH_YEAR</a> - <a href='../D/5721.html' title='Multiple defined in 3 places.'>TM_YEAR_BASE</a>, 0, 0, 0,
+<a id='L385' name='L385'></a>   385                             negative_offset_guess);
+<a id='L386' name='L386'></a>   386   <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> t = t0, <a href='../S/4167.html#L34' title='Defined at 34 in test/manual/etags/cp-src/c.C.'>t1</a> = t0, <a href='../S/4167.html#L38' title='Defined at 38 in test/manual/etags/cp-src/c.C.'>t2</a> = t0;
+<a id='L387' name='L387'></a>   387 
+<a id='L388' name='L388'></a>   388   <em class='comment'>/* Repeatedly use the error to improve the guess.  */</em>
+<a id='L389' name='L389'></a>   389 
+<a id='L390' name='L390'></a>   390   <strong class='reserved'>while</strong> (<a href='../S/2501.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>)
+<a id='L391' name='L391'></a>   391     <em class='brace'>{</em>
+<a id='L392' name='L392'></a>   392       <strong class='reserved'>if</strong> (! <a href='../S/1750.html#L270' title='Defined at 270 in lib/mktime.c.'>ranged_convert</a> (convert, &amp;t, &amp;tm))
+<a id='L393' name='L393'></a>   393         <strong class='reserved'>return</strong> -1;
+<a id='L394' name='L394'></a>   394       <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> dt = <a href='../D/16163.html' title='Multiple defined in 4 places.'>tm_diff</a> (year, yday, hour, <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a>, sec, &amp;tm);
+<a id='L395' name='L395'></a>   395       <strong class='reserved'>if</strong> (dt == 0)
+<a id='L396' name='L396'></a>   396         <strong class='reserved'>break</strong>;
+<a id='L397' name='L397'></a>   397 
+<a id='L398' name='L398'></a>   398       <strong class='reserved'>if</strong> (t == <a href='../S/4167.html#L34' title='Defined at 34 in test/manual/etags/cp-src/c.C.'>t1</a> &amp;&amp; t != <a href='../S/4167.html#L38' title='Defined at 38 in test/manual/etags/cp-src/c.C.'>t2</a>
+<a id='L399' name='L399'></a>   399           &amp;&amp; (tm.tm_isdst &lt; 0
+<a id='L400' name='L400'></a>   400               || (isdst &lt; 0
+<a id='L401' name='L401'></a>   401                   ? dst2 &lt;= (tm.tm_isdst != 0)
+<a id='L402' name='L402'></a>   402                   : (isdst != 0) != (tm.tm_isdst != 0))))
+<a id='L403' name='L403'></a>   403         <em class='comment'>/* We can't possibly find a match, as we are oscillating</em>
+<a id='L404' name='L404'></a>   404 <em class='comment'>           between two values.  The requested time probably falls</em>
+<a id='L405' name='L405'></a>   405 <em class='comment'>           within a spring-forward gap of size DT.  Follow the common</em>
+<a id='L406' name='L406'></a>   406 <em class='comment'>           practice in this case, which is to return a time that is DT</em>
+<a id='L407' name='L407'></a>   407 <em class='comment'>           away from the requested time, preferring a time whose</em>
+<a id='L408' name='L408'></a>   408 <em class='comment'>           tm_isdst differs from the requested value.  (If no tm_isdst</em>
+<a id='L409' name='L409'></a>   409 <em class='comment'>           was requested and only one of the two values has a nonzero</em>
+<a id='L410' name='L410'></a>   410 <em class='comment'>           tm_isdst, prefer that value.)  In practice, this is more</em>
+<a id='L411' name='L411'></a>   411 <em class='comment'>           useful than returning -1.  */</em>
+<a id='L412' name='L412'></a>   412         <strong class='reserved'>goto</strong> offset_found;
+<a id='L413' name='L413'></a>   413 
+<a id='L414' name='L414'></a>   414       remaining_probes--;
+<a id='L415' name='L415'></a>   415       <strong class='reserved'>if</strong> (remaining_probes == 0)
+<a id='L416' name='L416'></a>   416         <em class='brace'>{</em>
+<a id='L417' name='L417'></a>   417           <a href='../D/7465.html' title='Multiple defined in 3 places.'>__set_errno</a> (<a href='../D/1635.html' title='Multiple defined in 4 places.'>EOVERFLOW</a>);
+<a id='L418' name='L418'></a>   418           <strong class='reserved'>return</strong> -1;
+<a id='L419' name='L419'></a>   419         <em class='brace'>}</em>
+<a id='L420' name='L420'></a>   420 
+<a id='L421' name='L421'></a>   421       <a href='../S/4167.html#L34' title='Defined at 34 in test/manual/etags/cp-src/c.C.'>t1</a> = <a href='../S/4167.html#L38' title='Defined at 38 in test/manual/etags/cp-src/c.C.'>t2</a>, <a href='../S/4167.html#L38' title='Defined at 38 in test/manual/etags/cp-src/c.C.'>t2</a> = t, t += dt, dst2 = tm.tm_isdst != 0;
+<a id='L422' name='L422'></a>   422     <em class='brace'>}</em>
+<a id='L423' name='L423'></a>   423 
+<a id='L424' name='L424'></a>   424   <em class='comment'>/* We have a match.  Check whether tm.tm_isdst has the requested</em>
+<a id='L425' name='L425'></a>   425 <em class='comment'>     value, if any.  */</em>
+<a id='L426' name='L426'></a>   426   <strong class='reserved'>if</strong> (<a href='../S/1750.html#L189' title='Defined at 189 in lib/mktime.c.'>isdst_differ</a> (isdst, tm.tm_isdst))
+<a id='L427' name='L427'></a>   427     <em class='brace'>{</em>
+<a id='L428' name='L428'></a>   428       <em class='comment'>/* tm.tm_isdst has the wrong value.  Look for a neighboring</em>
+<a id='L429' name='L429'></a>   429 <em class='comment'>         time with the right value, and use its UTC offset.</em>
+<a id='L430' name='L430'></a>   430 <em class='comment'></em>
+<a id='L431' name='L431'></a>   431 <em class='comment'>         Heuristic: probe the adjacent timestamps in both directions,</em>
+<a id='L432' name='L432'></a>   432 <em class='comment'>         looking for the desired isdst.  If none is found within a</em>
+<a id='L433' name='L433'></a>   433 <em class='comment'>         reasonable duration bound, assume a one-hour DST difference.</em>
+<a id='L434' name='L434'></a>   434 <em class='comment'>         This should work for all real time zone histories in the tz</em>
+<a id='L435' name='L435'></a>   435 <em class='comment'>         database.  */</em>
+<a id='L436' name='L436'></a>   436 
+<a id='L437' name='L437'></a>   437       <em class='comment'>/* +1 if we wanted standard time but got DST, -1 if the reverse.  */</em>
+<a id='L438' name='L438'></a>   438       <strong class='reserved'>int</strong> dst_difference = (isdst == 0) - (tm.tm_isdst == 0);
+<a id='L439' name='L439'></a>   439 
+<a id='L440' name='L440'></a>   440       <em class='comment'>/* Distance between probes when looking for a DST boundary.  In</em>
+<a id='L441' name='L441'></a>   441 <em class='comment'>         tzdata2003a, the shortest period of DST is 601200 seconds</em>
+<a id='L442' name='L442'></a>   442 <em class='comment'>         (e.g., America/Recife starting 2000-10-08 01:00), and the</em>
+<a id='L443' name='L443'></a>   443 <em class='comment'>         shortest period of non-DST surrounded by DST is 694800</em>
+<a id='L444' name='L444'></a>   444 <em class='comment'>         seconds (Africa/Tunis starting 1943-04-17 01:00).  Use the</em>
+<a id='L445' name='L445'></a>   445 <em class='comment'>         minimum of these two values, so we don't miss these short</em>
+<a id='L446' name='L446'></a>   446 <em class='comment'>         periods when probing.  */</em>
+<a id='L447' name='L447'></a>   447       <strong class='reserved'>int</strong> stride = 601200;
+<a id='L448' name='L448'></a>   448 
+<a id='L449' name='L449'></a>   449       <em class='comment'>/* In TZDB 2021e, the longest period of DST (or of non-DST), in</em>
+<a id='L450' name='L450'></a>   450 <em class='comment'>         which the DST (or adjacent DST) difference is not one hour,</em>
+<a id='L451' name='L451'></a>   451 <em class='comment'>         is 457243209 seconds: e.g., America/Cambridge_Bay with leap</em>
+<a id='L452' name='L452'></a>   452 <em class='comment'>         seconds, starting 1965-10-31 00:00 in a switch from</em>
+<a id='L453' name='L453'></a>   453 <em class='comment'>         double-daylight time (-05) to standard time (-07), and</em>
+<a id='L454' name='L454'></a>   454 <em class='comment'>         continuing to 1980-04-27 02:00 in a switch from standard time</em>
+<a id='L455' name='L455'></a>   455 <em class='comment'>         (-07) to daylight time (-06).  */</em>
+<a id='L456' name='L456'></a>   456       <strong class='reserved'>int</strong> duration_max = 457243209;
+<a id='L457' name='L457'></a>   457 
+<a id='L458' name='L458'></a>   458       <em class='comment'>/* Search in both directions, so the maximum distance is half</em>
+<a id='L459' name='L459'></a>   459 <em class='comment'>         the duration; add the stride to avoid off-by-1 problems.  */</em>
+<a id='L460' name='L460'></a>   460       <strong class='reserved'>int</strong> delta_bound = duration_max / 2 + stride;
+<a id='L461' name='L461'></a>   461 
+<a id='L462' name='L462'></a>   462       <strong class='reserved'>int</strong> delta, direction;
+<a id='L463' name='L463'></a>   463 
+<a id='L464' name='L464'></a>   464       <strong class='reserved'>for</strong> (delta = stride; delta &lt; delta_bound; delta += stride)
+<a id='L465' name='L465'></a>   465         <strong class='reserved'>for</strong> (direction = -1; direction &lt;= 1; direction += 2)
+<a id='L466' name='L466'></a>   466           <em class='brace'>{</em>
+<a id='L467' name='L467'></a>   467             <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> ot;
+<a id='L468' name='L468'></a>   468             <strong class='reserved'>if</strong> (! <a href='../S/1870.html#L300' title='Defined at 300 in lib/intprops.h.'>INT_ADD_WRAPV</a> (t, delta * direction, &amp;ot))
+<a id='L469' name='L469'></a>   469               <em class='brace'>{</em>
+<a id='L470' name='L470'></a>   470                 <strong class='reserved'>struct</strong> tm otm;
+<a id='L471' name='L471'></a>   471                 <strong class='reserved'>if</strong> (! <a href='../S/1750.html#L270' title='Defined at 270 in lib/mktime.c.'>ranged_convert</a> (convert, &amp;ot, &amp;otm))
+<a id='L472' name='L472'></a>   472                   <strong class='reserved'>return</strong> -1;
+<a id='L473' name='L473'></a>   473                 <strong class='reserved'>if</strong> (! <a href='../S/1750.html#L189' title='Defined at 189 in lib/mktime.c.'>isdst_differ</a> (isdst, otm.tm_isdst))
+<a id='L474' name='L474'></a>   474                   <em class='brace'>{</em>
+<a id='L475' name='L475'></a>   475                     <em class='comment'>/* We found the desired tm_isdst.</em>
+<a id='L476' name='L476'></a>   476 <em class='comment'>                       Extrapolate back to the desired time.  */</em>
+<a id='L477' name='L477'></a>   477                     <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> gt = ot + <a href='../D/16163.html' title='Multiple defined in 4 places.'>tm_diff</a> (year, yday, hour, <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a>, sec,
+<a id='L478' name='L478'></a>   478                                                 &amp;otm);
+<a id='L479' name='L479'></a>   479                     <strong class='reserved'>if</strong> (mktime_min &lt;= gt &amp;&amp; gt &lt;= mktime_max)
+<a id='L480' name='L480'></a>   480                       <em class='brace'>{</em>
+<a id='L481' name='L481'></a>   481                         <strong class='reserved'>if</strong> (<a href='../D/8873.html' title='Multiple defined in 3 places.'>convert_time</a> (convert, gt, &amp;tm))
+<a id='L482' name='L482'></a>   482                           <em class='brace'>{</em>
+<a id='L483' name='L483'></a>   483                             t = gt;
+<a id='L484' name='L484'></a>   484                             <strong class='reserved'>goto</strong> offset_found;
+<a id='L485' name='L485'></a>   485                           <em class='brace'>}</em>
+<a id='L486' name='L486'></a>   486                         <strong class='reserved'>if</strong> (errno != <a href='../D/1635.html' title='Multiple defined in 4 places.'>EOVERFLOW</a>)
+<a id='L487' name='L487'></a>   487                           <strong class='reserved'>return</strong> -1;
+<a id='L488' name='L488'></a>   488                       <em class='brace'>}</em>
+<a id='L489' name='L489'></a>   489                   <em class='brace'>}</em>
+<a id='L490' name='L490'></a>   490               <em class='brace'>}</em>
+<a id='L491' name='L491'></a>   491           <em class='brace'>}</em>
+<a id='L492' name='L492'></a>   492 
+<a id='L493' name='L493'></a>   493       <em class='comment'>/* No unusual DST offset was found nearby.  Assume one-hour DST.  */</em>
+<a id='L494' name='L494'></a>   494       t += 60 * 60 * dst_difference;
+<a id='L495' name='L495'></a>   495       <strong class='reserved'>if</strong> (mktime_min &lt;= t &amp;&amp; t &lt;= mktime_max &amp;&amp; <a href='../D/8873.html' title='Multiple defined in 3 places.'>convert_time</a> (convert, t, &amp;tm))
+<a id='L496' name='L496'></a>   496         <strong class='reserved'>goto</strong> offset_found;
+<a id='L497' name='L497'></a>   497 
+<a id='L498' name='L498'></a>   498       <a href='../D/7465.html' title='Multiple defined in 3 places.'>__set_errno</a> (<a href='../D/1635.html' title='Multiple defined in 4 places.'>EOVERFLOW</a>);
+<a id='L499' name='L499'></a>   499       <strong class='reserved'>return</strong> -1;
+<a id='L500' name='L500'></a>   500     <em class='brace'>}</em>
+<a id='L501' name='L501'></a>   501 
+<a id='L502' name='L502'></a>   502  offset_found:
+<a id='L503' name='L503'></a>   503   <em class='comment'>/* Set *OFFSET to the low-order bits of T - T0 - NEGATIVE_OFFSET_GUESS.</em>
+<a id='L504' name='L504'></a>   504 <em class='comment'>     This is just a heuristic to speed up the next mktime call, and</em>
+<a id='L505' name='L505'></a>   505 <em class='comment'>     correctness is unaffected if integer overflow occurs here.  */</em>
+<a id='L506' name='L506'></a>   506   <a href='../S/1870.html#L301' title='Defined at 301 in lib/intprops.h.'>INT_SUBTRACT_WRAPV</a> (t, t0, <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>);
+<a id='L507' name='L507'></a>   507   <a href='../S/1870.html#L301' title='Defined at 301 in lib/intprops.h.'>INT_SUBTRACT_WRAPV</a> (*<a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>, negative_offset_guess, <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>);
+<a id='L508' name='L508'></a>   508 
+<a id='L509' name='L509'></a>   509   <strong class='reserved'>if</strong> (<a href='../S/1750.html#L41' title='Defined at 41 in lib/mktime.c.'>LEAP_SECONDS_POSSIBLE</a> &amp;&amp; sec_requested != tm.tm_sec)
+<a id='L510' name='L510'></a>   510     <em class='brace'>{</em>
+<a id='L511' name='L511'></a>   511       <em class='comment'>/* Adjust time to reflect the tm_sec requested, not the normalized value.</em>
+<a id='L512' name='L512'></a>   512 <em class='comment'>         Also, repair any damage from a false match due to a leap second.  */</em>
+<a id='L513' name='L513'></a>   513       <a href='../D/12499.html' title='Multiple defined in 2 places.'>long_int</a> sec_adjustment = sec == 0 &amp;&amp; tm.tm_sec == 60;
+<a id='L514' name='L514'></a>   514       sec_adjustment -= sec;
+<a id='L515' name='L515'></a>   515       sec_adjustment += sec_requested;
+<a id='L516' name='L516'></a>   516       <strong class='reserved'>if</strong> (<a href='../S/1870.html#L300' title='Defined at 300 in lib/intprops.h.'>INT_ADD_WRAPV</a> (t, sec_adjustment, &amp;t)
+<a id='L517' name='L517'></a>   517           || ! (mktime_min &lt;= t &amp;&amp; t &lt;= mktime_max))
+<a id='L518' name='L518'></a>   518         <em class='brace'>{</em>
+<a id='L519' name='L519'></a>   519           <a href='../D/7465.html' title='Multiple defined in 3 places.'>__set_errno</a> (<a href='../D/1635.html' title='Multiple defined in 4 places.'>EOVERFLOW</a>);
+<a id='L520' name='L520'></a>   520           <strong class='reserved'>return</strong> -1;
+<a id='L521' name='L521'></a>   521         <em class='brace'>}</em>
+<a id='L522' name='L522'></a>   522       <strong class='reserved'>if</strong> (! <a href='../D/8873.html' title='Multiple defined in 3 places.'>convert_time</a> (convert, t, &amp;tm))
+<a id='L523' name='L523'></a>   523         <strong class='reserved'>return</strong> -1;
+<a id='L524' name='L524'></a>   524     <em class='brace'>}</em>
+<a id='L525' name='L525'></a>   525 
+<a id='L526' name='L526'></a>   526   *tp = tm;
+<a id='L527' name='L527'></a>   527   <strong class='reserved'>return</strong> t;
+<a id='L528' name='L528'></a>   528 <em class='brace'>}</em>
+<a id='L529' name='L529'></a>   529 
+<a id='L530' name='L530'></a>   530 <em class='sharp'>#endif</em> <em class='comment'>/* _LIBC || NEED_MKTIME_WORKING || NEED_MKTIME_INTERNAL */</em>
+<a id='L531' name='L531'></a>   531 
+<a id='L532' name='L532'></a>   532 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> _LIBC || <a href='../S/1750.html#L62' title='Defined at 62 in lib/mktime.c.'>NEED_MKTIME_WORKING</a> || <a href='../S/1750.html#L59' title='Defined at 59 in lib/mktime.c.'>NEED_MKTIME_WINDOWS</a>
+<a id='L533' name='L533'></a>   533 
+<a id='L534' name='L534'></a>   534 <em class='comment'>/* Convert *TP to a __time64_t value.  */</em>
+<a id='L535' name='L535'></a>   535 <a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a>
+<a id='L536' name='L536'></a>   536 <a href='../R/6632.html' title='Multiple referred from 2 places.'>__mktime64</a> (<strong class='reserved'>struct</strong> tm *tp)
+<a id='L537' name='L537'></a>   537 <em class='brace'>{</em>
+<a id='L538' name='L538'></a>   538   <em class='comment'>/* POSIX.1 8.1.1 requires that whenever mktime() is called, the</em>
+<a id='L539' name='L539'></a>   539 <em class='comment'>     time zone names contained in the external variable 'tzname' shall</em>
+<a id='L540' name='L540'></a>   540 <em class='comment'>     be set as if the tzset() function had been called.  */</em>
+<a id='L541' name='L541'></a>   541   <a href='../D/7476.html' title='Multiple defined in 2 places.'>__tzset</a> ();
+<a id='L542' name='L542'></a>   542 
+<a id='L543' name='L543'></a>   543 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> _LIBC || <a href='../S/1750.html#L62' title='Defined at 62 in lib/mktime.c.'>NEED_MKTIME_WORKING</a>
+<a id='L544' name='L544'></a>   544   <strong class='reserved'>static</strong> <a href='../D/13009.html' title='Multiple defined in 3 places.'>mktime_offset_t</a> localtime_offset;
+<a id='L545' name='L545'></a>   545   <strong class='reserved'>return</strong> <a href='../D/7440.html' title='Multiple defined in 2 places.'>__mktime_internal</a> (tp, <a href='../S/1886.html#L48' title='Defined at 48 in lib/mktime-internal.h.'>__localtime64_r</a>, &amp;localtime_offset);
+<a id='L546' name='L546'></a>   546 <em class='sharp'># else</em>
+<a id='L547' name='L547'></a>   547 <em class='sharp'>#  undef</em> <a href='../R/11976.html' title='Multiple referred from 22 places.'>mktime</a>
+<a id='L548' name='L548'></a>   548   <strong class='reserved'>return</strong> <a href='../D/13008.html' title='Multiple defined in 2 places.'>mktime</a> (tp);
+<a id='L549' name='L549'></a>   549 <em class='sharp'># endif</em>
+<a id='L550' name='L550'></a>   550 <em class='brace'>}</em>
+<a id='L551' name='L551'></a>   551 <em class='sharp'>#endif</em> <em class='comment'>/* _LIBC || NEED_MKTIME_WORKING || NEED_MKTIME_WINDOWS */</em>
+<a id='L552' name='L552'></a>   552 
+<a id='L553' name='L553'></a>   553 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> _LIBC &amp;&amp; __TIMESIZE != 64
+<a id='L554' name='L554'></a>   554 
+<a id='L555' name='L555'></a>   555 <a href='../R/11294.html' title='Multiple referred from 10 places.'>libc_hidden_def</a> (<a href='../D/7439.html' title='Multiple defined in 2 places.'>__mktime64</a>)
+<a id='L556' name='L556'></a>   556 
+<a id='L557' name='L557'></a>   557 time_t
+<a id='L558' name='L558'></a>   558 <a href='../D/13008.html' title='Multiple defined in 2 places.'>mktime</a> (<strong class='reserved'>struct</strong> tm *tp)
+<a id='L559' name='L559'></a>   559 <em class='brace'>{</em>
+<a id='L560' name='L560'></a>   560   <strong class='reserved'>struct</strong> tm tm = *tp;
+<a id='L561' name='L561'></a>   561   <a href='../D/7470.html' title='Multiple defined in 2 places.'>__time64_t</a> t = <a href='../D/7439.html' title='Multiple defined in 2 places.'>__mktime64</a> (&amp;tm);
+<a id='L562' name='L562'></a>   562   <strong class='reserved'>if</strong> (in_time_t_range (t))
+<a id='L563' name='L563'></a>   563     <em class='brace'>{</em>
+<a id='L564' name='L564'></a>   564       *tp = tm;
+<a id='L565' name='L565'></a>   565       <strong class='reserved'>return</strong> t;
+<a id='L566' name='L566'></a>   566     <em class='brace'>}</em>
+<a id='L567' name='L567'></a>   567   <strong class='reserved'>else</strong>
+<a id='L568' name='L568'></a>   568     <em class='brace'>{</em>
+<a id='L569' name='L569'></a>   569       <a href='../D/7465.html' title='Multiple defined in 3 places.'>__set_errno</a> (<a href='../D/1635.html' title='Multiple defined in 4 places.'>EOVERFLOW</a>);
+<a id='L570' name='L570'></a>   570       <strong class='reserved'>return</strong> -1;
+<a id='L571' name='L571'></a>   571     <em class='brace'>}</em>
+<a id='L572' name='L572'></a>   572 <em class='brace'>}</em>
+<a id='L573' name='L573'></a>   573 
+<a id='L574' name='L574'></a>   574 <em class='sharp'>#endif</em>
+<a id='L575' name='L575'></a>   575 
+<a id='L576' name='L576'></a>   576 <a href='../D/17089.html' title='Multiple defined in 12 places.'>weak_alias</a> (<a href='../D/13008.html' title='Multiple defined in 2 places.'>mktime</a>, timelocal)
+<a id='L577' name='L577'></a>   577 <a href='../D/12310.html' title='Multiple defined in 8 places.'>libc_hidden_def</a> (<a href='../D/13008.html' title='Multiple defined in 2 places.'>mktime</a>)
+<a id='L578' name='L578'></a>   578 <a href='../S/1752.html#L194' title='Defined at 194 in lib/libc-config.h.'>libc_hidden_weak</a> (timelocal)
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L69'>[^]</a><a href='#L555'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

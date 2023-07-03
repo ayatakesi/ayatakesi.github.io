@@ -1,0 +1,298 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>nt/runemacs.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4589.html'>nt</a>/runemacs.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L54'>[^]</a><a href='#L234'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L54' title='Defined at 54.'>WinMain</a></li>
+<li><a href='#L206' title='Defined at 206.'>set_user_model_id</a></li>
+<li><a href='#L234' title='Defined at 234.'>ensure_unicows_dll</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* runemacs --- Simple program to start Emacs with its console window hidden.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='comment'>/*</em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>  Simple program to start Emacs with its console window hidden.</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'></em>
+<a id='L24' name='L24'></a>    24 <em class='comment'>  This program is provided purely for convenience, since most users will</em>
+<a id='L25' name='L25'></a>    25 <em class='comment'>  use Emacs in windowing (GUI) mode, and will not want to have an extra</em>
+<a id='L26' name='L26'></a>    26 <em class='comment'>  console window lying around.  */</em>
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <em class='comment'>/*</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'>   You may want to define this if you want to be able to install updated</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>   emacs binaries even when other users are using the current version.</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>   The problem with some file servers (notably Novell) is that an open</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'>   file cannot be overwritten, deleted, or even renamed.  So if someone</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'>   is running emacs.exe already, you cannot install a newer version.</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>   By defining CHOOSE_NEWEST_EXE, you can name your new emacs.exe</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'>   something else which matches "emacs*.exe", and runemacs will</em>
+<a id='L36' name='L36'></a>    36 <em class='comment'>   automatically select the newest emacs executable in the bin directory.</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'>   (So you'll probably be able to delete the old version some hours/days</em>
+<a id='L38' name='L38'></a>    38 <em class='comment'>   later).</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>*/</em>
+<a id='L40' name='L40'></a>    40 
+<a id='L41' name='L41'></a>    41 <em class='comment'>/* #define CHOOSE_NEWEST_EXE */</em>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#define</em> <a href='../S/3019.html#L37' title='Referred from 37 in src/conf_post.h.'>DEFER_MS_W32_H</a>
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L45' name='L45'></a>    45 
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#include</em> &lt;windows.h&gt;
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#include</em> &lt;string.h&gt;
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#include</em> &lt;malloc.h&gt;
+<a id='L49' name='L49'></a>    49 
+<a id='L50' name='L50'></a>    50 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2555.html#L206' title='Defined at 206 in nt/runemacs.c.'>set_user_model_id</a> (<strong class='reserved'>void</strong>);
+<a id='L51' name='L51'></a>    51 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../S/2555.html#L234' title='Defined at 234 in nt/runemacs.c.'>ensure_unicows_dll</a> (<strong class='reserved'>void</strong>);
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 <strong class='reserved'>int</strong> WINAPI
+<a id='L54' name='L54'></a>    54 WinMain (HINSTANCE hSelf, HINSTANCE hPrev, LPSTR cmdline, <strong class='reserved'>int</strong> nShow)
+<a id='L55' name='L55'></a>    55 <em class='brace'>{</em>
+<a id='L56' name='L56'></a>    56   STARTUPINFO <a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>;
+<a id='L57' name='L57'></a>    57   SECURITY_ATTRIBUTES sec_attrs;
+<a id='L58' name='L58'></a>    58   PROCESS_INFORMATION child;
+<a id='L59' name='L59'></a>    59   <strong class='reserved'>int</strong> wait_for_child = <a href='../D/1824.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L60' name='L60'></a>    60   DWORD priority_class = NORMAL_PRIORITY_CLASS;
+<a id='L61' name='L61'></a>    61   DWORD ret_code = 0;
+<a id='L62' name='L62'></a>    62   <strong class='reserved'>char</strong> *new_cmdline;
+<a id='L63' name='L63'></a>    63   <strong class='reserved'>char</strong> *p;
+<a id='L64' name='L64'></a>    64   <strong class='reserved'>char</strong> modname[MAX_PATH];
+<a id='L65' name='L65'></a>    65   <strong class='reserved'>static</strong> <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> iconic_opt[] = "--iconic ", maximized_opt[] = "--maximized ";
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67   <strong class='reserved'>if</strong> (!<a href='../S/2555.html#L234' title='Defined at 234 in nt/runemacs.c.'>ensure_unicows_dll</a> ())
+<a id='L68' name='L68'></a>    68     <strong class='reserved'>goto</strong> <a href='../D/9941.html' title='Multiple defined in 7 places.'>error</a>;
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70   <a href='../S/2555.html#L206' title='Defined at 206 in nt/runemacs.c.'>set_user_model_id</a> ();
+<a id='L71' name='L71'></a>    71 
+<a id='L72' name='L72'></a>    72   <strong class='reserved'>if</strong> (!GetModuleFileName (<a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, modname, MAX_PATH))
+<a id='L73' name='L73'></a>    73     <strong class='reserved'>goto</strong> <a href='../D/9941.html' title='Multiple defined in 7 places.'>error</a>;
+<a id='L74' name='L74'></a>    74   <strong class='reserved'>if</strong> ((p = <a href='../S/1796.html#L786' title='Defined at 786 in lib/string.in.h.'>strrchr</a> (modname, '\\')) == <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L75' name='L75'></a>    75     <strong class='reserved'>goto</strong> <a href='../D/9941.html' title='Multiple defined in 7 places.'>error</a>;
+<a id='L76' name='L76'></a>    76   *p = 0;
+<a id='L77' name='L77'></a>    77 
+<a id='L78' name='L78'></a>    78   new_cmdline = <a href='../D/7790.html' title='Multiple defined in 8 places.'>alloca</a> (MAX_PATH
+<a id='L79' name='L79'></a>    79                         + strlen (cmdline)
+<a id='L80' name='L80'></a>    80                         + ((nShow == SW_SHOWMINNOACTIVE
+<a id='L81' name='L81'></a>    81                             || nShow == SW_SHOWMAXIMIZED)
+<a id='L82' name='L82'></a>    82                            ? <a href='../D/12921.html' title='Multiple defined in 11 places.'>max</a> (<strong class='reserved'>sizeof</strong> (iconic_opt), <strong class='reserved'>sizeof</strong> (maximized_opt))
+<a id='L83' name='L83'></a>    83                            : 0)
+<a id='L84' name='L84'></a>    84                         + 3);
+<a id='L85' name='L85'></a>    85   <em class='comment'>/* Quote executable name in case of spaces in the path. */</em>
+<a id='L86' name='L86'></a>    86   *new_cmdline = '"';
+<a id='L87' name='L87'></a>    87   strcpy (new_cmdline + 1, modname);
+<a id='L88' name='L88'></a>    88   <em class='comment'>/* Detect and handle un-installed runemacs.exe in nt/ subdirectory,</em>
+<a id='L89' name='L89'></a>    89 <em class='comment'>     while emacs.exe is in src/.  */</em>
+<a id='L90' name='L90'></a>    90   <strong class='reserved'>if</strong> ((p = <a href='../S/1796.html#L786' title='Defined at 786 in lib/string.in.h.'>strrchr</a> (new_cmdline, '\\')) != <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>
+<a id='L91' name='L91'></a>    91       &amp;&amp; <a href='../S/2539.html#L352' title='Defined at 352 in nt/inc/ms-w32.h.'>stricmp</a> (p, "\\nt") == 0)
+<a id='L92' name='L92'></a>    92     strcpy (p, "\\src");
+<a id='L93' name='L93'></a>    93 
+<a id='L94' name='L94'></a>    94 <em class='sharp'>#ifdef</em> CHOOSE_NEWEST_EXE
+<a id='L95' name='L95'></a>    95   <em class='brace'>{</em>
+<a id='L96' name='L96'></a>    96     <em class='comment'>/* Silly hack to allow new versions to be installed on</em>
+<a id='L97' name='L97'></a>    97 <em class='comment'>       server even when current version is in use. */</em>
+<a id='L98' name='L98'></a>    98 
+<a id='L99' name='L99'></a>    99     <strong class='reserved'>char</strong> * best_name = <a href='../D/7790.html' title='Multiple defined in 8 places.'>alloca</a> (MAX_PATH + 1);
+<a id='L100' name='L100'></a>   100     FILETIME best_time = <em class='brace'>{</em>0,0<em class='brace'>}</em>;
+<a id='L101' name='L101'></a>   101     <a href='../D/6179.html' title='Multiple defined in 2 places.'>WIN32_FIND_DATA</a> wfd;
+<a id='L102' name='L102'></a>   102     HANDLE fh;
+<a id='L103' name='L103'></a>   103     p = new_cmdline + strlen (new_cmdline);
+<a id='L104' name='L104'></a>   104     strcpy (p, "\\emacs*.exe\" ");
+<a id='L105' name='L105'></a>   105     fh = FindFirstFile (new_cmdline, &amp;wfd);
+<a id='L106' name='L106'></a>   106     <strong class='reserved'>if</strong> (fh == INVALID_HANDLE_VALUE)
+<a id='L107' name='L107'></a>   107       <strong class='reserved'>goto</strong> <a href='../D/9941.html' title='Multiple defined in 7 places.'>error</a>;
+<a id='L108' name='L108'></a>   108     <strong class='reserved'>do</strong>
+<a id='L109' name='L109'></a>   109       <em class='brace'>{</em>
+<a id='L110' name='L110'></a>   110         <strong class='reserved'>if</strong> (wfd.ftLastWriteTime.dwHighDateTime &gt; best_time.dwHighDateTime
+<a id='L111' name='L111'></a>   111             || (wfd.ftLastWriteTime.dwHighDateTime == best_time.dwHighDateTime
+<a id='L112' name='L112'></a>   112                 &amp;&amp; wfd.ftLastWriteTime.dwLowDateTime &gt; best_time.dwLowDateTime))
+<a id='L113' name='L113'></a>   113           <em class='brace'>{</em>
+<a id='L114' name='L114'></a>   114             best_time = wfd.ftLastWriteTime;
+<a id='L115' name='L115'></a>   115             strcpy (best_name, wfd.cFileName);
+<a id='L116' name='L116'></a>   116           <em class='brace'>}</em>
+<a id='L117' name='L117'></a>   117       <em class='brace'>}</em>
+<a id='L118' name='L118'></a>   118     <strong class='reserved'>while</strong> (FindNextFile (fh, &amp;wfd));
+<a id='L119' name='L119'></a>   119     FindClose (fh);
+<a id='L120' name='L120'></a>   120     *p++ = '\\';
+<a id='L121' name='L121'></a>   121     strcpy (p, best_name);
+<a id='L122' name='L122'></a>   122     strcat (p, " ");
+<a id='L123' name='L123'></a>   123   <em class='brace'>}</em>
+<a id='L124' name='L124'></a>   124 <em class='sharp'>#else</em>
+<a id='L125' name='L125'></a>   125   strcat (new_cmdline, "\\emacs.exe\" ");
+<a id='L126' name='L126'></a>   126 <em class='sharp'>#endif</em>
+<a id='L127' name='L127'></a>   127 
+<a id='L128' name='L128'></a>   128   <em class='comment'>/* Append original arguments if any; first look for arguments we</em>
+<a id='L129' name='L129'></a>   129 <em class='comment'>     recognize (-wait, -high, and -low), and apply them ourselves.  */</em>
+<a id='L130' name='L130'></a>   130   <strong class='reserved'>while</strong> (cmdline[0] == '-' || cmdline[0] == '/')
+<a id='L131' name='L131'></a>   131     <em class='brace'>{</em>
+<a id='L132' name='L132'></a>   132       <strong class='reserved'>if</strong> (strncmp (cmdline+1, "wait", 4) == 0)
+<a id='L133' name='L133'></a>   133         <em class='brace'>{</em>
+<a id='L134' name='L134'></a>   134           wait_for_child = <a href='../D/5830.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L135' name='L135'></a>   135           cmdline += 5;
+<a id='L136' name='L136'></a>   136         <em class='brace'>}</em>
+<a id='L137' name='L137'></a>   137       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strncmp (cmdline+1, "high", 4) == 0)
+<a id='L138' name='L138'></a>   138         <em class='brace'>{</em>
+<a id='L139' name='L139'></a>   139           priority_class = HIGH_PRIORITY_CLASS;
+<a id='L140' name='L140'></a>   140           cmdline += 5;
+<a id='L141' name='L141'></a>   141         <em class='brace'>}</em>
+<a id='L142' name='L142'></a>   142       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strncmp (cmdline+1, "low", 3) == 0)
+<a id='L143' name='L143'></a>   143         <em class='brace'>{</em>
+<a id='L144' name='L144'></a>   144           priority_class = IDLE_PRIORITY_CLASS;
+<a id='L145' name='L145'></a>   145           cmdline += 4;
+<a id='L146' name='L146'></a>   146         <em class='brace'>}</em>
+<a id='L147' name='L147'></a>   147       <strong class='reserved'>else</strong>
+<a id='L148' name='L148'></a>   148         <strong class='reserved'>break</strong>;
+<a id='L149' name='L149'></a>   149       <em class='comment'>/* Look for next argument.  */</em>
+<a id='L150' name='L150'></a>   150       <strong class='reserved'>while</strong> (*++cmdline == ' ');
+<a id='L151' name='L151'></a>   151     <em class='brace'>}</em>
+<a id='L152' name='L152'></a>   152 
+<a id='L153' name='L153'></a>   153   <em class='comment'>/* If the desktop shortcut properties tell to invoke runemacs</em>
+<a id='L154' name='L154'></a>   154 <em class='comment'>     minimized, or if they invoked runemacs via "start /min", pass</em>
+<a id='L155' name='L155'></a>   155 <em class='comment'>     '--iconic' to Emacs, as that's what users will expect.  Likewise</em>
+<a id='L156' name='L156'></a>   156 <em class='comment'>     with invoking runemacs maximized: pass '--maximized' to Emacs.  */</em>
+<a id='L157' name='L157'></a>   157   <strong class='reserved'>if</strong> (nShow == SW_SHOWMINNOACTIVE)
+<a id='L158' name='L158'></a>   158     strcat (new_cmdline, iconic_opt);
+<a id='L159' name='L159'></a>   159   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (nShow == SW_SHOWMAXIMIZED)
+<a id='L160' name='L160'></a>   160     strcat (new_cmdline, maximized_opt);
+<a id='L161' name='L161'></a>   161   strcat (new_cmdline, cmdline);
+<a id='L162' name='L162'></a>   162 
+<a id='L163' name='L163'></a>   163   <em class='comment'>/* Set emacs_dir variable if runemacs was in "%emacs_dir%\bin".  */</em>
+<a id='L164' name='L164'></a>   164   <strong class='reserved'>if</strong> ((p = <a href='../S/1796.html#L786' title='Defined at 786 in lib/string.in.h.'>strrchr</a> (modname, '\\')) &amp;&amp; <a href='../S/2539.html#L352' title='Defined at 352 in nt/inc/ms-w32.h.'>stricmp</a> (p, "\\bin") == 0)
+<a id='L165' name='L165'></a>   165     <em class='brace'>{</em>
+<a id='L166' name='L166'></a>   166       *p = 0;
+<a id='L167' name='L167'></a>   167       <strong class='reserved'>for</strong> (p = modname; *p; p++)
+<a id='L168' name='L168'></a>   168         <strong class='reserved'>if</strong> (*p == '\\') *p = '/';
+<a id='L169' name='L169'></a>   169       SetEnvironmentVariable ("emacs_dir", modname);
+<a id='L170' name='L170'></a>   170     <em class='brace'>}</em>
+<a id='L171' name='L171'></a>   171 
+<a id='L172' name='L172'></a>   172   memset (&amp;<a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>, 0, <strong class='reserved'>sizeof</strong> (<a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>));
+<a id='L173' name='L173'></a>   173   <a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>.cb = <strong class='reserved'>sizeof</strong> (<a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>);
+<a id='L174' name='L174'></a>   174   <a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>.dwFlags = STARTF_USESHOWWINDOW | STARTF_USECOUNTCHARS;
+<a id='L175' name='L175'></a>   175   <a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>.wShowWindow = SW_HIDE;
+<a id='L176' name='L176'></a>   176   <em class='comment'>/* Ensure that we don't waste memory if the user has specified a huge</em>
+<a id='L177' name='L177'></a>   177 <em class='comment'>     default screen buffer for command windows.  */</em>
+<a id='L178' name='L178'></a>   178   <a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>.dwXCountChars = 80;
+<a id='L179' name='L179'></a>   179   <a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>.dwYCountChars = 25;
+<a id='L180' name='L180'></a>   180 
+<a id='L181' name='L181'></a>   181   sec_attrs.nLength = <strong class='reserved'>sizeof</strong> (sec_attrs);
+<a id='L182' name='L182'></a>   182   sec_attrs.lpSecurityDescriptor = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L183' name='L183'></a>   183   sec_attrs.bInheritHandle = <a href='../D/1824.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185   <strong class='reserved'>if</strong> (CreateProcess (<a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, new_cmdline, &amp;sec_attrs, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/5830.html' title='Multiple defined in 3 places.'>TRUE</a>, priority_class,
+<a id='L186' name='L186'></a>   186                      <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, &amp;<a href='../D/15657.html' title='Multiple defined in 2 places.'>start</a>, &amp;child))
+<a id='L187' name='L187'></a>   187     <em class='brace'>{</em>
+<a id='L188' name='L188'></a>   188       <strong class='reserved'>if</strong> (wait_for_child)
+<a id='L189' name='L189'></a>   189         <em class='brace'>{</em>
+<a id='L190' name='L190'></a>   190           WaitForSingleObject (child.hProcess, INFINITE);
+<a id='L191' name='L191'></a>   191           GetExitCodeProcess (child.hProcess, &amp;ret_code);
+<a id='L192' name='L192'></a>   192         <em class='brace'>}</em>
+<a id='L193' name='L193'></a>   193       CloseHandle (child.hThread);
+<a id='L194' name='L194'></a>   194       CloseHandle (child.hProcess);
+<a id='L195' name='L195'></a>   195     <em class='brace'>}</em>
+<a id='L196' name='L196'></a>   196   <strong class='reserved'>else</strong>
+<a id='L197' name='L197'></a>   197     <strong class='reserved'>goto</strong> <a href='../D/9941.html' title='Multiple defined in 7 places.'>error</a>;
+<a id='L198' name='L198'></a>   198   <strong class='reserved'>return</strong> (<strong class='reserved'>int</strong>) ret_code;
+<a id='L199' name='L199'></a>   199 
+<a id='L200' name='L200'></a>   200 <a href='../D/9941.html' title='Multiple defined in 7 places.'>error</a>:
+<a id='L201' name='L201'></a>   201   MessageBox (<a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, "Could not start Emacs.", "Error", MB_ICONSTOP);
+<a id='L202' name='L202'></a>   202   <strong class='reserved'>return</strong> 1;
+<a id='L203' name='L203'></a>   203 <em class='brace'>}</em>
+<a id='L204' name='L204'></a>   204 
+<a id='L205' name='L205'></a>   205 <strong class='reserved'>void</strong>
+<a id='L206' name='L206'></a>   206 <a href='../R/14213.html' title='Multiple referred from 2 places.'>set_user_model_id</a> (<strong class='reserved'>void</strong>)
+<a id='L207' name='L207'></a>   207 <em class='brace'>{</em>
+<a id='L208' name='L208'></a>   208   HMODULE shell;
+<a id='L209' name='L209'></a>   209   HRESULT (WINAPI * set_user_model) (<strong class='reserved'>const</strong> <a href='../S/1871.html#L111' title='Defined at 111 in lib/stddef.in.h.'>wchar_t</a> * id);
+<a id='L210' name='L210'></a>   210 
+<a id='L211' name='L211'></a>   211   <em class='comment'>/* On Windows 7 and later, we need to set the user model ID</em>
+<a id='L212' name='L212'></a>   212 <em class='comment'>     to associate emacsclient launched files with Emacs frames</em>
+<a id='L213' name='L213'></a>   213 <em class='comment'>     in the UI.  */</em>
+<a id='L214' name='L214'></a>   214   shell = <a href='../D/3556.html' title='Multiple defined in 4 places.'>LoadLibrary</a> ("shell32.dll");
+<a id='L215' name='L215'></a>   215   <strong class='reserved'>if</strong> (shell)
+<a id='L216' name='L216'></a>   216     <em class='brace'>{</em>
+<a id='L217' name='L217'></a>   217       set_user_model
+<a id='L218' name='L218'></a>   218         = (<strong class='reserved'>void</strong> *) <a href='../D/2688.html' title='Multiple defined in 2 places.'>GetProcAddress</a> (shell,
+<a id='L219' name='L219'></a>   219                                    "SetCurrentProcessExplicitAppUserModelID");
+<a id='L220' name='L220'></a>   220 
+<a id='L221' name='L221'></a>   221       <em class='comment'>/* If the function is defined, then we are running on Windows 7</em>
+<a id='L222' name='L222'></a>   222 <em class='comment'>         or newer, and the UI uses this to group related windows</em>
+<a id='L223' name='L223'></a>   223 <em class='comment'>         together.  Since emacs, runemacs, emacsclient are related, we</em>
+<a id='L224' name='L224'></a>   224 <em class='comment'>         want them grouped even though the executables are different,</em>
+<a id='L225' name='L225'></a>   225 <em class='comment'>         so we need to set a consistent ID between them.  */</em>
+<a id='L226' name='L226'></a>   226       <strong class='reserved'>if</strong> (set_user_model)
+<a id='L227' name='L227'></a>   227         set_user_model (L"GNU.Emacs");
+<a id='L228' name='L228'></a>   228 
+<a id='L229' name='L229'></a>   229       FreeLibrary (shell);
+<a id='L230' name='L230'></a>   230     <em class='brace'>}</em>
+<a id='L231' name='L231'></a>   231 <em class='brace'>}</em>
+<a id='L232' name='L232'></a>   232 
+<a id='L233' name='L233'></a>   233 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L234' name='L234'></a>   234 <a href='../R/8998.html' title='Multiple referred from 2 places.'>ensure_unicows_dll</a> (<strong class='reserved'>void</strong>)
+<a id='L235' name='L235'></a>   235 <em class='brace'>{</em>
+<a id='L236' name='L236'></a>   236   OSVERSIONINFO os_ver;
+<a id='L237' name='L237'></a>   237   HMODULE h;
+<a id='L238' name='L238'></a>   238 
+<a id='L239' name='L239'></a>   239   ZeroMemory (&amp;os_ver, <strong class='reserved'>sizeof</strong> (OSVERSIONINFO));
+<a id='L240' name='L240'></a>   240   os_ver.dwOSVersionInfoSize = <strong class='reserved'>sizeof</strong> (OSVERSIONINFO);
+<a id='L241' name='L241'></a>   241   <strong class='reserved'>if</strong> (!GetVersionEx (&amp;os_ver))
+<a id='L242' name='L242'></a>   242     <strong class='reserved'>return</strong> 0;
+<a id='L243' name='L243'></a>   243 
+<a id='L244' name='L244'></a>   244   <strong class='reserved'>if</strong> (os_ver.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS)
+<a id='L245' name='L245'></a>   245     <em class='brace'>{</em>
+<a id='L246' name='L246'></a>   246       h = <a href='../D/3556.html' title='Multiple defined in 4 places.'>LoadLibrary</a> ("Unicows.dll");
+<a id='L247' name='L247'></a>   247       <strong class='reserved'>if</strong> (!h)
+<a id='L248' name='L248'></a>   248         <em class='brace'>{</em>
+<a id='L249' name='L249'></a>   249           <strong class='reserved'>int</strong> button;
+<a id='L250' name='L250'></a>   250 
+<a id='L251' name='L251'></a>   251           button = MessageBox (<a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>,
+<a id='L252' name='L252'></a>   252                                "Emacs cannot load the UNICOWS.DLL library.\n"
+<a id='L253' name='L253'></a>   253                                "This library is essential for using Emacs\n"
+<a id='L254' name='L254'></a>   254                                "on this system.  You need to install it.\n\n"
+<a id='L255' name='L255'></a>   255                                "Emacs will exit when you click OK.",
+<a id='L256' name='L256'></a>   256                                "Emacs cannot load UNICOWS.DLL",
+<a id='L257' name='L257'></a>   257                                MB_ICONERROR | MB_TASKMODAL
+<a id='L258' name='L258'></a>   258                                | MB_SETFOREGROUND | MB_OK);
+<a id='L259' name='L259'></a>   259           <strong class='reserved'>switch</strong> (button)
+<a id='L260' name='L260'></a>   260             <em class='brace'>{</em>
+<a id='L261' name='L261'></a>   261               <strong class='reserved'>case</strong> IDOK:
+<a id='L262' name='L262'></a>   262               <strong class='reserved'>default</strong>:
+<a id='L263' name='L263'></a>   263                 <strong class='reserved'>return</strong> 0;
+<a id='L264' name='L264'></a>   264             <em class='brace'>}</em>
+<a id='L265' name='L265'></a>   265         <em class='brace'>}</em>
+<a id='L266' name='L266'></a>   266       FreeLibrary (h);
+<a id='L267' name='L267'></a>   267       <strong class='reserved'>return</strong> 1;
+<a id='L268' name='L268'></a>   268     <em class='brace'>}</em>
+<a id='L269' name='L269'></a>   269   <strong class='reserved'>return</strong> 1;
+<a id='L270' name='L270'></a>   270 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L54'>[^]</a><a href='#L234'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>
