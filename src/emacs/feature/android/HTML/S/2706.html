@@ -1,32 +1,20 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>java/org/gnu/emacs/EmacsOpenActivity.java</title>
+<title>java/org/gnu/emacs/EmacsFillPolygon.java</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4779.html'>java</a>/<a href='../files/4780.html'>org</a>/<a href='../files/4781.html'>gnu</a>/<a href='../files/4782.html'>emacs</a>/EmacsOpenActivity.java</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L98'>[^]</a><a href='#L550'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4776.html'>java</a>/<a href='../files/4777.html'>org</a>/<a href='../files/4778.html'>gnu</a>/<a href='../files/4779.html'>emacs</a>/EmacsFillPolygon.java</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L32'>[^]</a>[v][top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 <hr />
 <h2 class='header'>DEFINITIONS</h2>
 This source file includes following definitions.
 <ol>
-<li><a href='#L98' title='Defined at 98.'>run</a></li>
-<li><a href='#L130' title='Defined at 130.'>onClick</a></li>
-<li><a href='#L137' title='Defined at 137.'>onCancel</a></li>
-<li><a href='#L143' title='Defined at 143.'>readEmacsClientLog</a></li>
-<li><a href='#L197' title='Defined at 197.'>displayFailureDialog</a></li>
-<li><a href='#L224' title='Defined at 224.'>checkReadableOrCopy</a></li>
-<li><a href='#L302' title='Defined at 302.'>finishSuccess</a></li>
-<li><a href='#L332' title='Defined at 332.'>finishFailure</a></li>
-<li><a href='#L345' title='Defined at 345.'>startEmacsClient</a></li>
-<li><a href='#L407' title='Defined at 407.'>onCreate</a></li>
-<li><a href='#L520' title='Defined at 520.'>onDestroy</a></li>
-<li><a href='#L535' title='Defined at 535.'>onWindowFocusChanged</a></li>
-<li><a href='#L550' title='Defined at 550.'>onPause</a></li>
+<li><a href='#L32' title='Defined at 32.'>perform</a></li>
 </ol>
 <hr />
 <pre>
@@ -51,550 +39,68 @@ This source file includes following definitions.
 <a id='L19' name='L19'></a>    19 
 <a id='L20' name='L20'></a>    20 <strong class='reserved'>package</strong> org.gnu.emacs;
 <a id='L21' name='L21'></a>    21 
-<a id='L22' name='L22'></a>    22 <em class='comment'>/* This class makes the Emacs server work reasonably on Android.</em>
-<a id='L23' name='L23'></a>    23 <em class='comment'></em>
-<a id='L24' name='L24'></a>    24 <em class='comment'>   There is no way to make the Unix socket publicly available on</em>
-<a id='L25' name='L25'></a>    25 <em class='comment'>   Android.</em>
-<a id='L26' name='L26'></a>    26 <em class='comment'></em>
-<a id='L27' name='L27'></a>    27 <em class='comment'>   Instead, this activity tries to connect to the Emacs server, to</em>
-<a id='L28' name='L28'></a>    28 <em class='comment'>   make it open files the system asks Emacs to open, and to emulate</em>
-<a id='L29' name='L29'></a>    29 <em class='comment'>   some reasonable behavior when Emacs has not yet started.</em>
-<a id='L30' name='L30'></a>    30 <em class='comment'></em>
-<a id='L31' name='L31'></a>    31 <em class='comment'>   First, Emacs registers itself as an application that can open text</em>
-<a id='L32' name='L32'></a>    32 <em class='comment'>   and image files.</em>
-<a id='L33' name='L33'></a>    33 <em class='comment'></em>
-<a id='L34' name='L34'></a>    34 <em class='comment'>   Then, when the user is asked to open a file and selects ``Emacs''</em>
-<a id='L35' name='L35'></a>    35 <em class='comment'>   as the application that will open the file, the system pops up a</em>
-<a id='L36' name='L36'></a>    36 <em class='comment'>   window, this activity, and calls the `onCreate' function.</em>
-<a id='L37' name='L37'></a>    37 <em class='comment'></em>
-<a id='L38' name='L38'></a>    38 <em class='comment'>   `onCreate' then tries very to find the file name of the file that</em>
-<a id='L39' name='L39'></a>    39 <em class='comment'>   was selected, and give it to emacsclient.</em>
-<a id='L40' name='L40'></a>    40 <em class='comment'></em>
-<a id='L41' name='L41'></a>    41 <em class='comment'>   If emacsclient successfully opens the file, then this activity</em>
-<a id='L42' name='L42'></a>    42 <em class='comment'>   starts EmacsActivity (to bring it on to the screen); otherwise, it</em>
-<a id='L43' name='L43'></a>    43 <em class='comment'>   displays the output of emacsclient or any error message that occurs</em>
-<a id='L44' name='L44'></a>    44 <em class='comment'>   and exits.  */</em>
+<a id='L22' name='L22'></a>    22 <strong class='reserved'>import</strong> android.graphics.Canvas;
+<a id='L23' name='L23'></a>    23 <strong class='reserved'>import</strong> android.graphics.Paint;
+<a id='L24' name='L24'></a>    24 <strong class='reserved'>import</strong> android.graphics.Path;
+<a id='L25' name='L25'></a>    25 <strong class='reserved'>import</strong> android.graphics.Point;
+<a id='L26' name='L26'></a>    26 <strong class='reserved'>import</strong> android.graphics.Rect;
+<a id='L27' name='L27'></a>    27 <strong class='reserved'>import</strong> android.graphics.RectF;
+<a id='L28' name='L28'></a>    28 
+<a id='L29' name='L29'></a>    29 <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>class</strong> <a href='../S/2693.html#L359' title='Referred from 359 in java/org/gnu/emacs/EmacsService.java.'>EmacsFillPolygon</a>
+<a id='L30' name='L30'></a>    30 <em class='brace'>{</em>
+<a id='L31' name='L31'></a>    31   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L32' name='L32'></a>    32   <a href='../R/14117.html' title='Multiple referred from 6 places.'>perform</a> (<a href='../S/2724.html#L26' title='Defined at 26 in java/org/gnu/emacs/EmacsDrawable.java.'>EmacsDrawable</a> drawable, <a href='../S/2721.html#L32' title='Defined at 32 in java/org/gnu/emacs/EmacsGC.java.'>EmacsGC</a> gc, Point points[])
+<a id='L33' name='L33'></a>    33   <em class='brace'>{</em>
+<a id='L34' name='L34'></a>    34     Canvas canvas;
+<a id='L35' name='L35'></a>    35     Path path;
+<a id='L36' name='L36'></a>    36     Paint paint;
+<a id='L37' name='L37'></a>    37     Rect rect;
+<a id='L38' name='L38'></a>    38     RectF rectF;
+<a id='L39' name='L39'></a>    39     <strong class='reserved'>int</strong> i;
+<a id='L40' name='L40'></a>    40 
+<a id='L41' name='L41'></a>    41     canvas = drawable.<a href='../D/13928.html' title='Multiple defined in 3 places.'>lockCanvas</a> (gc);
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43     <strong class='reserved'>if</strong> (canvas == <strong class='reserved'>null</strong>)
+<a id='L44' name='L44'></a>    44       <strong class='reserved'>return</strong>;
 <a id='L45' name='L45'></a>    45 
-<a id='L46' name='L46'></a>    46 <strong class='reserved'>import</strong> android.app.AlertDialog;
-<a id='L47' name='L47'></a>    47 <strong class='reserved'>import</strong> android.app.Activity;
-<a id='L48' name='L48'></a>    48 
-<a id='L49' name='L49'></a>    49 <strong class='reserved'>import</strong> android.content.ContentResolver;
-<a id='L50' name='L50'></a>    50 <strong class='reserved'>import</strong> android.content.DialogInterface;
-<a id='L51' name='L51'></a>    51 <strong class='reserved'>import</strong> android.content.Intent;
-<a id='L52' name='L52'></a>    52 
-<a id='L53' name='L53'></a>    53 <strong class='reserved'>import</strong> android.net.Uri;
+<a id='L46' name='L46'></a>    46     paint = gc.gcPaint;
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48     <em class='comment'>/* Build the path from the given array of points.  */</em>
+<a id='L49' name='L49'></a>    49     path = <strong class='reserved'>new</strong> Path ();
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51     <strong class='reserved'>if</strong> (points.length &gt;= 1)
+<a id='L52' name='L52'></a>    52       <em class='brace'>{</em>
+<a id='L53' name='L53'></a>    53         path.moveTo (points[0].<a href='../S/4456.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, points[0].y);
 <a id='L54' name='L54'></a>    54 
-<a id='L55' name='L55'></a>    55 <strong class='reserved'>import</strong> android.os.Build;
-<a id='L56' name='L56'></a>    56 <strong class='reserved'>import</strong> android.os.Bundle;
-<a id='L57' name='L57'></a>    57 <strong class='reserved'>import</strong> android.os.ParcelFileDescriptor;
-<a id='L58' name='L58'></a>    58 
-<a id='L59' name='L59'></a>    59 <strong class='reserved'>import</strong> android.util.Log;
+<a id='L55' name='L55'></a>    55         <strong class='reserved'>for</strong> (i = 1; i &lt; points.length; ++i)
+<a id='L56' name='L56'></a>    56           path.lineTo (points[i].<a href='../S/4456.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, points[i].y);
+<a id='L57' name='L57'></a>    57 
+<a id='L58' name='L58'></a>    58         path.<a href='../D/9794.html' title='Multiple defined in 18 places.'>close</a> ();
+<a id='L59' name='L59'></a>    59       <em class='brace'>}</em>
 <a id='L60' name='L60'></a>    60 
-<a id='L61' name='L61'></a>    61 <strong class='reserved'>import</strong> java.io.File;
-<a id='L62' name='L62'></a>    62 <strong class='reserved'>import</strong> java.io.FileInputStream;
-<a id='L63' name='L63'></a>    63 <strong class='reserved'>import</strong> java.io.FileNotFoundException;
-<a id='L64' name='L64'></a>    64 <strong class='reserved'>import</strong> java.io.FileOutputStream;
-<a id='L65' name='L65'></a>    65 <strong class='reserved'>import</strong> java.io.FileReader;
-<a id='L66' name='L66'></a>    66 <strong class='reserved'>import</strong> java.io.IOException;
-<a id='L67' name='L67'></a>    67 <strong class='reserved'>import</strong> java.io.InputStream;
-<a id='L68' name='L68'></a>    68 <strong class='reserved'>import</strong> java.io.UnsupportedEncodingException;
+<a id='L61' name='L61'></a>    61     <em class='comment'>/* Compute the damage rectangle.  */</em>
+<a id='L62' name='L62'></a>    62     rectF = <strong class='reserved'>new</strong> RectF (0, 0, 0, 0);
+<a id='L63' name='L63'></a>    63     path.computeBounds (rectF, <strong class='reserved'>true</strong>);
+<a id='L64' name='L64'></a>    64 
+<a id='L65' name='L65'></a>    65     rect = <strong class='reserved'>new</strong> Rect ((<strong class='reserved'>int</strong>) Math.<a href='../D/11509.html' title='Multiple defined in 2 places.'>floor</a> (rectF.left),
+<a id='L66' name='L66'></a>    66                      (<strong class='reserved'>int</strong>) Math.<a href='../D/11509.html' title='Multiple defined in 2 places.'>floor</a> (rectF.top),
+<a id='L67' name='L67'></a>    67                      (<strong class='reserved'>int</strong>) Math.<a href='../D/9541.html' title='Multiple defined in 2 places.'>ceil</a> (rectF.right),
+<a id='L68' name='L68'></a>    68                      (<strong class='reserved'>int</strong>) Math.<a href='../D/9541.html' title='Multiple defined in 2 places.'>ceil</a> (rectF.bottom));
 <a id='L69' name='L69'></a>    69 
-<a id='L70' name='L70'></a>    70 <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>class</strong> <a href='../R/1820.html' title='Multiple referred from 9 places.'>EmacsOpenActivity</a> <strong class='reserved'>extends</strong> Activity
-<a id='L71' name='L71'></a>    71   <strong class='reserved'>implements</strong> DialogInterface.OnClickListener,
-<a id='L72' name='L72'></a>    72   DialogInterface.OnCancelListener
-<a id='L73' name='L73'></a>    73 <em class='brace'>{</em>
-<a id='L74' name='L74'></a>    74   <strong class='reserved'>private</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> String TAG = "EmacsOpenActivity";
-<a id='L75' name='L75'></a>    75 
-<a id='L76' name='L76'></a>    76   <em class='comment'>/* The name of any file that should be opened as EmacsThread starts</em>
-<a id='L77' name='L77'></a>    77 <em class='comment'>     Emacs.  This is never cleared, even if EmacsOpenActivity is</em>
-<a id='L78' name='L78'></a>    78 <em class='comment'>     started a second time, as EmacsThread only starts once.  */</em>
-<a id='L79' name='L79'></a>    79   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> String fileToOpen;
-<a id='L80' name='L80'></a>    80 
-<a id='L81' name='L81'></a>    81   <em class='comment'>/* Any currently focused EmacsOpenActivity.  Used to show pop ups</em>
-<a id='L82' name='L82'></a>    82 <em class='comment'>     while the activity is active and Emacs doesn't have permission to</em>
-<a id='L83' name='L83'></a>    83 <em class='comment'>     display over other programs.  */</em>
-<a id='L84' name='L84'></a>    84   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <a href='../S/2706.html#L70' title='Defined at 70 in java/org/gnu/emacs/EmacsOpenActivity.java.'>EmacsOpenActivity</a> currentActivity;
-<a id='L85' name='L85'></a>    85 
-<a id='L86' name='L86'></a>    86   <strong class='reserved'>private</strong> <strong class='reserved'>class</strong> <a href='../R/1776.html' title='Multiple referred from 2 places.'>EmacsClientThread</a> <strong class='reserved'>extends</strong> Thread
-<a id='L87' name='L87'></a>    87   <em class='brace'>{</em>
-<a id='L88' name='L88'></a>    88     <strong class='reserved'>private</strong> ProcessBuilder builder;
-<a id='L89' name='L89'></a>    89 
-<a id='L90' name='L90'></a>    90     <strong class='reserved'>public</strong>
-<a id='L91' name='L91'></a>    91     EmacsClientThread (ProcessBuilder processBuilder)
-<a id='L92' name='L92'></a>    92     <em class='brace'>{</em>
-<a id='L93' name='L93'></a>    93       builder = processBuilder;
-<a id='L94' name='L94'></a>    94     <em class='brace'>}</em>
-<a id='L95' name='L95'></a>    95 
-<a id='L96' name='L96'></a>    96     @Override
-<a id='L97' name='L97'></a>    97     <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L98' name='L98'></a>    98     <a href='../R/15258.html' title='Multiple referred from 103 places.'>run</a> ()
-<a id='L99' name='L99'></a>    99     <em class='brace'>{</em>
-<a id='L100' name='L100'></a>   100       Process process;
-<a id='L101' name='L101'></a>   101       InputStream <a href='../D/11140.html' title='Multiple defined in 7 places.'>error</a>;
-<a id='L102' name='L102'></a>   102       String errorText;
-<a id='L103' name='L103'></a>   103 
-<a id='L104' name='L104'></a>   104       <strong class='reserved'>try</strong>
-<a id='L105' name='L105'></a>   105         <em class='brace'>{</em>
-<a id='L106' name='L106'></a>   106           <em class='comment'>/* Start emacsclient.  */</em>
-<a id='L107' name='L107'></a>   107           process = builder.<a href='../D/17647.html' title='Multiple defined in 2 places.'>start</a> ();
-<a id='L108' name='L108'></a>   108           process.waitFor ();
-<a id='L109' name='L109'></a>   109 
-<a id='L110' name='L110'></a>   110           <em class='comment'>/* Now figure out whether or not starting the process was</em>
-<a id='L111' name='L111'></a>   111 <em class='comment'>             successful.  */</em>
-<a id='L112' name='L112'></a>   112           <strong class='reserved'>if</strong> (process.exitValue () == 0)
-<a id='L113' name='L113'></a>   113             <a href='../S/2706.html#L302' title='Defined at 302 in java/org/gnu/emacs/EmacsOpenActivity.java.'>finishSuccess</a> ();
-<a id='L114' name='L114'></a>   114           <strong class='reserved'>else</strong>
-<a id='L115' name='L115'></a>   115             <a href='../S/2706.html#L332' title='Defined at 332 in java/org/gnu/emacs/EmacsOpenActivity.java.'>finishFailure</a> ("Error opening file", <strong class='reserved'>null</strong>);
-<a id='L116' name='L116'></a>   116         <em class='brace'>}</em>
-<a id='L117' name='L117'></a>   117       <strong class='reserved'>catch</strong> (IOException exception)
-<a id='L118' name='L118'></a>   118         <em class='brace'>{</em>
-<a id='L119' name='L119'></a>   119           <a href='../S/2706.html#L332' title='Defined at 332 in java/org/gnu/emacs/EmacsOpenActivity.java.'>finishFailure</a> ("Internal error", exception.<a href='../D/18295.html' title='Multiple defined in 3 places.'>toString</a> ());
-<a id='L120' name='L120'></a>   120         <em class='brace'>}</em>
-<a id='L121' name='L121'></a>   121       <strong class='reserved'>catch</strong> (InterruptedException exception)
-<a id='L122' name='L122'></a>   122         <em class='brace'>{</em>
-<a id='L123' name='L123'></a>   123           <a href='../S/2706.html#L332' title='Defined at 332 in java/org/gnu/emacs/EmacsOpenActivity.java.'>finishFailure</a> ("Internal error", exception.<a href='../D/18295.html' title='Multiple defined in 3 places.'>toString</a> ());
-<a id='L124' name='L124'></a>   124         <em class='brace'>}</em>
-<a id='L125' name='L125'></a>   125     <em class='brace'>}</em>
-<a id='L126' name='L126'></a>   126   <em class='brace'>}</em>
-<a id='L127' name='L127'></a>   127 
-<a id='L128' name='L128'></a>   128   @Override
-<a id='L129' name='L129'></a>   129   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L130' name='L130'></a>   130   onClick (DialogInterface dialog, <strong class='reserved'>int</strong> which)
-<a id='L131' name='L131'></a>   131   <em class='brace'>{</em>
-<a id='L132' name='L132'></a>   132     finish ();
-<a id='L133' name='L133'></a>   133   <em class='brace'>}</em>
-<a id='L134' name='L134'></a>   134 
-<a id='L135' name='L135'></a>   135   @Override
-<a id='L136' name='L136'></a>   136   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L137' name='L137'></a>   137   onCancel (DialogInterface dialog)
-<a id='L138' name='L138'></a>   138   <em class='brace'>{</em>
-<a id='L139' name='L139'></a>   139     finish ();
-<a id='L140' name='L140'></a>   140   <em class='brace'>}</em>
-<a id='L141' name='L141'></a>   141 
-<a id='L142' name='L142'></a>   142   <strong class='reserved'>public</strong> String
-<a id='L143' name='L143'></a>   143   <a href='../S/2706.html#L208' title='Referred from 208 in java/org/gnu/emacs/EmacsOpenActivity.java.'>readEmacsClientLog</a> ()
-<a id='L144' name='L144'></a>   144   <em class='brace'>{</em>
-<a id='L145' name='L145'></a>   145     File file, cache;
-<a id='L146' name='L146'></a>   146     FileReader reader;
-<a id='L147' name='L147'></a>   147     <strong class='reserved'>char</strong>[] <a href='../S/3176.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>;
-<a id='L148' name='L148'></a>   148     <strong class='reserved'>int</strong> rc;
-<a id='L149' name='L149'></a>   149     StringBuilder builder;
-<a id='L150' name='L150'></a>   150 
-<a id='L151' name='L151'></a>   151     <em class='comment'>/* Because the ProcessBuilder functions necessary to redirect</em>
-<a id='L152' name='L152'></a>   152 <em class='comment'>       process output are not implemented on Android 7 and earlier,</em>
-<a id='L153' name='L153'></a>   153 <em class='comment'>       print a generic error message.  */</em>
-<a id='L154' name='L154'></a>   154 
-<a id='L155' name='L155'></a>   155     <strong class='reserved'>if</strong> (Build.<a href='../S/4425.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &lt; Build.VERSION_CODES.O)
-<a id='L156' name='L156'></a>   156       <strong class='reserved'>return</strong> ("This is likely because the Emacs server"
-<a id='L157' name='L157'></a>   157               + " is not running, or because you did"
-<a id='L158' name='L158'></a>   158               + " not grant Emacs permission to access"
-<a id='L159' name='L159'></a>   159               + " external storage.");
-<a id='L160' name='L160'></a>   160 
-<a id='L161' name='L161'></a>   161     cache = getCacheDir ();
-<a id='L162' name='L162'></a>   162     file = <strong class='reserved'>new</strong> File (cache, "emacsclient.log");
-<a id='L163' name='L163'></a>   163     builder = <strong class='reserved'>new</strong> StringBuilder ();
-<a id='L164' name='L164'></a>   164     reader = <strong class='reserved'>null</strong>;
-<a id='L165' name='L165'></a>   165 
-<a id='L166' name='L166'></a>   166     <strong class='reserved'>try</strong>
-<a id='L167' name='L167'></a>   167       <em class='brace'>{</em>
-<a id='L168' name='L168'></a>   168         reader = <strong class='reserved'>new</strong> FileReader (file);
-<a id='L169' name='L169'></a>   169         <a href='../S/3176.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = <strong class='reserved'>new</strong> <strong class='reserved'>char</strong>[2048];
-<a id='L170' name='L170'></a>   170 
-<a id='L171' name='L171'></a>   171         <strong class='reserved'>while</strong> ((rc = reader.<a href='../D/16055.html' title='Multiple defined in 14 places.'>read</a> (<a href='../S/3176.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, 0, 2048)) != -1)
-<a id='L172' name='L172'></a>   172           builder.append (<a href='../S/3176.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, 0, rc);
-<a id='L173' name='L173'></a>   173 
-<a id='L174' name='L174'></a>   174         reader.<a href='../D/9796.html' title='Multiple defined in 18 places.'>close</a> ();
-<a id='L175' name='L175'></a>   175         <strong class='reserved'>return</strong> builder.<a href='../D/18295.html' title='Multiple defined in 3 places.'>toString</a> ();
-<a id='L176' name='L176'></a>   176       <em class='brace'>}</em>
-<a id='L177' name='L177'></a>   177     <strong class='reserved'>catch</strong> (IOException exception)
-<a id='L178' name='L178'></a>   178       <em class='brace'>{</em>
-<a id='L179' name='L179'></a>   179         <em class='comment'>/* Close the reader if it's already been opened.  */</em>
-<a id='L180' name='L180'></a>   180 
-<a id='L181' name='L181'></a>   181         <strong class='reserved'>try</strong>
-<a id='L182' name='L182'></a>   182           <em class='brace'>{</em>
-<a id='L183' name='L183'></a>   183             <strong class='reserved'>if</strong> (reader != <strong class='reserved'>null</strong>)
-<a id='L184' name='L184'></a>   184               reader.<a href='../D/9796.html' title='Multiple defined in 18 places.'>close</a> ();
-<a id='L185' name='L185'></a>   185           <em class='brace'>}</em>
-<a id='L186' name='L186'></a>   186         <strong class='reserved'>catch</strong> (IOException <a href='../S/3393.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a>)
-<a id='L187' name='L187'></a>   187           <em class='brace'>{</em>
-<a id='L188' name='L188'></a>   188             <em class='comment'>/* Not sure what to do here.  */</em>
-<a id='L189' name='L189'></a>   189           <em class='brace'>}</em>
-<a id='L190' name='L190'></a>   190 
-<a id='L191' name='L191'></a>   191         <strong class='reserved'>return</strong> ("Couldn't read emacsclient.log: "
-<a id='L192' name='L192'></a>   192                 + exception.<a href='../D/18295.html' title='Multiple defined in 3 places.'>toString</a> ());
-<a id='L193' name='L193'></a>   193       <em class='brace'>}</em>
-<a id='L194' name='L194'></a>   194   <em class='brace'>}</em>
-<a id='L195' name='L195'></a>   195 
-<a id='L196' name='L196'></a>   196   <strong class='reserved'>private</strong> <strong class='reserved'>void</strong>
-<a id='L197' name='L197'></a>   197   <a href='../R/9536.html' title='Multiple referred from 2 places.'>displayFailureDialog</a> (String title, String text)
-<a id='L198' name='L198'></a>   198   <em class='brace'>{</em>
-<a id='L199' name='L199'></a>   199     AlertDialog.Builder builder;
-<a id='L200' name='L200'></a>   200     AlertDialog dialog;
-<a id='L201' name='L201'></a>   201 
-<a id='L202' name='L202'></a>   202     builder = <strong class='reserved'>new</strong> AlertDialog.Builder (<strong class='reserved'>this</strong>);
-<a id='L203' name='L203'></a>   203     dialog = builder.create ();
-<a id='L204' name='L204'></a>   204     dialog.setTitle (title);
-<a id='L205' name='L205'></a>   205 
-<a id='L206' name='L206'></a>   206     <strong class='reserved'>if</strong> (text == <strong class='reserved'>null</strong>)
-<a id='L207' name='L207'></a>   207       <em class='comment'>/* Read in emacsclient.log instead.  */</em>
-<a id='L208' name='L208'></a>   208       text = <a href='../S/2706.html#L143' title='Defined at 143 in java/org/gnu/emacs/EmacsOpenActivity.java.'>readEmacsClientLog</a> ();
-<a id='L209' name='L209'></a>   209 
-<a id='L210' name='L210'></a>   210     dialog.setMessage (text);
-<a id='L211' name='L211'></a>   211     dialog.setButton (DialogInterface.BUTTON_POSITIVE, "OK", <strong class='reserved'>this</strong>);
-<a id='L212' name='L212'></a>   212     dialog.setOnCancelListener (<strong class='reserved'>this</strong>);
-<a id='L213' name='L213'></a>   213     dialog.show ();
-<a id='L214' name='L214'></a>   214   <em class='brace'>}</em>
-<a id='L215' name='L215'></a>   215 
-<a id='L216' name='L216'></a>   216   <em class='comment'>/* Check that the specified FILE is readable.  If Android 4.4 or</em>
-<a id='L217' name='L217'></a>   217 <em class='comment'>     later is being used, return URI formatted into a `/content/' file</em>
-<a id='L218' name='L218'></a>   218 <em class='comment'>     name.</em>
-<a id='L219' name='L219'></a>   219 <em class='comment'></em>
-<a id='L220' name='L220'></a>   220 <em class='comment'>     If it is not, then copy the file in FD to a location in the</em>
-<a id='L221' name='L221'></a>   221 <em class='comment'>     system cache directory and return the name of that file.  */</em>
-<a id='L222' name='L222'></a>   222 
-<a id='L223' name='L223'></a>   223   <strong class='reserved'>private</strong> String
-<a id='L224' name='L224'></a>   224   <a href='../S/2706.html#L472' title='Referred from 472 in java/org/gnu/emacs/EmacsOpenActivity.java.'>checkReadableOrCopy</a> (String file, ParcelFileDescriptor fd,
-<a id='L225' name='L225'></a>   225                        Uri uri)
-<a id='L226' name='L226'></a>   226     <strong class='reserved'>throws</strong> IOException, FileNotFoundException
-<a id='L227' name='L227'></a>   227   <em class='brace'>{</em>
-<a id='L228' name='L228'></a>   228     File inFile;
-<a id='L229' name='L229'></a>   229     FileOutputStream outStream;
-<a id='L230' name='L230'></a>   230     InputStream stream;
-<a id='L231' name='L231'></a>   231     <strong class='reserved'>byte</strong> <a href='../S/3176.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>[];
-<a id='L232' name='L232'></a>   232     <strong class='reserved'>int</strong> <a href='../D/16055.html' title='Multiple defined in 14 places.'>read</a>;
-<a id='L233' name='L233'></a>   233     String content;
-<a id='L234' name='L234'></a>   234 
-<a id='L235' name='L235'></a>   235     Log.<a href='../D/10238.html' title='Multiple defined in 2 places.'>d</a> (TAG, "checkReadableOrCopy: " + file);
-<a id='L236' name='L236'></a>   236 
-<a id='L237' name='L237'></a>   237     inFile = <strong class='reserved'>new</strong> File (file);
-<a id='L238' name='L238'></a>   238 
-<a id='L239' name='L239'></a>   239     <strong class='reserved'>if</strong> (inFile.canRead ())
-<a id='L240' name='L240'></a>   240       <strong class='reserved'>return</strong> file;
-<a id='L241' name='L241'></a>   241 
-<a id='L242' name='L242'></a>   242     Log.<a href='../D/10238.html' title='Multiple defined in 2 places.'>d</a> (TAG, "checkReadableOrCopy: NO");
-<a id='L243' name='L243'></a>   243 
-<a id='L244' name='L244'></a>   244     <strong class='reserved'>if</strong> (Build.<a href='../S/4425.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &gt;= Build.VERSION_CODES.KITKAT)
-<a id='L245' name='L245'></a>   245       <em class='brace'>{</em>
-<a id='L246' name='L246'></a>   246         content = "/content/" + uri.getEncodedAuthority ();
-<a id='L247' name='L247'></a>   247 
-<a id='L248' name='L248'></a>   248         <strong class='reserved'>for</strong> (String segment : uri.getPathSegments ())
-<a id='L249' name='L249'></a>   249           content += "/" + Uri.encode (segment);
-<a id='L250' name='L250'></a>   250 
-<a id='L251' name='L251'></a>   251         <em class='comment'>/* Append the URI query.  */</em>
-<a id='L252' name='L252'></a>   252 
-<a id='L253' name='L253'></a>   253         <strong class='reserved'>if</strong> (uri.getEncodedQuery () != <strong class='reserved'>null</strong>)
-<a id='L254' name='L254'></a>   254           content += "?" + uri.getEncodedQuery ();
-<a id='L255' name='L255'></a>   255 
-<a id='L256' name='L256'></a>   256         Log.<a href='../D/10238.html' title='Multiple defined in 2 places.'>d</a> (TAG, "checkReadableOrCopy: " + content);
-<a id='L257' name='L257'></a>   257 
-<a id='L258' name='L258'></a>   258         <strong class='reserved'>return</strong> content;
-<a id='L259' name='L259'></a>   259       <em class='brace'>}</em>
-<a id='L260' name='L260'></a>   260 
-<a id='L261' name='L261'></a>   261     <em class='comment'>/* inFile is now the file being written to.  */</em>
-<a id='L262' name='L262'></a>   262     inFile = <strong class='reserved'>new</strong> File (getCacheDir (), inFile.getName ());
-<a id='L263' name='L263'></a>   263     <a href='../S/3176.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = <strong class='reserved'>new</strong> <strong class='reserved'>byte</strong>[4098];
-<a id='L264' name='L264'></a>   264 
-<a id='L265' name='L265'></a>   265     <em class='comment'>/* Initialize both streams to NULL.  */</em>
-<a id='L266' name='L266'></a>   266     outStream = <strong class='reserved'>null</strong>;
-<a id='L267' name='L267'></a>   267     stream = <strong class='reserved'>null</strong>;
-<a id='L268' name='L268'></a>   268 
-<a id='L269' name='L269'></a>   269     <strong class='reserved'>try</strong>
-<a id='L270' name='L270'></a>   270       <em class='brace'>{</em>
-<a id='L271' name='L271'></a>   271         outStream = <strong class='reserved'>new</strong> FileOutputStream (inFile);
-<a id='L272' name='L272'></a>   272         stream = <strong class='reserved'>new</strong> FileInputStream (fd.getFileDescriptor ());
-<a id='L273' name='L273'></a>   273 
-<a id='L274' name='L274'></a>   274         <strong class='reserved'>while</strong> ((<a href='../D/16055.html' title='Multiple defined in 14 places.'>read</a> = stream.<a href='../D/16055.html' title='Multiple defined in 14 places.'>read</a> (<a href='../S/3176.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)) &gt;= 0)
-<a id='L275' name='L275'></a>   275           outStream.<a href='../D/19352.html' title='Multiple defined in 14 places.'>write</a> (<a href='../S/3176.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, 0, <a href='../D/16055.html' title='Multiple defined in 14 places.'>read</a>);
-<a id='L276' name='L276'></a>   276       <em class='brace'>}</em>
-<a id='L277' name='L277'></a>   277     <strong class='reserved'>finally</strong>
-<a id='L278' name='L278'></a>   278       <em class='brace'>{</em>
-<a id='L279' name='L279'></a>   279         <em class='comment'>/* Note that this does not close FD.</em>
-<a id='L280' name='L280'></a>   280 <em class='comment'></em>
-<a id='L281' name='L281'></a>   281 <em class='comment'>           Keep in mind that execution is transferred to ``finally''</em>
-<a id='L282' name='L282'></a>   282 <em class='comment'>           even if an exception happens inside the while loop</em>
-<a id='L283' name='L283'></a>   283 <em class='comment'>           above.  */</em>
-<a id='L284' name='L284'></a>   284 
-<a id='L285' name='L285'></a>   285         <strong class='reserved'>if</strong> (stream != <strong class='reserved'>null</strong>)
-<a id='L286' name='L286'></a>   286           stream.<a href='../D/9796.html' title='Multiple defined in 18 places.'>close</a> ();
-<a id='L287' name='L287'></a>   287 
-<a id='L288' name='L288'></a>   288         <strong class='reserved'>if</strong> (outStream != <strong class='reserved'>null</strong>)
-<a id='L289' name='L289'></a>   289           outStream.<a href='../D/9796.html' title='Multiple defined in 18 places.'>close</a> ();
-<a id='L290' name='L290'></a>   290       <em class='brace'>}</em>
-<a id='L291' name='L291'></a>   291 
-<a id='L292' name='L292'></a>   292     <strong class='reserved'>return</strong> inFile.getCanonicalPath ();
-<a id='L293' name='L293'></a>   293   <em class='brace'>}</em>
-<a id='L294' name='L294'></a>   294 
-<a id='L295' name='L295'></a>   295   <em class='comment'>/* Finish this activity in response to emacsclient having</em>
-<a id='L296' name='L296'></a>   296 <em class='comment'>     successfully opened a file.</em>
-<a id='L297' name='L297'></a>   297 <em class='comment'></em>
-<a id='L298' name='L298'></a>   298 <em class='comment'>     In the main thread, close this window, and open a window</em>
-<a id='L299' name='L299'></a>   299 <em class='comment'>     belonging to an Emacs frame.  */</em>
-<a id='L300' name='L300'></a>   300 
-<a id='L301' name='L301'></a>   301   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L302' name='L302'></a>   302   <a href='../S/2706.html#L113' title='Referred from 113 in java/org/gnu/emacs/EmacsOpenActivity.java.'>finishSuccess</a> ()
-<a id='L303' name='L303'></a>   303   <em class='brace'>{</em>
-<a id='L304' name='L304'></a>   304     <a href='../S/2697.html#L270' title='Defined at 270 in java/org/gnu/emacs/EmacsService.java.'>runOnUiThread</a> (<strong class='reserved'>new</strong> Runnable () <em class='brace'>{</em>
-<a id='L305' name='L305'></a>   305         @Override
-<a id='L306' name='L306'></a>   306         <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L307' name='L307'></a>   307         <a href='../D/16508.html' title='Multiple defined in 3 places.'>run</a> ()
-<a id='L308' name='L308'></a>   308         <em class='brace'>{</em>
-<a id='L309' name='L309'></a>   309           Intent intent;
-<a id='L310' name='L310'></a>   310 
-<a id='L311' name='L311'></a>   311           intent = <strong class='reserved'>new</strong> Intent (<a href='../S/2706.html#L70' title='Defined at 70 in java/org/gnu/emacs/EmacsOpenActivity.java.'>EmacsOpenActivity</a>.<strong class='reserved'>this</strong>,
-<a id='L312' name='L312'></a>   312                                <a href='../S/2707.html#L45' title='Defined at 45 in java/org/gnu/emacs/EmacsActivity.java.'>EmacsActivity</a>.<strong class='reserved'>class</strong>);
-<a id='L313' name='L313'></a>   313 
-<a id='L314' name='L314'></a>   314           <em class='comment'>/* This means only an existing frame will be displayed.  */</em>
-<a id='L315' name='L315'></a>   315           intent.addFlags (Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
-<a id='L316' name='L316'></a>   316           startActivity (intent);
-<a id='L317' name='L317'></a>   317 
-<a id='L318' name='L318'></a>   318           <a href='../S/2706.html#L70' title='Defined at 70 in java/org/gnu/emacs/EmacsOpenActivity.java.'>EmacsOpenActivity</a>.<strong class='reserved'>this</strong>.finish ();
-<a id='L319' name='L319'></a>   319         <em class='brace'>}</em>
-<a id='L320' name='L320'></a>   320       <em class='brace'>}</em>);
-<a id='L321' name='L321'></a>   321   <em class='brace'>}</em>
-<a id='L322' name='L322'></a>   322 
-<a id='L323' name='L323'></a>   323   <em class='comment'>/* Finish this activity after displaying a dialog associated with</em>
-<a id='L324' name='L324'></a>   324 <em class='comment'>     failure to open a file.</em>
-<a id='L325' name='L325'></a>   325 <em class='comment'></em>
-<a id='L326' name='L326'></a>   326 <em class='comment'>     Use TITLE as the title of the dialog.  If TEXT is non-NULL,</em>
-<a id='L327' name='L327'></a>   327 <em class='comment'>     display that text in the dialog.  Otherwise, use the contents of</em>
-<a id='L328' name='L328'></a>   328 <em class='comment'>     emacsclient.log in the cache directory instead, or describe why</em>
-<a id='L329' name='L329'></a>   329 <em class='comment'>     that file cannot be read.  */</em>
-<a id='L330' name='L330'></a>   330 
-<a id='L331' name='L331'></a>   331   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L332' name='L332'></a>   332   <a href='../R/10475.html' title='Multiple referred from 3 places.'>finishFailure</a> (<strong class='reserved'>final</strong> String title, <strong class='reserved'>final</strong> String text)
-<a id='L333' name='L333'></a>   333   <em class='brace'>{</em>
-<a id='L334' name='L334'></a>   334     <a href='../S/2697.html#L270' title='Defined at 270 in java/org/gnu/emacs/EmacsService.java.'>runOnUiThread</a> (<strong class='reserved'>new</strong> Runnable () <em class='brace'>{</em>
-<a id='L335' name='L335'></a>   335         @Override
-<a id='L336' name='L336'></a>   336         <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L337' name='L337'></a>   337         <a href='../D/16508.html' title='Multiple defined in 3 places.'>run</a> ()
-<a id='L338' name='L338'></a>   338         <em class='brace'>{</em>
-<a id='L339' name='L339'></a>   339           <a href='../S/2706.html#L197' title='Defined at 197 in java/org/gnu/emacs/EmacsOpenActivity.java.'>displayFailureDialog</a> (title, text);
-<a id='L340' name='L340'></a>   340         <em class='brace'>}</em>
-<a id='L341' name='L341'></a>   341       <em class='brace'>}</em>);
-<a id='L342' name='L342'></a>   342   <em class='brace'>}</em>
-<a id='L343' name='L343'></a>   343 
-<a id='L344' name='L344'></a>   344   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L345' name='L345'></a>   345   <a href='../S/2706.html#L510' title='Referred from 510 in java/org/gnu/emacs/EmacsOpenActivity.java.'>startEmacsClient</a> (String fileName)
-<a id='L346' name='L346'></a>   346   <em class='brace'>{</em>
-<a id='L347' name='L347'></a>   347     String libDir;
-<a id='L348' name='L348'></a>   348     ProcessBuilder builder;
-<a id='L349' name='L349'></a>   349     Process process;
-<a id='L350' name='L350'></a>   350     <a href='../S/2706.html#L86' title='Defined at 86 in java/org/gnu/emacs/EmacsOpenActivity.java.'>EmacsClientThread</a> thread;
-<a id='L351' name='L351'></a>   351     File file;
-<a id='L352' name='L352'></a>   352     Intent intent;
-<a id='L353' name='L353'></a>   353 
-<a id='L354' name='L354'></a>   354     <em class='comment'>/* If the Emacs service is not running, then start Emacs and make</em>
-<a id='L355' name='L355'></a>   355 <em class='comment'>       it open this file.  */</em>
-<a id='L356' name='L356'></a>   356 
-<a id='L357' name='L357'></a>   357     <strong class='reserved'>if</strong> (<a href='../S/2697.html#L77' title='Defined at 77 in java/org/gnu/emacs/EmacsService.java.'>EmacsService</a>.SERVICE == <strong class='reserved'>null</strong>)
-<a id='L358' name='L358'></a>   358       <em class='brace'>{</em>
-<a id='L359' name='L359'></a>   359         fileToOpen = fileName;
-<a id='L360' name='L360'></a>   360         intent = <strong class='reserved'>new</strong> Intent (<a href='../S/2706.html#L70' title='Defined at 70 in java/org/gnu/emacs/EmacsOpenActivity.java.'>EmacsOpenActivity</a>.<strong class='reserved'>this</strong>,
-<a id='L361' name='L361'></a>   361                              <a href='../S/2707.html#L45' title='Defined at 45 in java/org/gnu/emacs/EmacsActivity.java.'>EmacsActivity</a>.<strong class='reserved'>class</strong>);
-<a id='L362' name='L362'></a>   362         finish ();
-<a id='L363' name='L363'></a>   363         startActivity (intent);
-<a id='L364' name='L364'></a>   364         <strong class='reserved'>return</strong>;
-<a id='L365' name='L365'></a>   365       <em class='brace'>}</em>
-<a id='L366' name='L366'></a>   366 
-<a id='L367' name='L367'></a>   367     libDir = <a href='../S/2697.html#L77' title='Defined at 77 in java/org/gnu/emacs/EmacsService.java.'>EmacsService</a>.<a href='../S/2697.html#L122' title='Defined at 122 in java/org/gnu/emacs/EmacsService.java.'>getLibraryDirectory</a> (<strong class='reserved'>this</strong>);
-<a id='L368' name='L368'></a>   368     builder = <strong class='reserved'>new</strong> ProcessBuilder (libDir + "/libemacsclient.so",
-<a id='L369' name='L369'></a>   369                                   fileName, "--reuse-frame",
-<a id='L370' name='L370'></a>   370                                   "--timeout=10", "--no-wait");
-<a id='L371' name='L371'></a>   371 
-<a id='L372' name='L372'></a>   372     <em class='comment'>/* Redirection is unfortunately not possible in Android 7 and</em>
-<a id='L373' name='L373'></a>   373 <em class='comment'>       earlier.  */</em>
-<a id='L374' name='L374'></a>   374 
-<a id='L375' name='L375'></a>   375     <strong class='reserved'>if</strong> (Build.<a href='../S/4425.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &gt;= Build.VERSION_CODES.O)
-<a id='L376' name='L376'></a>   376       <em class='brace'>{</em>
-<a id='L377' name='L377'></a>   377         file = <strong class='reserved'>new</strong> File (getCacheDir (), "emacsclient.log");
-<a id='L378' name='L378'></a>   378 
-<a id='L379' name='L379'></a>   379         <em class='comment'>/* Redirect standard error to a file so that errors can be</em>
-<a id='L380' name='L380'></a>   380 <em class='comment'>           meaningfully reported.  */</em>
-<a id='L381' name='L381'></a>   381 
-<a id='L382' name='L382'></a>   382         <strong class='reserved'>if</strong> (file.exists ())
-<a id='L383' name='L383'></a>   383           file.delete ();
-<a id='L384' name='L384'></a>   384 
-<a id='L385' name='L385'></a>   385         builder.redirectError (file);
-<a id='L386' name='L386'></a>   386       <em class='brace'>}</em>
-<a id='L387' name='L387'></a>   387 
-<a id='L388' name='L388'></a>   388     <em class='comment'>/* Track process output in a new thread, since this is the UI</em>
-<a id='L389' name='L389'></a>   389 <em class='comment'>       thread and doing so here can cause deadlocks when EmacsService</em>
-<a id='L390' name='L390'></a>   390 <em class='comment'>       decides to wait for something.  */</em>
-<a id='L391' name='L391'></a>   391 
-<a id='L392' name='L392'></a>   392     thread = <strong class='reserved'>new</strong> <a href='../S/2706.html#L86' title='Defined at 86 in java/org/gnu/emacs/EmacsOpenActivity.java.'>EmacsClientThread</a> (builder);
-<a id='L393' name='L393'></a>   393     thread.<a href='../D/17647.html' title='Multiple defined in 2 places.'>start</a> ();
-<a id='L394' name='L394'></a>   394   <em class='brace'>}</em>
-<a id='L395' name='L395'></a>   395 
-<a id='L396' name='L396'></a>   396   <em class='comment'>/* Run emacsclient to open the file specified in the Intent that</em>
-<a id='L397' name='L397'></a>   397 <em class='comment'>     caused this activity to start.</em>
-<a id='L398' name='L398'></a>   398 <em class='comment'></em>
-<a id='L399' name='L399'></a>   399 <em class='comment'>     Determine the name of the file corresponding to the URI specified</em>
-<a id='L400' name='L400'></a>   400 <em class='comment'>     in that intent; then, run emacsclient and wait for it to finish.</em>
-<a id='L401' name='L401'></a>   401 <em class='comment'></em>
-<a id='L402' name='L402'></a>   402 <em class='comment'>     Finally, display any error message, transfer the focus to an</em>
-<a id='L403' name='L403'></a>   403 <em class='comment'>     Emacs frame, and finish the activity.  */</em>
-<a id='L404' name='L404'></a>   404 
-<a id='L405' name='L405'></a>   405   @Override
-<a id='L406' name='L406'></a>   406   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L407' name='L407'></a>   407   <a href='../R/13910.html' title='Multiple referred from 4 places.'>onCreate</a> (Bundle savedInstanceState)
-<a id='L408' name='L408'></a>   408   <em class='brace'>{</em>
-<a id='L409' name='L409'></a>   409     String action, fileName;
-<a id='L410' name='L410'></a>   410     Intent intent;
-<a id='L411' name='L411'></a>   411     Uri uri;
-<a id='L412' name='L412'></a>   412     ContentResolver resolver;
-<a id='L413' name='L413'></a>   413     ParcelFileDescriptor fd;
-<a id='L414' name='L414'></a>   414     <strong class='reserved'>byte</strong>[] names;
-<a id='L415' name='L415'></a>   415     String errorBlurb;
-<a id='L416' name='L416'></a>   416 
-<a id='L417' name='L417'></a>   417     <strong class='reserved'>super</strong>.<a href='../D/15094.html' title='Multiple defined in 6 places.'>onCreate</a> (savedInstanceState);
-<a id='L418' name='L418'></a>   418 
-<a id='L419' name='L419'></a>   419     <em class='comment'>/* Obtain the intent that started Emacs.  */</em>
-<a id='L420' name='L420'></a>   420     intent = getIntent ();
-<a id='L421' name='L421'></a>   421     action = intent.getAction ();
-<a id='L422' name='L422'></a>   422 
-<a id='L423' name='L423'></a>   423     <strong class='reserved'>if</strong> (action == <strong class='reserved'>null</strong>)
-<a id='L424' name='L424'></a>   424       <em class='brace'>{</em>
-<a id='L425' name='L425'></a>   425         finish ();
-<a id='L426' name='L426'></a>   426         <strong class='reserved'>return</strong>;
-<a id='L427' name='L427'></a>   427       <em class='brace'>}</em>
-<a id='L428' name='L428'></a>   428 
-<a id='L429' name='L429'></a>   429     <em class='comment'>/* Now see if the action specified is supported by Emacs.  */</em>
-<a id='L430' name='L430'></a>   430 
-<a id='L431' name='L431'></a>   431     <strong class='reserved'>if</strong> (action.equals ("android.intent.action.VIEW")
-<a id='L432' name='L432'></a>   432         || action.equals ("android.intent.action.EDIT")
-<a id='L433' name='L433'></a>   433         || action.equals ("android.intent.action.PICK"))
-<a id='L434' name='L434'></a>   434       <em class='brace'>{</em>
-<a id='L435' name='L435'></a>   435         <em class='comment'>/* Obtain the URI of the action.  */</em>
-<a id='L436' name='L436'></a>   436         uri = intent.getData ();
-<a id='L437' name='L437'></a>   437 
-<a id='L438' name='L438'></a>   438         <strong class='reserved'>if</strong> (uri == <strong class='reserved'>null</strong>)
-<a id='L439' name='L439'></a>   439           <em class='brace'>{</em>
-<a id='L440' name='L440'></a>   440             finish ();
-<a id='L441' name='L441'></a>   441             <strong class='reserved'>return</strong>;
-<a id='L442' name='L442'></a>   442           <em class='brace'>}</em>
-<a id='L443' name='L443'></a>   443 
-<a id='L444' name='L444'></a>   444         <em class='comment'>/* Now, try to get the file name.  */</em>
-<a id='L445' name='L445'></a>   445 
-<a id='L446' name='L446'></a>   446         <strong class='reserved'>if</strong> (uri.getScheme ().equals ("file"))
-<a id='L447' name='L447'></a>   447           fileName = uri.getPath ();
-<a id='L448' name='L448'></a>   448         <strong class='reserved'>else</strong>
-<a id='L449' name='L449'></a>   449           <em class='brace'>{</em>
-<a id='L450' name='L450'></a>   450             fileName = <strong class='reserved'>null</strong>;
-<a id='L451' name='L451'></a>   451 
-<a id='L452' name='L452'></a>   452             <strong class='reserved'>if</strong> (uri.getScheme ().equals ("content"))
-<a id='L453' name='L453'></a>   453               <em class='brace'>{</em>
-<a id='L454' name='L454'></a>   454                 <em class='comment'>/* This is one of the annoying Android ``content''</em>
-<a id='L455' name='L455'></a>   455 <em class='comment'>                   URIs.  Most of the time, there is actually an</em>
-<a id='L456' name='L456'></a>   456 <em class='comment'>                   underlying file, but it cannot be found without</em>
-<a id='L457' name='L457'></a>   457 <em class='comment'>                   opening the file and doing readlink on its file</em>
-<a id='L458' name='L458'></a>   458 <em class='comment'>                   descriptor in /proc/self/fd.  */</em>
-<a id='L459' name='L459'></a>   459                 resolver = getContentResolver ();
-<a id='L460' name='L460'></a>   460                 fd = <strong class='reserved'>null</strong>;
-<a id='L461' name='L461'></a>   461 
-<a id='L462' name='L462'></a>   462                 <strong class='reserved'>try</strong>
-<a id='L463' name='L463'></a>   463                   <em class='brace'>{</em>
-<a id='L464' name='L464'></a>   464                     fd = resolver.openFileDescriptor (uri, "r");
-<a id='L465' name='L465'></a>   465                     names = <a href='../S/2713.html#L31' title='Defined at 31 in java/org/gnu/emacs/EmacsNative.java.'>EmacsNative</a>.<a href='../S/2713.html#L172' title='Defined at 172 in java/org/gnu/emacs/EmacsNative.java.'>getProcName</a> (fd.getFd ());
-<a id='L466' name='L466'></a>   466 
-<a id='L467' name='L467'></a>   467                     <em class='comment'>/* What is the right encoding here? */</em>
-<a id='L468' name='L468'></a>   468 
-<a id='L469' name='L469'></a>   469                     <strong class='reserved'>if</strong> (names != <strong class='reserved'>null</strong>)
-<a id='L470' name='L470'></a>   470                       fileName = <strong class='reserved'>new</strong> String (names, "UTF-8");
-<a id='L471' name='L471'></a>   471 
-<a id='L472' name='L472'></a>   472                     fileName = <a href='../S/2706.html#L224' title='Defined at 224 in java/org/gnu/emacs/EmacsOpenActivity.java.'>checkReadableOrCopy</a> (fileName, fd, uri);
-<a id='L473' name='L473'></a>   473                   <em class='brace'>}</em>
-<a id='L474' name='L474'></a>   474                 <strong class='reserved'>catch</strong> (FileNotFoundException exception)
-<a id='L475' name='L475'></a>   475                   <em class='brace'>{</em>
-<a id='L476' name='L476'></a>   476                     <em class='comment'>/* Do nothing.  */</em>
-<a id='L477' name='L477'></a>   477                   <em class='brace'>}</em>
-<a id='L478' name='L478'></a>   478                 <strong class='reserved'>catch</strong> (IOException exception)
-<a id='L479' name='L479'></a>   479                   <em class='brace'>{</em>
-<a id='L480' name='L480'></a>   480                     <em class='comment'>/* Do nothing.  */</em>
-<a id='L481' name='L481'></a>   481                   <em class='brace'>}</em>
-<a id='L482' name='L482'></a>   482 
-<a id='L483' name='L483'></a>   483                 <strong class='reserved'>if</strong> (fd != <strong class='reserved'>null</strong>)
-<a id='L484' name='L484'></a>   484                   <em class='brace'>{</em>
-<a id='L485' name='L485'></a>   485                     <strong class='reserved'>try</strong>
-<a id='L486' name='L486'></a>   486                       <em class='brace'>{</em>
-<a id='L487' name='L487'></a>   487                         fd.<a href='../D/9796.html' title='Multiple defined in 18 places.'>close</a> ();
-<a id='L488' name='L488'></a>   488                       <em class='brace'>}</em>
-<a id='L489' name='L489'></a>   489                     <strong class='reserved'>catch</strong> (IOException exception)
-<a id='L490' name='L490'></a>   490                       <em class='brace'>{</em>
-<a id='L491' name='L491'></a>   491                         <em class='comment'>/* Do nothing.  */</em>
-<a id='L492' name='L492'></a>   492                       <em class='brace'>}</em>
-<a id='L493' name='L493'></a>   493                   <em class='brace'>}</em>
-<a id='L494' name='L494'></a>   494               <em class='brace'>}</em>
-<a id='L495' name='L495'></a>   495 
-<a id='L496' name='L496'></a>   496             <strong class='reserved'>if</strong> (fileName == <strong class='reserved'>null</strong>)
-<a id='L497' name='L497'></a>   497               <em class='brace'>{</em>
-<a id='L498' name='L498'></a>   498                 errorBlurb = ("The URI: " + uri + " could not be opened"
-<a id='L499' name='L499'></a>   499                               + ", as it does not encode file name inform"
-<a id='L500' name='L500'></a>   500                               + "ation.");
-<a id='L501' name='L501'></a>   501                 <a href='../S/2706.html#L197' title='Defined at 197 in java/org/gnu/emacs/EmacsOpenActivity.java.'>displayFailureDialog</a> ("Error opening file", errorBlurb);
-<a id='L502' name='L502'></a>   502                 <strong class='reserved'>return</strong>;
-<a id='L503' name='L503'></a>   503               <em class='brace'>}</em>
-<a id='L504' name='L504'></a>   504           <em class='brace'>}</em>
-<a id='L505' name='L505'></a>   505 
-<a id='L506' name='L506'></a>   506         <em class='comment'>/* And start emacsclient.  Set `currentActivity' to this now.</em>
-<a id='L507' name='L507'></a>   507 <em class='comment'>           Presumably, it will shortly become capable of displaying</em>
-<a id='L508' name='L508'></a>   508 <em class='comment'>           dialogs.  */</em>
-<a id='L509' name='L509'></a>   509         currentActivity = <strong class='reserved'>this</strong>;
-<a id='L510' name='L510'></a>   510         <a href='../S/2706.html#L345' title='Defined at 345 in java/org/gnu/emacs/EmacsOpenActivity.java.'>startEmacsClient</a> (fileName);
-<a id='L511' name='L511'></a>   511       <em class='brace'>}</em>
-<a id='L512' name='L512'></a>   512     <strong class='reserved'>else</strong>
-<a id='L513' name='L513'></a>   513       finish ();
-<a id='L514' name='L514'></a>   514   <em class='brace'>}</em>
-<a id='L515' name='L515'></a>   515 
-<a id='L516' name='L516'></a>   516 
-<a id='L517' name='L517'></a>   517 
-<a id='L518' name='L518'></a>   518   @Override
-<a id='L519' name='L519'></a>   519   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L520' name='L520'></a>   520   <a href='../R/13911.html' title='Multiple referred from 2 places.'>onDestroy</a> ()
-<a id='L521' name='L521'></a>   521   <em class='brace'>{</em>
-<a id='L522' name='L522'></a>   522     Log.<a href='../D/10238.html' title='Multiple defined in 2 places.'>d</a> (TAG, "onDestroy: " + <strong class='reserved'>this</strong>);
-<a id='L523' name='L523'></a>   523 
-<a id='L524' name='L524'></a>   524     <em class='comment'>/* Clear `currentActivity' if it refers to the activity being</em>
-<a id='L525' name='L525'></a>   525 <em class='comment'>       destroyed.  */</em>
-<a id='L526' name='L526'></a>   526 
-<a id='L527' name='L527'></a>   527     <strong class='reserved'>if</strong> (currentActivity == <strong class='reserved'>this</strong>)
-<a id='L528' name='L528'></a>   528       <strong class='reserved'>this</strong>.currentActivity = <strong class='reserved'>null</strong>;
-<a id='L529' name='L529'></a>   529 
-<a id='L530' name='L530'></a>   530     <strong class='reserved'>super</strong>.<a href='../D/15097.html' title='Multiple defined in 2 places.'>onDestroy</a> ();
-<a id='L531' name='L531'></a>   531   <em class='brace'>}</em>
-<a id='L532' name='L532'></a>   532 
-<a id='L533' name='L533'></a>   533   @Override
-<a id='L534' name='L534'></a>   534   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L535' name='L535'></a>   535   <a href='../S/2706.html#L545' title='Referred from 545 in java/org/gnu/emacs/EmacsOpenActivity.java.'>onWindowFocusChanged</a> (<strong class='reserved'>boolean</strong> isFocused)
-<a id='L536' name='L536'></a>   536   <em class='brace'>{</em>
-<a id='L537' name='L537'></a>   537     Log.<a href='../D/10238.html' title='Multiple defined in 2 places.'>d</a> (TAG, "onWindowFocusChanged: " + <strong class='reserved'>this</strong> + ", is now focused: "
-<a id='L538' name='L538'></a>   538            + isFocused);
-<a id='L539' name='L539'></a>   539 
-<a id='L540' name='L540'></a>   540     <strong class='reserved'>if</strong> (isFocused)
-<a id='L541' name='L541'></a>   541       currentActivity = <strong class='reserved'>this</strong>;
-<a id='L542' name='L542'></a>   542     <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (currentActivity == <strong class='reserved'>this</strong>)
-<a id='L543' name='L543'></a>   543       currentActivity = <strong class='reserved'>null</strong>;
-<a id='L544' name='L544'></a>   544 
-<a id='L545' name='L545'></a>   545     <strong class='reserved'>super</strong>.<a href='../D/15116.html' title='Multiple defined in 2 places.'>onWindowFocusChanged</a> (isFocused);
-<a id='L546' name='L546'></a>   546   <em class='brace'>}</em>
-<a id='L547' name='L547'></a>   547 
-<a id='L548' name='L548'></a>   548   @Override
-<a id='L549' name='L549'></a>   549   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L550' name='L550'></a>   550   <a href='../R/13917.html' title='Multiple referred from 2 places.'>onPause</a> ()
-<a id='L551' name='L551'></a>   551   <em class='brace'>{</em>
-<a id='L552' name='L552'></a>   552     Log.<a href='../D/10238.html' title='Multiple defined in 2 places.'>d</a> (TAG, "onPause: " + <strong class='reserved'>this</strong>);
-<a id='L553' name='L553'></a>   553 
-<a id='L554' name='L554'></a>   554     <em class='comment'>/* XXX: clear currentActivity here as well; I don't know whether</em>
-<a id='L555' name='L555'></a>   555 <em class='comment'>       or not onWindowFocusChanged is always called prior to this.  */</em>
-<a id='L556' name='L556'></a>   556 
-<a id='L557' name='L557'></a>   557     <strong class='reserved'>if</strong> (currentActivity == <strong class='reserved'>this</strong>)
-<a id='L558' name='L558'></a>   558       currentActivity = <strong class='reserved'>null</strong>;
-<a id='L559' name='L559'></a>   559 
-<a id='L560' name='L560'></a>   560     <strong class='reserved'>super</strong>.<a href='../D/15110.html' title='Multiple defined in 2 places.'>onPause</a> ();
-<a id='L561' name='L561'></a>   561   <em class='brace'>}</em>
-<a id='L562' name='L562'></a>   562 <em class='brace'>}</em>
+<a id='L70' name='L70'></a>    70     paint.setStyle (Paint.Style.FILL);
+<a id='L71' name='L71'></a>    71 
+<a id='L72' name='L72'></a>    72     <strong class='reserved'>if</strong> (gc.clip_mask == <strong class='reserved'>null</strong>)
+<a id='L73' name='L73'></a>    73       canvas.drawPath (path, paint);
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75     drawable.<a href='../D/10238.html' title='Multiple defined in 4 places.'>damageRect</a> (rect);
+<a id='L76' name='L76'></a>    76 
+<a id='L77' name='L77'></a>    77     <em class='comment'>/* FillPolygon with clip mask not implemented; it is not used by</em>
+<a id='L78' name='L78'></a>    78 <em class='comment'>       Emacs.  */</em>
+<a id='L79' name='L79'></a>    79   <em class='brace'>}</em>
+<a id='L80' name='L80'></a>    80 <em class='brace'>}</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L98'>[^]</a><a href='#L550'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;][^]<a href='#L32'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>

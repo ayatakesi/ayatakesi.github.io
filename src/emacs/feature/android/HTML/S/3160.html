@@ -1,379 +1,251 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>src/dynlib.c</title>
+<title>src/vm-limit.c</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4794.html'>src</a>/dynlib.c</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L59'>[^]</a><a href='#L337'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4791.html'>src</a>/vm-limit.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L97'>[^]</a><a href='#L211'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 <hr />
 <h2 class='header'>DEFINITIONS</h2>
 This source file includes following definitions.
 <ol>
-<li><a href='#L59' title='Defined at 59.'>dynlib_reset_last_error</a></li>
-<li><a href='#L66' title='Defined at 66.'>dynlib_open</a></li>
-<li><a href='#L108' title='Defined at 108.'>dynlib_open_for_eln</a></li>
-<li><a href='#L114' title='Defined at 114.'>dynlib_sym</a></li>
-<li><a href='#L132' title='Defined at 132.'>dynlib_addr</a></li>
-<li><a href='#L231' title='Defined at 231.'>dynlib_error</a></li>
-<li><a href='#L245' title='Defined at 245.'>dynlib_close</a></li>
-<li><a href='#L277' title='Defined at 277.'>dynlib_open</a></li>
-<li><a href='#L284' title='Defined at 284.'>dynlib_open_for_eln</a></li>
-<li><a href='#L291' title='Defined at 291.'>dynlib_sym</a></li>
-<li><a href='#L297' title='Defined at 297.'>dynlib_addr</a></li>
-<li><a href='#L313' title='Defined at 313.'>dynlib_error</a></li>
-<li><a href='#L320' title='Defined at 320.'>dynlib_close</a></li>
-<li><a href='#L337' title='Defined at 337.'>dynlib_func</a></li>
+<li><a href='#L97' title='Defined at 97.'>get_lim_data</a></li>
+<li><a href='#L114' title='Defined at 114.'>get_lim_data</a></li>
+<li><a href='#L123' title='Defined at 123.'>get_lim_data</a></li>
+<li><a href='#L135' title='Defined at 135.'>ret_lim_data</a></li>
+<li><a href='#L147' title='Defined at 147.'>check_memory_limits</a></li>
+<li><a href='#L211' title='Defined at 211.'>memory_warnings</a></li>
 </ol>
 <hr />
 <pre>
-<a id='L1' name='L1'></a>     1 <em class='comment'>/* Portable API for dynamic loading.</em>
-<a id='L2' name='L2'></a>     2 <em class='comment'></em>
-<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright 2015-2023 Free Software Foundation, Inc.</em>
-<a id='L4' name='L4'></a>     4 <em class='comment'></em>
-<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
-<a id='L6' name='L6'></a>     6 <em class='comment'></em>
-<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
-<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
-<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
-<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
-<a id='L11' name='L11'></a>    11 <em class='comment'></em>
-<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
-<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
-<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
-<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
-<a id='L16' name='L16'></a>    16 <em class='comment'></em>
-<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
-<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
-<a id='L19' name='L19'></a>    19 
-<a id='L20' name='L20'></a>    20 
-<a id='L21' name='L21'></a>    21 <em class='comment'>/* Assume modules are enabled on modern systems...  *Yes*, the</em>
-<a id='L22' name='L22'></a>    22 <em class='comment'>   preprocessor macro checks could be more precise.  I don't care.</em>
-<a id='L23' name='L23'></a>    23 <em class='comment'></em>
-<a id='L24' name='L24'></a>    24 <em class='comment'>   If you think the abstraction is too leaky use libltdl (libtool),</em>
-<a id='L25' name='L25'></a>    25 <em class='comment'>   don't reinvent the wheel by fixing this one.  */</em>
-<a id='L26' name='L26'></a>    26 
-<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;config.h&gt;
-<a id='L28' name='L28'></a>    28 
-<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> "<a href='3128.html'>dynlib.h</a>"
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Functions for memory limit warnings.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1990, 1992, 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L18' name='L18'></a>    18 
+<a id='L19' name='L19'></a>    19 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> &lt;<a href='2610.html'>unistd.h</a>&gt; <em class='comment'>/* for 'environ', on AIX */</em>
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
+<a id='L22' name='L22'></a>    22 
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#ifdef</em> <a href='../D/4197.html' title='Multiple defined in 7 places.'>MSDOS</a>
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> "<a href='3161.html'>dosfns.h</a>"
+<a id='L25' name='L25'></a>    25 <strong class='reserved'>extern</strong> <strong class='reserved'>int</strong> etext;
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#endif</em>
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <em class='comment'>/* Some systems need this before &lt;sys/resource.h&gt;.  */</em>
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;sys/types.h&gt;
 <a id='L30' name='L30'></a>    30 
-<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;stddef.h&gt;
-<a id='L32' name='L32'></a>    32 
-<a id='L33' name='L33'></a>    33 <em class='sharp'>#ifdef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
-<a id='L34' name='L34'></a>    34 
-<a id='L35' name='L35'></a>    35 <em class='comment'>/* MS-Windows systems.  */</em>
-<a id='L36' name='L36'></a>    36 
-<a id='L37' name='L37'></a>    37 <em class='sharp'>#include</em> &lt;errno.h&gt;
-<a id='L38' name='L38'></a>    38 <em class='sharp'>#include</em> "<a href='../I/531.html'>lisp.h</a>"
-<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> "<a href='3220.html'>w32common.h</a>"  <em class='comment'>/* for os_subtype */</em>
-<a id='L40' name='L40'></a>    40 <em class='sharp'>#include</em> "<a href='3291.html'>w32.h</a>"
-<a id='L41' name='L41'></a>    41 
-<a id='L42' name='L42'></a>    42 <strong class='reserved'>static</strong> <a href='../D/453.html' title='Multiple defined in 3 places.'>BOOL</a> g_b_init_get_module_handle_ex;
-<a id='L43' name='L43'></a>    43 <strong class='reserved'>static</strong> DWORD dynlib_last_err;
-<a id='L44' name='L44'></a>    44 
-<a id='L45' name='L45'></a>    45 <em class='comment'>/* Some versions of w32api headers only expose the following when</em>
-<a id='L46' name='L46'></a>    46 <em class='comment'>   _WIN32_WINNT is set to higher values that we use.  */</em>
-<a id='L47' name='L47'></a>    47 <strong class='reserved'>typedef</strong> <a href='../D/453.html' title='Multiple defined in 3 places.'>BOOL</a> (WINAPI *GetModuleHandleExA_Proc) (DWORD,LPCSTR,HMODULE*);
-<a id='L48' name='L48'></a>    48 <em class='sharp'>#ifndef</em> <a href='../S/3160.html#L49' title='Defined at 49 in src/dynlib.c.'>GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS</a>
-<a id='L49' name='L49'></a>    49 <em class='sharp'># define</em> <a href='../R/2514.html' title='Multiple referred from 2 places.'>GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS</a> 4
-<a id='L50' name='L50'></a>    50 <em class='sharp'>#endif</em>
-<a id='L51' name='L51'></a>    51 <em class='sharp'>#ifndef</em> <a href='../S/3160.html#L52' title='Defined at 52 in src/dynlib.c.'>GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT</a>
-<a id='L52' name='L52'></a>    52 <em class='sharp'># define</em> <a href='../R/2515.html' title='Multiple referred from 2 places.'>GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT</a> 2
-<a id='L53' name='L53'></a>    53 <em class='sharp'>#endif</em>
-<a id='L54' name='L54'></a>    54 
-<a id='L55' name='L55'></a>    55 <em class='comment'>/* This needs to be called at startup to countermand any non-zero</em>
-<a id='L56' name='L56'></a>    56 <em class='comment'>   values recorded by temacs.  */</em>
-<a id='L57' name='L57'></a>    57 <strong class='reserved'>void</strong> <a href='../S/3160.html#L59' title='Defined at 59 in src/dynlib.c.'>dynlib_reset_last_error</a> (<strong class='reserved'>void</strong>);
-<a id='L58' name='L58'></a>    58 <strong class='reserved'>void</strong>
-<a id='L59' name='L59'></a>    59 <a href='../R/9879.html' title='Multiple referred from 3 places.'>dynlib_reset_last_error</a> (<strong class='reserved'>void</strong>)
-<a id='L60' name='L60'></a>    60 <em class='brace'>{</em>
-<a id='L61' name='L61'></a>    61   g_b_init_get_module_handle_ex = 0;
-<a id='L62' name='L62'></a>    62   dynlib_last_err = 0;
-<a id='L63' name='L63'></a>    63 <em class='brace'>}</em>
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#ifdef</em> HAVE_SYS_RESOURCE_H
+<a id='L32' name='L32'></a>    32 <em class='sharp'># include</em> &lt;<a href='2616.html'>sys/time.h</a>&gt;
+<a id='L33' name='L33'></a>    33 <em class='sharp'># include</em> &lt;<a href='2614.html'>sys/resource.h</a>&gt;
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#else</em>
+<a id='L35' name='L35'></a>    35 <em class='sharp'># if</em> HAVE_SYS_VLIMIT_H
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#  include</em> &lt;sys/vlimit.h&gt;       <em class='comment'>/* Obsolete, says glibc */</em>
+<a id='L37' name='L37'></a>    37 <em class='sharp'># endif</em>
+<a id='L38' name='L38'></a>    38 <em class='sharp'>#endif</em>
+<a id='L39' name='L39'></a>    39 
+<a id='L40' name='L40'></a>    40 <em class='comment'>/* Start of data.  It is OK if this is approximate; it's used only as</em>
+<a id='L41' name='L41'></a>    41 <em class='comment'>   a heuristic.  */</em>
+<a id='L42' name='L42'></a>    42 <em class='sharp'>#ifdef</em> <a href='../D/1367.html' title='Multiple defined in 2 places.'>DATA_START</a>
+<a id='L43' name='L43'></a>    43 <em class='sharp'># define</em> <a href='../R/9296.html' title='Multiple referred from 34 places.'>data_start</a> ((<strong class='reserved'>char</strong> *) <a href='../D/1367.html' title='Multiple defined in 2 places.'>DATA_START</a>)
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#else</em>
+<a id='L45' name='L45'></a>    45 <strong class='reserved'>extern</strong> <strong class='reserved'>char</strong> <a href='../S/3160.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>[];
+<a id='L46' name='L46'></a>    46 <em class='sharp'># ifndef</em> HAVE_DATA_START
+<a id='L47' name='L47'></a>    47 <em class='comment'>/* Initialize to nonzero, so that it's put into data and not bss.</em>
+<a id='L48' name='L48'></a>    48 <em class='comment'>   Link this file's object code first, so that this symbol is near the</em>
+<a id='L49' name='L49'></a>    49 <em class='comment'>   start of data.  */</em>
+<a id='L50' name='L50'></a>    50 <strong class='reserved'>char</strong> <a href='../S/3160.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>[1] = <em class='brace'>{</em> 1 <em class='brace'>}</em>;
+<a id='L51' name='L51'></a>    51 <em class='sharp'># endif</em>
+<a id='L52' name='L52'></a>    52 <em class='sharp'>#endif</em>
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54 <em class='sharp'>#ifdef</em> HAVE_MALLOC_H
+<a id='L55' name='L55'></a>    55 <em class='sharp'># include</em> &lt;malloc.h&gt;
+<a id='L56' name='L56'></a>    56 <em class='sharp'>#endif</em>
+<a id='L57' name='L57'></a>    57 <em class='sharp'>#ifndef</em> DOUG_LEA_MALLOC
+<a id='L58' name='L58'></a>    58 <em class='sharp'># ifndef</em> <a href='../D/8001.html' title='Multiple defined in 3 places.'>__MALLOC_HOOK_VOLATILE</a>
+<a id='L59' name='L59'></a>    59 <em class='sharp'>#  define</em> <a href='../R/7178.html' title='Multiple referred from 11 places.'>__MALLOC_HOOK_VOLATILE</a> <strong class='reserved'>volatile</strong>
+<a id='L60' name='L60'></a>    60 <em class='sharp'># endif</em>
+<a id='L61' name='L61'></a>    61 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> *(*__morecore) (ptrdiff_t);
+<a id='L62' name='L62'></a>    62 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> (*<a href='../D/8001.html' title='Multiple defined in 3 places.'>__MALLOC_HOOK_VOLATILE</a> __after_morecore_hook) (<strong class='reserved'>void</strong>);
+<a id='L63' name='L63'></a>    63 <em class='sharp'>#endif</em>
 <a id='L64' name='L64'></a>    64 
-<a id='L65' name='L65'></a>    65 <a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a>
-<a id='L66' name='L66'></a>    66 <a href='../R/9877.html' title='Multiple referred from 4 places.'>dynlib_open</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *dll_fname)
-<a id='L67' name='L67'></a>    67 <em class='brace'>{</em>
-<a id='L68' name='L68'></a>    68   HMODULE hdll;
-<a id='L69' name='L69'></a>    69   <strong class='reserved'>char</strong> dll_fname_local[<a href='../S/2632.html#L194' title='Defined at 194 in nt/inc/ms-w32.h.'>MAX_UTF8_PATH</a>];
-<a id='L70' name='L70'></a>    70 
-<a id='L71' name='L71'></a>    71   <strong class='reserved'>if</strong> (!dll_fname)
-<a id='L72' name='L72'></a>    72     <em class='brace'>{</em>
-<a id='L73' name='L73'></a>    73       errno = <a href='../D/1817.html' title='Multiple defined in 5 places.'>ENOTSUP</a>;
-<a id='L74' name='L74'></a>    74       <strong class='reserved'>return</strong> <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L75' name='L75'></a>    75     <em class='brace'>}</em>
-<a id='L76' name='L76'></a>    76 
-<a id='L77' name='L77'></a>    77   <strong class='reserved'>if</strong> (!dll_fname)
-<a id='L78' name='L78'></a>    78     hdll = GetModuleHandle (<a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
-<a id='L79' name='L79'></a>    79   <strong class='reserved'>else</strong>
-<a id='L80' name='L80'></a>    80     <em class='brace'>{</em>
-<a id='L81' name='L81'></a>    81       <em class='comment'>/* LoadLibrary wants backslashes.  */</em>
-<a id='L82' name='L82'></a>    82       strcpy (dll_fname_local, dll_fname);
-<a id='L83' name='L83'></a>    83       <a href='../D/18664.html' title='Multiple defined in 2 places.'>unixtodos_filename</a> (dll_fname_local);
-<a id='L84' name='L84'></a>    84 
-<a id='L85' name='L85'></a>    85       <strong class='reserved'>if</strong> (w32_unicode_filenames)
-<a id='L86' name='L86'></a>    86         <em class='brace'>{</em>
-<a id='L87' name='L87'></a>    87           <a href='../S/1942.html#L111' title='Defined at 111 in lib/stddef.in.h.'>wchar_t</a> dll_fname_w[MAX_PATH];
-<a id='L88' name='L88'></a>    88 
-<a id='L89' name='L89'></a>    89           <a href='../S/3103.html#L1752' title='Defined at 1752 in src/w32.c.'>filename_to_utf16</a> (dll_fname_local, dll_fname_w);
-<a id='L90' name='L90'></a>    90           hdll = LoadLibraryW (dll_fname_w);
-<a id='L91' name='L91'></a>    91         <em class='brace'>}</em>
-<a id='L92' name='L92'></a>    92       <strong class='reserved'>else</strong>
-<a id='L93' name='L93'></a>    93         <em class='brace'>{</em>
-<a id='L94' name='L94'></a>    94           <strong class='reserved'>char</strong> dll_fname_a[MAX_PATH];
+<a id='L65' name='L65'></a>    65 <em class='comment'>/* From ralloc.c.  */</em>
+<a id='L66' name='L66'></a>    66 <em class='sharp'>#ifdef</em> REL_ALLOC
+<a id='L67' name='L67'></a>    67 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> *(*real_morecore) (ptrdiff_t);
+<a id='L68' name='L68'></a>    68 <em class='sharp'>#endif</em>
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70 <em class='comment'>/*</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>  Level number of warnings already issued.</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>  0 -- no warnings issued.</em>
+<a id='L73' name='L73'></a>    73 <em class='comment'>  1 -- 75% warning already issued.</em>
+<a id='L74' name='L74'></a>    74 <em class='comment'>  2 -- 85% warning already issued.</em>
+<a id='L75' name='L75'></a>    75 <em class='comment'>  3 -- 95% warning issued; keep warning frequently.</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>*/</em>
+<a id='L77' name='L77'></a>    77 <strong class='reserved'>enum</strong> <a href='../R/17864.html' title='Multiple referred from 10 places.'>warnlevel</a> <em class='brace'>{</em> <a href='../R/13834.html' title='Multiple referred from 2 places.'>not_warned</a>, <a href='../R/17860.html' title='Multiple referred from 3 places.'>warned_75</a>, <a href='../R/17861.html' title='Multiple referred from 3 places.'>warned_85</a>, <a href='../R/17862.html' title='Multiple referred from 2 places.'>warned_95</a> <em class='brace'>}</em>;
+<a id='L78' name='L78'></a>    78 <strong class='reserved'>static</strong> <strong class='reserved'>enum</strong> <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a>;
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80 <em class='comment'>/* Function to call to issue a warning;</em>
+<a id='L81' name='L81'></a>    81 <em class='comment'>   0 means don't issue them.  */</em>
+<a id='L82' name='L82'></a>    82 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> (*warn_function) (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *);
+<a id='L83' name='L83'></a>    83 
+<a id='L84' name='L84'></a>    84 <em class='comment'>/* Start of data space; can be changed by calling memory_warnings.  */</em>
+<a id='L85' name='L85'></a>    85 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *data_space_start;
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87 <em class='comment'>/* Number of bytes of writable memory we can expect to be able to get.  */</em>
+<a id='L88' name='L88'></a>    88 <strong class='reserved'>static</strong> size_t lim_data;
+<a id='L89' name='L89'></a>    89 
+<a id='L90' name='L90'></a>    90 <em class='sharp'>#ifdef</em> HAVE_GETRLIMIT
+<a id='L91' name='L91'></a>    91 
+<a id='L92' name='L92'></a>    92 <em class='sharp'># ifndef</em> <a href='../S/3160.html#L93' title='Defined at 93 in src/vm-limit.c.'>RLIMIT_AS</a>
+<a id='L93' name='L93'></a>    93 <em class='sharp'>#  define</em> <a href='../R/4815.html' title='Multiple referred from 2 places.'>RLIMIT_AS</a> RLIMIT_DATA
+<a id='L94' name='L94'></a>    94 <em class='sharp'># endif</em>
 <a id='L95' name='L95'></a>    95 
-<a id='L96' name='L96'></a>    96           <a href='../S/3103.html#L1806' title='Defined at 1806 in src/w32.c.'>filename_to_ansi</a> (dll_fname_local, dll_fname_a);
-<a id='L97' name='L97'></a>    97           hdll = LoadLibraryA (dll_fname_a);
-<a id='L98' name='L98'></a>    98         <em class='brace'>}</em>
-<a id='L99' name='L99'></a>    99     <em class='brace'>}</em>
-<a id='L100' name='L100'></a>   100 
-<a id='L101' name='L101'></a>   101   <strong class='reserved'>if</strong> (!hdll)
-<a id='L102' name='L102'></a>   102     dynlib_last_err = GetLastError ();
-<a id='L103' name='L103'></a>   103 
-<a id='L104' name='L104'></a>   104   <strong class='reserved'>return</strong> (<a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a>) hdll;
-<a id='L105' name='L105'></a>   105 <em class='brace'>}</em>
-<a id='L106' name='L106'></a>   106 
-<a id='L107' name='L107'></a>   107 <a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a>
-<a id='L108' name='L108'></a>   108 <a href='../R/9878.html' title='Multiple referred from 5 places.'>dynlib_open_for_eln</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *dll_fname)
-<a id='L109' name='L109'></a>   109 <em class='brace'>{</em>
-<a id='L110' name='L110'></a>   110   <strong class='reserved'>return</strong> <a href='../D/10858.html' title='Multiple defined in 2 places.'>dynlib_open</a> (dll_fname);
-<a id='L111' name='L111'></a>   111 <em class='brace'>}</em>
+<a id='L96' name='L96'></a>    96 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L97' name='L97'></a>    97 <a href='../R/11102.html' title='Multiple referred from 4 places.'>get_lim_data</a> (<strong class='reserved'>void</strong>)
+<a id='L98' name='L98'></a>    98 <em class='brace'>{</em>
+<a id='L99' name='L99'></a>    99   <em class='comment'>/* Set LIM_DATA to the minimum of the maximum object size and the</em>
+<a id='L100' name='L100'></a>   100 <em class='comment'>     maximum address space.  Don't bother to check for values like</em>
+<a id='L101' name='L101'></a>   101 <em class='comment'>     RLIM_INFINITY since in practice they are not much less than SIZE_MAX.  */</em>
+<a id='L102' name='L102'></a>   102   <strong class='reserved'>struct</strong> <a href='../S/2614.html#L43' title='Defined at 43 in nt/inc/sys/resource.h.'>rlimit</a> <a href='../S/2614.html#L43' title='Defined at 43 in nt/inc/sys/resource.h.'>rlimit</a>;
+<a id='L103' name='L103'></a>   103   lim_data
+<a id='L104' name='L104'></a>   104     = (<a href='../S/3293.html#L836' title='Defined at 836 in src/w32heap.c.'>getrlimit</a> (<a href='../S/3160.html#L93' title='Defined at 93 in src/vm-limit.c.'>RLIMIT_AS</a>, &amp;<a href='../S/2614.html#L43' title='Defined at 43 in nt/inc/sys/resource.h.'>rlimit</a>) == 0 &amp;&amp; <a href='../S/2614.html#L43' title='Defined at 43 in nt/inc/sys/resource.h.'>rlimit</a>.<a href='../S/1971.html#L106' title='Defined at 106 in lib/getdtablesize.c.'>rlim_cur</a> &lt;= <a href='../D/5844.html' title='Multiple defined in 8 places.'>SIZE_MAX</a>
+<a id='L105' name='L105'></a>   105        ? <a href='../S/2614.html#L43' title='Defined at 43 in nt/inc/sys/resource.h.'>rlimit</a>.<a href='../S/1971.html#L106' title='Defined at 106 in lib/getdtablesize.c.'>rlim_cur</a>
+<a id='L106' name='L106'></a>   106        : <a href='../D/5844.html' title='Multiple defined in 8 places.'>SIZE_MAX</a>);
+<a id='L107' name='L107'></a>   107 <em class='brace'>}</em>
+<a id='L108' name='L108'></a>   108 
+<a id='L109' name='L109'></a>   109 <em class='sharp'>#elif</em> <strong class='reserved'>defined</strong> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L110' name='L110'></a>   110 
+<a id='L111' name='L111'></a>   111 <em class='sharp'>#include</em> "<a href='3247.html'>w32heap.h</a>"
 <a id='L112' name='L112'></a>   112 
-<a id='L113' name='L113'></a>   113 <strong class='reserved'>void</strong> *
-<a id='L114' name='L114'></a>   114 <a href='../R/9880.html' title='Multiple referred from 20 places.'>dynlib_sym</a> (<a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a> h, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a>)
+<a id='L113' name='L113'></a>   113 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L114' name='L114'></a>   114 <a href='../R/11102.html' title='Multiple referred from 4 places.'>get_lim_data</a> (<strong class='reserved'>void</strong>)
 <a id='L115' name='L115'></a>   115 <em class='brace'>{</em>
-<a id='L116' name='L116'></a>   116   FARPROC sym_addr = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L117' name='L117'></a>   117 
-<a id='L118' name='L118'></a>   118   <strong class='reserved'>if</strong> (!h || h == INVALID_HANDLE_VALUE || !<a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a>)
-<a id='L119' name='L119'></a>   119     <em class='brace'>{</em>
-<a id='L120' name='L120'></a>   120       dynlib_last_err = ERROR_INVALID_PARAMETER;
-<a id='L121' name='L121'></a>   121       <strong class='reserved'>return</strong> <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L122' name='L122'></a>   122     <em class='brace'>}</em>
-<a id='L123' name='L123'></a>   123 
-<a id='L124' name='L124'></a>   124   sym_addr = <a href='../D/2955.html' title='Multiple defined in 2 places.'>GetProcAddress</a> ((HMODULE) h, <a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a>);
-<a id='L125' name='L125'></a>   125   <strong class='reserved'>if</strong> (!sym_addr)
-<a id='L126' name='L126'></a>   126     dynlib_last_err = GetLastError ();
-<a id='L127' name='L127'></a>   127 
-<a id='L128' name='L128'></a>   128   <strong class='reserved'>return</strong> (<strong class='reserved'>void</strong> *)sym_addr;
-<a id='L129' name='L129'></a>   129 <em class='brace'>}</em>
-<a id='L130' name='L130'></a>   130 
-<a id='L131' name='L131'></a>   131 <strong class='reserved'>void</strong>
-<a id='L132' name='L132'></a>   132 <a href='../R/9872.html' title='Multiple referred from 2 places.'>dynlib_addr</a> (<strong class='reserved'>void</strong> (*funcptr) (<strong class='reserved'>void</strong>), <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> **fname, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> **symname)
-<a id='L133' name='L133'></a>   133 <em class='brace'>{</em>
-<a id='L134' name='L134'></a>   134   <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> dll_filename[<a href='../S/2632.html#L194' title='Defined at 194 in nt/inc/ms-w32.h.'>MAX_UTF8_PATH</a>];
-<a id='L135' name='L135'></a>   135   <strong class='reserved'>static</strong> GetModuleHandleExA_Proc s_pfn_Get_Module_HandleExA = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L136' name='L136'></a>   136   <strong class='reserved'>char</strong> *dll_fn = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L137' name='L137'></a>   137   HMODULE hm_kernel32 = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L138' name='L138'></a>   138   HMODULE hm_dll = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L139' name='L139'></a>   139   <a href='../S/1942.html#L111' title='Defined at 111 in lib/stddef.in.h.'>wchar_t</a> mfn_w[MAX_PATH];
-<a id='L140' name='L140'></a>   140   <strong class='reserved'>char</strong> mfn_a[MAX_PATH];
-<a id='L141' name='L141'></a>   141   <strong class='reserved'>void</strong> *addr = (<strong class='reserved'>void</strong> *) funcptr;
-<a id='L142' name='L142'></a>   142 
-<a id='L143' name='L143'></a>   143   <em class='comment'>/* Step 1: Find the handle of the module where ADDR lives.  */</em>
-<a id='L144' name='L144'></a>   144   <strong class='reserved'>if</strong> (os_subtype == <a href='../S/3220.html#L44' title='Defined at 44 in src/w32common.h.'>OS_SUBTYPE_9X</a>
-<a id='L145' name='L145'></a>   145       <em class='comment'>/* Windows NT family version before XP (v5.1).  */</em>
-<a id='L146' name='L146'></a>   146       || ((w32_major_version + (w32_minor_version &gt; 0)) &lt; 6))
-<a id='L147' name='L147'></a>   147     <em class='brace'>{</em>
-<a id='L148' name='L148'></a>   148       MEMORY_BASIC_INFORMATION mbi;
-<a id='L149' name='L149'></a>   149 
-<a id='L150' name='L150'></a>   150       <em class='comment'>/* According to Matt Pietrek, the module handle is just the base</em>
-<a id='L151' name='L151'></a>   151 <em class='comment'>         address where it's loaded in memory.  */</em>
-<a id='L152' name='L152'></a>   152       <strong class='reserved'>if</strong> (VirtualQuery (addr, &amp;mbi, <strong class='reserved'>sizeof</strong>(mbi)))
-<a id='L153' name='L153'></a>   153         hm_dll = (HMODULE)mbi.AllocationBase;
-<a id='L154' name='L154'></a>   154     <em class='brace'>}</em>
-<a id='L155' name='L155'></a>   155   <strong class='reserved'>else</strong>
-<a id='L156' name='L156'></a>   156     <em class='brace'>{</em>
-<a id='L157' name='L157'></a>   157       <em class='comment'>/* Use the documented API when available (XP and later).  */</em>
-<a id='L158' name='L158'></a>   158       <strong class='reserved'>if</strong> (g_b_init_get_module_handle_ex == 0)
-<a id='L159' name='L159'></a>   159         <em class='brace'>{</em>
-<a id='L160' name='L160'></a>   160           g_b_init_get_module_handle_ex = 1;
-<a id='L161' name='L161'></a>   161           hm_kernel32 = <a href='../D/3858.html' title='Multiple defined in 4 places.'>LoadLibrary</a> ("kernel32.dll");
-<a id='L162' name='L162'></a>   162           <em class='comment'>/* We load the ANSI version of the function because the</em>
-<a id='L163' name='L163'></a>   163 <em class='comment'>             address we pass to it is not an address of a string, but</em>
-<a id='L164' name='L164'></a>   164 <em class='comment'>             an address of a function.  So we don't care about the</em>
-<a id='L165' name='L165'></a>   165 <em class='comment'>             Unicode version.  */</em>
-<a id='L166' name='L166'></a>   166           s_pfn_Get_Module_HandleExA = (GetModuleHandleExA_Proc)
-<a id='L167' name='L167'></a>   167             <a href='../S/3220.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (hm_kernel32, "GetModuleHandleExA");
-<a id='L168' name='L168'></a>   168         <em class='brace'>}</em>
-<a id='L169' name='L169'></a>   169       <strong class='reserved'>if</strong> (s_pfn_Get_Module_HandleExA)
-<a id='L170' name='L170'></a>   170         <em class='brace'>{</em>
-<a id='L171' name='L171'></a>   171           DWORD flags = (<a href='../S/3160.html#L49' title='Defined at 49 in src/dynlib.c.'>GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS</a>
-<a id='L172' name='L172'></a>   172                          <em class='comment'>/* We don't want to call FreeLibrary at the</em>
-<a id='L173' name='L173'></a>   173 <em class='comment'>                            end, because then we'd need to remember</em>
-<a id='L174' name='L174'></a>   174 <em class='comment'>                            whether we obtained the handle by this</em>
-<a id='L175' name='L175'></a>   175 <em class='comment'>                            method or the above one.  */</em>
-<a id='L176' name='L176'></a>   176                          | <a href='../S/3160.html#L52' title='Defined at 52 in src/dynlib.c.'>GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT</a>);
-<a id='L177' name='L177'></a>   177 
-<a id='L178' name='L178'></a>   178           <strong class='reserved'>if</strong> (!s_pfn_Get_Module_HandleExA (flags, addr, &amp;hm_dll))
-<a id='L179' name='L179'></a>   179             <em class='brace'>{</em>
-<a id='L180' name='L180'></a>   180               dynlib_last_err = GetLastError ();
-<a id='L181' name='L181'></a>   181               hm_dll = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L182' name='L182'></a>   182             <em class='brace'>}</em>
-<a id='L183' name='L183'></a>   183         <em class='brace'>}</em>
-<a id='L184' name='L184'></a>   184     <em class='brace'>}</em>
-<a id='L185' name='L185'></a>   185 
-<a id='L186' name='L186'></a>   186   <em class='comment'>/* Step 2: Find the absolute file name of the module corresponding</em>
-<a id='L187' name='L187'></a>   187 <em class='comment'>     to the hm_dll handle.  */</em>
-<a id='L188' name='L188'></a>   188   <strong class='reserved'>if</strong> (hm_dll)
-<a id='L189' name='L189'></a>   189     <em class='brace'>{</em>
-<a id='L190' name='L190'></a>   190       DWORD retval;
-<a id='L191' name='L191'></a>   191 
-<a id='L192' name='L192'></a>   192       <strong class='reserved'>if</strong> (w32_unicode_filenames)
-<a id='L193' name='L193'></a>   193         <em class='brace'>{</em>
-<a id='L194' name='L194'></a>   194           retval = GetModuleFileNameW (hm_dll, mfn_w, MAX_PATH);
-<a id='L195' name='L195'></a>   195           <strong class='reserved'>if</strong> (retval &gt; 0 &amp;&amp; retval &lt; MAX_PATH
-<a id='L196' name='L196'></a>   196               &amp;&amp; <a href='../S/3103.html#L1779' title='Defined at 1779 in src/w32.c.'>filename_from_utf16</a> (mfn_w, dll_filename) == 0)
-<a id='L197' name='L197'></a>   197             dll_fn = dll_filename;
-<a id='L198' name='L198'></a>   198           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (retval == MAX_PATH)
-<a id='L199' name='L199'></a>   199             dynlib_last_err = ERROR_INSUFFICIENT_BUFFER;
-<a id='L200' name='L200'></a>   200           <strong class='reserved'>else</strong>
-<a id='L201' name='L201'></a>   201             dynlib_last_err = GetLastError ();
-<a id='L202' name='L202'></a>   202         <em class='brace'>}</em>
-<a id='L203' name='L203'></a>   203       <strong class='reserved'>else</strong>
-<a id='L204' name='L204'></a>   204         <em class='brace'>{</em>
-<a id='L205' name='L205'></a>   205           retval = GetModuleFileNameA (hm_dll, mfn_a, MAX_PATH);
-<a id='L206' name='L206'></a>   206           <strong class='reserved'>if</strong> (retval &gt; 0 &amp;&amp; retval &lt; MAX_PATH
-<a id='L207' name='L207'></a>   207               &amp;&amp; <a href='../S/3103.html#L1841' title='Defined at 1841 in src/w32.c.'>filename_from_ansi</a> (mfn_a, dll_filename) == 0)
-<a id='L208' name='L208'></a>   208             dll_fn = dll_filename;
-<a id='L209' name='L209'></a>   209           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (retval == MAX_PATH)
-<a id='L210' name='L210'></a>   210             dynlib_last_err = ERROR_INSUFFICIENT_BUFFER;
-<a id='L211' name='L211'></a>   211           <strong class='reserved'>else</strong>
-<a id='L212' name='L212'></a>   212             dynlib_last_err = GetLastError ();
-<a id='L213' name='L213'></a>   213         <em class='brace'>}</em>
-<a id='L214' name='L214'></a>   214       <strong class='reserved'>if</strong> (dll_fn)
-<a id='L215' name='L215'></a>   215         <a href='../D/10593.html' title='Multiple defined in 2 places.'>dostounix_filename</a> (dll_fn);
-<a id='L216' name='L216'></a>   216     <em class='brace'>}</em>
+<a id='L116' name='L116'></a>   116   <strong class='reserved'>extern</strong> size_t reserved_heap_size;
+<a id='L117' name='L117'></a>   117   lim_data = reserved_heap_size;
+<a id='L118' name='L118'></a>   118 <em class='brace'>}</em>
+<a id='L119' name='L119'></a>   119 
+<a id='L120' name='L120'></a>   120 <em class='sharp'>#elif</em> <strong class='reserved'>defined</strong> <a href='../D/4197.html' title='Multiple defined in 7 places.'>MSDOS</a>
+<a id='L121' name='L121'></a>   121 
+<a id='L122' name='L122'></a>   122 <strong class='reserved'>void</strong>
+<a id='L123' name='L123'></a>   123 <a href='../R/11102.html' title='Multiple referred from 4 places.'>get_lim_data</a> (<strong class='reserved'>void</strong>)
+<a id='L124' name='L124'></a>   124 <em class='brace'>{</em>
+<a id='L125' name='L125'></a>   125   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> totalram, freeram, totalswap, freeswap;
+<a id='L126' name='L126'></a>   126 
+<a id='L127' name='L127'></a>   127   <a href='../S/3226.html#L633' title='Defined at 633 in src/dosfns.c.'>dos_memory_info</a> (&amp;totalram, &amp;freeram, &amp;totalswap, &amp;freeswap);
+<a id='L128' name='L128'></a>   128   lim_data = freeram;
+<a id='L129' name='L129'></a>   129   <em class='comment'>/* Don't believe they will give us more than 0.5 GB.   */</em>
+<a id='L130' name='L130'></a>   130   <strong class='reserved'>if</strong> (lim_data &gt; 512U * 1024U * 1024U)
+<a id='L131' name='L131'></a>   131     lim_data = 512U * 1024U * 1024U;
+<a id='L132' name='L132'></a>   132 <em class='brace'>}</em>
+<a id='L133' name='L133'></a>   133 
+<a id='L134' name='L134'></a>   134 <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong>
+<a id='L135' name='L135'></a>   135 <a href='../R/15170.html' title='Multiple referred from 2 places.'>ret_lim_data</a> (<strong class='reserved'>void</strong>)
+<a id='L136' name='L136'></a>   136 <em class='brace'>{</em>
+<a id='L137' name='L137'></a>   137   <a href='../D/12157.html' title='Multiple defined in 3 places.'>get_lim_data</a> ();
+<a id='L138' name='L138'></a>   138   <strong class='reserved'>return</strong> lim_data;
+<a id='L139' name='L139'></a>   139 <em class='brace'>}</em>
+<a id='L140' name='L140'></a>   140 <em class='sharp'>#else</em>
+<a id='L141' name='L141'></a>   141 <em class='sharp'># error</em> "get_lim_data not implemented on this machine"
+<a id='L142' name='L142'></a>   142 <em class='sharp'>#endif</em>
+<a id='L143' name='L143'></a>   143 
+<a id='L144' name='L144'></a>   144 <em class='comment'>/* Verify amount of memory available, complaining if we're near the end. */</em>
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L147' name='L147'></a>   147 <a href='../S/3160.html#L216' title='Referred from 216 in src/vm-limit.c.'>check_memory_limits</a> (<strong class='reserved'>void</strong>)
+<a id='L148' name='L148'></a>   148 <em class='brace'>{</em>
+<a id='L149' name='L149'></a>   149 <em class='sharp'>#ifndef</em> REL_ALLOC
+<a id='L150' name='L150'></a>   150   <strong class='reserved'>void</strong> *(*real_morecore) (ptrdiff_t) = 0;
+<a id='L151' name='L151'></a>   151 <em class='sharp'>#endif</em>
+<a id='L152' name='L152'></a>   152 
+<a id='L153' name='L153'></a>   153   <strong class='reserved'>char</strong> *cp;
+<a id='L154' name='L154'></a>   154   size_t five_percent;
+<a id='L155' name='L155'></a>   155   size_t data_size;
+<a id='L156' name='L156'></a>   156   <strong class='reserved'>enum</strong> <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> new_warnlevel;
+<a id='L157' name='L157'></a>   157 
+<a id='L158' name='L158'></a>   158   <strong class='reserved'>if</strong> (lim_data == 0)
+<a id='L159' name='L159'></a>   159     <a href='../D/12157.html' title='Multiple defined in 3 places.'>get_lim_data</a> ();
+<a id='L160' name='L160'></a>   160   five_percent = lim_data / 20;
+<a id='L161' name='L161'></a>   161 
+<a id='L162' name='L162'></a>   162   <em class='comment'>/* Find current end of memory and issue warning if getting near max */</em>
+<a id='L163' name='L163'></a>   163   cp = (real_morecore ? real_morecore : __morecore) (0);
+<a id='L164' name='L164'></a>   164   data_size = cp - data_space_start;
+<a id='L165' name='L165'></a>   165 
+<a id='L166' name='L166'></a>   166   <strong class='reserved'>if</strong> (!warn_function)
+<a id='L167' name='L167'></a>   167     <strong class='reserved'>return</strong>;
+<a id='L168' name='L168'></a>   168 
+<a id='L169' name='L169'></a>   169   <em class='comment'>/* What level of warning does current memory usage demand?  */</em>
+<a id='L170' name='L170'></a>   170   new_warnlevel
+<a id='L171' name='L171'></a>   171     = (data_size &gt; five_percent * 19) ? <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warned_95</a>
+<a id='L172' name='L172'></a>   172     : (data_size &gt; five_percent * 17) ? <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warned_85</a>
+<a id='L173' name='L173'></a>   173     : (data_size &gt; five_percent * 15) ? <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warned_75</a>
+<a id='L174' name='L174'></a>   174     : <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>not_warned</a>;
+<a id='L175' name='L175'></a>   175 
+<a id='L176' name='L176'></a>   176   <em class='comment'>/* If we have gone up a level, give the appropriate warning.  */</em>
+<a id='L177' name='L177'></a>   177   <strong class='reserved'>if</strong> (new_warnlevel &gt; <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> || new_warnlevel == <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warned_95</a>)
+<a id='L178' name='L178'></a>   178     <em class='brace'>{</em>
+<a id='L179' name='L179'></a>   179       <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> = new_warnlevel;
+<a id='L180' name='L180'></a>   180       <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<strong class='reserved'>const</strong> warn_diagnostic[] =
+<a id='L181' name='L181'></a>   181         <em class='brace'>{</em>
+<a id='L182' name='L182'></a>   182           "Warning: past 75% of memory limit",
+<a id='L183' name='L183'></a>   183           "Warning: past 85% of memory limit",
+<a id='L184' name='L184'></a>   184           "Warning: past 95% of memory limit"
+<a id='L185' name='L185'></a>   185         <em class='brace'>}</em>;
+<a id='L186' name='L186'></a>   186       warn_function (warn_diagnostic[<a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> - 1]);
+<a id='L187' name='L187'></a>   187     <em class='brace'>}</em>
+<a id='L188' name='L188'></a>   188   <em class='comment'>/* Handle going down in usage levels, with some hysteresis.  */</em>
+<a id='L189' name='L189'></a>   189   <strong class='reserved'>else</strong>
+<a id='L190' name='L190'></a>   190     <em class='brace'>{</em>
+<a id='L191' name='L191'></a>   191       <em class='comment'>/* If we go down below 70% full, issue another 75% warning</em>
+<a id='L192' name='L192'></a>   192 <em class='comment'>         when we go up again.  */</em>
+<a id='L193' name='L193'></a>   193       <strong class='reserved'>if</strong> (data_size &lt; five_percent * 14)
+<a id='L194' name='L194'></a>   194         <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> = <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>not_warned</a>;
+<a id='L195' name='L195'></a>   195       <em class='comment'>/* If we go down below 80% full, issue another 85% warning</em>
+<a id='L196' name='L196'></a>   196 <em class='comment'>         when we go up again.  */</em>
+<a id='L197' name='L197'></a>   197       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> &gt; <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warned_75</a> &amp;&amp; data_size &lt; five_percent * 16)
+<a id='L198' name='L198'></a>   198         <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> = <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warned_75</a>;
+<a id='L199' name='L199'></a>   199       <em class='comment'>/* If we go down below 90% full, issue another 95% warning</em>
+<a id='L200' name='L200'></a>   200 <em class='comment'>         when we go up again.  */</em>
+<a id='L201' name='L201'></a>   201       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> &gt; <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warned_85</a> &amp;&amp; data_size &lt; five_percent * 18)
+<a id='L202' name='L202'></a>   202         <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warnlevel</a> = <a href='../S/3160.html#L77' title='Defined at 77 in src/vm-limit.c.'>warned_85</a>;
+<a id='L203' name='L203'></a>   203     <em class='brace'>}</em>
+<a id='L204' name='L204'></a>   204 <em class='brace'>}</em>
+<a id='L205' name='L205'></a>   205 
+<a id='L206' name='L206'></a>   206 <em class='comment'>/* Enable memory usage warnings.</em>
+<a id='L207' name='L207'></a>   207 <em class='comment'>   START says where the end of pure storage is.</em>
+<a id='L208' name='L208'></a>   208 <em class='comment'>   WARNFUN specifies the function to call to issue a warning.  */</em>
+<a id='L209' name='L209'></a>   209 
+<a id='L210' name='L210'></a>   210 <strong class='reserved'>void</strong>
+<a id='L211' name='L211'></a>   211 <a href='../R/13269.html' title='Multiple referred from 5 places.'>memory_warnings</a> (<strong class='reserved'>void</strong> *<a href='../D/17642.html' title='Multiple defined in 2 places.'>start</a>, <strong class='reserved'>void</strong> (*warnfun) (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *))
+<a id='L212' name='L212'></a>   212 <em class='brace'>{</em>
+<a id='L213' name='L213'></a>   213   data_space_start = <a href='../D/17642.html' title='Multiple defined in 2 places.'>start</a> ? <a href='../D/17642.html' title='Multiple defined in 2 places.'>start</a> : <a href='../S/3160.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>;
+<a id='L214' name='L214'></a>   214 
+<a id='L215' name='L215'></a>   215   warn_function = warnfun;
+<a id='L216' name='L216'></a>   216   __after_morecore_hook = <a href='../S/3160.html#L147' title='Defined at 147 in src/vm-limit.c.'>check_memory_limits</a>;
 <a id='L217' name='L217'></a>   217 
-<a id='L218' name='L218'></a>   218   *fname = dll_fn;
-<a id='L219' name='L219'></a>   219 
-<a id='L220' name='L220'></a>   220   <em class='comment'>/* We cannot easily produce the function name, since typically all</em>
-<a id='L221' name='L221'></a>   221 <em class='comment'>     of the module functions will be unexported, and probably even</em>
-<a id='L222' name='L222'></a>   222 <em class='comment'>     static, which means the symbols can be obtained only if we link</em>
-<a id='L223' name='L223'></a>   223 <em class='comment'>     against libbfd (and the DLL can be stripped anyway).  So we just</em>
-<a id='L224' name='L224'></a>   224 <em class='comment'>     show the address and the file name (see print_vectorlike in</em>
-<a id='L225' name='L225'></a>   225 <em class='comment'>     print.c); they can use that with addr2line or GDB to recover the</em>
-<a id='L226' name='L226'></a>   226 <em class='comment'>     symbolic name.  */</em>
-<a id='L227' name='L227'></a>   227   *symname = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L228' name='L228'></a>   228 <em class='brace'>}</em>
-<a id='L229' name='L229'></a>   229 
-<a id='L230' name='L230'></a>   230 <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *
-<a id='L231' name='L231'></a>   231 <a href='../R/9874.html' title='Multiple referred from 8 places.'>dynlib_error</a> (<strong class='reserved'>void</strong>)
-<a id='L232' name='L232'></a>   232 <em class='brace'>{</em>
-<a id='L233' name='L233'></a>   233   <strong class='reserved'>char</strong> *error_string = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L234' name='L234'></a>   234 
-<a id='L235' name='L235'></a>   235   <strong class='reserved'>if</strong> (dynlib_last_err)
-<a id='L236' name='L236'></a>   236     <em class='brace'>{</em>
-<a id='L237' name='L237'></a>   237       error_string = <a href='../S/3192.html#L9559' title='Defined at 9559 in src/w32fns.c.'>w32_strerror</a> (dynlib_last_err);
-<a id='L238' name='L238'></a>   238       dynlib_last_err = 0;
-<a id='L239' name='L239'></a>   239     <em class='brace'>}</em>
-<a id='L240' name='L240'></a>   240 
-<a id='L241' name='L241'></a>   241   <strong class='reserved'>return</strong> error_string;
-<a id='L242' name='L242'></a>   242 <em class='brace'>}</em>
-<a id='L243' name='L243'></a>   243 
-<a id='L244' name='L244'></a>   244 <strong class='reserved'>int</strong>
-<a id='L245' name='L245'></a>   245 <a href='../R/9873.html' title='Multiple referred from 2 places.'>dynlib_close</a> (<a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a> h)
-<a id='L246' name='L246'></a>   246 <em class='brace'>{</em>
-<a id='L247' name='L247'></a>   247   <strong class='reserved'>if</strong> (!h || h == INVALID_HANDLE_VALUE)
-<a id='L248' name='L248'></a>   248     <em class='brace'>{</em>
-<a id='L249' name='L249'></a>   249       dynlib_last_err = ERROR_INVALID_PARAMETER;
-<a id='L250' name='L250'></a>   250       <strong class='reserved'>return</strong> -1;
-<a id='L251' name='L251'></a>   251     <em class='brace'>}</em>
-<a id='L252' name='L252'></a>   252   <em class='comment'>/* If the handle is for the main module (the .exe file), it</em>
-<a id='L253' name='L253'></a>   253 <em class='comment'>     shouldn't be passed to FreeLibrary, because GetModuleHandle</em>
-<a id='L254' name='L254'></a>   254 <em class='comment'>     doesn't increment the refcount, but FreeLibrary does decrement</em>
-<a id='L255' name='L255'></a>   255 <em class='comment'>     it.  I don't think this should matter for the main module, but</em>
-<a id='L256' name='L256'></a>   256 <em class='comment'>     just in case, we avoid the call here, relying on another call to</em>
-<a id='L257' name='L257'></a>   257 <em class='comment'>     GetModuleHandle to return the same value.  */</em>
-<a id='L258' name='L258'></a>   258   <strong class='reserved'>if</strong> (h == GetModuleHandle (<a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>))
-<a id='L259' name='L259'></a>   259     <strong class='reserved'>return</strong> 0;
-<a id='L260' name='L260'></a>   260 
-<a id='L261' name='L261'></a>   261   <strong class='reserved'>if</strong> (!FreeLibrary ((HMODULE) h))
-<a id='L262' name='L262'></a>   262     <em class='brace'>{</em>
-<a id='L263' name='L263'></a>   263       dynlib_last_err = GetLastError ();
-<a id='L264' name='L264'></a>   264       <strong class='reserved'>return</strong> -1;
-<a id='L265' name='L265'></a>   265     <em class='brace'>}</em>
-<a id='L266' name='L266'></a>   266 
-<a id='L267' name='L267'></a>   267   <strong class='reserved'>return</strong> 0;
-<a id='L268' name='L268'></a>   268 <em class='brace'>}</em>
-<a id='L269' name='L269'></a>   269 
-<a id='L270' name='L270'></a>   270 <em class='sharp'>#elif</em> <strong class='reserved'>defined</strong> HAVE_UNISTD_H
-<a id='L271' name='L271'></a>   271 
-<a id='L272' name='L272'></a>   272 <em class='comment'>/* POSIX systems.  */</em>
-<a id='L273' name='L273'></a>   273 
-<a id='L274' name='L274'></a>   274 <em class='sharp'>#include</em> &lt;dlfcn.h&gt;
-<a id='L275' name='L275'></a>   275 
-<a id='L276' name='L276'></a>   276 <a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a>
-<a id='L277' name='L277'></a>   277 <a href='../R/9877.html' title='Multiple referred from 4 places.'>dynlib_open</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *path)
-<a id='L278' name='L278'></a>   278 <em class='brace'>{</em>
-<a id='L279' name='L279'></a>   279   <strong class='reserved'>return</strong> dlopen (path, RTLD_LAZY | RTLD_GLOBAL);
-<a id='L280' name='L280'></a>   280 <em class='brace'>}</em>
-<a id='L281' name='L281'></a>   281 
-<a id='L282' name='L282'></a>   282 <em class='sharp'># ifdef</em> HAVE_NATIVE_COMP
-<a id='L283' name='L283'></a>   283 <a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a>
-<a id='L284' name='L284'></a>   284 <a href='../R/9878.html' title='Multiple referred from 5 places.'>dynlib_open_for_eln</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *path)
-<a id='L285' name='L285'></a>   285 <em class='brace'>{</em>
-<a id='L286' name='L286'></a>   286   <strong class='reserved'>return</strong> dlopen (path, RTLD_LAZY);
-<a id='L287' name='L287'></a>   287 <em class='brace'>}</em>
-<a id='L288' name='L288'></a>   288 <em class='sharp'># endif</em>
-<a id='L289' name='L289'></a>   289 
-<a id='L290' name='L290'></a>   290 <strong class='reserved'>void</strong> *
-<a id='L291' name='L291'></a>   291 <a href='../R/9880.html' title='Multiple referred from 20 places.'>dynlib_sym</a> (<a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a> h, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a>)
-<a id='L292' name='L292'></a>   292 <em class='brace'>{</em>
-<a id='L293' name='L293'></a>   293   <strong class='reserved'>return</strong> dlsym (h, <a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a>);
-<a id='L294' name='L294'></a>   294 <em class='brace'>}</em>
-<a id='L295' name='L295'></a>   295 
-<a id='L296' name='L296'></a>   296 <strong class='reserved'>void</strong>
-<a id='L297' name='L297'></a>   297 <a href='../R/9872.html' title='Multiple referred from 2 places.'>dynlib_addr</a> (<strong class='reserved'>void</strong> (*funcptr) (<strong class='reserved'>void</strong>), <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> **path, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> **<a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a>)
-<a id='L298' name='L298'></a>   298 <em class='brace'>{</em>
-<a id='L299' name='L299'></a>   299   *path = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L300' name='L300'></a>   300   *<a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a> = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L301' name='L301'></a>   301 <em class='sharp'>#ifdef</em> HAVE_DLADDR
-<a id='L302' name='L302'></a>   302   <strong class='reserved'>void</strong> *ptr = (<strong class='reserved'>void</strong> *) funcptr;
-<a id='L303' name='L303'></a>   303   Dl_info <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>;
-<a id='L304' name='L304'></a>   304   <strong class='reserved'>if</strong> (dladdr (ptr, &amp;<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>) &amp;&amp; <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>.dli_fname &amp;&amp; <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>.dli_sname)
-<a id='L305' name='L305'></a>   305     <em class='brace'>{</em>
-<a id='L306' name='L306'></a>   306       *path = <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>.dli_fname;
-<a id='L307' name='L307'></a>   307       *<a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a> = <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>.dli_sname;
-<a id='L308' name='L308'></a>   308     <em class='brace'>}</em>
-<a id='L309' name='L309'></a>   309 <em class='sharp'>#endif</em>
-<a id='L310' name='L310'></a>   310 <em class='brace'>}</em>
-<a id='L311' name='L311'></a>   311 
-<a id='L312' name='L312'></a>   312 <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *
-<a id='L313' name='L313'></a>   313 <a href='../R/9874.html' title='Multiple referred from 8 places.'>dynlib_error</a> (<strong class='reserved'>void</strong>)
-<a id='L314' name='L314'></a>   314 <em class='brace'>{</em>
-<a id='L315' name='L315'></a>   315   <strong class='reserved'>return</strong> dlerror ();
-<a id='L316' name='L316'></a>   316 <em class='brace'>}</em>
-<a id='L317' name='L317'></a>   317 
-<a id='L318' name='L318'></a>   318 <em class='sharp'># ifdef</em> HAVE_NATIVE_COMP
-<a id='L319' name='L319'></a>   319 <strong class='reserved'>int</strong>
-<a id='L320' name='L320'></a>   320 <a href='../R/9873.html' title='Multiple referred from 2 places.'>dynlib_close</a> (<a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a> h)
-<a id='L321' name='L321'></a>   321 <em class='brace'>{</em>
-<a id='L322' name='L322'></a>   322   <strong class='reserved'>return</strong> dlclose (h) == 0;
-<a id='L323' name='L323'></a>   323 <em class='brace'>}</em>
-<a id='L324' name='L324'></a>   324 <em class='sharp'># endif</em>
-<a id='L325' name='L325'></a>   325 
-<a id='L326' name='L326'></a>   326 <em class='sharp'>#else</em>
-<a id='L327' name='L327'></a>   327 
-<a id='L328' name='L328'></a>   328 <em class='sharp'>#error</em> "No dynamic loading for this system"
-<a id='L329' name='L329'></a>   329 
-<a id='L330' name='L330'></a>   330 <em class='sharp'>#endif</em>
-<a id='L331' name='L331'></a>   331 
-<a id='L332' name='L332'></a>   332 <em class='sharp'>#if</em> !HAVE_DLFUNC
-<a id='L333' name='L333'></a>   333 <em class='sharp'># define</em> <a href='../S/3160.html#L339' title='Referred from 339 in src/dynlib.c.'>dlfunc</a> <a href='../D/10861.html' title='Multiple defined in 2 places.'>dynlib_sym</a>
-<a id='L334' name='L334'></a>   334 <em class='sharp'>#endif</em>
-<a id='L335' name='L335'></a>   335 
-<a id='L336' name='L336'></a>   336 dynlib_function_ptr
-<a id='L337' name='L337'></a>   337 <a href='../R/9875.html' title='Multiple referred from 2 places.'>dynlib_func</a> (<a href='../S/3128.html#L25' title='Defined at 25 in src/dynlib.h.'>dynlib_handle_ptr</a> h, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a>)
-<a id='L338' name='L338'></a>   338 <em class='brace'>{</em>
-<a id='L339' name='L339'></a>   339   <strong class='reserved'>return</strong> (dynlib_function_ptr) <a href='../S/3160.html#L333' title='Defined at 333 in src/dynlib.c.'>dlfunc</a> (h, <a href='../S/4737.html#L278' title='Defined at 278 in lib-src/ebrowse.c.'>sym</a>);
-<a id='L340' name='L340'></a>   340 <em class='brace'>}</em>
+<a id='L218' name='L218'></a>   218   <em class='comment'>/* Force data limit to be recalculated on each run.  */</em>
+<a id='L219' name='L219'></a>   219   lim_data = 0;
+<a id='L220' name='L220'></a>   220 <em class='brace'>}</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L59'>[^]</a><a href='#L337'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L97'>[^]</a><a href='#L211'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>

@@ -1,21 +1,34 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>java/org/gnu/emacs/EmacsApplication.java</title>
+<title>java/org/gnu/emacs/EmacsActivity.java</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4779.html'>java</a>/<a href='../files/4780.html'>org</a>/<a href='../files/4781.html'>gnu</a>/<a href='../files/4782.html'>emacs</a>/EmacsApplication.java</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L38'>[^]</a><a href='#L79'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4776.html'>java</a>/<a href='../files/4777.html'>org</a>/<a href='../files/4778.html'>gnu</a>/<a href='../files/4779.html'>emacs</a>/EmacsActivity.java</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L81'>[^]</a><a href='#L427'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 <hr />
 <h2 class='header'>DEFINITIONS</h2>
 This source file includes following definitions.
 <ol>
-<li><a href='#L38' title='Defined at 38.'>findDumpFile</a></li>
-<li><a href='#L79' title='Defined at 79.'>onCreate</a></li>
+<li><a href='#L81' title='Defined at 81.'>invalidateFocus1</a></li>
+<li><a href='#L91' title='Defined at 91.'>invalidateFocus</a></li>
+<li><a href='#L121' title='Defined at 121.'>detachWindow</a></li>
+<li><a href='#L144' title='Defined at 144.'>attachWindow</a></li>
+<li><a href='#L174' title='Defined at 174.'>destroy</a></li>
+<li><a href='#L181' title='Defined at 181.'>getAttachedWindow</a></li>
+<li><a href='#L188' title='Defined at 188.'>onCreate</a></li>
+<li><a href='#L238' title='Defined at 238.'>onGlobalLayout</a></li>
+<li><a href='#L245' title='Defined at 245.'>onDestroy</a></li>
+<li><a href='#L269' title='Defined at 269.'>onWindowFocusChanged</a></li>
+<li><a href='#L296' title='Defined at 296.'>onPause</a></li>
+<li><a href='#L306' title='Defined at 306.'>onResume</a></li>
+<li><a href='#L316' title='Defined at 316.'>onContextMenuClosed</a></li>
+<li><a href='#L355' title='Defined at 355.'>syncFullscreenWith</a></li>
+<li><a href='#L427' title='Defined at 427.'>onAttachedToWindow</a></li>
 </ol>
 <hr />
 <pre>
@@ -40,80 +53,422 @@ This source file includes following definitions.
 <a id='L19' name='L19'></a>    19 
 <a id='L20' name='L20'></a>    20 <strong class='reserved'>package</strong> org.gnu.emacs;
 <a id='L21' name='L21'></a>    21 
-<a id='L22' name='L22'></a>    22 <strong class='reserved'>import</strong> java.io.File;
-<a id='L23' name='L23'></a>    23 <strong class='reserved'>import</strong> java.io.FileFilter;
-<a id='L24' name='L24'></a>    24 
-<a id='L25' name='L25'></a>    25 <strong class='reserved'>import</strong> android.content.Context;
-<a id='L26' name='L26'></a>    26 
-<a id='L27' name='L27'></a>    27 <strong class='reserved'>import</strong> android.app.Application;
-<a id='L28' name='L28'></a>    28 <strong class='reserved'>import</strong> android.util.Log;
-<a id='L29' name='L29'></a>    29 
-<a id='L30' name='L30'></a>    30 <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>class</strong> <a href='../R/1774.html' title='Multiple referred from 4 places.'>EmacsApplication</a> <strong class='reserved'>extends</strong> Application
-<a id='L31' name='L31'></a>    31 <em class='brace'>{</em>
-<a id='L32' name='L32'></a>    32   <strong class='reserved'>private</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> String TAG = "EmacsApplication";
+<a id='L22' name='L22'></a>    22 <strong class='reserved'>import</strong> java.lang.IllegalStateException;
+<a id='L23' name='L23'></a>    23 <strong class='reserved'>import</strong> java.util.List;
+<a id='L24' name='L24'></a>    24 <strong class='reserved'>import</strong> java.util.ArrayList;
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <strong class='reserved'>import</strong> android.app.Activity;
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <strong class='reserved'>import</strong> android.content.Context;
+<a id='L29' name='L29'></a>    29 <strong class='reserved'>import</strong> android.content.Intent;
+<a id='L30' name='L30'></a>    30 
+<a id='L31' name='L31'></a>    31 <strong class='reserved'>import</strong> android.os.Build;
+<a id='L32' name='L32'></a>    32 <strong class='reserved'>import</strong> android.os.Bundle;
 <a id='L33' name='L33'></a>    33 
-<a id='L34' name='L34'></a>    34   <em class='comment'>/* The name of the dump file to use.  */</em>
-<a id='L35' name='L35'></a>    35   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> String dumpFileName;
-<a id='L36' name='L36'></a>    36 
-<a id='L37' name='L37'></a>    37   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L38' name='L38'></a>    38   <a href='../R/10409.html' title='Multiple referred from 2 places.'>findDumpFile</a> (Context <a href='../S/1824.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>)
-<a id='L39' name='L39'></a>    39   <em class='brace'>{</em>
-<a id='L40' name='L40'></a>    40     File filesDirectory;
-<a id='L41' name='L41'></a>    41     File[] allFiles;
-<a id='L42' name='L42'></a>    42     String wantedDumpFile;
-<a id='L43' name='L43'></a>    43     <strong class='reserved'>int</strong> i;
+<a id='L34' name='L34'></a>    34 <strong class='reserved'>import</strong> android.util.Log;
+<a id='L35' name='L35'></a>    35 
+<a id='L36' name='L36'></a>    36 <strong class='reserved'>import</strong> android.view.Menu;
+<a id='L37' name='L37'></a>    37 <strong class='reserved'>import</strong> android.view.View;
+<a id='L38' name='L38'></a>    38 <strong class='reserved'>import</strong> android.view.ViewTreeObserver;
+<a id='L39' name='L39'></a>    39 <strong class='reserved'>import</strong> android.view.Window;
+<a id='L40' name='L40'></a>    40 <strong class='reserved'>import</strong> android.view.WindowInsets;
+<a id='L41' name='L41'></a>    41 <strong class='reserved'>import</strong> android.view.WindowInsetsController;
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <strong class='reserved'>import</strong> android.widget.FrameLayout;
 <a id='L44' name='L44'></a>    44 
-<a id='L45' name='L45'></a>    45     wantedDumpFile = ("emacs-" + <a href='../S/2713.html#L31' title='Defined at 31 in java/org/gnu/emacs/EmacsNative.java.'>EmacsNative</a>.<a href='../S/2713.html#L43' title='Defined at 43 in java/org/gnu/emacs/EmacsNative.java.'>getFingerprint</a> ()
-<a id='L46' name='L46'></a>    46                       + ".pdmp");
-<a id='L47' name='L47'></a>    47 
-<a id='L48' name='L48'></a>    48     <em class='comment'>/* Obtain a list of all files ending with ``.pdmp''.  Then, look</em>
-<a id='L49' name='L49'></a>    49 <em class='comment'>       for a file named ``emacs-&lt;fingerprint&gt;.pdmp'' and delete the</em>
-<a id='L50' name='L50'></a>    50 <em class='comment'>       rest.  */</em>
-<a id='L51' name='L51'></a>    51     filesDirectory = <a href='../S/1824.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>.getFilesDir ();
-<a id='L52' name='L52'></a>    52 
-<a id='L53' name='L53'></a>    53     allFiles = filesDirectory.listFiles (<strong class='reserved'>new</strong> FileFilter () <em class='brace'>{</em>
-<a id='L54' name='L54'></a>    54         @Override
-<a id='L55' name='L55'></a>    55         <strong class='reserved'>public</strong> <strong class='reserved'>boolean</strong>
-<a id='L56' name='L56'></a>    56         <a href='../D/8281.html' title='Multiple defined in 8 places.'>accept</a> (File file)
-<a id='L57' name='L57'></a>    57         <em class='brace'>{</em>
-<a id='L58' name='L58'></a>    58           <strong class='reserved'>return</strong> (!file.isDirectory ()
-<a id='L59' name='L59'></a>    59                   &amp;&amp; file.getName ().endsWith (".pdmp"));
-<a id='L60' name='L60'></a>    60         <em class='brace'>}</em>
-<a id='L61' name='L61'></a>    61       <em class='brace'>}</em>);
+<a id='L45' name='L45'></a>    45 <strong class='reserved'>public</strong> <strong class='reserved'>class</strong> <a href='../R/1772.html' title='Multiple referred from 23 places.'>EmacsActivity</a> <strong class='reserved'>extends</strong> Activity
+<a id='L46' name='L46'></a>    46   <strong class='reserved'>implements</strong> <a href='../S/2707.html#L54' title='Defined at 54 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>EmacsWindowAttachmentManager</a>.<a href='../S/2707.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>WindowConsumer</a>,
+<a id='L47' name='L47'></a>    47   ViewTreeObserver.OnGlobalLayoutListener
+<a id='L48' name='L48'></a>    48 <em class='brace'>{</em>
+<a id='L49' name='L49'></a>    49   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> String TAG = "EmacsActivity";
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51   <em class='comment'>/* The currently attached EmacsWindow, or null if none.  */</em>
+<a id='L52' name='L52'></a>    52   <strong class='reserved'>private</strong> <a href='../D/1982.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54   <em class='comment'>/* The frame layout associated with the activity.  */</em>
+<a id='L55' name='L55'></a>    55   <strong class='reserved'>private</strong> FrameLayout layout;
+<a id='L56' name='L56'></a>    56 
+<a id='L57' name='L57'></a>    57   <em class='comment'>/* List of activities with focus.  */</em>
+<a id='L58' name='L58'></a>    58   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> List&lt;<a href='../S/2703.html#L45' title='Defined at 45 in java/org/gnu/emacs/EmacsActivity.java.'>EmacsActivity</a>&gt; focusedActivities;
+<a id='L59' name='L59'></a>    59 
+<a id='L60' name='L60'></a>    60   <em class='comment'>/* The last activity to have been focused.  */</em>
+<a id='L61' name='L61'></a>    61   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <a href='../S/2703.html#L45' title='Defined at 45 in java/org/gnu/emacs/EmacsActivity.java.'>EmacsActivity</a> lastFocusedActivity;
 <a id='L62' name='L62'></a>    62 
-<a id='L63' name='L63'></a>    63     <strong class='reserved'>if</strong> (allFiles == <strong class='reserved'>null</strong>)
-<a id='L64' name='L64'></a>    64       <strong class='reserved'>return</strong>;
+<a id='L63' name='L63'></a>    63   <em class='comment'>/* The currently focused window.  */</em>
+<a id='L64' name='L64'></a>    64   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <a href='../D/1982.html' title='Multiple defined in 2 places.'>EmacsWindow</a> focusedWindow;
 <a id='L65' name='L65'></a>    65 
-<a id='L66' name='L66'></a>    66     <em class='comment'>/* Now try to find the right dump file.  */</em>
-<a id='L67' name='L67'></a>    67     <strong class='reserved'>for</strong> (i = 0; i &lt; allFiles.length; ++i)
-<a id='L68' name='L68'></a>    68       <em class='brace'>{</em>
-<a id='L69' name='L69'></a>    69         <strong class='reserved'>if</strong> (allFiles[i].getName ().equals (wantedDumpFile))
-<a id='L70' name='L70'></a>    70           dumpFileName = allFiles[i].getAbsolutePath ();
-<a id='L71' name='L71'></a>    71         <strong class='reserved'>else</strong>
-<a id='L72' name='L72'></a>    72           <em class='comment'>/* Delete this outdated dump file.  */</em>
-<a id='L73' name='L73'></a>    73           allFiles[i].delete ();
-<a id='L74' name='L74'></a>    74       <em class='brace'>}</em>
-<a id='L75' name='L75'></a>    75   <em class='brace'>}</em>
-<a id='L76' name='L76'></a>    76 
-<a id='L77' name='L77'></a>    77   @Override
-<a id='L78' name='L78'></a>    78   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
-<a id='L79' name='L79'></a>    79   <a href='../R/13910.html' title='Multiple referred from 4 places.'>onCreate</a> ()
-<a id='L80' name='L80'></a>    80   <em class='brace'>{</em>
-<a id='L81' name='L81'></a>    81     <em class='comment'>/* Block signals which don't interest the current thread and its</em>
-<a id='L82' name='L82'></a>    82 <em class='comment'>       descendants created by the system.  The original signal mask</em>
-<a id='L83' name='L83'></a>    83 <em class='comment'>       will be restored for the Emacs thread in `initEmacs'.  */</em>
-<a id='L84' name='L84'></a>    84     <a href='../S/2713.html#L31' title='Defined at 31 in java/org/gnu/emacs/EmacsNative.java.'>EmacsNative</a>.<a href='../S/2713.html#L194' title='Defined at 194 in java/org/gnu/emacs/EmacsNative.java.'>setupSystemThread</a> ();
+<a id='L66' name='L66'></a>    66   <em class='comment'>/* Whether or not this activity is paused.  */</em>
+<a id='L67' name='L67'></a>    67   <strong class='reserved'>private</strong> <strong class='reserved'>boolean</strong> isPaused;
+<a id='L68' name='L68'></a>    68 
+<a id='L69' name='L69'></a>    69   <em class='comment'>/* Whether or not this activity is fullscreen.  */</em>
+<a id='L70' name='L70'></a>    70   <strong class='reserved'>private</strong> <strong class='reserved'>boolean</strong> isFullscreen;
+<a id='L71' name='L71'></a>    71 
+<a id='L72' name='L72'></a>    72   <em class='comment'>/* The last context menu to be closed.  */</em>
+<a id='L73' name='L73'></a>    73   <strong class='reserved'>private</strong> Menu lastClosedMenu;
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75   <strong class='reserved'>static</strong>
+<a id='L76' name='L76'></a>    76   <em class='brace'>{</em>
+<a id='L77' name='L77'></a>    77     focusedActivities = <strong class='reserved'>new</strong> ArrayList&lt;<a href='../S/2703.html#L45' title='Defined at 45 in java/org/gnu/emacs/EmacsActivity.java.'>EmacsActivity</a>&gt; ();
+<a id='L78' name='L78'></a>    78   <em class='brace'>}</em>;
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L81' name='L81'></a>    81   <a href='../R/12339.html' title='Multiple referred from 2 places.'>invalidateFocus1</a> (<a href='../D/1982.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>)
+<a id='L82' name='L82'></a>    82   <em class='brace'>{</em>
+<a id='L83' name='L83'></a>    83     <strong class='reserved'>if</strong> (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.view.isFocused ())
+<a id='L84' name='L84'></a>    84       focusedWindow = <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
 <a id='L85' name='L85'></a>    85 
-<a id='L86' name='L86'></a>    86     <em class='comment'>/* Locate a suitable dump file.  */</em>
-<a id='L87' name='L87'></a>    87     <a href='../S/2703.html#L38' title='Defined at 38 in java/org/gnu/emacs/EmacsApplication.java.'>findDumpFile</a> (<strong class='reserved'>this</strong>);
-<a id='L88' name='L88'></a>    88 
-<a id='L89' name='L89'></a>    89     <em class='comment'>/* Start the rest of the application.  */</em>
-<a id='L90' name='L90'></a>    90     <strong class='reserved'>super</strong>.<a href='../D/15094.html' title='Multiple defined in 6 places.'>onCreate</a> ();
-<a id='L91' name='L91'></a>    91   <em class='brace'>}</em>
-<a id='L92' name='L92'></a>    92 <em class='brace'>}</em>;
+<a id='L86' name='L86'></a>    86     <strong class='reserved'>for</strong> (<a href='../D/1982.html' title='Multiple defined in 2 places.'>EmacsWindow</a> child : <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.children)
+<a id='L87' name='L87'></a>    87       <a href='../S/2703.html#L81' title='Defined at 81 in java/org/gnu/emacs/EmacsActivity.java.'>invalidateFocus1</a> (child);
+<a id='L88' name='L88'></a>    88   <em class='brace'>}</em>
+<a id='L89' name='L89'></a>    89 
+<a id='L90' name='L90'></a>    90   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L91' name='L91'></a>    91   <a href='../R/12338.html' title='Multiple referred from 6 places.'>invalidateFocus</a> ()
+<a id='L92' name='L92'></a>    92   <em class='brace'>{</em>
+<a id='L93' name='L93'></a>    93     <a href='../D/1982.html' title='Multiple defined in 2 places.'>EmacsWindow</a> oldFocus;
+<a id='L94' name='L94'></a>    94 
+<a id='L95' name='L95'></a>    95     <em class='comment'>/* Walk through each focused activity and assign the window focus</em>
+<a id='L96' name='L96'></a>    96 <em class='comment'>       to the bottom-most focused window within.  Record the old focus</em>
+<a id='L97' name='L97'></a>    97 <em class='comment'>       as well.  */</em>
+<a id='L98' name='L98'></a>    98     oldFocus = focusedWindow;
+<a id='L99' name='L99'></a>    99     focusedWindow = <strong class='reserved'>null</strong>;
+<a id='L100' name='L100'></a>   100 
+<a id='L101' name='L101'></a>   101     <strong class='reserved'>for</strong> (<a href='../S/2703.html#L45' title='Defined at 45 in java/org/gnu/emacs/EmacsActivity.java.'>EmacsActivity</a> activity : focusedActivities)
+<a id='L102' name='L102'></a>   102       <em class='brace'>{</em>
+<a id='L103' name='L103'></a>   103         <strong class='reserved'>if</strong> (activity.<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a> != <strong class='reserved'>null</strong>)
+<a id='L104' name='L104'></a>   104           <a href='../S/2703.html#L81' title='Defined at 81 in java/org/gnu/emacs/EmacsActivity.java.'>invalidateFocus1</a> (activity.<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L105' name='L105'></a>   105       <em class='brace'>}</em>
+<a id='L106' name='L106'></a>   106 
+<a id='L107' name='L107'></a>   107     <em class='comment'>/* Send focus in- and out- events to the previous and current</em>
+<a id='L108' name='L108'></a>   108 <em class='comment'>       focus.  */</em>
+<a id='L109' name='L109'></a>   109 
+<a id='L110' name='L110'></a>   110     <strong class='reserved'>if</strong> (oldFocus != <strong class='reserved'>null</strong>)
+<a id='L111' name='L111'></a>   111       <a href='../S/2709.html#L31' title='Defined at 31 in java/org/gnu/emacs/EmacsNative.java.'>EmacsNative</a>.<a href='../S/2709.html#L112' title='Defined at 112 in java/org/gnu/emacs/EmacsNative.java.'>sendFocusOut</a> (oldFocus.handle,
+<a id='L112' name='L112'></a>   112                                 System.currentTimeMillis ());
+<a id='L113' name='L113'></a>   113 
+<a id='L114' name='L114'></a>   114     <strong class='reserved'>if</strong> (focusedWindow != <strong class='reserved'>null</strong>)
+<a id='L115' name='L115'></a>   115       <a href='../S/2709.html#L31' title='Defined at 31 in java/org/gnu/emacs/EmacsNative.java.'>EmacsNative</a>.<a href='../S/2709.html#L109' title='Defined at 109 in java/org/gnu/emacs/EmacsNative.java.'>sendFocusIn</a> (focusedWindow.handle,
+<a id='L116' name='L116'></a>   116                                System.currentTimeMillis ());
+<a id='L117' name='L117'></a>   117   <em class='brace'>}</em>
+<a id='L118' name='L118'></a>   118 
+<a id='L119' name='L119'></a>   119   @Override
+<a id='L120' name='L120'></a>   120   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L121' name='L121'></a>   121   <a href='../R/9478.html' title='Multiple referred from 4 places.'>detachWindow</a> ()
+<a id='L122' name='L122'></a>   122   <em class='brace'>{</em>
+<a id='L123' name='L123'></a>   123     <a href='../S/2703.html#L355' title='Defined at 355 in java/org/gnu/emacs/EmacsActivity.java.'>syncFullscreenWith</a> (<strong class='reserved'>null</strong>);
+<a id='L124' name='L124'></a>   124 
+<a id='L125' name='L125'></a>   125     <strong class='reserved'>if</strong> (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a> == <strong class='reserved'>null</strong>)
+<a id='L126' name='L126'></a>   126       Log.w (TAG, "detachWindow called, but there is no window");
+<a id='L127' name='L127'></a>   127     <strong class='reserved'>else</strong>
+<a id='L128' name='L128'></a>   128       <em class='brace'>{</em>
+<a id='L129' name='L129'></a>   129         <em class='comment'>/* Clear the window's pointer to this activity and remove the</em>
+<a id='L130' name='L130'></a>   130 <em class='comment'>           window's view.  */</em>
+<a id='L131' name='L131'></a>   131         <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../S/2713.html#L248' title='Defined at 248 in java/org/gnu/emacs/EmacsWindow.java.'>setConsumer</a> (<strong class='reserved'>null</strong>);
+<a id='L132' name='L132'></a>   132 
+<a id='L133' name='L133'></a>   133         <em class='comment'>/* The window can't be iconified any longer.  */</em>
+<a id='L134' name='L134'></a>   134         <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../D/15012.html' title='Multiple defined in 2 places.'>noticeDeiconified</a> ();
+<a id='L135' name='L135'></a>   135         layout.removeView (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.view);
+<a id='L136' name='L136'></a>   136         <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a> = <strong class='reserved'>null</strong>;
+<a id='L137' name='L137'></a>   137 
+<a id='L138' name='L138'></a>   138         <a href='../S/2703.html#L91' title='Defined at 91 in java/org/gnu/emacs/EmacsActivity.java.'>invalidateFocus</a> ();
+<a id='L139' name='L139'></a>   139       <em class='brace'>}</em>
+<a id='L140' name='L140'></a>   140   <em class='brace'>}</em>
+<a id='L141' name='L141'></a>   141 
+<a id='L142' name='L142'></a>   142   @Override
+<a id='L143' name='L143'></a>   143   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L144' name='L144'></a>   144   <a href='../R/8099.html' title='Multiple referred from 2 places.'>attachWindow</a> (<a href='../D/1982.html' title='Multiple defined in 2 places.'>EmacsWindow</a> child)
+<a id='L145' name='L145'></a>   145   <em class='brace'>{</em>
+<a id='L146' name='L146'></a>   146     Log.<a href='../D/10235.html' title='Multiple defined in 2 places.'>d</a> (TAG, "attachWindow: " + child);
+<a id='L147' name='L147'></a>   147 
+<a id='L148' name='L148'></a>   148     <strong class='reserved'>if</strong> (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a> != <strong class='reserved'>null</strong>)
+<a id='L149' name='L149'></a>   149       <strong class='reserved'>throw</strong> <strong class='reserved'>new</strong> IllegalStateException ("trying to attach window when one"
+<a id='L150' name='L150'></a>   150                                        + " already exists");
+<a id='L151' name='L151'></a>   151 
+<a id='L152' name='L152'></a>   152     <a href='../S/2703.html#L355' title='Defined at 355 in java/org/gnu/emacs/EmacsActivity.java.'>syncFullscreenWith</a> (child);
+<a id='L153' name='L153'></a>   153 
+<a id='L154' name='L154'></a>   154     <em class='comment'>/* Record and attach the view.  */</em>
+<a id='L155' name='L155'></a>   155 
+<a id='L156' name='L156'></a>   156     <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a> = child;
+<a id='L157' name='L157'></a>   157     layout.addView (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.view);
+<a id='L158' name='L158'></a>   158     child.<a href='../S/2713.html#L248' title='Defined at 248 in java/org/gnu/emacs/EmacsWindow.java.'>setConsumer</a> (<strong class='reserved'>this</strong>);
+<a id='L159' name='L159'></a>   159 
+<a id='L160' name='L160'></a>   160     <em class='comment'>/* If the window isn't no-focus-on-map, focus its view.  */</em>
+<a id='L161' name='L161'></a>   161     <strong class='reserved'>if</strong> (!child.<a href='../S/2713.html#L1175' title='Defined at 1175 in java/org/gnu/emacs/EmacsWindow.java.'>getDontFocusOnMap</a> ())
+<a id='L162' name='L162'></a>   162       <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.view.requestFocus ();
+<a id='L163' name='L163'></a>   163 
+<a id='L164' name='L164'></a>   164     <em class='comment'>/* If the activity is iconified, send that to the window.  */</em>
+<a id='L165' name='L165'></a>   165     <strong class='reserved'>if</strong> (isPaused)
+<a id='L166' name='L166'></a>   166       <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../D/15013.html' title='Multiple defined in 2 places.'>noticeIconified</a> ();
+<a id='L167' name='L167'></a>   167 
+<a id='L168' name='L168'></a>   168     <em class='comment'>/* Invalidate the focus.  */</em>
+<a id='L169' name='L169'></a>   169     <a href='../S/2703.html#L91' title='Defined at 91 in java/org/gnu/emacs/EmacsActivity.java.'>invalidateFocus</a> ();
+<a id='L170' name='L170'></a>   170   <em class='brace'>}</em>
+<a id='L171' name='L171'></a>   171 
+<a id='L172' name='L172'></a>   172   @Override
+<a id='L173' name='L173'></a>   173   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L174' name='L174'></a>   174   <a href='../R/9471.html' title='Multiple referred from 5 places.'>destroy</a> ()
+<a id='L175' name='L175'></a>   175   <em class='brace'>{</em>
+<a id='L176' name='L176'></a>   176     finish ();
+<a id='L177' name='L177'></a>   177   <em class='brace'>}</em>
+<a id='L178' name='L178'></a>   178 
+<a id='L179' name='L179'></a>   179   @Override
+<a id='L180' name='L180'></a>   180   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <a href='../D/1982.html' title='Multiple defined in 2 places.'>EmacsWindow</a>
+<a id='L181' name='L181'></a>   181   <a href='../R/10996.html' title='Multiple referred from 4 places.'>getAttachedWindow</a> ()
+<a id='L182' name='L182'></a>   182   <em class='brace'>{</em>
+<a id='L183' name='L183'></a>   183     <strong class='reserved'>return</strong> <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
+<a id='L184' name='L184'></a>   184   <em class='brace'>}</em>
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186   @Override
+<a id='L187' name='L187'></a>   187   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L188' name='L188'></a>   188   <a href='../R/13908.html' title='Multiple referred from 4 places.'>onCreate</a> (Bundle savedInstanceState)
+<a id='L189' name='L189'></a>   189   <em class='brace'>{</em>
+<a id='L190' name='L190'></a>   190     FrameLayout.LayoutParams params;
+<a id='L191' name='L191'></a>   191     Intent intent;
+<a id='L192' name='L192'></a>   192     View decorView;
+<a id='L193' name='L193'></a>   193     ViewTreeObserver observer;
+<a id='L194' name='L194'></a>   194     <strong class='reserved'>int</strong> matchParent;
+<a id='L195' name='L195'></a>   195 
+<a id='L196' name='L196'></a>   196     <em class='comment'>/* See if Emacs should be started with any extra arguments, such</em>
+<a id='L197' name='L197'></a>   197 <em class='comment'>       as `--quick'.  */</em>
+<a id='L198' name='L198'></a>   198     intent = getIntent ();
+<a id='L199' name='L199'></a>   199     <a href='../S/2693.html#L77' title='Defined at 77 in java/org/gnu/emacs/EmacsService.java.'>EmacsService</a>.extraStartupArgument
+<a id='L200' name='L200'></a>   200       = intent.getStringExtra ("org.gnu.emacs.STARTUP_ARGUMENT");
+<a id='L201' name='L201'></a>   201 
+<a id='L202' name='L202'></a>   202     matchParent = FrameLayout.LayoutParams.MATCH_PARENT;
+<a id='L203' name='L203'></a>   203     params
+<a id='L204' name='L204'></a>   204       = <strong class='reserved'>new</strong> FrameLayout.LayoutParams (matchParent,
+<a id='L205' name='L205'></a>   205                                       matchParent);
+<a id='L206' name='L206'></a>   206 
+<a id='L207' name='L207'></a>   207     <em class='comment'>/* Make the frame layout.  */</em>
+<a id='L208' name='L208'></a>   208     layout = <strong class='reserved'>new</strong> FrameLayout (<strong class='reserved'>this</strong>);
+<a id='L209' name='L209'></a>   209     layout.setLayoutParams (params);
+<a id='L210' name='L210'></a>   210 
+<a id='L211' name='L211'></a>   211     <em class='comment'>/* Set it as the content view.  */</em>
+<a id='L212' name='L212'></a>   212     setContentView (layout);
+<a id='L213' name='L213'></a>   213 
+<a id='L214' name='L214'></a>   214     <em class='comment'>/* Maybe start the Emacs service if necessary.  */</em>
+<a id='L215' name='L215'></a>   215     <a href='../S/2693.html#L77' title='Defined at 77 in java/org/gnu/emacs/EmacsService.java.'>EmacsService</a>.<a href='../S/2693.html#L533' title='Defined at 533 in java/org/gnu/emacs/EmacsService.java.'>startEmacsService</a> (<strong class='reserved'>this</strong>);
+<a id='L216' name='L216'></a>   216 
+<a id='L217' name='L217'></a>   217     <em class='comment'>/* Add this activity to the list of available activities.  */</em>
+<a id='L218' name='L218'></a>   218     <a href='../S/2707.html#L54' title='Defined at 54 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>EmacsWindowAttachmentManager</a>.MANAGER.<a href='../S/2707.html#L88' title='Defined at 88 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>registerWindowConsumer</a> (<strong class='reserved'>this</strong>);
+<a id='L219' name='L219'></a>   219 
+<a id='L220' name='L220'></a>   220     <em class='comment'>/* Start observing global layout changes between Jelly Bean and Q.</em>
+<a id='L221' name='L221'></a>   221 <em class='comment'>       This is required to restore the fullscreen state whenever the</em>
+<a id='L222' name='L222'></a>   222 <em class='comment'>       on screen keyboard is displayed, as there is otherwise no way</em>
+<a id='L223' name='L223'></a>   223 <em class='comment'>       to determine when the on screen keyboard becomes visible.  */</em>
+<a id='L224' name='L224'></a>   224 
+<a id='L225' name='L225'></a>   225     <strong class='reserved'>if</strong> (Build.<a href='../S/4422.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &gt;= Build.VERSION_CODES.JELLY_BEAN
+<a id='L226' name='L226'></a>   226         &amp;&amp; Build.<a href='../S/4422.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &lt; Build.VERSION_CODES.<a href='../D/5072.html' title='Multiple defined in 3 places.'>R</a>)
+<a id='L227' name='L227'></a>   227       <em class='brace'>{</em>
+<a id='L228' name='L228'></a>   228         decorView = getWindow ().getDecorView ();
+<a id='L229' name='L229'></a>   229         observer = decorView.getViewTreeObserver ();
+<a id='L230' name='L230'></a>   230         observer.addOnGlobalLayoutListener (<strong class='reserved'>this</strong>);
+<a id='L231' name='L231'></a>   231       <em class='brace'>}</em>
+<a id='L232' name='L232'></a>   232 
+<a id='L233' name='L233'></a>   233     <strong class='reserved'>super</strong>.<a href='../D/15090.html' title='Multiple defined in 6 places.'>onCreate</a> (savedInstanceState);
+<a id='L234' name='L234'></a>   234   <em class='brace'>}</em>
+<a id='L235' name='L235'></a>   235 
+<a id='L236' name='L236'></a>   236   @Override
+<a id='L237' name='L237'></a>   237   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L238' name='L238'></a>   238   onGlobalLayout ()
+<a id='L239' name='L239'></a>   239   <em class='brace'>{</em>
+<a id='L240' name='L240'></a>   240     <a href='../S/2703.html#L355' title='Defined at 355 in java/org/gnu/emacs/EmacsActivity.java.'>syncFullscreenWith</a> (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L241' name='L241'></a>   241   <em class='brace'>}</em>
+<a id='L242' name='L242'></a>   242 
+<a id='L243' name='L243'></a>   243   @Override
+<a id='L244' name='L244'></a>   244   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L245' name='L245'></a>   245   <a href='../R/13909.html' title='Multiple referred from 2 places.'>onDestroy</a> ()
+<a id='L246' name='L246'></a>   246   <em class='brace'>{</em>
+<a id='L247' name='L247'></a>   247     <a href='../S/2707.html#L54' title='Defined at 54 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>EmacsWindowAttachmentManager</a> manager;
+<a id='L248' name='L248'></a>   248     <strong class='reserved'>boolean</strong> isMultitask;
+<a id='L249' name='L249'></a>   249 
+<a id='L250' name='L250'></a>   250     manager = <a href='../S/2707.html#L54' title='Defined at 54 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>EmacsWindowAttachmentManager</a>.MANAGER;
+<a id='L251' name='L251'></a>   251 
+<a id='L252' name='L252'></a>   252     <em class='comment'>/* The activity will die shortly hereafter.  If there is a window</em>
+<a id='L253' name='L253'></a>   253 <em class='comment'>       attached, close it now.  */</em>
+<a id='L254' name='L254'></a>   254     Log.<a href='../D/10235.html' title='Multiple defined in 2 places.'>d</a> (TAG, "onDestroy " + <strong class='reserved'>this</strong>);
+<a id='L255' name='L255'></a>   255     isMultitask = <strong class='reserved'>this</strong> <strong class='reserved'>instanceof</strong> <a href='../S/2714.html#L26' title='Defined at 26 in java/org/gnu/emacs/EmacsMultitaskActivity.java.'>EmacsMultitaskActivity</a>;
+<a id='L256' name='L256'></a>   256     manager.<a href='../S/2707.html#L155' title='Defined at 155 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>removeWindowConsumer</a> (<strong class='reserved'>this</strong>, isMultitask || isFinishing ());
+<a id='L257' name='L257'></a>   257     focusedActivities.<a href='../D/16287.html' title='Multiple defined in 3 places.'>remove</a> (<strong class='reserved'>this</strong>);
+<a id='L258' name='L258'></a>   258     <a href='../S/2703.html#L91' title='Defined at 91 in java/org/gnu/emacs/EmacsActivity.java.'>invalidateFocus</a> ();
+<a id='L259' name='L259'></a>   259 
+<a id='L260' name='L260'></a>   260     <em class='comment'>/* Remove this activity from the static field, lest it leak.  */</em>
+<a id='L261' name='L261'></a>   261     <strong class='reserved'>if</strong> (lastFocusedActivity == <strong class='reserved'>this</strong>)
+<a id='L262' name='L262'></a>   262       lastFocusedActivity = <strong class='reserved'>null</strong>;
+<a id='L263' name='L263'></a>   263 
+<a id='L264' name='L264'></a>   264     <strong class='reserved'>super</strong>.<a href='../D/15093.html' title='Multiple defined in 2 places.'>onDestroy</a> ();
+<a id='L265' name='L265'></a>   265   <em class='brace'>}</em>
+<a id='L266' name='L266'></a>   266 
+<a id='L267' name='L267'></a>   267   @Override
+<a id='L268' name='L268'></a>   268   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L269' name='L269'></a>   269   <a href='../S/2702.html#L545' title='Referred from 545 in java/org/gnu/emacs/EmacsOpenActivity.java.'>onWindowFocusChanged</a> (<strong class='reserved'>boolean</strong> isFocused)
+<a id='L270' name='L270'></a>   270   <em class='brace'>{</em>
+<a id='L271' name='L271'></a>   271     Log.<a href='../D/10235.html' title='Multiple defined in 2 places.'>d</a> (TAG, ("onWindowFocusChanged: "
+<a id='L272' name='L272'></a>   272                  + (isFocused ? "YES" : "NO")));
+<a id='L273' name='L273'></a>   273 
+<a id='L274' name='L274'></a>   274     <strong class='reserved'>if</strong> (isFocused &amp;&amp; !focusedActivities.contains (<strong class='reserved'>this</strong>))
+<a id='L275' name='L275'></a>   275       <em class='brace'>{</em>
+<a id='L276' name='L276'></a>   276         focusedActivities.<a href='../S/1819.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a> (<strong class='reserved'>this</strong>);
+<a id='L277' name='L277'></a>   277         lastFocusedActivity = <strong class='reserved'>this</strong>;
+<a id='L278' name='L278'></a>   278 
+<a id='L279' name='L279'></a>   279         <em class='comment'>/* Update the window insets as the focus change may have</em>
+<a id='L280' name='L280'></a>   280 <em class='comment'>           changed the window insets as well, and the system does not</em>
+<a id='L281' name='L281'></a>   281 <em class='comment'>           automatically restore visibility flags.  */</em>
+<a id='L282' name='L282'></a>   282 
+<a id='L283' name='L283'></a>   283         <strong class='reserved'>if</strong> (Build.<a href='../S/4422.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &gt;= Build.VERSION_CODES.JELLY_BEAN
+<a id='L284' name='L284'></a>   284             &amp;&amp; Build.<a href='../S/4422.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &lt; Build.VERSION_CODES.<a href='../D/5072.html' title='Multiple defined in 3 places.'>R</a>
+<a id='L285' name='L285'></a>   285             &amp;&amp; isFullscreen)
+<a id='L286' name='L286'></a>   286           <a href='../S/2703.html#L355' title='Defined at 355 in java/org/gnu/emacs/EmacsActivity.java.'>syncFullscreenWith</a> (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L287' name='L287'></a>   287       <em class='brace'>}</em>
+<a id='L288' name='L288'></a>   288     <strong class='reserved'>else</strong>
+<a id='L289' name='L289'></a>   289       focusedActivities.<a href='../D/16287.html' title='Multiple defined in 3 places.'>remove</a> (<strong class='reserved'>this</strong>);
+<a id='L290' name='L290'></a>   290 
+<a id='L291' name='L291'></a>   291     <a href='../S/2703.html#L91' title='Defined at 91 in java/org/gnu/emacs/EmacsActivity.java.'>invalidateFocus</a> ();
+<a id='L292' name='L292'></a>   292   <em class='brace'>}</em>
+<a id='L293' name='L293'></a>   293 
+<a id='L294' name='L294'></a>   294   @Override
+<a id='L295' name='L295'></a>   295   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L296' name='L296'></a>   296   <a href='../R/13915.html' title='Multiple referred from 2 places.'>onPause</a> ()
+<a id='L297' name='L297'></a>   297   <em class='brace'>{</em>
+<a id='L298' name='L298'></a>   298     isPaused = <strong class='reserved'>true</strong>;
+<a id='L299' name='L299'></a>   299 
+<a id='L300' name='L300'></a>   300     <a href='../S/2707.html#L54' title='Defined at 54 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>EmacsWindowAttachmentManager</a>.MANAGER.<a href='../D/15013.html' title='Multiple defined in 2 places.'>noticeIconified</a> (<strong class='reserved'>this</strong>);
+<a id='L301' name='L301'></a>   301     <strong class='reserved'>super</strong>.<a href='../D/15106.html' title='Multiple defined in 2 places.'>onPause</a> ();
+<a id='L302' name='L302'></a>   302   <em class='brace'>}</em>
+<a id='L303' name='L303'></a>   303 
+<a id='L304' name='L304'></a>   304   @Override
+<a id='L305' name='L305'></a>   305   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L306' name='L306'></a>   306   <a href='../S/2703.html#L311' title='Referred from 311 in java/org/gnu/emacs/EmacsActivity.java.'>onResume</a> ()
+<a id='L307' name='L307'></a>   307   <em class='brace'>{</em>
+<a id='L308' name='L308'></a>   308     isPaused = <strong class='reserved'>false</strong>;
+<a id='L309' name='L309'></a>   309 
+<a id='L310' name='L310'></a>   310     <a href='../S/2707.html#L54' title='Defined at 54 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>EmacsWindowAttachmentManager</a>.MANAGER.<a href='../D/15012.html' title='Multiple defined in 2 places.'>noticeDeiconified</a> (<strong class='reserved'>this</strong>);
+<a id='L311' name='L311'></a>   311     <strong class='reserved'>super</strong>.<a href='../S/2703.html#L306' title='Defined at 306 in java/org/gnu/emacs/EmacsActivity.java.'>onResume</a> ();
+<a id='L312' name='L312'></a>   312   <em class='brace'>}</em>
+<a id='L313' name='L313'></a>   313 
+<a id='L314' name='L314'></a>   314   @Override
+<a id='L315' name='L315'></a>   315   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L316' name='L316'></a>   316   <a href='../S/2703.html#L350' title='Referred from 350 in java/org/gnu/emacs/EmacsActivity.java.'>onContextMenuClosed</a> (Menu menu)
+<a id='L317' name='L317'></a>   317   <em class='brace'>{</em>
+<a id='L318' name='L318'></a>   318     <strong class='reserved'>int</strong> serial;
+<a id='L319' name='L319'></a>   319 
+<a id='L320' name='L320'></a>   320     Log.<a href='../D/10235.html' title='Multiple defined in 2 places.'>d</a> (TAG, "onContextMenuClosed: " + menu);
+<a id='L321' name='L321'></a>   321 
+<a id='L322' name='L322'></a>   322     <em class='comment'>/* See the comment inside onMenuItemClick.  */</em>
+<a id='L323' name='L323'></a>   323 
+<a id='L324' name='L324'></a>   324     <strong class='reserved'>if</strong> (((<a href='../S/2719.html#L42' title='Defined at 42 in java/org/gnu/emacs/EmacsContextMenu.java.'>EmacsContextMenu</a>.wasSubmenuSelected == -2)
+<a id='L325' name='L325'></a>   325          || (<a href='../S/2719.html#L42' title='Defined at 42 in java/org/gnu/emacs/EmacsContextMenu.java.'>EmacsContextMenu</a>.wasSubmenuSelected &gt;= 0
+<a id='L326' name='L326'></a>   326              &amp;&amp; ((System.currentTimeMillis ()
+<a id='L327' name='L327'></a>   327                   - <a href='../S/2719.html#L42' title='Defined at 42 in java/org/gnu/emacs/EmacsContextMenu.java.'>EmacsContextMenu</a>.wasSubmenuSelected)
+<a id='L328' name='L328'></a>   328                  &lt;= 300)))
+<a id='L329' name='L329'></a>   329         || menu == lastClosedMenu)
+<a id='L330' name='L330'></a>   330       <em class='brace'>{</em>
+<a id='L331' name='L331'></a>   331         <a href='../S/2719.html#L42' title='Defined at 42 in java/org/gnu/emacs/EmacsContextMenu.java.'>EmacsContextMenu</a>.wasSubmenuSelected = -1;
+<a id='L332' name='L332'></a>   332         lastClosedMenu = menu;
+<a id='L333' name='L333'></a>   333         <strong class='reserved'>return</strong>;
+<a id='L334' name='L334'></a>   334       <em class='brace'>}</em>
+<a id='L335' name='L335'></a>   335 
+<a id='L336' name='L336'></a>   336     <em class='comment'>/* lastClosedMenu is set because Android apparently calls this</em>
+<a id='L337' name='L337'></a>   337 <em class='comment'>       function twice.  */</em>
+<a id='L338' name='L338'></a>   338 
+<a id='L339' name='L339'></a>   339     lastClosedMenu = <strong class='reserved'>null</strong>;
+<a id='L340' name='L340'></a>   340 
+<a id='L341' name='L341'></a>   341     <em class='comment'>/* Send a context menu event given that no menu item has already</em>
+<a id='L342' name='L342'></a>   342 <em class='comment'>       been selected.  */</em>
+<a id='L343' name='L343'></a>   343     <strong class='reserved'>if</strong> (!<a href='../S/2719.html#L42' title='Defined at 42 in java/org/gnu/emacs/EmacsContextMenu.java.'>EmacsContextMenu</a>.itemAlreadySelected)
+<a id='L344' name='L344'></a>   344       <em class='brace'>{</em>
+<a id='L345' name='L345'></a>   345         serial = <a href='../S/2719.html#L42' title='Defined at 42 in java/org/gnu/emacs/EmacsContextMenu.java.'>EmacsContextMenu</a>.lastMenuEventSerial;
+<a id='L346' name='L346'></a>   346         <a href='../S/2709.html#L31' title='Defined at 31 in java/org/gnu/emacs/EmacsNative.java.'>EmacsNative</a>.<a href='../S/2709.html#L163' title='Defined at 163 in java/org/gnu/emacs/EmacsNative.java.'>sendContextMenu</a> ((<strong class='reserved'>short</strong>) 0, 0,
+<a id='L347' name='L347'></a>   347                                      serial);
+<a id='L348' name='L348'></a>   348       <em class='brace'>}</em>
+<a id='L349' name='L349'></a>   349 
+<a id='L350' name='L350'></a>   350     <strong class='reserved'>super</strong>.<a href='../S/2703.html#L316' title='Defined at 316 in java/org/gnu/emacs/EmacsActivity.java.'>onContextMenuClosed</a> (menu);
+<a id='L351' name='L351'></a>   351   <em class='brace'>}</em>
+<a id='L352' name='L352'></a>   352 
+<a id='L353' name='L353'></a>   353   @SuppressWarnings ("deprecation")
+<a id='L354' name='L354'></a>   354   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L355' name='L355'></a>   355   <a href='../R/16702.html' title='Multiple referred from 6 places.'>syncFullscreenWith</a> (<a href='../D/1982.html' title='Multiple defined in 2 places.'>EmacsWindow</a> emacsWindow)
+<a id='L356' name='L356'></a>   356   <em class='brace'>{</em>
+<a id='L357' name='L357'></a>   357     WindowInsetsController controller;
+<a id='L358' name='L358'></a>   358     <a href='../D/6981.html' title='Multiple defined in 5 places.'>Window</a> <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
+<a id='L359' name='L359'></a>   359     <strong class='reserved'>int</strong> behavior, flags;
+<a id='L360' name='L360'></a>   360     View view;
+<a id='L361' name='L361'></a>   361 
+<a id='L362' name='L362'></a>   362     <strong class='reserved'>if</strong> (emacsWindow != <strong class='reserved'>null</strong>)
+<a id='L363' name='L363'></a>   363       isFullscreen = emacsWindow.fullscreen;
+<a id='L364' name='L364'></a>   364     <strong class='reserved'>else</strong>
+<a id='L365' name='L365'></a>   365       isFullscreen = <strong class='reserved'>false</strong>;
+<a id='L366' name='L366'></a>   366 
+<a id='L367' name='L367'></a>   367     <em class='comment'>/* On Android 11 or later, use the window insets controller to</em>
+<a id='L368' name='L368'></a>   368 <em class='comment'>       control whether or not the view is fullscreen.  */</em>
+<a id='L369' name='L369'></a>   369 
+<a id='L370' name='L370'></a>   370     <strong class='reserved'>if</strong> (Build.<a href='../S/4422.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &gt;= Build.VERSION_CODES.<a href='../D/5072.html' title='Multiple defined in 3 places.'>R</a>)
+<a id='L371' name='L371'></a>   371       <em class='brace'>{</em>
+<a id='L372' name='L372'></a>   372         <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a> = getWindow ();
+<a id='L373' name='L373'></a>   373 
+<a id='L374' name='L374'></a>   374         <em class='comment'>/* If there is no attached window, return immediately.  */</em>
+<a id='L375' name='L375'></a>   375         <strong class='reserved'>if</strong> (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a> == <strong class='reserved'>null</strong>)
+<a id='L376' name='L376'></a>   376           <strong class='reserved'>return</strong>;
+<a id='L377' name='L377'></a>   377 
+<a id='L378' name='L378'></a>   378         behavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE;
+<a id='L379' name='L379'></a>   379         controller = <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.getInsetsController ();
+<a id='L380' name='L380'></a>   380         controller.setSystemBarsBehavior (behavior);
+<a id='L381' name='L381'></a>   381 
+<a id='L382' name='L382'></a>   382         <strong class='reserved'>if</strong> (isFullscreen)
+<a id='L383' name='L383'></a>   383           controller.hide (WindowInsets.Type.statusBars ()
+<a id='L384' name='L384'></a>   384                            | WindowInsets.Type.navigationBars ());
+<a id='L385' name='L385'></a>   385         <strong class='reserved'>else</strong>
+<a id='L386' name='L386'></a>   386           controller.show (WindowInsets.Type.statusBars ()
+<a id='L387' name='L387'></a>   387                            | WindowInsets.Type.navigationBars ());
+<a id='L388' name='L388'></a>   388 
+<a id='L389' name='L389'></a>   389         <strong class='reserved'>return</strong>;
+<a id='L390' name='L390'></a>   390       <em class='brace'>}</em>
+<a id='L391' name='L391'></a>   391 
+<a id='L392' name='L392'></a>   392     <strong class='reserved'>if</strong> (Build.<a href='../S/4422.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &gt;= Build.VERSION_CODES.JELLY_BEAN)
+<a id='L393' name='L393'></a>   393       <em class='brace'>{</em>
+<a id='L394' name='L394'></a>   394         <em class='comment'>/* On Android 4.1 or later, use `setSystemUiVisibility'.  */</em>
+<a id='L395' name='L395'></a>   395 
+<a id='L396' name='L396'></a>   396         <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a> = getWindow ();
+<a id='L397' name='L397'></a>   397 
+<a id='L398' name='L398'></a>   398         <strong class='reserved'>if</strong> (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a> == <strong class='reserved'>null</strong>)
+<a id='L399' name='L399'></a>   399           <strong class='reserved'>return</strong>;
+<a id='L400' name='L400'></a>   400 
+<a id='L401' name='L401'></a>   401         view = <a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>.getDecorView ();
+<a id='L402' name='L402'></a>   402 
+<a id='L403' name='L403'></a>   403         <strong class='reserved'>if</strong> (isFullscreen)
+<a id='L404' name='L404'></a>   404           <em class='brace'>{</em>
+<a id='L405' name='L405'></a>   405             flags = 0;
+<a id='L406' name='L406'></a>   406             flags |= View.SYSTEM_UI_FLAG_FULLSCREEN;
+<a id='L407' name='L407'></a>   407 
+<a id='L408' name='L408'></a>   408             <strong class='reserved'>if</strong> (Build.<a href='../S/4422.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &gt;= Build.VERSION_CODES.KITKAT)
+<a id='L409' name='L409'></a>   409               <em class='brace'>{</em>
+<a id='L410' name='L410'></a>   410                 <em class='comment'>/* These flags means that Emacs will be full screen as</em>
+<a id='L411' name='L411'></a>   411 <em class='comment'>                   long as the state flag is set.  */</em>
+<a id='L412' name='L412'></a>   412                 flags |= View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
+<a id='L413' name='L413'></a>   413                 flags |= View.SYSTEM_UI_FLAG_IMMERSIVE;
+<a id='L414' name='L414'></a>   414                 flags |= View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+<a id='L415' name='L415'></a>   415               <em class='brace'>}</em>
+<a id='L416' name='L416'></a>   416 
+<a id='L417' name='L417'></a>   417             <em class='comment'>/* Apply the given flags.  */</em>
+<a id='L418' name='L418'></a>   418             view.setSystemUiVisibility (flags);
+<a id='L419' name='L419'></a>   419           <em class='brace'>}</em>
+<a id='L420' name='L420'></a>   420         <strong class='reserved'>else</strong>
+<a id='L421' name='L421'></a>   421           view.setSystemUiVisibility (View.SYSTEM_UI_FLAG_VISIBLE);
+<a id='L422' name='L422'></a>   422       <em class='brace'>}</em>
+<a id='L423' name='L423'></a>   423   <em class='brace'>}</em>
+<a id='L424' name='L424'></a>   424 
+<a id='L425' name='L425'></a>   425   @Override
+<a id='L426' name='L426'></a>   426   <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>void</strong>
+<a id='L427' name='L427'></a>   427   <a href='../R/13906.html' title='Multiple referred from 2 places.'>onAttachedToWindow</a> ()
+<a id='L428' name='L428'></a>   428   <em class='brace'>{</em>
+<a id='L429' name='L429'></a>   429     <strong class='reserved'>super</strong>.<a href='../D/15084.html' title='Multiple defined in 2 places.'>onAttachedToWindow</a> ();
+<a id='L430' name='L430'></a>   430 
+<a id='L431' name='L431'></a>   431     <em class='comment'>/* Update the window insets.  */</em>
+<a id='L432' name='L432'></a>   432     <a href='../S/2703.html#L355' title='Defined at 355 in java/org/gnu/emacs/EmacsActivity.java.'>syncFullscreenWith</a> (<a href='../S/3125.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L433' name='L433'></a>   433   <em class='brace'>}</em>
+<a id='L434' name='L434'></a>   434 <em class='brace'>}</em>;
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L38'>[^]</a><a href='#L79'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L81'>[^]</a><a href='#L427'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>

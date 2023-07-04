@@ -1,878 +1,128 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>src/w32inevt.c</title>
+<title>src/sysselect.h</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4794.html'>src</a>/w32inevt.c</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L66'>[^]</a><a href='#L761'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4791.html'>src</a>/sysselect.h</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L67'>[^]</a><a href='#L81'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'><a href='../J/585.html' title='Multiple included from 11 places.'>INCLUDED FROM</a></h2>
 <hr />
 <h2 class='header'>DEFINITIONS</h2>
 This source file includes following definitions.
 <ol>
-<li><a href='#L66' title='Defined at 66.'>w32_read_console_input</a></li>
-<li><a href='#L78' title='Defined at 78.'>fill_queue</a></li>
-<li><a href='#L110' title='Defined at 110.'>get_frame</a></li>
-<li><a href='#L122' title='Defined at 122.'>is_dead_key</a></li>
-<li><a href='#L139' title='Defined at 139.'>key_event</a></li>
-<li><a href='#L408' title='Defined at 408.'>w32_console_mouse_position</a></li>
-<li><a href='#L434' title='Defined at 434.'>mouse_moved_to</a></li>
-<li><a href='#L466' title='Defined at 466.'>do_mouse_event</a></li>
-<li><a href='#L608' title='Defined at 608.'>resize_event</a></li>
-<li><a href='#L617' title='Defined at 617.'>maybe_generate_resize_event</a></li>
-<li><a href='#L633' title='Defined at 633.'>handle_file_notifications</a></li>
-<li><a href='#L722' title='Defined at 722.'>handle_file_notifications</a></li>
-<li><a href='#L761' title='Defined at 761.'>w32_console_read_socket</a></li>
+<li><a href='#L67' title='Defined at 67.'>fd_CLR</a></li>
+<li><a href='#L74' title='Defined at 74.'>fd_ISSET</a></li>
+<li><a href='#L81' title='Defined at 81.'>fd_SET</a></li>
 </ol>
 <hr />
 <pre>
-<a id='L1' name='L1'></a>     1 <em class='comment'>/* Input event support for Emacs on the Microsoft Windows API.</em>
-<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1992-1993, 1995, 2001-2023 Free Software Foundation,</em>
-<a id='L3' name='L3'></a>     3 <em class='comment'>   Inc.</em>
-<a id='L4' name='L4'></a>     4 <em class='comment'></em>
-<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
-<a id='L6' name='L6'></a>     6 <em class='comment'></em>
-<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
-<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
-<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
-<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
-<a id='L11' name='L11'></a>    11 <em class='comment'></em>
-<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
-<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
-<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
-<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
-<a id='L16' name='L16'></a>    16 <em class='comment'></em>
-<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
-<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
-<a id='L19' name='L19'></a>    19 
-<a id='L20' name='L20'></a>    20 <em class='comment'>/*</em>
-<a id='L21' name='L21'></a>    21 <em class='comment'>   Drew Bliss                   01-Oct-93</em>
-<a id='L22' name='L22'></a>    22 <em class='comment'>     Adapted from ntkbd.c by Tim Fleehart</em>
-<a id='L23' name='L23'></a>    23 <em class='comment'>*/</em>
-<a id='L24' name='L24'></a>    24 
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* sysselect.h - System-dependent definitions for the select function.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1995, 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L18' name='L18'></a>    18 
+<a id='L19' name='L19'></a>    19 <em class='sharp'>#ifndef</em> <a href='../S/3206.html#L20' title='Defined at 20 in src/sysselect.h.'>SYSSELECT_H</a>
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#define</em> <a href='../S/3206.html#L19' title='Referred from 19 in src/sysselect.h.'>SYSSELECT_H</a> 1
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#ifndef</em> <a href='../D/1549.html' title='Multiple defined in 4 places.'>DOS_NT</a>
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;sys/select.h&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#endif</em>
 <a id='L25' name='L25'></a>    25 
-<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;config.h&gt;
-<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;stdio.h&gt;
-<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;windows.h&gt;
-<a id='L29' name='L29'></a>    29 
-<a id='L30' name='L30'></a>    30 <em class='sharp'>#ifndef</em> <a href='../S/3206.html#L31' title='Defined at 31 in src/w32inevt.c.'>MOUSE_MOVED</a>
-<a id='L31' name='L31'></a>    31 <em class='sharp'>#define</em> <a href='../R/3810.html' title='Multiple referred from 2 places.'>MOUSE_MOVED</a>   1
-<a id='L32' name='L32'></a>    32 <em class='sharp'>#endif</em>
-<a id='L33' name='L33'></a>    33 <em class='sharp'>#ifndef</em> <a href='../S/3206.html#L34' title='Defined at 34 in src/w32inevt.c.'>MOUSE_HWHEELED</a>
-<a id='L34' name='L34'></a>    34 <em class='sharp'>#define</em> <a href='../R/3808.html' title='Multiple referred from 3 places.'>MOUSE_HWHEELED</a> 8
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <em class='comment'>/* The w32 build defines select stuff in w32.h, which is included</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'>   where w32 needs it, but not where sysselect.h is included.  The w32</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>   definitions in w32.h are incompatible with the below.  */</em>
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#ifndef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#ifdef</em> <a href='../D/2044.html' title='Multiple defined in 6 places.'>FD_SET</a>
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#ifndef</em> <a href='../D/2045.html' title='Multiple defined in 4 places.'>FD_SETSIZE</a>
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#define</em> <a href='../R/1898.html' title='Multiple referred from 84 places.'>FD_SETSIZE</a> 64
 <a id='L35' name='L35'></a>    35 <em class='sharp'>#endif</em>
-<a id='L36' name='L36'></a>    36 
-<a id='L37' name='L37'></a>    37 <em class='sharp'>#include</em> "<a href='../I/531.html'>lisp.h</a>"
-<a id='L38' name='L38'></a>    38 <em class='sharp'>#include</em> "<a href='3091.html'>keyboard.h</a>"
-<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> "<a href='3264.html'>frame.h</a>"
-<a id='L40' name='L40'></a>    40 <em class='sharp'>#include</em> "<a href='3281.html'>blockinput.h</a>"
-<a id='L41' name='L41'></a>    41 <em class='sharp'>#include</em> "<a href='3267.html'>termchar.h</a>"   <em class='comment'>/* for Mouse_HLInfo, tty_display_info */</em>
-<a id='L42' name='L42'></a>    42 <em class='sharp'>#include</em> "<a href='3139.html'>w32term.h</a>"
-<a id='L43' name='L43'></a>    43 <em class='sharp'>#include</em> "<a href='3189.html'>w32inevt.h</a>"
-<a id='L44' name='L44'></a>    44 <em class='sharp'>#include</em> "<a href='3220.html'>w32common.h</a>"
-<a id='L45' name='L45'></a>    45 
-<a id='L46' name='L46'></a>    46 <em class='comment'>/* stdin, from w32console.c */</em>
-<a id='L47' name='L47'></a>    47 <strong class='reserved'>extern</strong> HANDLE keyboard_handle;
-<a id='L48' name='L48'></a>    48 
-<a id='L49' name='L49'></a>    49 <em class='comment'>/* Info for last mouse motion */</em>
-<a id='L50' name='L50'></a>    50 <strong class='reserved'>static</strong> COORD movement_pos;
-<a id='L51' name='L51'></a>    51 <strong class='reserved'>static</strong> <a href='../D/6473.html' title='Multiple defined in 2 places.'>Time</a> movement_time;
-<a id='L52' name='L52'></a>    52 
-<a id='L53' name='L53'></a>    53 <em class='comment'>/* from w32fns.c */</em>
-<a id='L54' name='L54'></a>    54 <strong class='reserved'>extern</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> <a href='../S/3192.html#L3199' title='Defined at 3199 in src/w32fns.c.'>map_keypad_keys</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong>, <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong>);
-<a id='L55' name='L55'></a>    55 <strong class='reserved'>extern</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> <a href='../S/3192.html#L3100' title='Defined at 3100 in src/w32fns.c.'>w32_key_to_modifier</a> (<strong class='reserved'>int</strong> key);
-<a id='L56' name='L56'></a>    56 
-<a id='L57' name='L57'></a>    57 <em class='comment'>/* Event queue */</em>
-<a id='L58' name='L58'></a>    58 <em class='sharp'>#define</em> <a href='../R/1733.html' title='Multiple referred from 2 places.'>EVENT_QUEUE_SIZE</a> 50
-<a id='L59' name='L59'></a>    59 <strong class='reserved'>static</strong> INPUT_RECORD event_queue[<a href='../S/3206.html#L58' title='Defined at 58 in src/w32inevt.c.'>EVENT_QUEUE_SIZE</a>];
-<a id='L60' name='L60'></a>    60 <strong class='reserved'>static</strong> INPUT_RECORD *queue_ptr = event_queue, *queue_end = event_queue;
-<a id='L61' name='L61'></a>    61 
-<a id='L62' name='L62'></a>    62 <em class='comment'>/* Temporarily store lead byte of DBCS input sequences.  */</em>
-<a id='L63' name='L63'></a>    63 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> dbcs_lead = 0;
-<a id='L64' name='L64'></a>    64 
-<a id='L65' name='L65'></a>    65 <strong class='reserved'>static</strong> <strong class='reserved'>inline</strong> <a href='../D/453.html' title='Multiple defined in 3 places.'>BOOL</a>
-<a id='L66' name='L66'></a>    66 <a href='../S/3206.html#L96' title='Referred from 96 in src/w32inevt.c.'>w32_read_console_input</a> (HANDLE h, INPUT_RECORD *rec, DWORD recsize,
-<a id='L67' name='L67'></a>    67                         DWORD *waiting)
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#else</em> <em class='comment'>/* no FD_SET */</em>
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#define</em> <a href='../R/1898.html' title='Multiple referred from 84 places.'>FD_SETSIZE</a> 32
+<a id='L38' name='L38'></a>    38 <strong class='reserved'>typedef</strong> <strong class='reserved'>int</strong> <a href='../R/10295.html' title='Multiple referred from 61 places.'>fd_set</a>;
+<a id='L39' name='L39'></a>    39 
+<a id='L40' name='L40'></a>    40 <em class='comment'>/* Define the macros to access a single-int bitmap of descriptors.  */</em>
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#define</em> <a href='../R/1897.html' title='Multiple referred from 29 places.'>FD_SET</a>(n, p) (*(p) |= (1 &lt;&lt; (n)))
+<a id='L42' name='L42'></a>    42 <em class='sharp'>#define</em> <a href='../R/1895.html' title='Multiple referred from 5 places.'>FD_CLR</a>(n, p) (*(p) &amp;= ~(1 &lt;&lt; (n)))
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#define</em> <a href='../R/1896.html' title='Multiple referred from 27 places.'>FD_ISSET</a>(n, p) (*(p) &amp; (1 &lt;&lt; (n)))
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#define</em> <a href='../R/1899.html' title='Multiple referred from 35 places.'>FD_ZERO</a>(p) (*(p) = 0)
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#endif</em> <em class='comment'>/* no FD_SET */</em>
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#endif</em> <em class='comment'>/* not WINDOWSNT */</em>
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#if</em> !<strong class='reserved'>defined</strong> (HAVE_SELECT)
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#define</em> <a href='../R/15432.html' title='Multiple referred from 15 places.'>select</a> <a href='../D/18087.html' title='Multiple defined in 2 places.'>sys_select</a>
+<a id='L50' name='L50'></a>    50 <em class='sharp'>#endif</em>
+<a id='L51' name='L51'></a>    51 
+<a id='L52' name='L52'></a>    52 <em class='sharp'>#ifdef</em> <a href='../D/4197.html' title='Multiple defined in 7 places.'>MSDOS</a>
+<a id='L53' name='L53'></a>    53 <em class='comment'>/* The above #define for 'select' gets in the way because sysselect.h</em>
+<a id='L54' name='L54'></a>    54 <em class='comment'>   is included in thread.h, which is included everywhere, and 'select'</em>
+<a id='L55' name='L55'></a>    55 <em class='comment'>   declared in DJGPP system headers has a signature incompatible with</em>
+<a id='L56' name='L56'></a>    56 <em class='comment'>   'pselect', which we emulate in msdos.c.  */</em>
+<a id='L57' name='L57'></a>    57 <em class='sharp'>#undef</em> <a href='../R/15432.html' title='Multiple referred from 15 places.'>select</a>
+<a id='L58' name='L58'></a>    58 <em class='sharp'>#define</em> <a href='../R/14615.html' title='Multiple referred from 26 places.'>pselect</a> <a href='../D/18087.html' title='Multiple defined in 2 places.'>sys_select</a>
+<a id='L59' name='L59'></a>    59 <em class='sharp'>#endif</em>
+<a id='L60' name='L60'></a>    60 
+<a id='L61' name='L61'></a>    61 <em class='sharp'>#ifndef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L62' name='L62'></a>    62 <a href='../D/3178.html' title='Multiple defined in 2 places.'>INLINE_HEADER_BEGIN</a>
+<a id='L63' name='L63'></a>    63 
+<a id='L64' name='L64'></a>    64 <em class='comment'>/* Check for out-of-range errors if ENABLE_CHECKING is defined.  */</em>
+<a id='L65' name='L65'></a>    65 
+<a id='L66' name='L66'></a>    66 <a href='../D/3177.html' title='Multiple defined in 3 places.'>INLINE</a> <strong class='reserved'>void</strong>
+<a id='L67' name='L67'></a>    67 <a href='../S/3206.html#L90' title='Referred from 90 in src/sysselect.h.'>fd_CLR</a> (<strong class='reserved'>int</strong> fd, <a href='../D/11302.html' title='Multiple defined in 3 places.'>fd_set</a> *<a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>)
 <a id='L68' name='L68'></a>    68 <em class='brace'>{</em>
-<a id='L69' name='L69'></a>    69   <strong class='reserved'>return</strong> (w32_console_unicode_input
-<a id='L70' name='L70'></a>    70           ? ReadConsoleInputW (h, rec, recsize, waiting)
-<a id='L71' name='L71'></a>    71           : ReadConsoleInputA (h, rec, recsize, waiting));
-<a id='L72' name='L72'></a>    72 <em class='brace'>}</em>
-<a id='L73' name='L73'></a>    73 
-<a id='L74' name='L74'></a>    74 <em class='comment'>/* Set by w32_console_toggle_lock_key.  */</em>
-<a id='L75' name='L75'></a>    75 <strong class='reserved'>int</strong> faked_key;
-<a id='L76' name='L76'></a>    76 
-<a id='L77' name='L77'></a>    77 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
-<a id='L78' name='L78'></a>    78 <a href='../S/3206.html#L773' title='Referred from 773 in src/w32inevt.c.'>fill_queue</a> (<a href='../D/453.html' title='Multiple defined in 3 places.'>BOOL</a> block)
-<a id='L79' name='L79'></a>    79 <em class='brace'>{</em>
-<a id='L80' name='L80'></a>    80   <a href='../D/453.html' title='Multiple defined in 3 places.'>BOOL</a> rc;
-<a id='L81' name='L81'></a>    81   DWORD events_waiting;
-<a id='L82' name='L82'></a>    82 
-<a id='L83' name='L83'></a>    83   <strong class='reserved'>if</strong> (queue_ptr &lt; queue_end)
-<a id='L84' name='L84'></a>    84     <strong class='reserved'>return</strong> queue_end-queue_ptr;
-<a id='L85' name='L85'></a>    85 
-<a id='L86' name='L86'></a>    86   <strong class='reserved'>if</strong> (!block)
-<a id='L87' name='L87'></a>    87     <em class='brace'>{</em>
-<a id='L88' name='L88'></a>    88       <em class='comment'>/* Check to see if there are some events to read before we try</em>
-<a id='L89' name='L89'></a>    89 <em class='comment'>         because we can't block.  */</em>
-<a id='L90' name='L90'></a>    90       <strong class='reserved'>if</strong> (!GetNumberOfConsoleInputEvents (keyboard_handle, &amp;events_waiting))
-<a id='L91' name='L91'></a>    91         <strong class='reserved'>return</strong> -1;
-<a id='L92' name='L92'></a>    92       <strong class='reserved'>if</strong> (events_waiting == 0)
-<a id='L93' name='L93'></a>    93         <strong class='reserved'>return</strong> 0;
-<a id='L94' name='L94'></a>    94     <em class='brace'>}</em>
+<a id='L69' name='L69'></a>    69   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassume</a> (0 &lt;= fd &amp;&amp; fd &lt; <a href='../D/2045.html' title='Multiple defined in 4 places.'>FD_SETSIZE</a>);
+<a id='L70' name='L70'></a>    70   <a href='../D/2042.html' title='Multiple defined in 6 places.'>FD_CLR</a> (fd, <a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>);
+<a id='L71' name='L71'></a>    71 <em class='brace'>}</em>
+<a id='L72' name='L72'></a>    72 
+<a id='L73' name='L73'></a>    73 <a href='../D/3177.html' title='Multiple defined in 3 places.'>INLINE</a> <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L74' name='L74'></a>    74 <a href='../S/3206.html#L91' title='Referred from 91 in src/sysselect.h.'>fd_ISSET</a> (<strong class='reserved'>int</strong> fd, <a href='../D/11302.html' title='Multiple defined in 3 places.'>fd_set</a> *<a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>)
+<a id='L75' name='L75'></a>    75 <em class='brace'>{</em>
+<a id='L76' name='L76'></a>    76   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassume</a> (0 &lt;= fd &amp;&amp; fd &lt; <a href='../D/2045.html' title='Multiple defined in 4 places.'>FD_SETSIZE</a>);
+<a id='L77' name='L77'></a>    77   <strong class='reserved'>return</strong> <a href='../D/2043.html' title='Multiple defined in 8 places.'>FD_ISSET</a> (fd, <a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>) != 0;
+<a id='L78' name='L78'></a>    78 <em class='brace'>}</em>
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80 <a href='../D/3177.html' title='Multiple defined in 3 places.'>INLINE</a> <strong class='reserved'>void</strong>
+<a id='L81' name='L81'></a>    81 <a href='../S/3206.html#L92' title='Referred from 92 in src/sysselect.h.'>fd_SET</a> (<strong class='reserved'>int</strong> fd, <a href='../D/11302.html' title='Multiple defined in 3 places.'>fd_set</a> *<a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>)
+<a id='L82' name='L82'></a>    82 <em class='brace'>{</em>
+<a id='L83' name='L83'></a>    83   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassume</a> (0 &lt;= fd &amp;&amp; fd &lt; <a href='../D/2045.html' title='Multiple defined in 4 places.'>FD_SETSIZE</a>);
+<a id='L84' name='L84'></a>    84   <a href='../D/2044.html' title='Multiple defined in 6 places.'>FD_SET</a> (fd, <a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>);
+<a id='L85' name='L85'></a>    85 <em class='brace'>}</em>
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87 <em class='sharp'>#undef</em> <a href='../R/1895.html' title='Multiple referred from 5 places.'>FD_CLR</a>
+<a id='L88' name='L88'></a>    88 <em class='sharp'>#undef</em> <a href='../R/1896.html' title='Multiple referred from 27 places.'>FD_ISSET</a>
+<a id='L89' name='L89'></a>    89 <em class='sharp'>#undef</em> <a href='../R/1897.html' title='Multiple referred from 29 places.'>FD_SET</a>
+<a id='L90' name='L90'></a>    90 <em class='sharp'>#define</em> <a href='../R/1895.html' title='Multiple referred from 5 places.'>FD_CLR</a>(fd, <a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>) <a href='../S/3206.html#L67' title='Defined at 67 in src/sysselect.h.'>fd_CLR</a> (fd, <a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>)
+<a id='L91' name='L91'></a>    91 <em class='sharp'>#define</em> <a href='../R/1896.html' title='Multiple referred from 27 places.'>FD_ISSET</a>(fd, <a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>) <a href='../S/3206.html#L74' title='Defined at 74 in src/sysselect.h.'>fd_ISSET</a> (fd, <a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>)
+<a id='L92' name='L92'></a>    92 <em class='sharp'>#define</em> <a href='../R/1897.html' title='Multiple referred from 29 places.'>FD_SET</a>(fd, <a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>) <a href='../S/3206.html#L81' title='Defined at 81 in src/sysselect.h.'>fd_SET</a> (fd, <a href='../S/4454.html#L13' title='Defined at 13 in test/manual/etags/cp-src/conway.hpp.'>set</a>)
+<a id='L93' name='L93'></a>    93 
+<a id='L94' name='L94'></a>    94 <a href='../D/3179.html' title='Multiple defined in 2 places.'>INLINE_HEADER_END</a>
 <a id='L95' name='L95'></a>    95 
-<a id='L96' name='L96'></a>    96   rc = <a href='../S/3206.html#L66' title='Defined at 66 in src/w32inevt.c.'>w32_read_console_input</a> (keyboard_handle, event_queue, <a href='../S/3206.html#L58' title='Defined at 58 in src/w32inevt.c.'>EVENT_QUEUE_SIZE</a>,
-<a id='L97' name='L97'></a>    97                                &amp;events_waiting);
-<a id='L98' name='L98'></a>    98   <strong class='reserved'>if</strong> (!rc)
-<a id='L99' name='L99'></a>    99     <strong class='reserved'>return</strong> -1;
-<a id='L100' name='L100'></a>   100   queue_ptr = event_queue;
-<a id='L101' name='L101'></a>   101   queue_end = event_queue + events_waiting;
-<a id='L102' name='L102'></a>   102   <strong class='reserved'>return</strong> (<strong class='reserved'>int</strong>) events_waiting;
-<a id='L103' name='L103'></a>   103 <em class='brace'>}</em>
-<a id='L104' name='L104'></a>   104 
-<a id='L105' name='L105'></a>   105 <em class='comment'>/* In a generic, multi-frame world this should take a console handle</em>
-<a id='L106' name='L106'></a>   106 <em class='comment'>   and return the frame for it.</em>
-<a id='L107' name='L107'></a>   107 <em class='comment'></em>
-<a id='L108' name='L108'></a>   108 <em class='comment'>   Right now, there's only one frame so return it.  */</em>
-<a id='L109' name='L109'></a>   109 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../D/11677.html' title='Multiple defined in 3 places.'>frame</a> *
-<a id='L110' name='L110'></a>   110 <a href='../R/11071.html' title='Multiple referred from 6 places.'>get_frame</a> (<strong class='reserved'>void</strong>)
-<a id='L111' name='L111'></a>   111 <em class='brace'>{</em>
-<a id='L112' name='L112'></a>   112   <strong class='reserved'>return</strong> <a href='../S/3264.html#L1511' title='Defined at 1511 in src/frame.h.'>SELECTED_FRAME</a> ();
-<a id='L113' name='L113'></a>   113 <em class='brace'>}</em>
-<a id='L114' name='L114'></a>   114 
-<a id='L115' name='L115'></a>   115 <em class='comment'>/* Translate console modifiers to emacs modifiers.</em>
-<a id='L116' name='L116'></a>   116 <em class='comment'>   German keyboard support (Kai Morgan Zeise 2/18/95).  */</em>
-<a id='L117' name='L117'></a>   117 
-<a id='L118' name='L118'></a>   118 
-<a id='L119' name='L119'></a>   119 <em class='sharp'>#if</em> 0
-<a id='L120' name='L120'></a>   120 <em class='comment'>/* Return nonzero if the virtual key is a dead key.  */</em>
-<a id='L121' name='L121'></a>   121 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
-<a id='L122' name='L122'></a>   122 <a href='../S/3192.html#L9805' title='Referred from 9805 in src/w32fns.c.'>is_dead_key</a> (<strong class='reserved'>int</strong> wparam)
-<a id='L123' name='L123'></a>   123 <em class='brace'>{</em>
-<a id='L124' name='L124'></a>   124   <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> code = MapVirtualKey (wparam, 2);
-<a id='L125' name='L125'></a>   125 
-<a id='L126' name='L126'></a>   126   <em class='comment'>/* Windows 95 returns 0x8000, NT returns 0x80000000.  */</em>
-<a id='L127' name='L127'></a>   127   <strong class='reserved'>return</strong> (code &amp; 0x80008000) ? 1 : 0;
-<a id='L128' name='L128'></a>   128 <em class='brace'>}</em>
-<a id='L129' name='L129'></a>   129 <em class='sharp'>#endif</em>
-<a id='L130' name='L130'></a>   130 
-<a id='L131' name='L131'></a>   131 <em class='comment'>/* The return code indicates key code size.  cpID is the codepage to</em>
-<a id='L132' name='L132'></a>   132 <em class='comment'>   use for translation to Unicode; -1 means use the current console</em>
-<a id='L133' name='L133'></a>   133 <em class='comment'>   input codepage.  */</em>
-<a id='L134' name='L134'></a>   134 
-<a id='L135' name='L135'></a>   135 
-<a id='L136' name='L136'></a>   136 <em class='comment'>/* return code -1 means that event_queue_ptr won't be incremented.</em>
-<a id='L137' name='L137'></a>   137 <em class='comment'>   In other word, this event makes two key codes.   (by himi)       */</em>
-<a id='L138' name='L138'></a>   138 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
-<a id='L139' name='L139'></a>   139 <a href='../S/3206.html#L800' title='Referred from 800 in src/w32inevt.c.'>key_event</a> (KEY_EVENT_RECORD *event, <strong class='reserved'>struct</strong> <a href='../S/3119.html#L350' title='Defined at 350 in src/termhooks.h.'>input_event</a> *emacs_ev, <strong class='reserved'>int</strong> *isdead)
-<a id='L140' name='L140'></a>   140 <em class='brace'>{</em>
-<a id='L141' name='L141'></a>   141   <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> mod_key_state = 0;
-<a id='L142' name='L142'></a>   142   <strong class='reserved'>int</strong> wParam;
-<a id='L143' name='L143'></a>   143 
-<a id='L144' name='L144'></a>   144   *isdead = 0;
-<a id='L145' name='L145'></a>   145 
-<a id='L146' name='L146'></a>   146   <em class='comment'>/* Skip key-up events.  */</em>
-<a id='L147' name='L147'></a>   147   <strong class='reserved'>if</strong> (!event-&gt;bKeyDown)
-<a id='L148' name='L148'></a>   148     <em class='brace'>{</em>
-<a id='L149' name='L149'></a>   149       <strong class='reserved'>switch</strong> (event-&gt;wVirtualKeyCode)
-<a id='L150' name='L150'></a>   150         <em class='brace'>{</em>
-<a id='L151' name='L151'></a>   151         <strong class='reserved'>case</strong> <a href='../S/3139.html#L809' title='Defined at 809 in src/w32term.h.'>VK_LWIN</a>:
-<a id='L152' name='L152'></a>   152           <strong class='reserved'>if</strong> (!<a href='../D/19043.html' title='Multiple defined in 2 places.'>w32_kbdhook_active</a>)
-<a id='L153' name='L153'></a>   153             mod_key_state &amp;= ~<a href='../S/3139.html#L817' title='Defined at 817 in src/w32term.h.'>LEFT_WIN_PRESSED</a>;
-<a id='L154' name='L154'></a>   154           <strong class='reserved'>break</strong>;
-<a id='L155' name='L155'></a>   155         <strong class='reserved'>case</strong> <a href='../S/3139.html#L810' title='Defined at 810 in src/w32term.h.'>VK_RWIN</a>:
-<a id='L156' name='L156'></a>   156           <strong class='reserved'>if</strong> (!<a href='../D/19043.html' title='Multiple defined in 2 places.'>w32_kbdhook_active</a>)
-<a id='L157' name='L157'></a>   157             mod_key_state &amp;= ~<a href='../S/3139.html#L818' title='Defined at 818 in src/w32term.h.'>RIGHT_WIN_PRESSED</a>;
-<a id='L158' name='L158'></a>   158           <strong class='reserved'>break</strong>;
-<a id='L159' name='L159'></a>   159         <strong class='reserved'>case</strong> <a href='../S/3139.html#L811' title='Defined at 811 in src/w32term.h.'>VK_APPS</a>:
-<a id='L160' name='L160'></a>   160           mod_key_state &amp;= ~<a href='../S/3139.html#L819' title='Defined at 819 in src/w32term.h.'>APPS_PRESSED</a>;
-<a id='L161' name='L161'></a>   161           <strong class='reserved'>break</strong>;
-<a id='L162' name='L162'></a>   162         <em class='brace'>}</em>
-<a id='L163' name='L163'></a>   163       <strong class='reserved'>return</strong> 0;
-<a id='L164' name='L164'></a>   164     <em class='brace'>}</em>
-<a id='L165' name='L165'></a>   165 
-<a id='L166' name='L166'></a>   166   <em class='comment'>/* Ignore keystrokes we fake ourself; see below.  */</em>
-<a id='L167' name='L167'></a>   167   <strong class='reserved'>if</strong> (faked_key == event-&gt;wVirtualKeyCode)
-<a id='L168' name='L168'></a>   168     <em class='brace'>{</em>
-<a id='L169' name='L169'></a>   169       faked_key = 0;
-<a id='L170' name='L170'></a>   170       <strong class='reserved'>return</strong> 0;
-<a id='L171' name='L171'></a>   171     <em class='brace'>}</em>
-<a id='L172' name='L172'></a>   172 
-<a id='L173' name='L173'></a>   173   <em class='comment'>/* To make it easier to debug this code, ignore modifier keys!  */</em>
-<a id='L174' name='L174'></a>   174   <strong class='reserved'>switch</strong> (event-&gt;wVirtualKeyCode)
-<a id='L175' name='L175'></a>   175     <em class='brace'>{</em>
-<a id='L176' name='L176'></a>   176     <strong class='reserved'>case</strong> <a href='../S/3139.html#L809' title='Defined at 809 in src/w32term.h.'>VK_LWIN</a>:
-<a id='L177' name='L177'></a>   177       <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_pass_lwindow_to_system))
-<a id='L178' name='L178'></a>   178         <em class='brace'>{</em>
-<a id='L179' name='L179'></a>   179           <em class='comment'>/* Prevent system from acting on keyup (which opens the Start</em>
-<a id='L180' name='L180'></a>   180 <em class='comment'>             menu if no other key was pressed) by simulating a press of</em>
-<a id='L181' name='L181'></a>   181 <em class='comment'>             Space which we will ignore.  */</em>
-<a id='L182' name='L182'></a>   182           <strong class='reserved'>if</strong> ((mod_key_state &amp; <a href='../S/3139.html#L817' title='Defined at 817 in src/w32term.h.'>LEFT_WIN_PRESSED</a>) == 0)
-<a id='L183' name='L183'></a>   183             <em class='brace'>{</em>
-<a id='L184' name='L184'></a>   184               <strong class='reserved'>if</strong> (<a href='../S/3199.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (Vw32_phantom_key_code))
-<a id='L185' name='L185'></a>   185                 faked_key = <a href='../S/3199.html#L1299' title='Defined at 1299 in src/lisp.h.'>XUFIXNUM</a> (Vw32_phantom_key_code) &amp; 255;
-<a id='L186' name='L186'></a>   186               <strong class='reserved'>else</strong>
-<a id='L187' name='L187'></a>   187                 faked_key = VK_SPACE;
-<a id='L188' name='L188'></a>   188               keybd_event (faked_key, (BYTE) MapVirtualKey (faked_key, 0), 0, 0);
-<a id='L189' name='L189'></a>   189             <em class='brace'>}</em>
-<a id='L190' name='L190'></a>   190         <em class='brace'>}</em>
-<a id='L191' name='L191'></a>   191       <strong class='reserved'>if</strong> (!<a href='../D/19043.html' title='Multiple defined in 2 places.'>w32_kbdhook_active</a>)
-<a id='L192' name='L192'></a>   192         mod_key_state |= <a href='../S/3139.html#L817' title='Defined at 817 in src/w32term.h.'>LEFT_WIN_PRESSED</a>;
-<a id='L193' name='L193'></a>   193       <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_lwindow_modifier))
-<a id='L194' name='L194'></a>   194         <strong class='reserved'>return</strong> 0;
-<a id='L195' name='L195'></a>   195       <strong class='reserved'>break</strong>;
-<a id='L196' name='L196'></a>   196     <strong class='reserved'>case</strong> <a href='../S/3139.html#L810' title='Defined at 810 in src/w32term.h.'>VK_RWIN</a>:
-<a id='L197' name='L197'></a>   197       <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_pass_rwindow_to_system))
-<a id='L198' name='L198'></a>   198         <em class='brace'>{</em>
-<a id='L199' name='L199'></a>   199           <strong class='reserved'>if</strong> ((mod_key_state &amp; <a href='../S/3139.html#L818' title='Defined at 818 in src/w32term.h.'>RIGHT_WIN_PRESSED</a>) == 0)
-<a id='L200' name='L200'></a>   200             <em class='brace'>{</em>
-<a id='L201' name='L201'></a>   201               <strong class='reserved'>if</strong> (<a href='../S/3199.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (Vw32_phantom_key_code))
-<a id='L202' name='L202'></a>   202                 faked_key = <a href='../S/3199.html#L1299' title='Defined at 1299 in src/lisp.h.'>XUFIXNUM</a> (Vw32_phantom_key_code) &amp; 255;
-<a id='L203' name='L203'></a>   203               <strong class='reserved'>else</strong>
-<a id='L204' name='L204'></a>   204                 faked_key = VK_SPACE;
-<a id='L205' name='L205'></a>   205               keybd_event (faked_key, (BYTE) MapVirtualKey (faked_key, 0), 0, 0);
-<a id='L206' name='L206'></a>   206             <em class='brace'>}</em>
-<a id='L207' name='L207'></a>   207         <em class='brace'>}</em>
-<a id='L208' name='L208'></a>   208       <strong class='reserved'>if</strong> (!<a href='../D/19043.html' title='Multiple defined in 2 places.'>w32_kbdhook_active</a>)
-<a id='L209' name='L209'></a>   209         mod_key_state |= <a href='../S/3139.html#L818' title='Defined at 818 in src/w32term.h.'>RIGHT_WIN_PRESSED</a>;
-<a id='L210' name='L210'></a>   210       <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_rwindow_modifier))
-<a id='L211' name='L211'></a>   211         <strong class='reserved'>return</strong> 0;
-<a id='L212' name='L212'></a>   212       <strong class='reserved'>break</strong>;
-<a id='L213' name='L213'></a>   213     <strong class='reserved'>case</strong> <a href='../S/3139.html#L811' title='Defined at 811 in src/w32term.h.'>VK_APPS</a>:
-<a id='L214' name='L214'></a>   214       mod_key_state |= <a href='../S/3139.html#L819' title='Defined at 819 in src/w32term.h.'>APPS_PRESSED</a>;
-<a id='L215' name='L215'></a>   215       <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_apps_modifier))
-<a id='L216' name='L216'></a>   216         <strong class='reserved'>return</strong> 0;
-<a id='L217' name='L217'></a>   217       <strong class='reserved'>break</strong>;
-<a id='L218' name='L218'></a>   218     <strong class='reserved'>case</strong> VK_CAPITAL:
-<a id='L219' name='L219'></a>   219       <em class='comment'>/* Decide whether to treat as modifier or function key.  */</em>
-<a id='L220' name='L220'></a>   220       <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_enable_caps_lock))
-<a id='L221' name='L221'></a>   221         <strong class='reserved'>goto</strong> disable_lock_key;
-<a id='L222' name='L222'></a>   222       <strong class='reserved'>return</strong> 0;
-<a id='L223' name='L223'></a>   223     <strong class='reserved'>case</strong> VK_NUMLOCK:
-<a id='L224' name='L224'></a>   224       <em class='comment'>/* Decide whether to treat as modifier or function key.  */</em>
-<a id='L225' name='L225'></a>   225       <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_enable_num_lock))
-<a id='L226' name='L226'></a>   226         <strong class='reserved'>goto</strong> disable_lock_key;
-<a id='L227' name='L227'></a>   227       <strong class='reserved'>return</strong> 0;
-<a id='L228' name='L228'></a>   228     <strong class='reserved'>case</strong> VK_SCROLL:
-<a id='L229' name='L229'></a>   229       <em class='comment'>/* Decide whether to treat as modifier or function key.  */</em>
-<a id='L230' name='L230'></a>   230       <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_scroll_lock_modifier))
-<a id='L231' name='L231'></a>   231         <strong class='reserved'>goto</strong> disable_lock_key;
-<a id='L232' name='L232'></a>   232       <strong class='reserved'>return</strong> 0;
-<a id='L233' name='L233'></a>   233     disable_lock_key:
-<a id='L234' name='L234'></a>   234       <em class='comment'>/* Ensure the appropriate lock key state is off (and the</em>
-<a id='L235' name='L235'></a>   235 <em class='comment'>         indicator light as well).  */</em>
-<a id='L236' name='L236'></a>   236       wParam = event-&gt;wVirtualKeyCode;
-<a id='L237' name='L237'></a>   237       <strong class='reserved'>if</strong> (GetAsyncKeyState (wParam) &amp; 0x8000)
-<a id='L238' name='L238'></a>   238         <em class='brace'>{</em>
-<a id='L239' name='L239'></a>   239           <em class='comment'>/* Fake another press of the relevant key.  Apparently, this</em>
-<a id='L240' name='L240'></a>   240 <em class='comment'>             really is the only way to turn off the indicator.  */</em>
-<a id='L241' name='L241'></a>   241           faked_key = wParam;
-<a id='L242' name='L242'></a>   242           keybd_event ((BYTE) wParam, (BYTE) MapVirtualKey (wParam, 0),
-<a id='L243' name='L243'></a>   243                        KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
-<a id='L244' name='L244'></a>   244           keybd_event ((BYTE) wParam, (BYTE) MapVirtualKey (wParam, 0),
-<a id='L245' name='L245'></a>   245                        KEYEVENTF_EXTENDEDKEY | 0, 0);
-<a id='L246' name='L246'></a>   246           keybd_event ((BYTE) wParam, (BYTE) MapVirtualKey (wParam, 0),
-<a id='L247' name='L247'></a>   247                        KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
-<a id='L248' name='L248'></a>   248         <em class='brace'>}</em>
-<a id='L249' name='L249'></a>   249       <strong class='reserved'>break</strong>;
-<a id='L250' name='L250'></a>   250     <strong class='reserved'>case</strong> VK_MENU:
-<a id='L251' name='L251'></a>   251     <strong class='reserved'>case</strong> VK_CONTROL:
-<a id='L252' name='L252'></a>   252     <strong class='reserved'>case</strong> VK_SHIFT:
-<a id='L253' name='L253'></a>   253       <strong class='reserved'>return</strong> 0;
-<a id='L254' name='L254'></a>   254     <strong class='reserved'>case</strong> VK_CANCEL:
-<a id='L255' name='L255'></a>   255       <em class='comment'>/* Windows maps Ctrl-Pause (aka Ctrl-Break) into VK_CANCEL,</em>
-<a id='L256' name='L256'></a>   256 <em class='comment'>         which is confusing for purposes of key binding; convert</em>
-<a id='L257' name='L257'></a>   257 <em class='comment'>         VK_CANCEL events into VK_PAUSE events.  */</em>
-<a id='L258' name='L258'></a>   258       event-&gt;wVirtualKeyCode = VK_PAUSE;
-<a id='L259' name='L259'></a>   259       <strong class='reserved'>break</strong>;
-<a id='L260' name='L260'></a>   260     <strong class='reserved'>case</strong> VK_PAUSE:
-<a id='L261' name='L261'></a>   261       <em class='comment'>/* Windows maps Ctrl-NumLock into VK_PAUSE, which is confusing</em>
-<a id='L262' name='L262'></a>   262 <em class='comment'>         for purposes of key binding; convert these back into</em>
-<a id='L263' name='L263'></a>   263 <em class='comment'>         VK_NUMLOCK events, at least when we want to see NumLock key</em>
-<a id='L264' name='L264'></a>   264 <em class='comment'>         presses.  (Note that there is never any possibility that</em>
-<a id='L265' name='L265'></a>   265 <em class='comment'>         VK_PAUSE with Ctrl really is C-Pause as per above.)  */</em>
-<a id='L266' name='L266'></a>   266       <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_enable_num_lock)
-<a id='L267' name='L267'></a>   267           &amp;&amp; (event-&gt;dwControlKeyState
-<a id='L268' name='L268'></a>   268               &amp; (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0)
-<a id='L269' name='L269'></a>   269         event-&gt;wVirtualKeyCode = VK_NUMLOCK;
-<a id='L270' name='L270'></a>   270       <strong class='reserved'>break</strong>;
-<a id='L271' name='L271'></a>   271     <em class='brace'>}</em>
-<a id='L272' name='L272'></a>   272 
-<a id='L273' name='L273'></a>   273   <em class='comment'>/* Recognize state of Windows and Apps keys.  */</em>
-<a id='L274' name='L274'></a>   274   event-&gt;dwControlKeyState |= mod_key_state;
-<a id='L275' name='L275'></a>   275   <strong class='reserved'>if</strong> (<a href='../D/19043.html' title='Multiple defined in 2 places.'>w32_kbdhook_active</a>)
-<a id='L276' name='L276'></a>   276     <em class='brace'>{</em>
-<a id='L277' name='L277'></a>   277       <strong class='reserved'>if</strong> (<a href='../S/3192.html#L2857' title='Defined at 2857 in src/w32fns.c.'>check_w32_winkey_state</a> (<a href='../S/3139.html#L809' title='Defined at 809 in src/w32term.h.'>VK_LWIN</a>))
-<a id='L278' name='L278'></a>   278         event-&gt;dwControlKeyState |= <a href='../S/3139.html#L817' title='Defined at 817 in src/w32term.h.'>LEFT_WIN_PRESSED</a>;
-<a id='L279' name='L279'></a>   279       <strong class='reserved'>if</strong> (<a href='../S/3192.html#L2857' title='Defined at 2857 in src/w32fns.c.'>check_w32_winkey_state</a> (<a href='../S/3139.html#L810' title='Defined at 810 in src/w32term.h.'>VK_RWIN</a>))
-<a id='L280' name='L280'></a>   280         event-&gt;dwControlKeyState |= <a href='../S/3139.html#L818' title='Defined at 818 in src/w32term.h.'>RIGHT_WIN_PRESSED</a>;
-<a id='L281' name='L281'></a>   281     <em class='brace'>}</em>
-<a id='L282' name='L282'></a>   282 
-<a id='L283' name='L283'></a>   283   <em class='comment'>/* Distinguish numeric keypad keys from extended keys.  */</em>
-<a id='L284' name='L284'></a>   284   event-&gt;wVirtualKeyCode =
-<a id='L285' name='L285'></a>   285     <a href='../S/3192.html#L3199' title='Defined at 3199 in src/w32fns.c.'>map_keypad_keys</a> (event-&gt;wVirtualKeyCode,
-<a id='L286' name='L286'></a>   286                      (event-&gt;dwControlKeyState &amp; ENHANCED_KEY));
-<a id='L287' name='L287'></a>   287 
-<a id='L288' name='L288'></a>   288   <strong class='reserved'>if</strong> (lispy_function_keys[event-&gt;wVirtualKeyCode] == 0)
-<a id='L289' name='L289'></a>   289     <em class='brace'>{</em>
-<a id='L290' name='L290'></a>   290       <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_recognize_altgr)
-<a id='L291' name='L291'></a>   291           &amp;&amp; (event-&gt;dwControlKeyState &amp; LEFT_CTRL_PRESSED)
-<a id='L292' name='L292'></a>   292           &amp;&amp; (event-&gt;dwControlKeyState &amp; RIGHT_ALT_PRESSED))
-<a id='L293' name='L293'></a>   293         <em class='brace'>{</em>
-<a id='L294' name='L294'></a>   294           <em class='comment'>/* Don't try to interpret AltGr key chords; ToAscii seems not</em>
-<a id='L295' name='L295'></a>   295 <em class='comment'>             to process them correctly.  */</em>
-<a id='L296' name='L296'></a>   296         <em class='brace'>}</em>
-<a id='L297' name='L297'></a>   297       <em class='comment'>/* Handle key chords including any modifiers other than shift</em>
-<a id='L298' name='L298'></a>   298 <em class='comment'>         directly, in order to preserve as much modifier information as</em>
-<a id='L299' name='L299'></a>   299 <em class='comment'>         possible.  */</em>
-<a id='L300' name='L300'></a>   300       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (event-&gt;dwControlKeyState
-<a id='L301' name='L301'></a>   301                &amp; (  RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED
-<a id='L302' name='L302'></a>   302                   | RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED
-<a id='L303' name='L303'></a>   303                   | (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_lwindow_modifier) ? <a href='../S/3139.html#L817' title='Defined at 817 in src/w32term.h.'>LEFT_WIN_PRESSED</a> : 0)
-<a id='L304' name='L304'></a>   304                   | (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_rwindow_modifier) ? <a href='../S/3139.html#L818' title='Defined at 818 in src/w32term.h.'>RIGHT_WIN_PRESSED</a> : 0)
-<a id='L305' name='L305'></a>   305                   | (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_apps_modifier) ? <a href='../S/3139.html#L819' title='Defined at 819 in src/w32term.h.'>APPS_PRESSED</a> : 0)
-<a id='L306' name='L306'></a>   306                   | (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_scroll_lock_modifier) ? SCROLLLOCK_ON : 0)))
-<a id='L307' name='L307'></a>   307         <em class='brace'>{</em>
-<a id='L308' name='L308'></a>   308           <em class='comment'>/* Don't translate modified alphabetic keystrokes, so the user</em>
-<a id='L309' name='L309'></a>   309 <em class='comment'>             doesn't need to constantly switch layout to type control or</em>
-<a id='L310' name='L310'></a>   310 <em class='comment'>             meta keystrokes when the normal layout translates</em>
-<a id='L311' name='L311'></a>   311 <em class='comment'>             alphabetic characters to non-ascii characters.  */</em>
-<a id='L312' name='L312'></a>   312           <strong class='reserved'>if</strong> ('A' &lt;= event-&gt;wVirtualKeyCode &amp;&amp; event-&gt;wVirtualKeyCode &lt;= 'Z')
-<a id='L313' name='L313'></a>   313             <em class='brace'>{</em>
-<a id='L314' name='L314'></a>   314               event-&gt;uChar.AsciiChar = event-&gt;wVirtualKeyCode;
-<a id='L315' name='L315'></a>   315               <strong class='reserved'>if</strong> ((event-&gt;dwControlKeyState &amp; SHIFT_PRESSED) == 0)
-<a id='L316' name='L316'></a>   316                 event-&gt;uChar.AsciiChar += ('a' - 'A');
-<a id='L317' name='L317'></a>   317             <em class='brace'>}</em>
-<a id='L318' name='L318'></a>   318           <em class='comment'>/* Try to handle unrecognized keystrokes by determining the</em>
-<a id='L319' name='L319'></a>   319 <em class='comment'>             base character (ie. translating the base key plus shift</em>
-<a id='L320' name='L320'></a>   320 <em class='comment'>             modifier).  */</em>
-<a id='L321' name='L321'></a>   321           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (event-&gt;uChar.AsciiChar == 0)
-<a id='L322' name='L322'></a>   322             <a href='../S/3192.html#L9763' title='Defined at 9763 in src/w32fns.c.'>w32_kbd_patch_key</a> (event, -1);
-<a id='L323' name='L323'></a>   323         <em class='brace'>}</em>
-<a id='L324' name='L324'></a>   324 
-<a id='L325' name='L325'></a>   325       <strong class='reserved'>if</strong> (event-&gt;uChar.AsciiChar == 0)
-<a id='L326' name='L326'></a>   326         <em class='brace'>{</em>
-<a id='L327' name='L327'></a>   327           emacs_ev-&gt;kind = <a href='../S/3119.html#L74' title='Defined at 74 in src/termhooks.h.'>NO_EVENT</a>;
-<a id='L328' name='L328'></a>   328           <strong class='reserved'>return</strong> 0;
-<a id='L329' name='L329'></a>   329         <em class='brace'>}</em>
-<a id='L330' name='L330'></a>   330       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (event-&gt;uChar.AsciiChar &gt; 0)
-<a id='L331' name='L331'></a>   331         <em class='brace'>{</em>
-<a id='L332' name='L332'></a>   332           <em class='comment'>/* Pure ASCII characters &lt; 128.  */</em>
-<a id='L333' name='L333'></a>   333           emacs_ev-&gt;kind = <a href='../S/3119.html#L77' title='Defined at 77 in src/termhooks.h.'>ASCII_KEYSTROKE_EVENT</a>;
-<a id='L334' name='L334'></a>   334           emacs_ev-&gt;code = event-&gt;uChar.AsciiChar;
-<a id='L335' name='L335'></a>   335         <em class='brace'>}</em>
-<a id='L336' name='L336'></a>   336       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (event-&gt;uChar.UnicodeChar &gt; 0
-<a id='L337' name='L337'></a>   337                &amp;&amp; w32_console_unicode_input)
-<a id='L338' name='L338'></a>   338         <em class='brace'>{</em>
-<a id='L339' name='L339'></a>   339           <em class='comment'>/* Unicode codepoint; only valid if we are using Unicode</em>
-<a id='L340' name='L340'></a>   340 <em class='comment'>             console input mode.  */</em>
-<a id='L341' name='L341'></a>   341           emacs_ev-&gt;kind = <a href='../S/3119.html#L85' title='Defined at 85 in src/termhooks.h.'>MULTIBYTE_CHAR_KEYSTROKE_EVENT</a>;
-<a id='L342' name='L342'></a>   342           emacs_ev-&gt;code = event-&gt;uChar.UnicodeChar;
-<a id='L343' name='L343'></a>   343         <em class='brace'>}</em>
-<a id='L344' name='L344'></a>   344       <strong class='reserved'>else</strong>
-<a id='L345' name='L345'></a>   345         <em class='brace'>{</em>
-<a id='L346' name='L346'></a>   346           <em class='comment'>/* Fallback handling of non-ASCII characters for non-Unicode</em>
-<a id='L347' name='L347'></a>   347 <em class='comment'>             versions of Windows, and for non-Unicode input on NT</em>
-<a id='L348' name='L348'></a>   348 <em class='comment'>             family of Windows.  Only characters in the current</em>
-<a id='L349' name='L349'></a>   349 <em class='comment'>             console codepage are supported by this fallback.  */</em>
-<a id='L350' name='L350'></a>   350           <a href='../S/1942.html#L111' title='Defined at 111 in lib/stddef.in.h.'>wchar_t</a> code;
-<a id='L351' name='L351'></a>   351           <strong class='reserved'>char</strong> dbcs[2];
-<a id='L352' name='L352'></a>   352           <strong class='reserved'>int</strong> cpId;
-<a id='L353' name='L353'></a>   353 
-<a id='L354' name='L354'></a>   354           <em class='comment'>/* Get the current console input codepage to interpret this</em>
-<a id='L355' name='L355'></a>   355 <em class='comment'>             key with.  Note that the system defaults for the OEM</em>
-<a id='L356' name='L356'></a>   356 <em class='comment'>             codepage could have been changed by calling SetConsoleCP</em>
-<a id='L357' name='L357'></a>   357 <em class='comment'>             or w32-set-console-codepage, so using GetLocaleInfo to</em>
-<a id='L358' name='L358'></a>   358 <em class='comment'>             get LOCALE_IDEFAULTCODEPAGE is not TRT here.  */</em>
-<a id='L359' name='L359'></a>   359           cpId = GetConsoleCP ();
-<a id='L360' name='L360'></a>   360 
-<a id='L361' name='L361'></a>   361           dbcs[0] = dbcs_lead;
-<a id='L362' name='L362'></a>   362           dbcs[1] = event-&gt;uChar.AsciiChar;
-<a id='L363' name='L363'></a>   363           <strong class='reserved'>if</strong> (dbcs_lead)
-<a id='L364' name='L364'></a>   364             <em class='brace'>{</em>
-<a id='L365' name='L365'></a>   365               dbcs_lead = 0;
-<a id='L366' name='L366'></a>   366               <strong class='reserved'>if</strong> (!MultiByteToWideChar (cpId, 0, dbcs, 2, &amp;code, 1))
-<a id='L367' name='L367'></a>   367                 <em class='brace'>{</em>
-<a id='L368' name='L368'></a>   368                   <em class='comment'>/* Garbage  */</em>
-<a id='L369' name='L369'></a>   369                   <a href='../D/1635.html' title='Multiple defined in 2 places.'>DebPrint</a> (("Invalid DBCS sequence: %d %d\n",
-<a id='L370' name='L370'></a>   370                              dbcs[0], dbcs[1]));
-<a id='L371' name='L371'></a>   371                   emacs_ev-&gt;kind = <a href='../S/3119.html#L74' title='Defined at 74 in src/termhooks.h.'>NO_EVENT</a>;
-<a id='L372' name='L372'></a>   372                 <em class='brace'>}</em>
-<a id='L373' name='L373'></a>   373             <em class='brace'>}</em>
-<a id='L374' name='L374'></a>   374           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (IsDBCSLeadByteEx (cpId, dbcs[1]))
-<a id='L375' name='L375'></a>   375             <em class='brace'>{</em>
-<a id='L376' name='L376'></a>   376               dbcs_lead = dbcs[1];
-<a id='L377' name='L377'></a>   377               emacs_ev-&gt;kind = <a href='../S/3119.html#L74' title='Defined at 74 in src/termhooks.h.'>NO_EVENT</a>;
-<a id='L378' name='L378'></a>   378             <em class='brace'>}</em>
-<a id='L379' name='L379'></a>   379           <strong class='reserved'>else</strong>
-<a id='L380' name='L380'></a>   380             <em class='brace'>{</em>
-<a id='L381' name='L381'></a>   381               <strong class='reserved'>if</strong> (!MultiByteToWideChar (cpId, 0, &amp;dbcs[1], 1, &amp;code, 1))
-<a id='L382' name='L382'></a>   382                 <em class='brace'>{</em>
-<a id='L383' name='L383'></a>   383                   <em class='comment'>/* Garbage  */</em>
-<a id='L384' name='L384'></a>   384                   <a href='../D/1635.html' title='Multiple defined in 2 places.'>DebPrint</a> (("Invalid character: %d\n", dbcs[1]));
-<a id='L385' name='L385'></a>   385                   emacs_ev-&gt;kind = <a href='../S/3119.html#L74' title='Defined at 74 in src/termhooks.h.'>NO_EVENT</a>;
-<a id='L386' name='L386'></a>   386                 <em class='brace'>}</em>
-<a id='L387' name='L387'></a>   387             <em class='brace'>}</em>
-<a id='L388' name='L388'></a>   388           emacs_ev-&gt;kind = <a href='../S/3119.html#L85' title='Defined at 85 in src/termhooks.h.'>MULTIBYTE_CHAR_KEYSTROKE_EVENT</a>;
-<a id='L389' name='L389'></a>   389           emacs_ev-&gt;code = code;
-<a id='L390' name='L390'></a>   390         <em class='brace'>}</em>
-<a id='L391' name='L391'></a>   391     <em class='brace'>}</em>
-<a id='L392' name='L392'></a>   392   <strong class='reserved'>else</strong>
-<a id='L393' name='L393'></a>   393     <em class='brace'>{</em>
-<a id='L394' name='L394'></a>   394       <em class='comment'>/* Function keys and other non-character keys.  */</em>
-<a id='L395' name='L395'></a>   395       emacs_ev-&gt;kind = <a href='../S/3119.html#L108' title='Defined at 108 in src/termhooks.h.'>NON_ASCII_KEYSTROKE_EVENT</a>;
-<a id='L396' name='L396'></a>   396       emacs_ev-&gt;code = event-&gt;wVirtualKeyCode;
-<a id='L397' name='L397'></a>   397     <em class='brace'>}</em>
-<a id='L398' name='L398'></a>   398 
-<a id='L399' name='L399'></a>   399   <a href='../S/3264.html#L907' title='Defined at 907 in src/frame.h.'>XSETFRAME</a> (emacs_ev-&gt;frame_or_window, <a href='../S/3206.html#L110' title='Defined at 110 in src/w32inevt.c.'>get_frame</a> ());
-<a id='L400' name='L400'></a>   400   emacs_ev-&gt;modifiers = <a href='../S/3192.html#L9698' title='Defined at 9698 in src/w32fns.c.'>w32_kbd_mods_to_emacs</a> (event-&gt;dwControlKeyState,
-<a id='L401' name='L401'></a>   401                                                event-&gt;wVirtualKeyCode);
-<a id='L402' name='L402'></a>   402   emacs_ev-&gt;timestamp = GetTickCount ();
-<a id='L403' name='L403'></a>   403   <strong class='reserved'>return</strong> 1;
-<a id='L404' name='L404'></a>   404 <em class='brace'>}</em>
-<a id='L405' name='L405'></a>   405 
-<a id='L406' name='L406'></a>   406 <em class='comment'>/* Mouse position hook.  */</em>
-<a id='L407' name='L407'></a>   407 <strong class='reserved'>void</strong>
-<a id='L408' name='L408'></a>   408 <a href='../R/17549.html' title='Multiple referred from 2 places.'>w32_console_mouse_position</a> (<strong class='reserved'>struct</strong> <a href='../D/11677.html' title='Multiple defined in 3 places.'>frame</a> **<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>,
-<a id='L409' name='L409'></a>   409                             <strong class='reserved'>int</strong> insist,
-<a id='L410' name='L410'></a>   410                             <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *bar_window,
-<a id='L411' name='L411'></a>   411                             <strong class='reserved'>enum</strong> <a href='../S/3119.html#L34' title='Defined at 34 in src/termhooks.h.'>scroll_bar_part</a> *part,
-<a id='L412' name='L412'></a>   412                             <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *<a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>,
-<a id='L413' name='L413'></a>   413                             <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *y,
-<a id='L414' name='L414'></a>   414                             <a href='../D/6473.html' title='Multiple defined in 2 places.'>Time</a> *<a href='../S/2011.html#L163' title='Defined at 163 in lib/time.in.h.'>time</a>)
-<a id='L415' name='L415'></a>   415 <em class='brace'>{</em>
-<a id='L416' name='L416'></a>   416   <a href='../S/3281.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L417' name='L417'></a>   417 
-<a id='L418' name='L418'></a>   418   insist = insist;
-<a id='L419' name='L419'></a>   419 
-<a id='L420' name='L420'></a>   420   *<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/3206.html#L110' title='Defined at 110 in src/w32inevt.c.'>get_frame</a> ();
-<a id='L421' name='L421'></a>   421   *bar_window = Qnil;
-<a id='L422' name='L422'></a>   422   *part = <a href='../S/3119.html#L37' title='Defined at 37 in src/termhooks.h.'>scroll_bar_above_handle</a>;
-<a id='L423' name='L423'></a>   423   (*<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>)-&gt;mouse_moved = 0;
-<a id='L424' name='L424'></a>   424 
-<a id='L425' name='L425'></a>   425   <a href='../D/7341.html' title='Multiple defined in 2 places.'>XSETINT</a> (*<a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, movement_pos.<a href='../D/6986.html' title='Multiple defined in 2 places.'>X</a>);
-<a id='L426' name='L426'></a>   426   <a href='../D/7341.html' title='Multiple defined in 2 places.'>XSETINT</a> (*y, movement_pos.Y);
-<a id='L427' name='L427'></a>   427   *<a href='../S/2011.html#L163' title='Defined at 163 in lib/time.in.h.'>time</a> = movement_time;
-<a id='L428' name='L428'></a>   428 
-<a id='L429' name='L429'></a>   429   <a href='../D/18606.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L430' name='L430'></a>   430 <em class='brace'>}</em>
-<a id='L431' name='L431'></a>   431 
-<a id='L432' name='L432'></a>   432 <em class='comment'>/* Remember mouse motion and notify emacs.  */</em>
-<a id='L433' name='L433'></a>   433 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L434' name='L434'></a>   434 <a href='../S/3206.html#L485' title='Referred from 485 in src/w32inevt.c.'>mouse_moved_to</a> (<strong class='reserved'>int</strong> <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y)
-<a id='L435' name='L435'></a>   435 <em class='brace'>{</em>
-<a id='L436' name='L436'></a>   436   <em class='comment'>/* If we're in the same place, ignore it.  */</em>
-<a id='L437' name='L437'></a>   437   <strong class='reserved'>if</strong> (<a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> != movement_pos.<a href='../D/6986.html' title='Multiple defined in 2 places.'>X</a> || y != movement_pos.Y)
-<a id='L438' name='L438'></a>   438     <em class='brace'>{</em>
-<a id='L439' name='L439'></a>   439       <strong class='reserved'>struct</strong> <a href='../D/11677.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/3206.html#L110' title='Defined at 110 in src/w32inevt.c.'>get_frame</a> ();
-<a id='L440' name='L440'></a>   440       <a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>-&gt;mouse_moved = 1;
-<a id='L441' name='L441'></a>   441       movement_pos.<a href='../D/6986.html' title='Multiple defined in 2 places.'>X</a> = <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>;
-<a id='L442' name='L442'></a>   442       movement_pos.Y = y;
-<a id='L443' name='L443'></a>   443       movement_time = GetTickCount ();
-<a id='L444' name='L444'></a>   444     <em class='brace'>}</em>
-<a id='L445' name='L445'></a>   445 <em class='brace'>}</em>
-<a id='L446' name='L446'></a>   446 
-<a id='L447' name='L447'></a>   447 <em class='comment'>/* Consoles return button bits in a strange order:</em>
-<a id='L448' name='L448'></a>   448 <em class='comment'>     least significant - Leftmost button</em>
-<a id='L449' name='L449'></a>   449 <em class='comment'>     next - Rightmost button</em>
-<a id='L450' name='L450'></a>   450 <em class='comment'>     next - Leftmost+1</em>
-<a id='L451' name='L451'></a>   451 <em class='comment'>     next - Leftmost+2...</em>
-<a id='L452' name='L452'></a>   452 <em class='comment'></em>
-<a id='L453' name='L453'></a>   453 <em class='comment'>   For the 3 standard buttons, we have:</em>
-<a id='L454' name='L454'></a>   454 <em class='comment'>     Left == 0</em>
-<a id='L455' name='L455'></a>   455 <em class='comment'>     Middle == 1</em>
-<a id='L456' name='L456'></a>   456 <em class='comment'>     Right == 2</em>
-<a id='L457' name='L457'></a>   457 <em class='comment'>   Others increase from there.  */</em>
-<a id='L458' name='L458'></a>   458 
-<a id='L459' name='L459'></a>   459 <em class='sharp'>#define</em> <a href='../R/4099.html' title='Multiple referred from 2 places.'>NUM_TRANSLATED_MOUSE_BUTTONS</a> 5
-<a id='L460' name='L460'></a>   460 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> emacs_button_translation[<a href='../S/3206.html#L459' title='Defined at 459 in src/w32inevt.c.'>NUM_TRANSLATED_MOUSE_BUTTONS</a>] =
-<a id='L461' name='L461'></a>   461 <em class='brace'>{</em>
-<a id='L462' name='L462'></a>   462   0, 2, 1, 3, 4
-<a id='L463' name='L463'></a>   463 <em class='brace'>}</em>;
-<a id='L464' name='L464'></a>   464 
-<a id='L465' name='L465'></a>   465 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
-<a id='L466' name='L466'></a>   466 <a href='../S/3206.html#L811' title='Referred from 811 in src/w32inevt.c.'>do_mouse_event</a> (MOUSE_EVENT_RECORD *event,
-<a id='L467' name='L467'></a>   467                 <strong class='reserved'>struct</strong> <a href='../S/3119.html#L350' title='Defined at 350 in src/termhooks.h.'>input_event</a> *emacs_ev)
-<a id='L468' name='L468'></a>   468 <em class='brace'>{</em>
-<a id='L469' name='L469'></a>   469   <strong class='reserved'>static</strong> DWORD button_state = 0;
-<a id='L470' name='L470'></a>   470   <strong class='reserved'>static</strong> <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> last_mouse_window;
-<a id='L471' name='L471'></a>   471   DWORD but_change, mask, flags = event-&gt;dwEventFlags;
-<a id='L472' name='L472'></a>   472   <strong class='reserved'>int</strong> i;
-<a id='L473' name='L473'></a>   473 
-<a id='L474' name='L474'></a>   474   <em class='comment'>/* Mouse didn't move unless MOUSE_MOVED says it did.  */</em>
-<a id='L475' name='L475'></a>   475   <strong class='reserved'>struct</strong> <a href='../D/11677.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/3206.html#L110' title='Defined at 110 in src/w32inevt.c.'>get_frame</a> ();
-<a id='L476' name='L476'></a>   476   <a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>-&gt;mouse_moved = 0;
-<a id='L477' name='L477'></a>   477 
-<a id='L478' name='L478'></a>   478   <strong class='reserved'>switch</strong> (flags)
-<a id='L479' name='L479'></a>   479     <em class='brace'>{</em>
-<a id='L480' name='L480'></a>   480     <strong class='reserved'>case</strong> <a href='../S/3206.html#L31' title='Defined at 31 in src/w32inevt.c.'>MOUSE_MOVED</a>:
-<a id='L481' name='L481'></a>   481       <em class='brace'>{</em>
-<a id='L482' name='L482'></a>   482         <a href='../S/3094.html#L2919' title='Defined at 2919 in src/dispextern.h.'>Mouse_HLInfo</a> *hlinfo = <a href='../D/4164.html' title='Multiple defined in 3 places.'>MOUSE_HL_INFO</a> (<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L483' name='L483'></a>   483         <strong class='reserved'>int</strong> mx = event-&gt;dwMousePosition.<a href='../D/6986.html' title='Multiple defined in 2 places.'>X</a>, my = event-&gt;dwMousePosition.Y;
-<a id='L484' name='L484'></a>   484 
-<a id='L485' name='L485'></a>   485         <a href='../S/3206.html#L434' title='Defined at 434 in src/w32inevt.c.'>mouse_moved_to</a> (mx, my);
-<a id='L486' name='L486'></a>   486 
-<a id='L487' name='L487'></a>   487         <strong class='reserved'>if</strong> (<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>-&gt;mouse_moved)
-<a id='L488' name='L488'></a>   488           <em class='brace'>{</em>
-<a id='L489' name='L489'></a>   489             <strong class='reserved'>if</strong> (hlinfo-&gt;mouse_face_hidden)
-<a id='L490' name='L490'></a>   490               <em class='brace'>{</em>
-<a id='L491' name='L491'></a>   491                 hlinfo-&gt;mouse_face_hidden = 0;
-<a id='L492' name='L492'></a>   492                 <a href='../S/3348.html#L33946' title='Defined at 33946 in src/xdisp.c.'>clear_mouse_face</a> (hlinfo);
-<a id='L493' name='L493'></a>   493               <em class='brace'>}</em>
-<a id='L494' name='L494'></a>   494 
-<a id='L495' name='L495'></a>   495             <em class='comment'>/* Generate SELECT_WINDOW_EVENTs when needed.  */</em>
-<a id='L496' name='L496'></a>   496             <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Vmouse_autoselect_window))
-<a id='L497' name='L497'></a>   497               <em class='brace'>{</em>
-<a id='L498' name='L498'></a>   498                 <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> mouse_window = <a href='../S/3145.html#L1682' title='Defined at 1682 in src/window.c.'>window_from_coordinates</a> (<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>, mx, my,
-<a id='L499' name='L499'></a>   499                                                                     0, 0, 0);
-<a id='L500' name='L500'></a>   500                 <em class='comment'>/* A window will be selected only when it is not</em>
-<a id='L501' name='L501'></a>   501 <em class='comment'>                   selected now, and the last mouse movement event was</em>
-<a id='L502' name='L502'></a>   502 <em class='comment'>                   not in it.  A minibuffer window will be selected iff</em>
-<a id='L503' name='L503'></a>   503 <em class='comment'>                   it is active.  */</em>
-<a id='L504' name='L504'></a>   504                 <strong class='reserved'>if</strong> (<a href='../D/6788.html' title='Multiple defined in 2 places.'>WINDOWP</a> (mouse_window)
-<a id='L505' name='L505'></a>   505                     &amp;&amp; !<a href='../D/1841.html' title='Multiple defined in 3 places.'>EQ</a> (mouse_window, last_mouse_window)
-<a id='L506' name='L506'></a>   506                     &amp;&amp; !<a href='../D/1841.html' title='Multiple defined in 3 places.'>EQ</a> (mouse_window, selected_window))
-<a id='L507' name='L507'></a>   507                   <em class='brace'>{</em>
-<a id='L508' name='L508'></a>   508                     <strong class='reserved'>struct</strong> <a href='../S/3119.html#L350' title='Defined at 350 in src/termhooks.h.'>input_event</a> event;
-<a id='L509' name='L509'></a>   509 
-<a id='L510' name='L510'></a>   510                     <a href='../S/3119.html#L393' title='Defined at 393 in src/termhooks.h.'>EVENT_INIT</a> (event);
-<a id='L511' name='L511'></a>   511                     event.kind = <a href='../S/3119.html#L242' title='Defined at 242 in src/termhooks.h.'>SELECT_WINDOW_EVENT</a>;
-<a id='L512' name='L512'></a>   512                     event.frame_or_window = mouse_window;
-<a id='L513' name='L513'></a>   513                     event.arg = Qnil;
-<a id='L514' name='L514'></a>   514                     event.timestamp = movement_time;
-<a id='L515' name='L515'></a>   515                     <a href='../D/13631.html' title='Multiple defined in 2 places.'>kbd_buffer_store_event</a> (&amp;event);
-<a id='L516' name='L516'></a>   516                   <em class='brace'>}</em>
-<a id='L517' name='L517'></a>   517                 last_mouse_window = mouse_window;
-<a id='L518' name='L518'></a>   518               <em class='brace'>}</em>
-<a id='L519' name='L519'></a>   519             <strong class='reserved'>else</strong>
-<a id='L520' name='L520'></a>   520               last_mouse_window = Qnil;
-<a id='L521' name='L521'></a>   521 
-<a id='L522' name='L522'></a>   522             previous_help_echo_string = help_echo_string;
-<a id='L523' name='L523'></a>   523             help_echo_string = help_echo_object = help_echo_window = Qnil;
-<a id='L524' name='L524'></a>   524             help_echo_pos = -1;
-<a id='L525' name='L525'></a>   525             <a href='../S/3348.html#L35255' title='Defined at 35255 in src/xdisp.c.'>note_mouse_highlight</a> (<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>, mx, my);
-<a id='L526' name='L526'></a>   526             <em class='comment'>/* If the contents of the global variable help_echo has</em>
-<a id='L527' name='L527'></a>   527 <em class='comment'>               changed (inside note_mouse_highlight), generate a HELP_EVENT.  */</em>
-<a id='L528' name='L528'></a>   528             <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (help_echo_string) || !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (previous_help_echo_string))
-<a id='L529' name='L529'></a>   529               <a href='../D/12034.html' title='Multiple defined in 2 places.'>gen_help_event</a> (help_echo_string, selected_frame,
-<a id='L530' name='L530'></a>   530                               help_echo_window, help_echo_object,
-<a id='L531' name='L531'></a>   531                               help_echo_pos);
-<a id='L532' name='L532'></a>   532           <em class='brace'>}</em>
-<a id='L533' name='L533'></a>   533         <em class='comment'>/* We already called kbd_buffer_store_event, so indicate to</em>
-<a id='L534' name='L534'></a>   534 <em class='comment'>           the caller it shouldn't.  */</em>
-<a id='L535' name='L535'></a>   535         <strong class='reserved'>return</strong> 0;
-<a id='L536' name='L536'></a>   536       <em class='brace'>}</em>
-<a id='L537' name='L537'></a>   537     <strong class='reserved'>case</strong> MOUSE_WHEELED:
-<a id='L538' name='L538'></a>   538     <strong class='reserved'>case</strong> <a href='../S/3206.html#L34' title='Defined at 34 in src/w32inevt.c.'>MOUSE_HWHEELED</a>:
-<a id='L539' name='L539'></a>   539       <em class='brace'>{</em>
-<a id='L540' name='L540'></a>   540         <em class='comment'>/* Mouse positions in console wheel events are reported to</em>
-<a id='L541' name='L541'></a>   541 <em class='comment'>           ReadConsoleInput relative to the display's top-left</em>
-<a id='L542' name='L542'></a>   542 <em class='comment'>           corner(!), not relative to the origin of the console screen</em>
-<a id='L543' name='L543'></a>   543 <em class='comment'>           buffer.  This makes these coordinates unusable; e.g.,</em>
-<a id='L544' name='L544'></a>   544 <em class='comment'>           scrolling the tab-line in general doesn't work.</em>
-<a id='L545' name='L545'></a>   545 <em class='comment'>           FIXME (but how?).  */</em>
-<a id='L546' name='L546'></a>   546         <strong class='reserved'>int</strong> mx = event-&gt;dwMousePosition.<a href='../D/6986.html' title='Multiple defined in 2 places.'>X</a>, my = event-&gt;dwMousePosition.Y;
-<a id='L547' name='L547'></a>   547         <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a> down_p = (event-&gt;dwButtonState &amp; 0x10000000) != 0;
-<a id='L548' name='L548'></a>   548 
-<a id='L549' name='L549'></a>   549         emacs_ev-&gt;kind =
-<a id='L550' name='L550'></a>   550           flags == <a href='../S/3206.html#L34' title='Defined at 34 in src/w32inevt.c.'>MOUSE_HWHEELED</a> ? <a href='../S/3119.html#L149' title='Defined at 149 in src/termhooks.h.'>HORIZ_WHEEL_EVENT</a> : <a href='../S/3119.html#L132' title='Defined at 132 in src/termhooks.h.'>WHEEL_EVENT</a>;
-<a id='L551' name='L551'></a>   551         emacs_ev-&gt;code = 0;
-<a id='L552' name='L552'></a>   552         emacs_ev-&gt;modifiers = down_p ? <a href='../S/3119.html#L417' title='Defined at 417 in src/termhooks.h.'>down_modifier</a> : <a href='../S/3119.html#L414' title='Defined at 414 in src/termhooks.h.'>up_modifier</a>;
-<a id='L553' name='L553'></a>   553         emacs_ev-&gt;modifiers |=
-<a id='L554' name='L554'></a>   554           <a href='../S/3192.html#L9698' title='Defined at 9698 in src/w32fns.c.'>w32_kbd_mods_to_emacs</a> (event-&gt;dwControlKeyState, 0);
-<a id='L555' name='L555'></a>   555         <a href='../D/7341.html' title='Multiple defined in 2 places.'>XSETINT</a> (emacs_ev-&gt;<a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, mx);
-<a id='L556' name='L556'></a>   556         <a href='../D/7341.html' title='Multiple defined in 2 places.'>XSETINT</a> (emacs_ev-&gt;y, my);
-<a id='L557' name='L557'></a>   557         <a href='../S/3264.html#L907' title='Defined at 907 in src/frame.h.'>XSETFRAME</a> (emacs_ev-&gt;frame_or_window, <a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L558' name='L558'></a>   558         emacs_ev-&gt;arg = Qnil;
-<a id='L559' name='L559'></a>   559         emacs_ev-&gt;timestamp = GetTickCount ();
-<a id='L560' name='L560'></a>   560         <strong class='reserved'>return</strong> 1;
-<a id='L561' name='L561'></a>   561       <em class='brace'>}</em>
-<a id='L562' name='L562'></a>   562     <strong class='reserved'>case</strong> DOUBLE_CLICK:
-<a id='L563' name='L563'></a>   563     <strong class='reserved'>default</strong>:    <em class='comment'>/* mouse pressed or released */</em>
-<a id='L564' name='L564'></a>   564       <em class='comment'>/* It looks like the console code sends us a button-release</em>
-<a id='L565' name='L565'></a>   565 <em class='comment'>         mouse event with dwButtonState == 0 when a window is</em>
-<a id='L566' name='L566'></a>   566 <em class='comment'>         activated and when the mouse is first clicked.  Ignore this</em>
-<a id='L567' name='L567'></a>   567 <em class='comment'>         case.  */</em>
-<a id='L568' name='L568'></a>   568       <strong class='reserved'>if</strong> (event-&gt;dwButtonState == button_state)
-<a id='L569' name='L569'></a>   569         <strong class='reserved'>return</strong> 0;
-<a id='L570' name='L570'></a>   570 
-<a id='L571' name='L571'></a>   571       <em class='comment'>/* Find out what button has changed state since the last button</em>
-<a id='L572' name='L572'></a>   572 <em class='comment'>         event.  */</em>
-<a id='L573' name='L573'></a>   573       but_change = button_state ^ event-&gt;dwButtonState;
-<a id='L574' name='L574'></a>   574       mask = 1;
-<a id='L575' name='L575'></a>   575       <strong class='reserved'>for</strong> (i = 0; mask; i++, mask &lt;&lt;= 1)
-<a id='L576' name='L576'></a>   576         <strong class='reserved'>if</strong> (but_change &amp; mask)
-<a id='L577' name='L577'></a>   577           <em class='brace'>{</em>
-<a id='L578' name='L578'></a>   578             <strong class='reserved'>if</strong> (i &lt; <a href='../S/3206.html#L459' title='Defined at 459 in src/w32inevt.c.'>NUM_TRANSLATED_MOUSE_BUTTONS</a>)
-<a id='L579' name='L579'></a>   579               emacs_ev-&gt;code = emacs_button_translation[i];
-<a id='L580' name='L580'></a>   580             <strong class='reserved'>else</strong>
-<a id='L581' name='L581'></a>   581               emacs_ev-&gt;code = i;
-<a id='L582' name='L582'></a>   582             <strong class='reserved'>break</strong>;
-<a id='L583' name='L583'></a>   583           <em class='brace'>}</em>
-<a id='L584' name='L584'></a>   584 
-<a id='L585' name='L585'></a>   585       button_state = event-&gt;dwButtonState;
-<a id='L586' name='L586'></a>   586       emacs_ev-&gt;modifiers = <a href='../S/3192.html#L9698' title='Defined at 9698 in src/w32fns.c.'>w32_kbd_mods_to_emacs</a> (event-&gt;dwControlKeyState, 0);
-<a id='L587' name='L587'></a>   587       emacs_ev-&gt;timestamp = GetTickCount ();
-<a id='L588' name='L588'></a>   588 
-<a id='L589' name='L589'></a>   589       <strong class='reserved'>int</strong> <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> = event-&gt;dwMousePosition.<a href='../D/6986.html' title='Multiple defined in 2 places.'>X</a>;
-<a id='L590' name='L590'></a>   590       <strong class='reserved'>int</strong> y = event-&gt;dwMousePosition.Y;
-<a id='L591' name='L591'></a>   591       emacs_ev-&gt;arg = <a href='../S/3348.html#L14857' title='Defined at 14857 in src/xdisp.c.'>tty_handle_tab_bar_click</a> (<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y,
-<a id='L592' name='L592'></a>   592                                                 (button_state &amp; mask) != 0,
-<a id='L593' name='L593'></a>   593                                                 emacs_ev);
-<a id='L594' name='L594'></a>   594 
-<a id='L595' name='L595'></a>   595       emacs_ev-&gt;modifiers |= ((button_state &amp; mask)
-<a id='L596' name='L596'></a>   596                               ? <a href='../S/3119.html#L417' title='Defined at 417 in src/termhooks.h.'>down_modifier</a> : <a href='../S/3119.html#L414' title='Defined at 414 in src/termhooks.h.'>up_modifier</a>);
-<a id='L597' name='L597'></a>   597 
-<a id='L598' name='L598'></a>   598       emacs_ev-&gt;kind = <a href='../S/3119.html#L121' title='Defined at 121 in src/termhooks.h.'>MOUSE_CLICK_EVENT</a>;
-<a id='L599' name='L599'></a>   599       <a href='../D/7337.html' title='Multiple defined in 2 places.'>XSETFASTINT</a> (emacs_ev-&gt;<a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <a href='../S/4459.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>);
-<a id='L600' name='L600'></a>   600       <a href='../D/7337.html' title='Multiple defined in 2 places.'>XSETFASTINT</a> (emacs_ev-&gt;y, y);
-<a id='L601' name='L601'></a>   601       <a href='../S/3264.html#L907' title='Defined at 907 in src/frame.h.'>XSETFRAME</a> (emacs_ev-&gt;frame_or_window, <a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L602' name='L602'></a>   602 
-<a id='L603' name='L603'></a>   603       <strong class='reserved'>return</strong> 1;
-<a id='L604' name='L604'></a>   604     <em class='brace'>}</em>
-<a id='L605' name='L605'></a>   605 <em class='brace'>}</em>
-<a id='L606' name='L606'></a>   606 
-<a id='L607' name='L607'></a>   607 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L608' name='L608'></a>   608 <a href='../S/3206.html#L818' title='Referred from 818 in src/w32inevt.c.'>resize_event</a> (WINDOW_BUFFER_SIZE_RECORD *event)
-<a id='L609' name='L609'></a>   609 <em class='brace'>{</em>
-<a id='L610' name='L610'></a>   610   <strong class='reserved'>struct</strong> <a href='../D/11677.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/3206.html#L110' title='Defined at 110 in src/w32inevt.c.'>get_frame</a> ();
-<a id='L611' name='L611'></a>   611 
-<a id='L612' name='L612'></a>   612   <a href='../S/3260.html#L6054' title='Defined at 6054 in src/dispnew.c.'>change_frame_size</a> (<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>, event-&gt;dwSize.<a href='../D/6986.html' title='Multiple defined in 2 places.'>X</a>, event-&gt;dwSize.Y, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
-<a id='L613' name='L613'></a>   613   <a href='../S/3264.html#L1157' title='Defined at 1157 in src/frame.h.'>SET_FRAME_GARBAGED</a> (<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L614' name='L614'></a>   614 <em class='brace'>}</em>
-<a id='L615' name='L615'></a>   615 
-<a id='L616' name='L616'></a>   616 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L617' name='L617'></a>   617 <a href='../S/3206.html#L836' title='Referred from 836 in src/w32inevt.c.'>maybe_generate_resize_event</a> (<strong class='reserved'>void</strong>)
-<a id='L618' name='L618'></a>   618 <em class='brace'>{</em>
-<a id='L619' name='L619'></a>   619   CONSOLE_SCREEN_BUFFER_INFO <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>;
-<a id='L620' name='L620'></a>   620   <strong class='reserved'>struct</strong> <a href='../D/11677.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/3206.html#L110' title='Defined at 110 in src/w32inevt.c.'>get_frame</a> ();
-<a id='L621' name='L621'></a>   621 
-<a id='L622' name='L622'></a>   622   GetConsoleScreenBufferInfo (GetStdHandle (STD_OUTPUT_HANDLE), &amp;<a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>);
-<a id='L623' name='L623'></a>   623 
-<a id='L624' name='L624'></a>   624   <em class='comment'>/* It is okay to call this unconditionally, since it will do nothing</em>
-<a id='L625' name='L625'></a>   625 <em class='comment'>     if the size hasn't actually changed.  */</em>
-<a id='L626' name='L626'></a>   626   <a href='../S/3260.html#L6054' title='Defined at 6054 in src/dispnew.c.'>change_frame_size</a> (<a href='../D/11235.html' title='Multiple defined in 12 places.'>f</a>, 1 + <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>.srWindow.<a href='../D/5375.html' title='Multiple defined in 2 places.'>Right</a> - <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>.srWindow.<a href='../D/3791.html' title='Multiple defined in 2 places.'>Left</a>,
-<a id='L627' name='L627'></a>   627                      1 + <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>.srWindow.Bottom - <a href='../D/13176.html' title='Multiple defined in 2 places.'>info</a>.srWindow.Top,
-<a id='L628' name='L628'></a>   628                      <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/2630.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>, <a href='../S/2630.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
-<a id='L629' name='L629'></a>   629 <em class='brace'>}</em>
-<a id='L630' name='L630'></a>   630 
-<a id='L631' name='L631'></a>   631 <em class='sharp'>#if</em> HAVE_W32NOTIFY
-<a id='L632' name='L632'></a>   632 <strong class='reserved'>int</strong>
-<a id='L633' name='L633'></a>   633 <a href='../R/11829.html' title='Multiple referred from 6 places.'>handle_file_notifications</a> (<strong class='reserved'>struct</strong> <a href='../S/3119.html#L350' title='Defined at 350 in src/termhooks.h.'>input_event</a> *hold_quit)
-<a id='L634' name='L634'></a>   634 <em class='brace'>{</em>
-<a id='L635' name='L635'></a>   635   <strong class='reserved'>struct</strong> <a href='../S/3139.html#L763' title='Defined at 763 in src/w32term.h.'>notifications_set</a> *<a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a> = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L636' name='L636'></a>   636   <strong class='reserved'>int</strong> nevents = 0;
-<a id='L637' name='L637'></a>   637   <strong class='reserved'>int</strong> done = 0;
-<a id='L638' name='L638'></a>   638 
-<a id='L639' name='L639'></a>   639   <em class='comment'>/* We cannot process notification before Emacs is fully initialized,</em>
-<a id='L640' name='L640'></a>   640 <em class='comment'>     since we need the UTF-16LE coding-system to be set up.  */</em>
-<a id='L641' name='L641'></a>   641   <strong class='reserved'>if</strong> (!initialized)
-<a id='L642' name='L642'></a>   642     <em class='brace'>{</em>
-<a id='L643' name='L643'></a>   643       <strong class='reserved'>return</strong> nevents;
-<a id='L644' name='L644'></a>   644     <em class='brace'>}</em>
-<a id='L645' name='L645'></a>   645 
-<a id='L646' name='L646'></a>   646   <strong class='reserved'>while</strong> (!done)
-<a id='L647' name='L647'></a>   647     <em class='brace'>{</em>
-<a id='L648' name='L648'></a>   648       <a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a> = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L649' name='L649'></a>   649 
-<a id='L650' name='L650'></a>   650       <em class='comment'>/* Find out if there is a record available in the linked list of</em>
-<a id='L651' name='L651'></a>   651 <em class='comment'>         notifications sets.  If so, unlink the set from the linked list.</em>
-<a id='L652' name='L652'></a>   652 <em class='comment'>         Use the critical section.  */</em>
-<a id='L653' name='L653'></a>   653       <a href='../S/3139.html#L739' title='Defined at 739 in src/w32term.h.'>enter_crit</a> ();
-<a id='L654' name='L654'></a>   654       <strong class='reserved'>if</strong> (notifications_set_head-&gt;next != notifications_set_head)
-<a id='L655' name='L655'></a>   655         <em class='brace'>{</em>
-<a id='L656' name='L656'></a>   656           <a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a> = notifications_set_head-&gt;next;
-<a id='L657' name='L657'></a>   657           <a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;prev-&gt;next = <a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;next;
-<a id='L658' name='L658'></a>   658           <a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;next-&gt;prev = <a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;prev;
-<a id='L659' name='L659'></a>   659         <em class='brace'>}</em>
-<a id='L660' name='L660'></a>   660       <strong class='reserved'>else</strong>
-<a id='L661' name='L661'></a>   661         done = 1;
-<a id='L662' name='L662'></a>   662       <a href='../S/3139.html#L740' title='Defined at 740 in src/w32term.h.'>leave_crit</a>();
-<a id='L663' name='L663'></a>   663 
-<a id='L664' name='L664'></a>   664       <strong class='reserved'>if</strong> (<a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>)
-<a id='L665' name='L665'></a>   665         <em class='brace'>{</em>
-<a id='L666' name='L666'></a>   666           BYTE *p = <a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;notifications;
-<a id='L667' name='L667'></a>   667           FILE_NOTIFY_INFORMATION *fni = (PFILE_NOTIFY_INFORMATION)p;
-<a id='L668' name='L668'></a>   668           <strong class='reserved'>const</strong> DWORD min_size
-<a id='L669' name='L669'></a>   669             = offsetof (FILE_NOTIFY_INFORMATION, FileName) + <strong class='reserved'>sizeof</strong>(<a href='../S/1942.html#L111' title='Defined at 111 in lib/stddef.in.h.'>wchar_t</a>);
-<a id='L670' name='L670'></a>   670           <strong class='reserved'>struct</strong> <a href='../S/3119.html#L350' title='Defined at 350 in src/termhooks.h.'>input_event</a> inev;
-<a id='L671' name='L671'></a>   671           DWORD info_size = <a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;<a href='../D/17476.html' title='Multiple defined in 5 places.'>size</a>;
-<a id='L672' name='L672'></a>   672           <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> cs = Qutf_16le;
-<a id='L673' name='L673'></a>   673           <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> obj = <a href='../S/3224.html#L667' title='Defined at 667 in src/w32notify.c.'>w32_get_watch_object</a> (<a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;desc);
-<a id='L674' name='L674'></a>   674 
-<a id='L675' name='L675'></a>   675           <em class='comment'>/* notifications size could be zero when the buffer of</em>
-<a id='L676' name='L676'></a>   676 <em class='comment'>             notifications overflowed on the OS level, or when the</em>
-<a id='L677' name='L677'></a>   677 <em class='comment'>             directory being watched was itself deleted.  Do nothing in</em>
-<a id='L678' name='L678'></a>   678 <em class='comment'>             that case.  */</em>
-<a id='L679' name='L679'></a>   679           <strong class='reserved'>if</strong> (info_size
-<a id='L680' name='L680'></a>   680               &amp;&amp; !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (obj) &amp;&amp; <a href='../D/1229.html' title='Multiple defined in 2 places.'>CONSP</a> (obj))
-<a id='L681' name='L681'></a>   681             <em class='brace'>{</em>
-<a id='L682' name='L682'></a>   682               <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> callback = <a href='../D/7021.html' title='Multiple defined in 2 places.'>XCDR</a> (obj);
-<a id='L683' name='L683'></a>   683 
-<a id='L684' name='L684'></a>   684               <a href='../S/3119.html#L393' title='Defined at 393 in src/termhooks.h.'>EVENT_INIT</a> (inev);
-<a id='L685' name='L685'></a>   685 
-<a id='L686' name='L686'></a>   686               <strong class='reserved'>while</strong> (info_size &gt;= min_size)
-<a id='L687' name='L687'></a>   687                 <em class='brace'>{</em>
-<a id='L688' name='L688'></a>   688                   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> utf_16_fn
-<a id='L689' name='L689'></a>   689                     = <a href='../S/3234.html#L2504' title='Defined at 2504 in src/alloc.c.'>make_unibyte_string</a> ((<strong class='reserved'>char</strong> *)fni-&gt;FileName,
-<a id='L690' name='L690'></a>   690                                            fni-&gt;FileNameLength);
-<a id='L691' name='L691'></a>   691                   <em class='comment'>/* Note: mule-conf is preloaded, so utf-16le must</em>
-<a id='L692' name='L692'></a>   692 <em class='comment'>                     already be defined at this point.  */</em>
-<a id='L693' name='L693'></a>   693                   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> fname
-<a id='L694' name='L694'></a>   694                     = <a href='../S/3098.html#L9619' title='Defined at 9619 in src/coding.c.'>code_convert_string_norecord</a> (utf_16_fn, cs, 0);
-<a id='L695' name='L695'></a>   695                   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> action = <a href='../S/3169.html#L3514' title='Defined at 3514 in src/w32term.c.'>w32_lispy_file_action</a> (fni-&gt;Action);
-<a id='L696' name='L696'></a>   696 
-<a id='L697' name='L697'></a>   697                   inev.kind = <a href='../S/3119.html#L291' title='Defined at 291 in src/termhooks.h.'>FILE_NOTIFY_EVENT</a>;
-<a id='L698' name='L698'></a>   698                   inev.timestamp = GetTickCount ();
-<a id='L699' name='L699'></a>   699                   inev.modifiers = 0;
-<a id='L700' name='L700'></a>   700                   inev.frame_or_window = callback;
-<a id='L701' name='L701'></a>   701                   inev.arg = Fcons (action, fname);
-<a id='L702' name='L702'></a>   702                   inev.arg = <a href='../S/3234.html#L2932' title='Defined at 2932 in src/alloc.c.'>list3</a> (<a href='../D/14150.html' title='Multiple defined in 2 places.'>make_pointer_integer</a> (<a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;desc),
-<a id='L703' name='L703'></a>   703                                     action, fname);
-<a id='L704' name='L704'></a>   704                   <a href='../S/4438.html#L3550' title='Defined at 3550 in test/manual/etags/c-src/emacs/src/keyboard.c.'>kbd_buffer_store_event_hold</a> (&amp;inev, hold_quit);
-<a id='L705' name='L705'></a>   705                   nevents++;
-<a id='L706' name='L706'></a>   706                   <strong class='reserved'>if</strong> (!fni-&gt;NextEntryOffset)
-<a id='L707' name='L707'></a>   707                     <strong class='reserved'>break</strong>;
-<a id='L708' name='L708'></a>   708                   p += fni-&gt;NextEntryOffset;
-<a id='L709' name='L709'></a>   709                   fni = (PFILE_NOTIFY_INFORMATION)p;
-<a id='L710' name='L710'></a>   710                   info_size -= fni-&gt;NextEntryOffset;
-<a id='L711' name='L711'></a>   711                 <em class='brace'>}</em>
-<a id='L712' name='L712'></a>   712             <em class='brace'>}</em>
-<a id='L713' name='L713'></a>   713           <em class='comment'>/* Free this notification set.  */</em>
-<a id='L714' name='L714'></a>   714           <a href='../D/11707.html' title='Multiple defined in 19 places.'>free</a> (<a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;notifications);
-<a id='L715' name='L715'></a>   715           <a href='../D/11707.html' title='Multiple defined in 19 places.'>free</a> (<a href='../S/1819.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>);
-<a id='L716' name='L716'></a>   716         <em class='brace'>}</em>
-<a id='L717' name='L717'></a>   717     <em class='brace'>}</em>
-<a id='L718' name='L718'></a>   718   <strong class='reserved'>return</strong> nevents;
-<a id='L719' name='L719'></a>   719 <em class='brace'>}</em>
-<a id='L720' name='L720'></a>   720 <em class='sharp'>#else</em>  <em class='comment'>/* !HAVE_W32NOTIFY */</em>
-<a id='L721' name='L721'></a>   721 <strong class='reserved'>int</strong>
-<a id='L722' name='L722'></a>   722 <a href='../R/11829.html' title='Multiple referred from 6 places.'>handle_file_notifications</a> (<strong class='reserved'>struct</strong> <a href='../S/3119.html#L350' title='Defined at 350 in src/termhooks.h.'>input_event</a> *hold_quit)
-<a id='L723' name='L723'></a>   723 <em class='brace'>{</em>
-<a id='L724' name='L724'></a>   724   <strong class='reserved'>return</strong> 0;
-<a id='L725' name='L725'></a>   725 <em class='brace'>}</em>
-<a id='L726' name='L726'></a>   726 <em class='sharp'>#endif</em>  <em class='comment'>/* !HAVE_W32NOTIFY */</em>
-<a id='L727' name='L727'></a>   727 
-<a id='L728' name='L728'></a>   728 <em class='comment'>/* Here's an overview of how Emacs input works in non-GUI sessions on</em>
-<a id='L729' name='L729'></a>   729 <em class='comment'>   MS-Windows.  (For description of the GUI input, see the commentary</em>
-<a id='L730' name='L730'></a>   730 <em class='comment'>   before w32_msg_pump in w32fns.c.)</em>
-<a id='L731' name='L731'></a>   731 <em class='comment'></em>
-<a id='L732' name='L732'></a>   732 <em class='comment'>   When Emacs is idle, it loops inside wait_reading_process_output,</em>
-<a id='L733' name='L733'></a>   733 <em class='comment'>   calling pselect periodically to check whether any input is</em>
-<a id='L734' name='L734'></a>   734 <em class='comment'>   available.  On Windows, pselect is redirected to sys_select, which</em>
-<a id='L735' name='L735'></a>   735 <em class='comment'>   uses MsgWaitForMultipleObjects to wait for input, either from the</em>
-<a id='L736' name='L736'></a>   736 <em class='comment'>   keyboard or from any of the Emacs subprocesses.  In addition,</em>
-<a id='L737' name='L737'></a>   737 <em class='comment'>   MsgWaitForMultipleObjects wakes up when some Windows message is</em>
-<a id='L738' name='L738'></a>   738 <em class='comment'>   posted to the input queue of the Emacs's main thread (which is the</em>
-<a id='L739' name='L739'></a>   739 <em class='comment'>   thread in which sys_select runs).</em>
-<a id='L740' name='L740'></a>   740 <em class='comment'></em>
-<a id='L741' name='L741'></a>   741 <em class='comment'>   When the Emacs's console window has focus, Windows sends input</em>
-<a id='L742' name='L742'></a>   742 <em class='comment'>   events that originate from the keyboard or the mouse; these events</em>
-<a id='L743' name='L743'></a>   743 <em class='comment'>   wake up MsgWaitForMultipleObjects, which reports that input is</em>
-<a id='L744' name='L744'></a>   744 <em class='comment'>   available.  Emacs then calls w32_console_read_socket, below, to</em>
-<a id='L745' name='L745'></a>   745 <em class='comment'>   read the input.  w32_console_read_socket uses</em>
-<a id='L746' name='L746'></a>   746 <em class='comment'>   GetNumberOfConsoleInputEvents and ReadConsoleInput to peek at and</em>
-<a id='L747' name='L747'></a>   747 <em class='comment'>   read the console input events.</em>
-<a id='L748' name='L748'></a>   748 <em class='comment'></em>
-<a id='L749' name='L749'></a>   749 <em class='comment'>   One type of non-keyboard input event that gets reported as input</em>
-<a id='L750' name='L750'></a>   750 <em class='comment'>   available is due to the Emacs's console window receiving focus.</em>
-<a id='L751' name='L751'></a>   751 <em class='comment'>   When that happens, Emacs gets the FOCUS_EVENT event and sys_select</em>
-<a id='L752' name='L752'></a>   752 <em class='comment'>   reports some input; however, w32_console_read_socket ignores such</em>
-<a id='L753' name='L753'></a>   753 <em class='comment'>   events when called to read them.</em>
-<a id='L754' name='L754'></a>   754 <em class='comment'></em>
-<a id='L755' name='L755'></a>   755 <em class='comment'>   Note that any other Windows message sent to the main thread will</em>
-<a id='L756' name='L756'></a>   756 <em class='comment'>   also wake up MsgWaitForMultipleObjects.  These messages get</em>
-<a id='L757' name='L757'></a>   757 <em class='comment'>   immediately dispatched to their destinations by calling</em>
-<a id='L758' name='L758'></a>   758 <em class='comment'>   drain_message_queue.  */</em>
-<a id='L759' name='L759'></a>   759 
-<a id='L760' name='L760'></a>   760 <strong class='reserved'>int</strong>
-<a id='L761' name='L761'></a>   761 <a href='../R/17550.html' title='Multiple referred from 2 places.'>w32_console_read_socket</a> (<strong class='reserved'>struct</strong> <a href='../S/3119.html#L455' title='Defined at 455 in src/termhooks.h.'>terminal</a> *<a href='../S/3119.html#L455' title='Defined at 455 in src/termhooks.h.'>terminal</a>,
-<a id='L762' name='L762'></a>   762                          <strong class='reserved'>struct</strong> <a href='../S/3119.html#L350' title='Defined at 350 in src/termhooks.h.'>input_event</a> *hold_quit)
-<a id='L763' name='L763'></a>   763 <em class='brace'>{</em>
-<a id='L764' name='L764'></a>   764   <strong class='reserved'>int</strong> nev, <a href='../S/1819.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a>;
-<a id='L765' name='L765'></a>   765   <strong class='reserved'>int</strong> isdead;
-<a id='L766' name='L766'></a>   766 
-<a id='L767' name='L767'></a>   767   <a href='../S/3281.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L768' name='L768'></a>   768 
-<a id='L769' name='L769'></a>   769   <strong class='reserved'>for</strong> (;;)
-<a id='L770' name='L770'></a>   770     <em class='brace'>{</em>
-<a id='L771' name='L771'></a>   771       <strong class='reserved'>int</strong> nfnotify = <a href='../D/12901.html' title='Multiple defined in 2 places.'>handle_file_notifications</a> (hold_quit);
-<a id='L772' name='L772'></a>   772 
-<a id='L773' name='L773'></a>   773       nev = <a href='../S/3206.html#L78' title='Defined at 78 in src/w32inevt.c.'>fill_queue</a> (0);
-<a id='L774' name='L774'></a>   774       <strong class='reserved'>if</strong> (nev &lt;= 0)
-<a id='L775' name='L775'></a>   775         <em class='brace'>{</em>
-<a id='L776' name='L776'></a>   776           <em class='comment'>/* If nev == -1, there was some kind of error</em>
-<a id='L777' name='L777'></a>   777 <em class='comment'>             If nev == 0 then no events were available</em>
-<a id='L778' name='L778'></a>   778 <em class='comment'>             so return.  */</em>
-<a id='L779' name='L779'></a>   779           <strong class='reserved'>if</strong> (nfnotify)
-<a id='L780' name='L780'></a>   780             nev = 0;
-<a id='L781' name='L781'></a>   781           <strong class='reserved'>break</strong>;
-<a id='L782' name='L782'></a>   782         <em class='brace'>}</em>
-<a id='L783' name='L783'></a>   783 
-<a id='L784' name='L784'></a>   784       <strong class='reserved'>while</strong> (nev &gt; 0)
-<a id='L785' name='L785'></a>   785         <em class='brace'>{</em>
-<a id='L786' name='L786'></a>   786           <strong class='reserved'>struct</strong> <a href='../S/3119.html#L350' title='Defined at 350 in src/termhooks.h.'>input_event</a> inev;
-<a id='L787' name='L787'></a>   787           <em class='comment'>/* Having a separate variable with this value makes</em>
-<a id='L788' name='L788'></a>   788 <em class='comment'>             debugging easier, as otherwise the compiler might</em>
-<a id='L789' name='L789'></a>   789 <em class='comment'>             rearrange the switch below in a way that makes it hard to</em>
-<a id='L790' name='L790'></a>   790 <em class='comment'>             track the event type.  */</em>
-<a id='L791' name='L791'></a>   791           <strong class='reserved'>unsigned</strong> evtype = queue_ptr-&gt;EventType;
-<a id='L792' name='L792'></a>   792 
-<a id='L793' name='L793'></a>   793           <a href='../S/3119.html#L393' title='Defined at 393 in src/termhooks.h.'>EVENT_INIT</a> (inev);
-<a id='L794' name='L794'></a>   794           inev.kind = <a href='../S/3119.html#L74' title='Defined at 74 in src/termhooks.h.'>NO_EVENT</a>;
-<a id='L795' name='L795'></a>   795           inev.arg = Qnil;
-<a id='L796' name='L796'></a>   796 
-<a id='L797' name='L797'></a>   797           <strong class='reserved'>switch</strong> (evtype)
-<a id='L798' name='L798'></a>   798             <em class='brace'>{</em>
-<a id='L799' name='L799'></a>   799             <strong class='reserved'>case</strong> KEY_EVENT:
-<a id='L800' name='L800'></a>   800               <a href='../S/1819.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a> = <a href='../S/3206.html#L139' title='Defined at 139 in src/w32inevt.c.'>key_event</a> (&amp;queue_ptr-&gt;Event.KeyEvent, &amp;inev, &amp;isdead);
-<a id='L801' name='L801'></a>   801               <strong class='reserved'>if</strong> (<a href='../S/1819.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a> == -1) <em class='comment'>/* 95.7.25 by himi */</em>
-<a id='L802' name='L802'></a>   802                 <em class='brace'>{</em>
-<a id='L803' name='L803'></a>   803                   queue_ptr--;
-<a id='L804' name='L804'></a>   804                   <a href='../S/1819.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a> = 1;
-<a id='L805' name='L805'></a>   805                 <em class='brace'>}</em>
-<a id='L806' name='L806'></a>   806               <strong class='reserved'>if</strong> (<a href='../S/1819.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a>)
-<a id='L807' name='L807'></a>   807                 <a href='../S/4438.html#L3550' title='Defined at 3550 in test/manual/etags/c-src/emacs/src/keyboard.c.'>kbd_buffer_store_event_hold</a> (&amp;inev, hold_quit);
-<a id='L808' name='L808'></a>   808               <strong class='reserved'>break</strong>;
-<a id='L809' name='L809'></a>   809 
-<a id='L810' name='L810'></a>   810             <strong class='reserved'>case</strong> MOUSE_EVENT:
-<a id='L811' name='L811'></a>   811               <a href='../S/1819.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a> = <a href='../S/3206.html#L466' title='Defined at 466 in src/w32inevt.c.'>do_mouse_event</a> (&amp;queue_ptr-&gt;Event.MouseEvent, &amp;inev);
-<a id='L812' name='L812'></a>   812               <strong class='reserved'>if</strong> (<a href='../S/1819.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a>)
-<a id='L813' name='L813'></a>   813                 <a href='../S/4438.html#L3550' title='Defined at 3550 in test/manual/etags/c-src/emacs/src/keyboard.c.'>kbd_buffer_store_event_hold</a> (&amp;inev, hold_quit);
-<a id='L814' name='L814'></a>   814               <strong class='reserved'>break</strong>;
-<a id='L815' name='L815'></a>   815 
-<a id='L816' name='L816'></a>   816             <strong class='reserved'>case</strong> WINDOW_BUFFER_SIZE_EVENT:
-<a id='L817' name='L817'></a>   817               <strong class='reserved'>if</strong> (w32_use_full_screen_buffer)
-<a id='L818' name='L818'></a>   818                 <a href='../S/3206.html#L608' title='Defined at 608 in src/w32inevt.c.'>resize_event</a> (&amp;queue_ptr-&gt;Event.WindowBufferSizeEvent);
-<a id='L819' name='L819'></a>   819               <strong class='reserved'>break</strong>;
-<a id='L820' name='L820'></a>   820 
-<a id='L821' name='L821'></a>   821             <strong class='reserved'>case</strong> MENU_EVENT:
-<a id='L822' name='L822'></a>   822             <strong class='reserved'>case</strong> FOCUS_EVENT:
-<a id='L823' name='L823'></a>   823               <em class='comment'>/* Internal event types, ignored. */</em>
-<a id='L824' name='L824'></a>   824               <strong class='reserved'>break</strong>;
-<a id='L825' name='L825'></a>   825             <em class='brace'>}</em>
-<a id='L826' name='L826'></a>   826 
-<a id='L827' name='L827'></a>   827           queue_ptr++;
-<a id='L828' name='L828'></a>   828           nev--;
-<a id='L829' name='L829'></a>   829         <em class='brace'>}</em>
-<a id='L830' name='L830'></a>   830     <em class='brace'>}</em>
-<a id='L831' name='L831'></a>   831 
-<a id='L832' name='L832'></a>   832   <em class='comment'>/* We don't get told about changes in the window size (only the buffer</em>
-<a id='L833' name='L833'></a>   833 <em class='comment'>     size, which we no longer care about), so we have to check it</em>
-<a id='L834' name='L834'></a>   834 <em class='comment'>     periodically.  */</em>
-<a id='L835' name='L835'></a>   835   <strong class='reserved'>if</strong> (!w32_use_full_screen_buffer)
-<a id='L836' name='L836'></a>   836     <a href='../S/3206.html#L617' title='Defined at 617 in src/w32inevt.c.'>maybe_generate_resize_event</a> ();
-<a id='L837' name='L837'></a>   837 
-<a id='L838' name='L838'></a>   838   <a href='../D/18606.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L839' name='L839'></a>   839   <strong class='reserved'>return</strong> nev;
-<a id='L840' name='L840'></a>   840 <em class='brace'>}</em>
+<a id='L96' name='L96'></a>    96 <em class='sharp'>#endif</em>  <em class='comment'>/* !WINDOWSNT */</em>
+<a id='L97' name='L97'></a>    97 
+<a id='L98' name='L98'></a>    98 <em class='sharp'>#endif</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L66'>[^]</a><a href='#L761'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L67'>[^]</a><a href='#L81'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>

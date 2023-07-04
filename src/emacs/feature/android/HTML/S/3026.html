@@ -1,0 +1,224 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>exec/loader-armeabi.s</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4775.html'>exec</a>/loader-armeabi.s</h2>
+<em class='comment'>/* [&lt;][&gt;][^][v][top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 @ Copyright (C) 2023 Free Software Foundation, Inc.
+<a id='L2' name='L2'></a>     2 @
+<a id='L3' name='L3'></a>     3 @ This file is part of GNU Emacs.
+<a id='L4' name='L4'></a>     4 @
+<a id='L5' name='L5'></a>     5 @ GNU Emacs is free software: you can redistribute it and/or modify
+<a id='L6' name='L6'></a>     6 @ it under the terms of the GNU General Public License as published
+<a id='L7' name='L7'></a>     7 @ by the Free Software Foundation, either version 3 of the License,
+<a id='L8' name='L8'></a>     8 @ or (at your option) any later version.
+<a id='L9' name='L9'></a>     9 @
+<a id='L10' name='L10'></a>    10 @ GNU Emacs is distributed in the hope that it will be useful, but
+<a id='L11' name='L11'></a>    11 @ WITHOUT ANY WARRANTY; without even the implied warranty of
+<a id='L12' name='L12'></a>    12 @ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+<a id='L13' name='L13'></a>    13 @ General Public License for more details.
+<a id='L14' name='L14'></a>    14 @
+<a id='L15' name='L15'></a>    15 @ You should have received a copy of the GNU General Public License
+<a id='L16' name='L16'></a>    16 @ along with GNU Emacs.  If not, see &lt;https:@www.gnu.org/licenses/&gt;.
+<a id='L17' name='L17'></a>    17 
+<a id='L18' name='L18'></a>    18         .section .text
+<a id='L19' name='L19'></a>    19         .global _start
+<a id='L20' name='L20'></a>    20 _start:
+<a id='L21' name='L21'></a>    21         @mov    r7, #162                @ SYS_nanosleep
+<a id='L22' name='L22'></a>    22         @adr    r0, timespec            @ req
+<a id='L23' name='L23'></a>    23         @mov    r1, #0                  @ rem
+<a id='L24' name='L24'></a>    24         @swi    #0                      @ syscall
+<a id='L25' name='L25'></a>    25         mov     r8, sp                  @ r8 = sp
+<a id='L26' name='L26'></a>    26         ldr     r9, [r8], #8            @ r9 = original sp, r8 += 8
+<a id='L27' name='L27'></a>    27         mov     r14, #-1                @ r14 = secondary fd
+<a id='L28' name='L28'></a>    28 .next_action:
+<a id='L29' name='L29'></a>    29         ldr     r11, [r8]               @ r11 = action number
+<a id='L30' name='L30'></a>    30         and     r12, r11, #-17          @ actual action number
+<a id='L31' name='L31'></a>    31         cmp     r12, #0                 @ open file?
+<a id='L32' name='L32'></a>    32         beq     .open_file              @ open file.
+<a id='L33' name='L33'></a>    33         cmp     r12, #3                 @ jump?
+<a id='L34' name='L34'></a>    34         beq     .rest_of_exec           @ jump to code.
+<a id='L35' name='L35'></a>    35         cmp     r12, #4                 @ anonymous mmap?
+<a id='L36' name='L36'></a>    36         beq     .do_mmap_anon           @ anonymous mmap.
+<a id='L37' name='L37'></a>    37 .do_mmap:
+<a id='L38' name='L38'></a>    38         add     r6, r8, #4              @ r6 = r8 + 4
+<a id='L39' name='L39'></a>    39         ldm     r6!, <em class='brace'>{</em>r0, r5<em class='brace'>}</em>           @ vm_address, file_offset
+<a id='L40' name='L40'></a>    40         ldm     r6!, <em class='brace'>{</em>r1, r2<em class='brace'>}</em>           @ protection, length
+<a id='L41' name='L41'></a>    41         mov     r3, r1                  @ swap
+<a id='L42' name='L42'></a>    42         lsr     r5, #12                 @ divide file offset by page size
+<a id='L43' name='L43'></a>    43         mov     r1, r2                  @ swap
+<a id='L44' name='L44'></a>    44         mov     r2, r3                  @ swap
+<a id='L45' name='L45'></a>    45         ldm     r6!, <em class='brace'>{</em>r3, r12<em class='brace'>}</em>          @ flags, clear
+<a id='L46' name='L46'></a>    46         tst     r11, #16                @ primary fd?
+<a id='L47' name='L47'></a>    47         mov     r4, r10                 @ primary fd
+<a id='L48' name='L48'></a>    48         beq     .do_mmap_1
+<a id='L49' name='L49'></a>    49         mov     r4, r14                 @ secondary fd
+<a id='L50' name='L50'></a>    50 .do_mmap_1:
+<a id='L51' name='L51'></a>    51         mov     r7, #192                @ SYS_mmap2
+<a id='L52' name='L52'></a>    52         swi     #0                      @ syscall
+<a id='L53' name='L53'></a>    53         ldr     r2, [r8, #4]            @ vm_address
+<a id='L54' name='L54'></a>    54         cmp     r2, r0                  @ rc == vm_address?
+<a id='L55' name='L55'></a>    55         bne     .perror
+<a id='L56' name='L56'></a>    56         add     r0, r1, r2              @ r0 = length + vm_address
+<a id='L57' name='L57'></a>    57         sub     r3, r0, r12             @ r3 = r0 - clear
+<a id='L58' name='L58'></a>    58         mov     r1, #0                  @ r1 = 0
+<a id='L59' name='L59'></a>    59 .align:
+<a id='L60' name='L60'></a>    60         cmp     r0, r3                  @ r0 == r3?
+<a id='L61' name='L61'></a>    61         beq     .continue               @ continue
+<a id='L62' name='L62'></a>    62         tst     r3, #3                  @ r3 &amp; 3?
+<a id='L63' name='L63'></a>    63         bne     .fill32                 @ fill aligned
+<a id='L64' name='L64'></a>    64         strb    r1, [r3], #1            @ fill byte
+<a id='L65' name='L65'></a>    65         b       .align                  @ align again
+<a id='L66' name='L66'></a>    66 .fill32:
+<a id='L67' name='L67'></a>    67         sub     r2, r0, r3              @ r2 = r0 - r3
+<a id='L68' name='L68'></a>    68         cmp     r2, #31                 @ r2 &gt;= 32?
+<a id='L69' name='L69'></a>    69         ble     .fillb                  @ start filling bytes
+<a id='L70' name='L70'></a>    70         str     r1, [r3], #4            @ *r3++ = 0
+<a id='L71' name='L71'></a>    71         str     r1, [r3], #4            @ *r3++ = 0
+<a id='L72' name='L72'></a>    72         str     r1, [r3], #4            @ *r3++ = 0
+<a id='L73' name='L73'></a>    73         str     r1, [r3], #4            @ *r3++ = 0
+<a id='L74' name='L74'></a>    74         str     r1, [r3], #4            @ *r3++ = 0
+<a id='L75' name='L75'></a>    75         str     r1, [r3], #4            @ *r3++ = 0
+<a id='L76' name='L76'></a>    76         str     r1, [r3], #4            @ *r3++ = 0
+<a id='L77' name='L77'></a>    77         str     r1, [r3], #4            @ *r3++ = 0
+<a id='L78' name='L78'></a>    78         b       .fill32
+<a id='L79' name='L79'></a>    79 .fillb:
+<a id='L80' name='L80'></a>    80         cmp     r0, r3                  @ r0 == r3
+<a id='L81' name='L81'></a>    81         beq     .continue               @ done
+<a id='L82' name='L82'></a>    82         strb    r1, [r3], #1            @ ((char *) r3)++ = 0
+<a id='L83' name='L83'></a>    83         b       .fillb
+<a id='L84' name='L84'></a>    84 .continue:
+<a id='L85' name='L85'></a>    85         add     r8, r8, #28             @ next action
+<a id='L86' name='L86'></a>    86         b       .next_action
+<a id='L87' name='L87'></a>    87 .do_mmap_anon:
+<a id='L88' name='L88'></a>    88         add     r6, r8, #4              @ r6 = r8 + 4
+<a id='L89' name='L89'></a>    89         ldm     r6!, <em class='brace'>{</em>r0, r5<em class='brace'>}</em>           @ vm_address, file_offset
+<a id='L90' name='L90'></a>    90         ldm     r6!, <em class='brace'>{</em>r1, r2<em class='brace'>}</em>           @ protection, length
+<a id='L91' name='L91'></a>    91         mov     r3, r1                  @ swap
+<a id='L92' name='L92'></a>    92         lsr     r5, #12                 @ divide file offset by page size
+<a id='L93' name='L93'></a>    93         mov     r1, r2                  @ swap
+<a id='L94' name='L94'></a>    94         mov     r2, r3                  @ swap
+<a id='L95' name='L95'></a>    95         ldm     r6!, <em class='brace'>{</em>r3, r12<em class='brace'>}</em>          @ flags, clear
+<a id='L96' name='L96'></a>    96         mov     r4, #-1                 @ fd
+<a id='L97' name='L97'></a>    97         b       .do_mmap_1
+<a id='L98' name='L98'></a>    98 .open_file:
+<a id='L99' name='L99'></a>    99         mov     r7, #5                  @ SYS_open
+<a id='L100' name='L100'></a>   100         add     r0, r8, #4              @ file name
+<a id='L101' name='L101'></a>   101         mov     r1, #0                  @ O_RDONLY
+<a id='L102' name='L102'></a>   102         mov     r2, #0                  @ mode
+<a id='L103' name='L103'></a>   103         swi     #0                      @ syscall
+<a id='L104' name='L104'></a>   104         cmp     r0, #-1                 @ r0 &lt;= -1?
+<a id='L105' name='L105'></a>   105         ble     .perror
+<a id='L106' name='L106'></a>   106         add     r8, r8, #4              @ r8 = start of string
+<a id='L107' name='L107'></a>   107         mov     r1, r8                  @ r1 = r8
+<a id='L108' name='L108'></a>   108 .nextc:
+<a id='L109' name='L109'></a>   109         ldrb    r2, [r8], #1            @ b = *r0++
+<a id='L110' name='L110'></a>   110         cmp     r2, #47                 @ dir separator?
+<a id='L111' name='L111'></a>   111         bne     .nextc1                 @ not dir separator
+<a id='L112' name='L112'></a>   112         mov     r1, r8                  @ r1 = char past separator
+<a id='L113' name='L113'></a>   113 .nextc1:
+<a id='L114' name='L114'></a>   114         cmp     r2, #0                  @ b?
+<a id='L115' name='L115'></a>   115         bne     .nextc                  @ next character
+<a id='L116' name='L116'></a>   116         add     r8, r8, #3              @ round up r8
+<a id='L117' name='L117'></a>   117         and     r8, r8, #-4             @ mask for round, set r8
+<a id='L118' name='L118'></a>   118         tst     r11, #16                @ primary fd?
+<a id='L119' name='L119'></a>   119         bne     .secondary              @ secondary fd
+<a id='L120' name='L120'></a>   120         mov     r10, r0                 @ primary fd
+<a id='L121' name='L121'></a>   121         mov     r7, #172                @ SYS_prctl
+<a id='L122' name='L122'></a>   122         mov     r0, #15                 @ PR_SET_NAME, r1 = name
+<a id='L123' name='L123'></a>   123         mov     r2, #0                  @ arg2
+<a id='L124' name='L124'></a>   124         mov     r3, #0                  @ arg3
+<a id='L125' name='L125'></a>   125         mov     r4, #0                  @ arg4
+<a id='L126' name='L126'></a>   126         mov     r5, #0                  @ arg5
+<a id='L127' name='L127'></a>   127         swi     #0                      @ syscall
+<a id='L128' name='L128'></a>   128         b       .next_action            @ next action
+<a id='L129' name='L129'></a>   129 .secondary:
+<a id='L130' name='L130'></a>   130         mov     r14, r0                 @ secondary fd
+<a id='L131' name='L131'></a>   131         b       .next_action            @ next action
+<a id='L132' name='L132'></a>   132 .perror:
+<a id='L133' name='L133'></a>   133         mov     r7, #1                  @ SYS_exit
+<a id='L134' name='L134'></a>   134         mvn     r0, r0                  @ r0 = ~r0
+<a id='L135' name='L135'></a>   135         add     r0, r0, #1              @ r0 += 1
+<a id='L136' name='L136'></a>   136         swi     #0
+<a id='L137' name='L137'></a>   137 .rest_of_exec:
+<a id='L138' name='L138'></a>   138         mov     r7, r9                  @ r7 = original SP
+<a id='L139' name='L139'></a>   139         ldr     r6, [r7]                @ argc
+<a id='L140' name='L140'></a>   140         add     r6, r6, #2              @ argc + 2
+<a id='L141' name='L141'></a>   141         lsl     r6, r6, #2              @ argc *= 4
+<a id='L142' name='L142'></a>   142         add     r7, r7, r6              @ now past argv
+<a id='L143' name='L143'></a>   143 .skipenv:
+<a id='L144' name='L144'></a>   144         ldr     r6, [r7], #4            @ r6 = *r7++
+<a id='L145' name='L145'></a>   145         cmp     r6, #0                  @ r6?
+<a id='L146' name='L146'></a>   146         bne     .skipenv                @ r6?
+<a id='L147' name='L147'></a>   147 .one_auxv:
+<a id='L148' name='L148'></a>   148         ldr     r6, [r7], #8            @ r6 = *r7, r7 += 2
+<a id='L149' name='L149'></a>   149         cmp     r6, #0                  @ !r6?
+<a id='L150' name='L150'></a>   150         beq     .cleanup                @ r6?
+<a id='L151' name='L151'></a>   151         cmp     r6, #3                  @ is AT_PHDR?
+<a id='L152' name='L152'></a>   152         beq     .replace_phdr           @ replace
+<a id='L153' name='L153'></a>   153         cmp     r6, #4                  @ is AT_PHENT?
+<a id='L154' name='L154'></a>   154         beq     .replace_phent          @ replace
+<a id='L155' name='L155'></a>   155         cmp     r6, #5                  @ is AT_PHNUM?
+<a id='L156' name='L156'></a>   156         beq     .replace_phnum          @ replace
+<a id='L157' name='L157'></a>   157         cmp     r6, #9                  @ is AT_ENTRY?
+<a id='L158' name='L158'></a>   158         beq     .replace_entry          @ replace
+<a id='L159' name='L159'></a>   159         cmp     r6, #7                  @ is AT_BASE?
+<a id='L160' name='L160'></a>   160         beq     .replace_base           @ replace
+<a id='L161' name='L161'></a>   161         b       .one_auxv               @ next auxv
+<a id='L162' name='L162'></a>   162 .replace_phdr:
+<a id='L163' name='L163'></a>   163         ldr     r6, [r8, #20]           @ at_phdr
+<a id='L164' name='L164'></a>   164         str     r6, [r7, #-4]           @ store value
+<a id='L165' name='L165'></a>   165         b       .one_auxv
+<a id='L166' name='L166'></a>   166 .replace_phent:
+<a id='L167' name='L167'></a>   167         ldr     r6, [r8, #12]           @ at_phent
+<a id='L168' name='L168'></a>   168         str     r6, [r7, #-4]           @ store value
+<a id='L169' name='L169'></a>   169         b       .one_auxv
+<a id='L170' name='L170'></a>   170 .replace_phnum:
+<a id='L171' name='L171'></a>   171         ldr     r6, [r8, #16]           @ at_phnum
+<a id='L172' name='L172'></a>   172         str     r6, [r7, #-4]           @ store value
+<a id='L173' name='L173'></a>   173         b       .one_auxv
+<a id='L174' name='L174'></a>   174 .replace_entry:
+<a id='L175' name='L175'></a>   175         ldr     r6, [r8, #8]            @ at_entry
+<a id='L176' name='L176'></a>   176         str     r6, [r7, #-4]           @ store value
+<a id='L177' name='L177'></a>   177         b       .one_auxv
+<a id='L178' name='L178'></a>   178 .replace_base:
+<a id='L179' name='L179'></a>   179         ldr     r6, [r8, #24]           @ at_base
+<a id='L180' name='L180'></a>   180         str     r6, [r7, #-4]           @ store value
+<a id='L181' name='L181'></a>   181         b       .one_auxv
+<a id='L182' name='L182'></a>   182 .cleanup:
+<a id='L183' name='L183'></a>   183         cmp     r14, #-1                @ secondary fd set?
+<a id='L184' name='L184'></a>   184         bne     .cleanup1               @ not set
+<a id='L185' name='L185'></a>   185         mov     r7, #6                  @ SYS_close
+<a id='L186' name='L186'></a>   186         mov     r0, r14                 @ secondary fd
+<a id='L187' name='L187'></a>   187         swi     #0                      @ syscall
+<a id='L188' name='L188'></a>   188 .cleanup1:
+<a id='L189' name='L189'></a>   189         mov     r7, #6                  @ SYS_close
+<a id='L190' name='L190'></a>   190         mov     r0, r10                 @ primary fd
+<a id='L191' name='L191'></a>   191         swi     #0                      @ syscall
+<a id='L192' name='L192'></a>   192 .enter:
+<a id='L193' name='L193'></a>   193         mov     sp, r9                  @ restore original SP
+<a id='L194' name='L194'></a>   194         mov     r0, #0                  @ clear rtld_fini
+<a id='L195' name='L195'></a>   195         ldr     r1, [r8, #4]            @ branch to code
+<a id='L196' name='L196'></a>   196         bx      r1
+<a id='L197' name='L197'></a>   197 
+<a id='L198' name='L198'></a>   198 timespec:
+<a id='L199' name='L199'></a>   199         .long 10
+<a id='L200' name='L200'></a>   200         .long 10
+<a id='L201' name='L201'></a>   201 
+<a id='L202' name='L202'></a>   202 @ Local Variables:
+<a id='L203' name='L203'></a>   203 @ asm-comment-char: 64
+<a id='L204' name='L204'></a>   204 @ End:
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;][^][v]<a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

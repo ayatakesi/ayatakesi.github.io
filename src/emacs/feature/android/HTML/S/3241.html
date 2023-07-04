@@ -1,0 +1,314 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/tparam.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4791.html'>src</a>/tparam.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L40'>[^]</a><a href='#L273'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L40' title='Defined at 40.'>tparam</a></li>
+<li><a href='#L58' title='Defined at 58.'>tgoto</a></li>
+<li><a href='#L69' title='Defined at 69.'>tparam1</a></li>
+<li><a href='#L273' title='Defined at 273.'>main</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Merge parameters into a termcap entry string.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1985, 1987, 1993, 1995, 2000-2008, 2013-2023 Free</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This program is free software; you can redistribute it and/or modify</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>the Free Software Foundation; either version 2, or (at your option)</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>any later version.</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'></em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>This program is distributed in the hope that it will be useful,</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'></em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L17' name='L17'></a>    17 
+<a id='L18' name='L18'></a>    18 <em class='comment'>/* Emacs config.h may rename various library functions such as malloc.  */</em>
+<a id='L19' name='L19'></a>    19 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"               <em class='comment'>/* for xmalloc */</em>
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> "<a href='3191.html'>tparam.h</a>"
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='comment'>/* Assuming STRING is the value of a termcap string entry</em>
+<a id='L25' name='L25'></a>    25 <em class='comment'>   containing `%' constructs to expand parameters,</em>
+<a id='L26' name='L26'></a>    26 <em class='comment'>   merge in parameter values and store result in block OUTSTRING points to.</em>
+<a id='L27' name='L27'></a>    27 <em class='comment'>   LEN is the length of OUTSTRING.  If more space is needed,</em>
+<a id='L28' name='L28'></a>    28 <em class='comment'>   a block is allocated with `malloc'.</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'></em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>   The value returned is the address of the resulting string.</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>   This may be OUTSTRING or may be the address of a block got with `malloc'.</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'>   In the latter case, the caller must free the block.</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'></em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>   The fourth and following args to tparam serve as the parameter values.  */</em>
+<a id='L35' name='L35'></a>    35 
+<a id='L36' name='L36'></a>    36 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *<a href='../S/3241.html#L69' title='Defined at 69 in src/tparam.c.'>tparam1</a> (<strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *string, <strong class='reserved'>char</strong> *outstring, <strong class='reserved'>int</strong> len,
+<a id='L37' name='L37'></a>    37                       <strong class='reserved'>char</strong> *up, <strong class='reserved'>char</strong> *left, <strong class='reserved'>int</strong> *argp);
+<a id='L38' name='L38'></a>    38 
+<a id='L39' name='L39'></a>    39 <strong class='reserved'>char</strong> *
+<a id='L40' name='L40'></a>    40 <a href='../R/16981.html' title='Multiple referred from 9 places.'>tparam</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *string, <strong class='reserved'>char</strong> *outstring, <strong class='reserved'>int</strong> len,
+<a id='L41' name='L41'></a>    41         <strong class='reserved'>int</strong> arg0, <strong class='reserved'>int</strong> arg1, <strong class='reserved'>int</strong> arg2, <strong class='reserved'>int</strong> arg3)
+<a id='L42' name='L42'></a>    42 <em class='brace'>{</em>
+<a id='L43' name='L43'></a>    43   <strong class='reserved'>int</strong> arg[4];
+<a id='L44' name='L44'></a>    44 
+<a id='L45' name='L45'></a>    45   arg[0] = arg0;
+<a id='L46' name='L46'></a>    46   arg[1] = arg1;
+<a id='L47' name='L47'></a>    47   arg[2] = arg2;
+<a id='L48' name='L48'></a>    48   arg[3] = arg3;
+<a id='L49' name='L49'></a>    49   <strong class='reserved'>return</strong> <a href='../S/3241.html#L69' title='Defined at 69 in src/tparam.c.'>tparam1</a> (string, outstring, len, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, arg);
+<a id='L50' name='L50'></a>    50 <em class='brace'>}</em>
+<a id='L51' name='L51'></a>    51 
+<a id='L52' name='L52'></a>    52 <strong class='reserved'>char</strong> *BC;
+<a id='L53' name='L53'></a>    53 <strong class='reserved'>char</strong> *UP;
+<a id='L54' name='L54'></a>    54 
+<a id='L55' name='L55'></a>    55 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> tgoto_buf[50];
+<a id='L56' name='L56'></a>    56 
+<a id='L57' name='L57'></a>    57 <strong class='reserved'>char</strong> *
+<a id='L58' name='L58'></a>    58 <a href='../R/16892.html' title='Multiple referred from 4 places.'>tgoto</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/3233.html#L32' title='Defined at 32 in src/cm.h.'>cm</a>, <strong class='reserved'>int</strong> hpos, <strong class='reserved'>int</strong> vpos)
+<a id='L59' name='L59'></a>    59 <em class='brace'>{</em>
+<a id='L60' name='L60'></a>    60   <strong class='reserved'>int</strong> <a href='../S/4425.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[2];
+<a id='L61' name='L61'></a>    61   <strong class='reserved'>if</strong> (!<a href='../S/3233.html#L32' title='Defined at 32 in src/cm.h.'>cm</a>)
+<a id='L62' name='L62'></a>    62     <strong class='reserved'>return</strong> <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L63' name='L63'></a>    63   <a href='../S/4425.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[0] = vpos;
+<a id='L64' name='L64'></a>    64   <a href='../S/4425.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[1] = hpos;
+<a id='L65' name='L65'></a>    65   <strong class='reserved'>return</strong> <a href='../S/3241.html#L69' title='Defined at 69 in src/tparam.c.'>tparam1</a> (<a href='../S/3233.html#L32' title='Defined at 32 in src/cm.h.'>cm</a>, tgoto_buf, 50, UP, BC, <a href='../S/4425.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>);
+<a id='L66' name='L66'></a>    66 <em class='brace'>}</em>
+<a id='L67' name='L67'></a>    67 
+<a id='L68' name='L68'></a>    68 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *
+<a id='L69' name='L69'></a>    69 <a href='../R/16982.html' title='Multiple referred from 4 places.'>tparam1</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *string, <strong class='reserved'>char</strong> *outstring, <strong class='reserved'>int</strong> len,
+<a id='L70' name='L70'></a>    70          <strong class='reserved'>char</strong> *up, <strong class='reserved'>char</strong> *left, <strong class='reserved'>register</strong> <strong class='reserved'>int</strong> *argp)
+<a id='L71' name='L71'></a>    71 <em class='brace'>{</em>
+<a id='L72' name='L72'></a>    72   <strong class='reserved'>register</strong> <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L73' name='L73'></a>    73   <strong class='reserved'>register</strong> <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *p = string;
+<a id='L74' name='L74'></a>    74   <strong class='reserved'>register</strong> <strong class='reserved'>char</strong> *op = outstring;
+<a id='L75' name='L75'></a>    75   <strong class='reserved'>char</strong> *outend;
+<a id='L76' name='L76'></a>    76   <strong class='reserved'>char</strong> *new = 0;
+<a id='L77' name='L77'></a>    77   ptrdiff_t outlen = 0;
+<a id='L78' name='L78'></a>    78 
+<a id='L79' name='L79'></a>    79   <strong class='reserved'>register</strong> <strong class='reserved'>int</strong> tem;
+<a id='L80' name='L80'></a>    80   <strong class='reserved'>int</strong> *old_argp = argp;                 <em class='comment'>/* can move */</em>
+<a id='L81' name='L81'></a>    81   <strong class='reserved'>int</strong> *fixed_argp = argp;               <em class='comment'>/* never moves */</em>
+<a id='L82' name='L82'></a>    82   <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> explicit_param_p = <a href='../S/2628.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;        <em class='comment'>/* set by %p */</em>
+<a id='L83' name='L83'></a>    83   ptrdiff_t doleft = 0;
+<a id='L84' name='L84'></a>    84   ptrdiff_t doup = 0;
+<a id='L85' name='L85'></a>    85   ptrdiff_t append_len = 0;
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87   outend = outstring + len;
+<a id='L88' name='L88'></a>    88 
+<a id='L89' name='L89'></a>    89   <strong class='reserved'>while</strong> (<a href='../S/2628.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>)
+<a id='L90' name='L90'></a>    90     <em class='brace'>{</em>
+<a id='L91' name='L91'></a>    91       <em class='comment'>/* If the buffer might be too short, make it bigger.  */</em>
+<a id='L92' name='L92'></a>    92       <strong class='reserved'>while</strong> (outend - op - append_len &lt;= 5)
+<a id='L93' name='L93'></a>    93         <em class='brace'>{</em>
+<a id='L94' name='L94'></a>    94           ptrdiff_t <a href='../D/15073.html' title='Multiple defined in 4 places.'>offset</a> = op - outstring;
+<a id='L95' name='L95'></a>    95 
+<a id='L96' name='L96'></a>    96           <strong class='reserved'>if</strong> (outlen == 0)
+<a id='L97' name='L97'></a>    97             <em class='brace'>{</em>
+<a id='L98' name='L98'></a>    98               outlen = len + 40;
+<a id='L99' name='L99'></a>    99               new = <a href='../D/20057.html' title='Multiple defined in 10 places.'>xmalloc</a> (outlen);
+<a id='L100' name='L100'></a>   100               memcpy (new, outstring, <a href='../D/15073.html' title='Multiple defined in 4 places.'>offset</a>);
+<a id='L101' name='L101'></a>   101             <em class='brace'>}</em>
+<a id='L102' name='L102'></a>   102           <strong class='reserved'>else</strong>
+<a id='L103' name='L103'></a>   103             <em class='brace'>{</em>
+<a id='L104' name='L104'></a>   104               new = <a href='../S/3230.html#L914' title='Defined at 914 in src/alloc.c.'>xpalloc</a> (outstring, &amp;outlen, 1, -1, 1);
+<a id='L105' name='L105'></a>   105             <em class='brace'>}</em>
+<a id='L106' name='L106'></a>   106 
+<a id='L107' name='L107'></a>   107           op = new + <a href='../D/15073.html' title='Multiple defined in 4 places.'>offset</a>;
+<a id='L108' name='L108'></a>   108           outend = new + outlen;
+<a id='L109' name='L109'></a>   109           outstring = new;
+<a id='L110' name='L110'></a>   110         <em class='brace'>}</em>
+<a id='L111' name='L111'></a>   111       <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = *p++;
+<a id='L112' name='L112'></a>   112       <strong class='reserved'>if</strong> (!<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L113' name='L113'></a>   113         <strong class='reserved'>break</strong>;
+<a id='L114' name='L114'></a>   114       <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> == '%')
+<a id='L115' name='L115'></a>   115         <em class='brace'>{</em>
+<a id='L116' name='L116'></a>   116           <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = *p++;
+<a id='L117' name='L117'></a>   117           <strong class='reserved'>if</strong> (explicit_param_p)
+<a id='L118' name='L118'></a>   118             explicit_param_p = <a href='../S/2628.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L119' name='L119'></a>   119           <strong class='reserved'>else</strong>
+<a id='L120' name='L120'></a>   120             tem = *argp;
+<a id='L121' name='L121'></a>   121           <strong class='reserved'>switch</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L122' name='L122'></a>   122             <em class='brace'>{</em>
+<a id='L123' name='L123'></a>   123             <strong class='reserved'>case</strong> 'd':           <em class='comment'>/* %d means output in decimal.  */</em>
+<a id='L124' name='L124'></a>   124               <strong class='reserved'>if</strong> (tem &lt; 10)
+<a id='L125' name='L125'></a>   125                 <strong class='reserved'>goto</strong> onedigit;
+<a id='L126' name='L126'></a>   126               <strong class='reserved'>if</strong> (tem &lt; 100)
+<a id='L127' name='L127'></a>   127                 <strong class='reserved'>goto</strong> twodigit;
+<a id='L128' name='L128'></a>   128               <a href='../D/2028.html' title='Multiple defined in 3 places.'>FALLTHROUGH</a>;
+<a id='L129' name='L129'></a>   129             <strong class='reserved'>case</strong> '3':           <em class='comment'>/* %3 means output in decimal, 3 digits.  */</em>
+<a id='L130' name='L130'></a>   130               <strong class='reserved'>if</strong> (tem &gt; 999)
+<a id='L131' name='L131'></a>   131                 <em class='brace'>{</em>
+<a id='L132' name='L132'></a>   132                   *op++ = tem / 1000 + '0';
+<a id='L133' name='L133'></a>   133                   tem %= 1000;
+<a id='L134' name='L134'></a>   134                 <em class='brace'>}</em>
+<a id='L135' name='L135'></a>   135               *op++ = tem / 100 + '0';
+<a id='L136' name='L136'></a>   136               <a href='../D/2028.html' title='Multiple defined in 3 places.'>FALLTHROUGH</a>;
+<a id='L137' name='L137'></a>   137             <strong class='reserved'>case</strong> '2':           <em class='comment'>/* %2 means output in decimal, 2 digits.  */</em>
+<a id='L138' name='L138'></a>   138             twodigit:
+<a id='L139' name='L139'></a>   139               tem %= 100;
+<a id='L140' name='L140'></a>   140               *op++ = tem / 10 + '0';
+<a id='L141' name='L141'></a>   141             onedigit:
+<a id='L142' name='L142'></a>   142               *op++ = tem % 10 + '0';
+<a id='L143' name='L143'></a>   143               argp++;
+<a id='L144' name='L144'></a>   144               <strong class='reserved'>break</strong>;
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146             <strong class='reserved'>case</strong> 'p':           <em class='comment'>/* %pN means use param N for next subst.  */</em>
+<a id='L147' name='L147'></a>   147               tem = fixed_argp[(*p++) - '1'];
+<a id='L148' name='L148'></a>   148               explicit_param_p = <a href='../S/2628.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L149' name='L149'></a>   149               <strong class='reserved'>break</strong>;
+<a id='L150' name='L150'></a>   150 
+<a id='L151' name='L151'></a>   151             <strong class='reserved'>case</strong> 'C':
+<a id='L152' name='L152'></a>   152               <em class='comment'>/* For c-100: print quotient of value by 96, if nonzero,</em>
+<a id='L153' name='L153'></a>   153 <em class='comment'>                 then do like %+.  */</em>
+<a id='L154' name='L154'></a>   154               <strong class='reserved'>if</strong> (tem &gt;= 96)
+<a id='L155' name='L155'></a>   155                 <em class='brace'>{</em>
+<a id='L156' name='L156'></a>   156                   *op++ = tem / 96;
+<a id='L157' name='L157'></a>   157                   tem %= 96;
+<a id='L158' name='L158'></a>   158                 <em class='brace'>}</em>
+<a id='L159' name='L159'></a>   159               <a href='../D/2028.html' title='Multiple defined in 3 places.'>FALLTHROUGH</a>;
+<a id='L160' name='L160'></a>   160             <strong class='reserved'>case</strong> '+':           <em class='comment'>/* %+x means add character code of char x.  */</em>
+<a id='L161' name='L161'></a>   161               tem += *p++;
+<a id='L162' name='L162'></a>   162               <a href='../D/2028.html' title='Multiple defined in 3 places.'>FALLTHROUGH</a>;
+<a id='L163' name='L163'></a>   163             <strong class='reserved'>case</strong> '.':           <em class='comment'>/* %. means output as character.  */</em>
+<a id='L164' name='L164'></a>   164               <strong class='reserved'>if</strong> (left)
+<a id='L165' name='L165'></a>   165                 <em class='brace'>{</em>
+<a id='L166' name='L166'></a>   166                   <em class='comment'>/* If want to forbid output of 0 and \n and \t,</em>
+<a id='L167' name='L167'></a>   167 <em class='comment'>                     and this is one of them, increment it.  */</em>
+<a id='L168' name='L168'></a>   168                   <strong class='reserved'>while</strong> (tem == 0 || tem == '\n' || tem == '\t')
+<a id='L169' name='L169'></a>   169                     <em class='brace'>{</em>
+<a id='L170' name='L170'></a>   170                       ptrdiff_t append_len_incr;
+<a id='L171' name='L171'></a>   171                       tem++;
+<a id='L172' name='L172'></a>   172                       <strong class='reserved'>if</strong> (argp == old_argp)
+<a id='L173' name='L173'></a>   173                         doup++, append_len_incr = strlen (up);
+<a id='L174' name='L174'></a>   174                       <strong class='reserved'>else</strong>
+<a id='L175' name='L175'></a>   175                         doleft++, append_len_incr = strlen (left);
+<a id='L176' name='L176'></a>   176                       <strong class='reserved'>if</strong> (<a href='../S/1865.html#L31' title='Defined at 31 in lib/stdckdint.in.h.'>ckd_add</a> (&amp;append_len, append_len, append_len_incr))
+<a id='L177' name='L177'></a>   177                         <a href='../D/14390.html' title='Multiple defined in 3 places.'>memory_full</a> (<a href='../D/5844.html' title='Multiple defined in 8 places.'>SIZE_MAX</a>);
+<a id='L178' name='L178'></a>   178                     <em class='brace'>}</em>
+<a id='L179' name='L179'></a>   179                 <em class='brace'>}</em>
+<a id='L180' name='L180'></a>   180               *op++ = tem ? tem : 0200;
+<a id='L181' name='L181'></a>   181               <a href='../D/2028.html' title='Multiple defined in 3 places.'>FALLTHROUGH</a>;
+<a id='L182' name='L182'></a>   182             <strong class='reserved'>case</strong> 'f':           <em class='comment'>/* %f means discard next arg.  */</em>
+<a id='L183' name='L183'></a>   183               argp++;
+<a id='L184' name='L184'></a>   184               <strong class='reserved'>break</strong>;
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186             <strong class='reserved'>case</strong> 'b':           <em class='comment'>/* %b means back up one arg (and re-use it).  */</em>
+<a id='L187' name='L187'></a>   187               argp--;
+<a id='L188' name='L188'></a>   188               <strong class='reserved'>break</strong>;
+<a id='L189' name='L189'></a>   189 
+<a id='L190' name='L190'></a>   190             <strong class='reserved'>case</strong> 'r':           <em class='comment'>/* %r means interchange following two args.  */</em>
+<a id='L191' name='L191'></a>   191               argp[0] = argp[1];
+<a id='L192' name='L192'></a>   192               argp[1] = tem;
+<a id='L193' name='L193'></a>   193               old_argp++;
+<a id='L194' name='L194'></a>   194               <strong class='reserved'>break</strong>;
+<a id='L195' name='L195'></a>   195 
+<a id='L196' name='L196'></a>   196             <strong class='reserved'>case</strong> '&gt;':           <em class='comment'>/* %&gt;xy means if arg is &gt; char code of x, */</em>
+<a id='L197' name='L197'></a>   197               <strong class='reserved'>if</strong> (argp[0] &gt; *p++) <em class='comment'>/* then add char code of y to the arg, */</em>
+<a id='L198' name='L198'></a>   198                 argp[0] += *p;  <em class='comment'>/* and in any case don't output.  */</em>
+<a id='L199' name='L199'></a>   199               p++;              <em class='comment'>/* Leave the arg to be output later.  */</em>
+<a id='L200' name='L200'></a>   200               <strong class='reserved'>break</strong>;
+<a id='L201' name='L201'></a>   201 
+<a id='L202' name='L202'></a>   202             <strong class='reserved'>case</strong> 'a':           <em class='comment'>/* %a means arithmetic.  */</em>
+<a id='L203' name='L203'></a>   203               <em class='comment'>/* Next character says what operation.</em>
+<a id='L204' name='L204'></a>   204 <em class='comment'>                 Add or subtract either a constant or some other arg.  */</em>
+<a id='L205' name='L205'></a>   205               <em class='comment'>/* First following character is + to add or - to subtract</em>
+<a id='L206' name='L206'></a>   206 <em class='comment'>                 or = to assign.  */</em>
+<a id='L207' name='L207'></a>   207               <em class='comment'>/* Next following char is 'p' and an arg spec</em>
+<a id='L208' name='L208'></a>   208 <em class='comment'>                 (0100 plus position of that arg relative to this one)</em>
+<a id='L209' name='L209'></a>   209 <em class='comment'>                 or 'c' and a constant stored in a character.  */</em>
+<a id='L210' name='L210'></a>   210               tem = p[2] &amp; 0177;
+<a id='L211' name='L211'></a>   211               <strong class='reserved'>if</strong> (p[1] == 'p')
+<a id='L212' name='L212'></a>   212                 tem = argp[tem - 0100];
+<a id='L213' name='L213'></a>   213               <strong class='reserved'>if</strong> (p[0] == '-')
+<a id='L214' name='L214'></a>   214                 argp[0] -= tem;
+<a id='L215' name='L215'></a>   215               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (p[0] == '+')
+<a id='L216' name='L216'></a>   216                 argp[0] += tem;
+<a id='L217' name='L217'></a>   217               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (p[0] == '*')
+<a id='L218' name='L218'></a>   218                 argp[0] *= tem;
+<a id='L219' name='L219'></a>   219               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (p[0] == '/')
+<a id='L220' name='L220'></a>   220                 argp[0] /= tem;
+<a id='L221' name='L221'></a>   221               <strong class='reserved'>else</strong>
+<a id='L222' name='L222'></a>   222                 argp[0] = tem;
+<a id='L223' name='L223'></a>   223 
+<a id='L224' name='L224'></a>   224               p += 3;
+<a id='L225' name='L225'></a>   225               <strong class='reserved'>break</strong>;
+<a id='L226' name='L226'></a>   226 
+<a id='L227' name='L227'></a>   227             <strong class='reserved'>case</strong> 'i':           <em class='comment'>/* %i means add one to arg, */</em>
+<a id='L228' name='L228'></a>   228               argp[0] ++;       <em class='comment'>/* and leave it to be output later.  */</em>
+<a id='L229' name='L229'></a>   229               argp[1] ++;       <em class='comment'>/* Increment the following arg, too!  */</em>
+<a id='L230' name='L230'></a>   230               <strong class='reserved'>break</strong>;
+<a id='L231' name='L231'></a>   231 
+<a id='L232' name='L232'></a>   232             <strong class='reserved'>case</strong> '%':           <em class='comment'>/* %% means output %; no arg.  */</em>
+<a id='L233' name='L233'></a>   233               <strong class='reserved'>goto</strong> ordinary;
+<a id='L234' name='L234'></a>   234 
+<a id='L235' name='L235'></a>   235             <strong class='reserved'>case</strong> 'n':           <em class='comment'>/* %n means xor each of next two args with 140.  */</em>
+<a id='L236' name='L236'></a>   236               argp[0] ^= 0140;
+<a id='L237' name='L237'></a>   237               argp[1] ^= 0140;
+<a id='L238' name='L238'></a>   238               <strong class='reserved'>break</strong>;
+<a id='L239' name='L239'></a>   239 
+<a id='L240' name='L240'></a>   240             <strong class='reserved'>case</strong> 'm':           <em class='comment'>/* %m means xor each of next two args with 177.  */</em>
+<a id='L241' name='L241'></a>   241               argp[0] ^= 0177;
+<a id='L242' name='L242'></a>   242               argp[1] ^= 0177;
+<a id='L243' name='L243'></a>   243               <strong class='reserved'>break</strong>;
+<a id='L244' name='L244'></a>   244 
+<a id='L245' name='L245'></a>   245             <strong class='reserved'>case</strong> 'B':           <em class='comment'>/* %B means express arg as BCD char code.  */</em>
+<a id='L246' name='L246'></a>   246               argp[0] += 6 * (tem / 10);
+<a id='L247' name='L247'></a>   247               <strong class='reserved'>break</strong>;
+<a id='L248' name='L248'></a>   248 
+<a id='L249' name='L249'></a>   249             <strong class='reserved'>case</strong> 'D':           <em class='comment'>/* %D means weird Delta Data transformation.  */</em>
+<a id='L250' name='L250'></a>   250               argp[0] -= 2 * (tem % 16);
+<a id='L251' name='L251'></a>   251               <strong class='reserved'>break</strong>;
+<a id='L252' name='L252'></a>   252 
+<a id='L253' name='L253'></a>   253             <strong class='reserved'>default</strong>:
+<a id='L254' name='L254'></a>   254               <a href='../D/10885.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L255' name='L255'></a>   255             <em class='brace'>}</em>
+<a id='L256' name='L256'></a>   256         <em class='brace'>}</em>
+<a id='L257' name='L257'></a>   257       <strong class='reserved'>else</strong>
+<a id='L258' name='L258'></a>   258         <em class='comment'>/* Ordinary character in the argument string.  */</em>
+<a id='L259' name='L259'></a>   259       ordinary:
+<a id='L260' name='L260'></a>   260         *op++ = <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L261' name='L261'></a>   261     <em class='brace'>}</em>
+<a id='L262' name='L262'></a>   262   *op = 0;
+<a id='L263' name='L263'></a>   263   <strong class='reserved'>while</strong> (doup-- &gt; 0)
+<a id='L264' name='L264'></a>   264     op = <a href='../D/17709.html' title='Multiple defined in 5 places.'>stpcpy</a> (op, up);
+<a id='L265' name='L265'></a>   265   <strong class='reserved'>while</strong> (doleft-- &gt; 0)
+<a id='L266' name='L266'></a>   266     op = <a href='../D/17709.html' title='Multiple defined in 5 places.'>stpcpy</a> (op, left);
+<a id='L267' name='L267'></a>   267   <strong class='reserved'>return</strong> outstring;
+<a id='L268' name='L268'></a>   268 <em class='brace'>}</em>
+<a id='L269' name='L269'></a>   269 
+<a id='L270' name='L270'></a>   270 <em class='sharp'>#ifdef</em> <a href='../D/1390.html' title='Multiple defined in 7 places.'>DEBUG</a>
+<a id='L271' name='L271'></a>   271 
+<a id='L272' name='L272'></a>   272 <strong class='reserved'>int</strong>
+<a id='L273' name='L273'></a>   273 <a href='../R/12929.html' title='Multiple referred from 91 places.'>main</a> (<strong class='reserved'>int</strong> argc, <strong class='reserved'>char</strong> **argv)
+<a id='L274' name='L274'></a>   274 <em class='brace'>{</em>
+<a id='L275' name='L275'></a>   275   <strong class='reserved'>char</strong> buf[50];
+<a id='L276' name='L276'></a>   276   <strong class='reserved'>int</strong> <a href='../S/4425.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[3];
+<a id='L277' name='L277'></a>   277   <a href='../S/4425.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[0] = atoi (argv[2]);
+<a id='L278' name='L278'></a>   278   <a href='../S/4425.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[1] = atoi (argv[3]);
+<a id='L279' name='L279'></a>   279   <a href='../S/4425.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[2] = atoi (argv[4]);
+<a id='L280' name='L280'></a>   280   <a href='../S/3241.html#L69' title='Defined at 69 in src/tparam.c.'>tparam1</a> (argv[1], buf, 50, "LEFT", "UP", <a href='../S/4425.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>);
+<a id='L281' name='L281'></a>   281   <a href='../D/15775.html' title='Multiple defined in 5 places.'>printf</a> ("%s\n", buf);
+<a id='L282' name='L282'></a>   282   <strong class='reserved'>return</strong> 0;
+<a id='L283' name='L283'></a>   283 <em class='brace'>}</em>
+<a id='L284' name='L284'></a>   284 
+<a id='L285' name='L285'></a>   285 <em class='sharp'>#endif</em> <em class='comment'>/* DEBUG */</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L40'>[^]</a><a href='#L273'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>
