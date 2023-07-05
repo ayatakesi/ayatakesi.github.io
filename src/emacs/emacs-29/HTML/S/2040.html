@@ -1,0 +1,526 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/undo.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/undo.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L36'>[^]</a><a href='#L423'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L36' title='Defined at 36.'>prepare_record</a></li>
+<li><a href='#L48' title='Defined at 48.'>record_point</a></li>
+<li><a href='#L87' title='Defined at 87.'>record_insert</a></li>
+<li><a href='#L127' title='Defined at 127.'>record_marker_adjustments</a></li>
+<li><a href='#L163' title='Defined at 163.'>record_delete</a></li>
+<li><a href='#L199' title='Defined at 199.'>record_change</a></li>
+<li><a href='#L210' title='Defined at 210.'>record_first_change</a></li>
+<li><a href='#L229' title='Defined at 229.'>record_property_change</a></li>
+<li><a href='#L251' title='Defined at 251.'>DEFUN</a></li>
+<li><a href='#L290' title='Defined at 290.'>truncate_undo_list</a></li>
+<li><a href='#L423' title='Defined at 423.'>syms_of_undo</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* undo handling for GNU Emacs.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1990, 1993-1994, 2000-2023 Free Software Foundation,</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L22' name='L22'></a>    22 
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> "<a href='2026.html'>buffer.h</a>"
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='2077.html'>keyboard.h</a>"
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <em class='comment'>/* The first time a command records something for undo.</em>
+<a id='L28' name='L28'></a>    28 <em class='comment'>   it also allocates the undo-boundary object</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'>   which will be added to the list at the end of the command.</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>   This ensures we can't run out of space while trying to make</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>   an undo-boundary.  */</em>
+<a id='L32' name='L32'></a>    32 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> pending_boundary;
+<a id='L33' name='L33'></a>    33 
+<a id='L34' name='L34'></a>    34 <em class='comment'>/* Prepare the undo info for recording a change. */</em>
+<a id='L35' name='L35'></a>    35 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L36' name='L36'></a>    36 <a href='../R/13069.html' title='Multiple referred from 4 places.'>prepare_record</a> (<strong class='reserved'>void</strong>)
+<a id='L37' name='L37'></a>    37 <em class='brace'>{</em>
+<a id='L38' name='L38'></a>    38   <em class='comment'>/* Allocate a cons cell to be the undo boundary after this command.  */</em>
+<a id='L39' name='L39'></a>    39   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (pending_boundary))
+<a id='L40' name='L40'></a>    40     pending_boundary = Fcons (Qnil, Qnil);
+<a id='L41' name='L41'></a>    41 <em class='brace'>}</em>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <em class='comment'>/* Record point, if necessary, as it was at beginning of this command.</em>
+<a id='L44' name='L44'></a>    44 <em class='comment'>   BEG is the position of point that will naturally occur as a result</em>
+<a id='L45' name='L45'></a>    45 <em class='comment'>   of the undo record that will be added just after this command</em>
+<a id='L46' name='L46'></a>    46 <em class='comment'>   terminates.  */</em>
+<a id='L47' name='L47'></a>    47 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L48' name='L48'></a>    48 <a href='../R/13505.html' title='Multiple referred from 2 places.'>record_point</a> (ptrdiff_t beg)
+<a id='L49' name='L49'></a>    49 <em class='brace'>{</em>
+<a id='L50' name='L50'></a>    50   <em class='comment'>/* Don't record position of pt when undo_inhibit_record_point holds.  */</em>
+<a id='L51' name='L51'></a>    51   <strong class='reserved'>if</strong> (undo_inhibit_record_point)
+<a id='L52' name='L52'></a>    52     <strong class='reserved'>return</strong>;
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> at_boundary;
+<a id='L55' name='L55'></a>    55 
+<a id='L56' name='L56'></a>    56   <em class='comment'>/* Check whether we are at a boundary now, in case we record the</em>
+<a id='L57' name='L57'></a>    57 <em class='comment'>  first change. FIXME: This check is currently dependent on being</em>
+<a id='L58' name='L58'></a>    58 <em class='comment'>  called before record_first_change, but could be made not to by</em>
+<a id='L59' name='L59'></a>    59 <em class='comment'>  ignoring timestamp undo entries */</em>
+<a id='L60' name='L60'></a>    60   at_boundary = ! <a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list))
+<a id='L61' name='L61'></a>    61                 || <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list)));
+<a id='L62' name='L62'></a>    62 
+<a id='L63' name='L63'></a>    63   <em class='comment'>/* If this is the first change since save, then record this.*/</em>
+<a id='L64' name='L64'></a>    64   <strong class='reserved'>if</strong> (<a href='../S/2026.html#L96' title='Defined at 96 in src/buffer.h.'>MODIFF</a> &lt;= <a href='../S/2026.html#L105' title='Defined at 105 in src/buffer.h.'>SAVE_MODIFF</a>)
+<a id='L65' name='L65'></a>    65     <a href='../S/2040.html#L210' title='Defined at 210 in src/undo.c.'>record_first_change</a> ();
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67   <em class='comment'>/* We may need to record point if we are immediately after a</em>
+<a id='L68' name='L68'></a>    68 <em class='comment'>     boundary, so that this will be restored correctly after undo. We</em>
+<a id='L69' name='L69'></a>    69 <em class='comment'>     do not need to do this if point is at the start of a change</em>
+<a id='L70' name='L70'></a>    70 <em class='comment'>     region since it will be restored there anyway, and we must not do</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>     this if the buffer has changed since the last command, since the</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>     value of point that we have will be for that buffer, not this.*/</em>
+<a id='L73' name='L73'></a>    73   <strong class='reserved'>if</strong> (at_boundary
+<a id='L74' name='L74'></a>    74       &amp;&amp; point_before_last_command_or_undo != beg
+<a id='L75' name='L75'></a>    75       &amp;&amp; buffer_before_last_command_or_undo == <a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a> )
+<a id='L76' name='L76'></a>    76     <a href='../S/2026.html#L830' title='Defined at 830 in src/buffer.h.'>bset_undo_list</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>,
+<a id='L77' name='L77'></a>    77                     Fcons (<a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (point_before_last_command_or_undo),
+<a id='L78' name='L78'></a>    78                            <a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list)));
+<a id='L79' name='L79'></a>    79 <em class='brace'>}</em>
+<a id='L80' name='L80'></a>    80 
+<a id='L81' name='L81'></a>    81 <em class='comment'>/* Record an insertion that just happened or is about to happen,</em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>   for LENGTH characters at position BEG.</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>   (It is possible to record an insertion before or after the fact</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>   because we don't need to record the contents.)  */</em>
+<a id='L85' name='L85'></a>    85 
+<a id='L86' name='L86'></a>    86 <strong class='reserved'>void</strong>
+<a id='L87' name='L87'></a>    87 <a href='../R/13496.html' title='Multiple referred from 12 places.'>record_insert</a> (ptrdiff_t beg, ptrdiff_t length)
+<a id='L88' name='L88'></a>    88 <em class='brace'>{</em>
+<a id='L89' name='L89'></a>    89   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> lbeg, lend;
+<a id='L90' name='L90'></a>    90 
+<a id='L91' name='L91'></a>    91   <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list), Qt))
+<a id='L92' name='L92'></a>    92     <strong class='reserved'>return</strong>;
+<a id='L93' name='L93'></a>    93 
+<a id='L94' name='L94'></a>    94   <a href='../S/2040.html#L36' title='Defined at 36 in src/undo.c.'>prepare_record</a> ();
+<a id='L95' name='L95'></a>    95 
+<a id='L96' name='L96'></a>    96   <a href='../S/2040.html#L48' title='Defined at 48 in src/undo.c.'>record_point</a> (beg);
+<a id='L97' name='L97'></a>    97 
+<a id='L98' name='L98'></a>    98   <em class='comment'>/* If this is following another insertion and consecutive with it</em>
+<a id='L99' name='L99'></a>    99 <em class='comment'>     in the buffer, combine the two.  */</em>
+<a id='L100' name='L100'></a>   100   <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list)))
+<a id='L101' name='L101'></a>   101     <em class='brace'>{</em>
+<a id='L102' name='L102'></a>   102       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> elt;
+<a id='L103' name='L103'></a>   103       elt = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list));
+<a id='L104' name='L104'></a>   104       <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (elt)
+<a id='L105' name='L105'></a>   105           &amp;&amp; <a href='../S/2154.html#L463' title='Defined at 463 in src/lisp.h.'>FIXNUMP</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (elt))
+<a id='L106' name='L106'></a>   106           &amp;&amp; <a href='../S/2154.html#L463' title='Defined at 463 in src/lisp.h.'>FIXNUMP</a> (<a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (elt))
+<a id='L107' name='L107'></a>   107           &amp;&amp; <a href='../S/2154.html#L1287' title='Defined at 1287 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (elt)) == beg)
+<a id='L108' name='L108'></a>   108         <em class='brace'>{</em>
+<a id='L109' name='L109'></a>   109           <a href='../D/6654.html' title='Multiple defined in 2 places.'>XSETCDR</a> (elt, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (beg + length));
+<a id='L110' name='L110'></a>   110           <strong class='reserved'>return</strong>;
+<a id='L111' name='L111'></a>   111         <em class='brace'>}</em>
+<a id='L112' name='L112'></a>   112     <em class='brace'>}</em>
+<a id='L113' name='L113'></a>   113 
+<a id='L114' name='L114'></a>   114   <a href='../D/6659.html' title='Multiple defined in 2 places.'>XSETFASTINT</a> (lbeg, beg);
+<a id='L115' name='L115'></a>   115   <a href='../D/6663.html' title='Multiple defined in 2 places.'>XSETINT</a> (lend, beg + length);
+<a id='L116' name='L116'></a>   116   <a href='../S/2026.html#L830' title='Defined at 830 in src/buffer.h.'>bset_undo_list</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>,
+<a id='L117' name='L117'></a>   117                   Fcons (Fcons (lbeg, lend), <a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list)));
+<a id='L118' name='L118'></a>   118 <em class='brace'>}</em>
+<a id='L119' name='L119'></a>   119 
+<a id='L120' name='L120'></a>   120 <em class='comment'>/* Record the fact that markers in the region of FROM, TO are about to</em>
+<a id='L121' name='L121'></a>   121 <em class='comment'>   be adjusted.  This is done only when a marker points within text</em>
+<a id='L122' name='L122'></a>   122 <em class='comment'>   being deleted, because that's the only case where an automatic</em>
+<a id='L123' name='L123'></a>   123 <em class='comment'>   marker adjustment won't be inverted automatically by undoing the</em>
+<a id='L124' name='L124'></a>   124 <em class='comment'>   buffer modification.  */</em>
+<a id='L125' name='L125'></a>   125 
+<a id='L126' name='L126'></a>   126 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L127' name='L127'></a>   127 <a href='../S/2040.html#L187' title='Referred from 187 in src/undo.c.'>record_marker_adjustments</a> (ptrdiff_t from, ptrdiff_t to)
+<a id='L128' name='L128'></a>   128 <em class='brace'>{</em>
+<a id='L129' name='L129'></a>   129   <a href='../S/2040.html#L36' title='Defined at 36 in src/undo.c.'>prepare_record</a> ();
+<a id='L130' name='L130'></a>   130 
+<a id='L131' name='L131'></a>   131   <strong class='reserved'>for</strong> (<strong class='reserved'>struct</strong> <a href='../D/3471.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *m = <a href='../S/2026.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>); m; m = m-&gt;next)
+<a id='L132' name='L132'></a>   132     <em class='brace'>{</em>
+<a id='L133' name='L133'></a>   133       ptrdiff_t charpos = m-&gt;charpos;
+<a id='L134' name='L134'></a>   134       <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (charpos &lt;= <a href='../S/2026.html#L58' title='Defined at 58 in src/buffer.h.'>Z</a>);
+<a id='L135' name='L135'></a>   135 
+<a id='L136' name='L136'></a>   136       <strong class='reserved'>if</strong> (from &lt;= charpos &amp;&amp; charpos &lt;= to)
+<a id='L137' name='L137'></a>   137         <em class='brace'>{</em>
+<a id='L138' name='L138'></a>   138           <em class='comment'>/* insertion_type nil markers will end up at the beginning of</em>
+<a id='L139' name='L139'></a>   139 <em class='comment'>             the re-inserted text after undoing a deletion, and must be</em>
+<a id='L140' name='L140'></a>   140 <em class='comment'>             adjusted to move them to the correct place.</em>
+<a id='L141' name='L141'></a>   141 <em class='comment'></em>
+<a id='L142' name='L142'></a>   142 <em class='comment'>             insertion_type t markers will automatically move forward</em>
+<a id='L143' name='L143'></a>   143 <em class='comment'>             upon re-inserting the deleted text, so we have to arrange</em>
+<a id='L144' name='L144'></a>   144 <em class='comment'>             for them to move backward to the correct position.  */</em>
+<a id='L145' name='L145'></a>   145           ptrdiff_t adjustment = (m-&gt;insertion_type ? to : from) - charpos;
+<a id='L146' name='L146'></a>   146 
+<a id='L147' name='L147'></a>   147           <strong class='reserved'>if</strong> (adjustment)
+<a id='L148' name='L148'></a>   148             <em class='brace'>{</em>
+<a id='L149' name='L149'></a>   149               <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker = <a href='../D/12644.html' title='Multiple defined in 2 places.'>make_lisp_ptr</a> (m, <a href='../D/3506.html' title='Multiple defined in 2 places.'>Lisp_Vectorlike</a>);
+<a id='L150' name='L150'></a>   150               <a href='../S/2026.html#L830' title='Defined at 830 in src/buffer.h.'>bset_undo_list</a>
+<a id='L151' name='L151'></a>   151                 (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>,
+<a id='L152' name='L152'></a>   152                  Fcons (Fcons (marker, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (adjustment)),
+<a id='L153' name='L153'></a>   153                         <a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list)));
+<a id='L154' name='L154'></a>   154             <em class='brace'>}</em>
+<a id='L155' name='L155'></a>   155         <em class='brace'>}</em>
+<a id='L156' name='L156'></a>   156     <em class='brace'>}</em>
+<a id='L157' name='L157'></a>   157 <em class='brace'>}</em>
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159 <em class='comment'>/* Record that a deletion is about to take place, of the characters in</em>
+<a id='L160' name='L160'></a>   160 <em class='comment'>   STRING, at location BEG.  Optionally record adjustments for markers</em>
+<a id='L161' name='L161'></a>   161 <em class='comment'>   in the region STRING occupies in the current buffer.  */</em>
+<a id='L162' name='L162'></a>   162 <strong class='reserved'>void</strong>
+<a id='L163' name='L163'></a>   163 <a href='../R/13491.html' title='Multiple referred from 7 places.'>record_delete</a> (ptrdiff_t beg, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> string, <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> record_markers)
+<a id='L164' name='L164'></a>   164 <em class='brace'>{</em>
+<a id='L165' name='L165'></a>   165   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> sbeg;
+<a id='L166' name='L166'></a>   166 
+<a id='L167' name='L167'></a>   167   <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list), Qt))
+<a id='L168' name='L168'></a>   168     <strong class='reserved'>return</strong>;
+<a id='L169' name='L169'></a>   169 
+<a id='L170' name='L170'></a>   170   <a href='../S/2040.html#L36' title='Defined at 36 in src/undo.c.'>prepare_record</a> ();
+<a id='L171' name='L171'></a>   171 
+<a id='L172' name='L172'></a>   172   <a href='../S/2040.html#L48' title='Defined at 48 in src/undo.c.'>record_point</a> (beg);
+<a id='L173' name='L173'></a>   173 
+<a id='L174' name='L174'></a>   174   <strong class='reserved'>if</strong> (<a href='../S/2026.html#L46' title='Defined at 46 in src/buffer.h.'>PT</a> == beg + <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (string))
+<a id='L175' name='L175'></a>   175     <em class='brace'>{</em>
+<a id='L176' name='L176'></a>   176       <a href='../D/6663.html' title='Multiple defined in 2 places.'>XSETINT</a> (sbeg, -beg);
+<a id='L177' name='L177'></a>   177     <em class='brace'>}</em>
+<a id='L178' name='L178'></a>   178   <strong class='reserved'>else</strong>
+<a id='L179' name='L179'></a>   179     <em class='brace'>{</em>
+<a id='L180' name='L180'></a>   180       <a href='../D/6659.html' title='Multiple defined in 2 places.'>XSETFASTINT</a> (sbeg, beg);
+<a id='L181' name='L181'></a>   181     <em class='brace'>}</em>
+<a id='L182' name='L182'></a>   182 
+<a id='L183' name='L183'></a>   183   <em class='comment'>/* primitive-undo assumes marker adjustments are recorded</em>
+<a id='L184' name='L184'></a>   184 <em class='comment'>     immediately before the deletion is recorded.  See bug 16818</em>
+<a id='L185' name='L185'></a>   185 <em class='comment'>     discussion.  */</em>
+<a id='L186' name='L186'></a>   186   <strong class='reserved'>if</strong> (record_markers)
+<a id='L187' name='L187'></a>   187     <a href='../S/2040.html#L127' title='Defined at 127 in src/undo.c.'>record_marker_adjustments</a> (beg, beg + <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (string));
+<a id='L188' name='L188'></a>   188 
+<a id='L189' name='L189'></a>   189   <a href='../S/2026.html#L830' title='Defined at 830 in src/buffer.h.'>bset_undo_list</a>
+<a id='L190' name='L190'></a>   190     (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>,
+<a id='L191' name='L191'></a>   191      Fcons (Fcons (string, sbeg), <a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list)));
+<a id='L192' name='L192'></a>   192 <em class='brace'>}</em>
+<a id='L193' name='L193'></a>   193 
+<a id='L194' name='L194'></a>   194 <em class='comment'>/* Record that a replacement is about to take place,</em>
+<a id='L195' name='L195'></a>   195 <em class='comment'>   for LENGTH characters at location BEG.</em>
+<a id='L196' name='L196'></a>   196 <em class='comment'>   The replacement must not change the number of characters.  */</em>
+<a id='L197' name='L197'></a>   197 
+<a id='L198' name='L198'></a>   198 <strong class='reserved'>void</strong>
+<a id='L199' name='L199'></a>   199 <a href='../R/13488.html' title='Multiple referred from 9 places.'>record_change</a> (ptrdiff_t beg, ptrdiff_t length)
+<a id='L200' name='L200'></a>   200 <em class='brace'>{</em>
+<a id='L201' name='L201'></a>   201   <a href='../S/2040.html#L163' title='Defined at 163 in src/undo.c.'>record_delete</a> (beg, <a href='../S/2184.html#L1568' title='Defined at 1568 in src/editfns.c.'>make_buffer_string</a> (beg, beg + length, <a href='../S/42.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>), <a href='../S/42.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L202' name='L202'></a>   202   <a href='../S/2040.html#L87' title='Defined at 87 in src/undo.c.'>record_insert</a> (beg, length);
+<a id='L203' name='L203'></a>   203 <em class='brace'>}</em>
+<a id='L204' name='L204'></a>   204 
+<a id='L205' name='L205'></a>   205 <em class='comment'>/* Record that an unmodified buffer is about to be changed.</em>
+<a id='L206' name='L206'></a>   206 <em class='comment'>   Record the file modification date so that when undoing this entry</em>
+<a id='L207' name='L207'></a>   207 <em class='comment'>   we can tell whether it is obsolete because the file was saved again.  */</em>
+<a id='L208' name='L208'></a>   208 
+<a id='L209' name='L209'></a>   209 <strong class='reserved'>void</strong>
+<a id='L210' name='L210'></a>   210 <a href='../R/13493.html' title='Multiple referred from 7 places.'>record_first_change</a> (<strong class='reserved'>void</strong>)
+<a id='L211' name='L211'></a>   211 <em class='brace'>{</em>
+<a id='L212' name='L212'></a>   212   <strong class='reserved'>struct</strong> <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *base_buffer = <a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>;
+<a id='L213' name='L213'></a>   213 
+<a id='L214' name='L214'></a>   214   <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list), Qt))
+<a id='L215' name='L215'></a>   215     <strong class='reserved'>return</strong>;
+<a id='L216' name='L216'></a>   216 
+<a id='L217' name='L217'></a>   217   <strong class='reserved'>if</strong> (base_buffer-&gt;base_buffer)
+<a id='L218' name='L218'></a>   218     base_buffer = base_buffer-&gt;base_buffer;
+<a id='L219' name='L219'></a>   219 
+<a id='L220' name='L220'></a>   220   <a href='../S/2026.html#L830' title='Defined at 830 in src/buffer.h.'>bset_undo_list</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>,
+<a id='L221' name='L221'></a>   221                   Fcons (Fcons (Qt, <a href='../S/2199.html#L5838' title='Defined at 5838 in src/fileio.c.'>buffer_visited_file_modtime</a> (base_buffer)),
+<a id='L222' name='L222'></a>   222                          <a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list)));
+<a id='L223' name='L223'></a>   223 <em class='brace'>}</em>
+<a id='L224' name='L224'></a>   224 
+<a id='L225' name='L225'></a>   225 <em class='comment'>/* Record a change in property PROP (whose old value was VAL)</em>
+<a id='L226' name='L226'></a>   226 <em class='comment'>   for LENGTH characters starting at position BEG in BUFFER.  */</em>
+<a id='L227' name='L227'></a>   227 
+<a id='L228' name='L228'></a>   228 <strong class='reserved'>void</strong>
+<a id='L229' name='L229'></a>   229 <a href='../R/13506.html' title='Multiple referred from 8 places.'>record_property_change</a> (ptrdiff_t beg, ptrdiff_t length,
+<a id='L230' name='L230'></a>   230                         <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> prop, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2214.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>,
+<a id='L231' name='L231'></a>   231                         <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)
+<a id='L232' name='L232'></a>   232 <em class='brace'>{</em>
+<a id='L233' name='L233'></a>   233   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> lbeg, lend, <a href='../S/3.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>;
+<a id='L234' name='L234'></a>   234   <strong class='reserved'>struct</strong> <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf = <a href='../D/6340.html' title='Multiple defined in 2 places.'>XBUFFER</a> (<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>);
+<a id='L235' name='L235'></a>   235 
+<a id='L236' name='L236'></a>   236   <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (buf, undo_list), Qt))
+<a id='L237' name='L237'></a>   237     <strong class='reserved'>return</strong>;
+<a id='L238' name='L238'></a>   238 
+<a id='L239' name='L239'></a>   239   <a href='../S/2040.html#L36' title='Defined at 36 in src/undo.c.'>prepare_record</a>();
+<a id='L240' name='L240'></a>   240 
+<a id='L241' name='L241'></a>   241   <strong class='reserved'>if</strong> (<a href='../S/2026.html#L96' title='Defined at 96 in src/buffer.h.'>MODIFF</a> &lt;= <a href='../S/2026.html#L105' title='Defined at 105 in src/buffer.h.'>SAVE_MODIFF</a>)
+<a id='L242' name='L242'></a>   242     <a href='../S/2040.html#L210' title='Defined at 210 in src/undo.c.'>record_first_change</a> ();
+<a id='L243' name='L243'></a>   243 
+<a id='L244' name='L244'></a>   244   <a href='../D/6663.html' title='Multiple defined in 2 places.'>XSETINT</a> (lbeg, beg);
+<a id='L245' name='L245'></a>   245   <a href='../D/6663.html' title='Multiple defined in 2 places.'>XSETINT</a> (lend, beg + length);
+<a id='L246' name='L246'></a>   246   <a href='../S/3.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = Fcons (Qnil, Fcons (prop, Fcons (<a href='../S/2214.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>, Fcons (lbeg, lend))));
+<a id='L247' name='L247'></a>   247   <a href='../S/2026.html#L830' title='Defined at 830 in src/buffer.h.'>bset_undo_list</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>,
+<a id='L248' name='L248'></a>   248                   Fcons (<a href='../S/3.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>, <a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list)));
+<a id='L249' name='L249'></a>   249 <em class='brace'>}</em>
+<a id='L250' name='L250'></a>   250 
+<a id='L251' name='L251'></a>   251 <a href='../R/1201.html' title='Multiple referred from 820 places.'>DEFUN</a> ("undo-boundary", Fundo_boundary, Sundo_boundary, 0, 0, 0,
+<a id='L252' name='L252'></a>   252        doc: <em class='comment'>/* Mark a boundary between units of undo.</em>
+<a id='L253' name='L253'></a>   253 <em class='comment'>An undo command will stop at this point,</em>
+<a id='L254' name='L254'></a>   254 <em class='comment'>but another undo command will undo to the previous boundary.  */</em>)
+<a id='L255' name='L255'></a>   255   (<strong class='reserved'>void</strong>)
+<a id='L256' name='L256'></a>   256 <em class='brace'>{</em>
+<a id='L257' name='L257'></a>   257   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> tem;
+<a id='L258' name='L258'></a>   258   <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list), Qt))
+<a id='L259' name='L259'></a>   259     <strong class='reserved'>return</strong> Qnil;
+<a id='L260' name='L260'></a>   260   tem = Fcar (<a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list));
+<a id='L261' name='L261'></a>   261   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (tem))
+<a id='L262' name='L262'></a>   262     <em class='brace'>{</em>
+<a id='L263' name='L263'></a>   263       <em class='comment'>/* One way or another, cons nil onto the front of the undo list.  */</em>
+<a id='L264' name='L264'></a>   264       <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (pending_boundary))
+<a id='L265' name='L265'></a>   265         <em class='brace'>{</em>
+<a id='L266' name='L266'></a>   266           <em class='comment'>/* If we have preallocated the cons cell to use here,</em>
+<a id='L267' name='L267'></a>   267 <em class='comment'>             use that one.  */</em>
+<a id='L268' name='L268'></a>   268           <a href='../D/6654.html' title='Multiple defined in 2 places.'>XSETCDR</a> (pending_boundary, <a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list));
+<a id='L269' name='L269'></a>   269           <a href='../S/2026.html#L830' title='Defined at 830 in src/buffer.h.'>bset_undo_list</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, pending_boundary);
+<a id='L270' name='L270'></a>   270           pending_boundary = Qnil;
+<a id='L271' name='L271'></a>   271         <em class='brace'>}</em>
+<a id='L272' name='L272'></a>   272       <strong class='reserved'>else</strong>
+<a id='L273' name='L273'></a>   273         <a href='../S/2026.html#L830' title='Defined at 830 in src/buffer.h.'>bset_undo_list</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>,
+<a id='L274' name='L274'></a>   274                         Fcons (Qnil, <a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>, undo_list)));
+<a id='L275' name='L275'></a>   275     <em class='brace'>}</em>
+<a id='L276' name='L276'></a>   276 
+<a id='L277' name='L277'></a>   277   Fset (Qundo_auto__last_boundary_cause, Qexplicit);
+<a id='L278' name='L278'></a>   278   point_before_last_command_or_undo = <a href='../S/2026.html#L46' title='Defined at 46 in src/buffer.h.'>PT</a>;
+<a id='L279' name='L279'></a>   279   buffer_before_last_command_or_undo = <a href='../S/2234.html#L124' title='Defined at 124 in src/thread.h.'>current_buffer</a>;
+<a id='L280' name='L280'></a>   280 
+<a id='L281' name='L281'></a>   281   <strong class='reserved'>return</strong> Qnil;
+<a id='L282' name='L282'></a>   282 <em class='brace'>}</em>
+<a id='L283' name='L283'></a>   283 
+<a id='L284' name='L284'></a>   284 <em class='comment'>/* At garbage collection time, make an undo list shorter at the end,</em>
+<a id='L285' name='L285'></a>   285 <em class='comment'>   returning the truncated list.  How this is done depends on the</em>
+<a id='L286' name='L286'></a>   286 <em class='comment'>   variables undo-limit, undo-strong-limit and undo-outer-limit.</em>
+<a id='L287' name='L287'></a>   287 <em class='comment'>   In some cases this works by calling undo-outer-limit-function.  */</em>
+<a id='L288' name='L288'></a>   288 
+<a id='L289' name='L289'></a>   289 <strong class='reserved'>void</strong>
+<a id='L290' name='L290'></a>   290 <a href='../R/15079.html' title='Multiple referred from 3 places.'>truncate_undo_list</a> (<strong class='reserved'>struct</strong> <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L291' name='L291'></a>   291 <em class='brace'>{</em>
+<a id='L292' name='L292'></a>   292   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>;
+<a id='L293' name='L293'></a>   293   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> prev, next, last_boundary;
+<a id='L294' name='L294'></a>   294   <a href='../D/12002.html' title='Multiple defined in 6 places.'>intmax_t</a> size_so_far = 0;
+<a id='L295' name='L295'></a>   295 
+<a id='L296' name='L296'></a>   296   <em class='comment'>/* Make sure that calling undo-outer-limit-function</em>
+<a id='L297' name='L297'></a>   297 <em class='comment'>     won't cause another GC.  */</em>
+<a id='L298' name='L298'></a>   298   <a href='../D/15483.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count = <a href='../S/2232.html#L5757' title='Defined at 5757 in src/alloc.c.'>inhibit_garbage_collection</a> ();
+<a id='L299' name='L299'></a>   299 
+<a id='L300' name='L300'></a>   300   <em class='comment'>/* Make the buffer current to get its local values of variables such</em>
+<a id='L301' name='L301'></a>   301 <em class='comment'>     as undo_limit.  Also so that Vundo_outer_limit_function can</em>
+<a id='L302' name='L302'></a>   302 <em class='comment'>     tell which buffer to operate on.  */</em>
+<a id='L303' name='L303'></a>   303   <a href='../S/2026.html#L1214' title='Defined at 1214 in src/buffer.h.'>record_unwind_current_buffer</a> ();
+<a id='L304' name='L304'></a>   304   <a href='../S/2026.html#L1204' title='Defined at 1204 in src/buffer.h.'>set_buffer_internal</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L305' name='L305'></a>   305 
+<a id='L306' name='L306'></a>   306   <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = <a href='../S/2026.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, undo_list);
+<a id='L307' name='L307'></a>   307 
+<a id='L308' name='L308'></a>   308   prev = Qnil;
+<a id='L309' name='L309'></a>   309   next = <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>;
+<a id='L310' name='L310'></a>   310   last_boundary = Qnil;
+<a id='L311' name='L311'></a>   311 
+<a id='L312' name='L312'></a>   312   <em class='comment'>/* If the first element is an undo boundary, skip past it.  */</em>
+<a id='L313' name='L313'></a>   313   <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (next) &amp;&amp; <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (next)))
+<a id='L314' name='L314'></a>   314     <em class='brace'>{</em>
+<a id='L315' name='L315'></a>   315       <em class='comment'>/* Add in the space occupied by this element and its chain link.  */</em>
+<a id='L316' name='L316'></a>   316       size_so_far += <strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../D/3455.html' title='Multiple defined in 3 places.'>Lisp_Cons</a>);
+<a id='L317' name='L317'></a>   317 
+<a id='L318' name='L318'></a>   318       <em class='comment'>/* Advance to next element.  */</em>
+<a id='L319' name='L319'></a>   319       prev = next;
+<a id='L320' name='L320'></a>   320       next = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (next);
+<a id='L321' name='L321'></a>   321     <em class='brace'>}</em>
+<a id='L322' name='L322'></a>   322 
+<a id='L323' name='L323'></a>   323   <em class='comment'>/* Always preserve at least the most recent undo record</em>
+<a id='L324' name='L324'></a>   324 <em class='comment'>     unless it is really horribly big.</em>
+<a id='L325' name='L325'></a>   325 <em class='comment'></em>
+<a id='L326' name='L326'></a>   326 <em class='comment'>     Skip, skip, skip the undo, skip, skip, skip the undo,</em>
+<a id='L327' name='L327'></a>   327 <em class='comment'>     Skip, skip, skip the undo, skip to the undo bound'ry.  */</em>
+<a id='L328' name='L328'></a>   328 
+<a id='L329' name='L329'></a>   329   <strong class='reserved'>while</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (next) &amp;&amp; ! <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (next)))
+<a id='L330' name='L330'></a>   330     <em class='brace'>{</em>
+<a id='L331' name='L331'></a>   331       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> elt;
+<a id='L332' name='L332'></a>   332       elt = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (next);
+<a id='L333' name='L333'></a>   333 
+<a id='L334' name='L334'></a>   334       <em class='comment'>/* Add in the space occupied by this element and its chain link.  */</em>
+<a id='L335' name='L335'></a>   335       size_so_far += <strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../D/3455.html' title='Multiple defined in 3 places.'>Lisp_Cons</a>);
+<a id='L336' name='L336'></a>   336       <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (elt))
+<a id='L337' name='L337'></a>   337         <em class='brace'>{</em>
+<a id='L338' name='L338'></a>   338           size_so_far += <strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../D/3455.html' title='Multiple defined in 3 places.'>Lisp_Cons</a>);
+<a id='L339' name='L339'></a>   339           <strong class='reserved'>if</strong> (<a href='../S/2154.html#L1599' title='Defined at 1599 in src/lisp.h.'>STRINGP</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (elt)))
+<a id='L340' name='L340'></a>   340             size_so_far += (<strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../D/3493.html' title='Multiple defined in 3 places.'>Lisp_String</a>) - 1
+<a id='L341' name='L341'></a>   341                             + <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (elt)));
+<a id='L342' name='L342'></a>   342         <em class='brace'>}</em>
+<a id='L343' name='L343'></a>   343 
+<a id='L344' name='L344'></a>   344       <em class='comment'>/* Advance to next element.  */</em>
+<a id='L345' name='L345'></a>   345       prev = next;
+<a id='L346' name='L346'></a>   346       next = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (next);
+<a id='L347' name='L347'></a>   347     <em class='brace'>}</em>
+<a id='L348' name='L348'></a>   348 
+<a id='L349' name='L349'></a>   349   <em class='comment'>/* If by the first boundary we have already passed undo_outer_limit,</em>
+<a id='L350' name='L350'></a>   350 <em class='comment'>     we're heading for memory full, so offer to clear out the list.  */</em>
+<a id='L351' name='L351'></a>   351   <a href='../D/12002.html' title='Multiple defined in 6 places.'>intmax_t</a> undo_outer_limit;
+<a id='L352' name='L352'></a>   352   <strong class='reserved'>if</strong> ((<a href='../D/2889.html' title='Multiple defined in 2 places.'>INTEGERP</a> (Vundo_outer_limit)
+<a id='L353' name='L353'></a>   353        &amp;&amp; (integer_to_intmax (Vundo_outer_limit, &amp;undo_outer_limit)
+<a id='L354' name='L354'></a>   354            ? undo_outer_limit &lt; size_so_far
+<a id='L355' name='L355'></a>   355            : <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (Fnatnump (Vundo_outer_limit))))
+<a id='L356' name='L356'></a>   356       &amp;&amp; !<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (Vundo_outer_limit_function))
+<a id='L357' name='L357'></a>   357     <em class='brace'>{</em>
+<a id='L358' name='L358'></a>   358       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> tem;
+<a id='L359' name='L359'></a>   359 
+<a id='L360' name='L360'></a>   360       <em class='comment'>/* Normally the function this calls is undo-outer-limit-truncate.  */</em>
+<a id='L361' name='L361'></a>   361       tem = <a href='../S/2154.html#L3245' title='Defined at 3245 in src/lisp.h.'>call1</a> (Vundo_outer_limit_function, <a href='../S/2154.html#L2806' title='Defined at 2806 in src/lisp.h.'>make_int</a> (size_so_far));
+<a id='L362' name='L362'></a>   362       <strong class='reserved'>if</strong> (! <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (tem))
+<a id='L363' name='L363'></a>   363         <em class='brace'>{</em>
+<a id='L364' name='L364'></a>   364           <em class='comment'>/* The function is responsible for making</em>
+<a id='L365' name='L365'></a>   365 <em class='comment'>             any desired changes in buffer-undo-list.  */</em>
+<a id='L366' name='L366'></a>   366           <a href='../S/2080.html#L3743' title='Defined at 3743 in src/eval.c.'>unbind_to</a> (count, Qnil);
+<a id='L367' name='L367'></a>   367           <strong class='reserved'>return</strong>;
+<a id='L368' name='L368'></a>   368         <em class='brace'>}</em>
+<a id='L369' name='L369'></a>   369     <em class='brace'>}</em>
+<a id='L370' name='L370'></a>   370 
+<a id='L371' name='L371'></a>   371   <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (next))
+<a id='L372' name='L372'></a>   372     last_boundary = prev;
+<a id='L373' name='L373'></a>   373 
+<a id='L374' name='L374'></a>   374   <em class='comment'>/* Keep additional undo data, if it fits in the limits.  */</em>
+<a id='L375' name='L375'></a>   375   <strong class='reserved'>while</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (next))
+<a id='L376' name='L376'></a>   376     <em class='brace'>{</em>
+<a id='L377' name='L377'></a>   377       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> elt;
+<a id='L378' name='L378'></a>   378       elt = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (next);
+<a id='L379' name='L379'></a>   379 
+<a id='L380' name='L380'></a>   380       <em class='comment'>/* When we get to a boundary, decide whether to truncate</em>
+<a id='L381' name='L381'></a>   381 <em class='comment'>         either before or after it.  The lower threshold, undo_limit,</em>
+<a id='L382' name='L382'></a>   382 <em class='comment'>         tells us to truncate after it.  If its size pushes past</em>
+<a id='L383' name='L383'></a>   383 <em class='comment'>         the higher threshold undo_strong_limit, we truncate before it.  */</em>
+<a id='L384' name='L384'></a>   384       <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (elt))
+<a id='L385' name='L385'></a>   385         <em class='brace'>{</em>
+<a id='L386' name='L386'></a>   386           <strong class='reserved'>if</strong> (size_so_far &gt; undo_strong_limit)
+<a id='L387' name='L387'></a>   387             <strong class='reserved'>break</strong>;
+<a id='L388' name='L388'></a>   388           last_boundary = prev;
+<a id='L389' name='L389'></a>   389           <strong class='reserved'>if</strong> (size_so_far &gt; undo_limit)
+<a id='L390' name='L390'></a>   390             <strong class='reserved'>break</strong>;
+<a id='L391' name='L391'></a>   391         <em class='brace'>}</em>
+<a id='L392' name='L392'></a>   392 
+<a id='L393' name='L393'></a>   393       <em class='comment'>/* Add in the space occupied by this element and its chain link.  */</em>
+<a id='L394' name='L394'></a>   394       size_so_far += <strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../D/3455.html' title='Multiple defined in 3 places.'>Lisp_Cons</a>);
+<a id='L395' name='L395'></a>   395       <strong class='reserved'>if</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (elt))
+<a id='L396' name='L396'></a>   396         <em class='brace'>{</em>
+<a id='L397' name='L397'></a>   397           size_so_far += <strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../D/3455.html' title='Multiple defined in 3 places.'>Lisp_Cons</a>);
+<a id='L398' name='L398'></a>   398           <strong class='reserved'>if</strong> (<a href='../S/2154.html#L1599' title='Defined at 1599 in src/lisp.h.'>STRINGP</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (elt)))
+<a id='L399' name='L399'></a>   399             size_so_far += (<strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../D/3493.html' title='Multiple defined in 3 places.'>Lisp_String</a>) - 1
+<a id='L400' name='L400'></a>   400                             + <a href='../D/5018.html' title='Multiple defined in 2 places.'>SCHARS</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (elt)));
+<a id='L401' name='L401'></a>   401         <em class='brace'>}</em>
+<a id='L402' name='L402'></a>   402 
+<a id='L403' name='L403'></a>   403       <em class='comment'>/* Advance to next element.  */</em>
+<a id='L404' name='L404'></a>   404       prev = next;
+<a id='L405' name='L405'></a>   405       next = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (next);
+<a id='L406' name='L406'></a>   406     <em class='brace'>}</em>
+<a id='L407' name='L407'></a>   407 
+<a id='L408' name='L408'></a>   408   <em class='comment'>/* If we scanned the whole list, it is short enough; don't change it.  */</em>
+<a id='L409' name='L409'></a>   409   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (next))
+<a id='L410' name='L410'></a>   410     ;
+<a id='L411' name='L411'></a>   411   <em class='comment'>/* Truncate at the boundary where we decided to truncate.  */</em>
+<a id='L412' name='L412'></a>   412   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (last_boundary))
+<a id='L413' name='L413'></a>   413     <a href='../D/6654.html' title='Multiple defined in 2 places.'>XSETCDR</a> (last_boundary, Qnil);
+<a id='L414' name='L414'></a>   414   <em class='comment'>/* There's nothing we decided to keep, so clear it out.  */</em>
+<a id='L415' name='L415'></a>   415   <strong class='reserved'>else</strong>
+<a id='L416' name='L416'></a>   416     <a href='../S/2026.html#L830' title='Defined at 830 in src/buffer.h.'>bset_undo_list</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, Qnil);
+<a id='L417' name='L417'></a>   417 
+<a id='L418' name='L418'></a>   418   <a href='../S/2080.html#L3743' title='Defined at 3743 in src/eval.c.'>unbind_to</a> (count, Qnil);
+<a id='L419' name='L419'></a>   419 <em class='brace'>}</em>
+<a id='L420' name='L420'></a>   420 
+<a id='L421' name='L421'></a>   421 
+<a id='L422' name='L422'></a>   422 <strong class='reserved'>void</strong>
+<a id='L423' name='L423'></a>   423 <a href='../R/14723.html' title='Multiple referred from 3 places.'>syms_of_undo</a> (<strong class='reserved'>void</strong>)
+<a id='L424' name='L424'></a>   424 <em class='brace'>{</em>
+<a id='L425' name='L425'></a>   425   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qinhibit_read_only, "inhibit-read-only");
+<a id='L426' name='L426'></a>   426   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qundo_auto__last_boundary_cause, "undo-auto--last-boundary-cause");
+<a id='L427' name='L427'></a>   427   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qexplicit, "explicit");
+<a id='L428' name='L428'></a>   428 
+<a id='L429' name='L429'></a>   429   <em class='comment'>/* Marker for function call undo list elements.  */</em>
+<a id='L430' name='L430'></a>   430   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qapply, "apply");
+<a id='L431' name='L431'></a>   431 
+<a id='L432' name='L432'></a>   432   pending_boundary = Qnil;
+<a id='L433' name='L433'></a>   433   <a href='../S/2232.html#L5732' title='Defined at 5732 in src/alloc.c.'>staticpro</a> (&amp;pending_boundary);
+<a id='L434' name='L434'></a>   434 
+<a id='L435' name='L435'></a>   435   <a href='../S/2140.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Sundo_boundary);
+<a id='L436' name='L436'></a>   436 
+<a id='L437' name='L437'></a>   437   <a href='../D/1312.html' title='Multiple defined in 2 places.'>DEFVAR_INT</a> ("undo-limit", undo_limit,
+<a id='L438' name='L438'></a>   438               doc: <em class='comment'>/* Keep no more undo information once it exceeds this size.</em>
+<a id='L439' name='L439'></a>   439 <em class='comment'>This limit is applied when garbage collection happens.</em>
+<a id='L440' name='L440'></a>   440 <em class='comment'>When a previous command increases the total undo list size past this</em>
+<a id='L441' name='L441'></a>   441 <em class='comment'>value, the earlier commands that came before it are forgotten.</em>
+<a id='L442' name='L442'></a>   442 <em class='comment'></em>
+<a id='L443' name='L443'></a>   443 <em class='comment'>The size is counted as the number of bytes occupied,</em>
+<a id='L444' name='L444'></a>   444 <em class='comment'>which includes both saved text and other data.  */</em>);
+<a id='L445' name='L445'></a>   445   undo_limit = 160000;
+<a id='L446' name='L446'></a>   446 
+<a id='L447' name='L447'></a>   447   <a href='../D/1312.html' title='Multiple defined in 2 places.'>DEFVAR_INT</a> ("undo-strong-limit", undo_strong_limit,
+<a id='L448' name='L448'></a>   448               doc: <em class='comment'>/* Don't keep more than this much size of undo information.</em>
+<a id='L449' name='L449'></a>   449 <em class='comment'>This limit is applied when garbage collection happens.</em>
+<a id='L450' name='L450'></a>   450 <em class='comment'>When a previous command increases the total undo list size past this</em>
+<a id='L451' name='L451'></a>   451 <em class='comment'>value, that command and the earlier commands that came before it are forgotten.</em>
+<a id='L452' name='L452'></a>   452 <em class='comment'>However, the most recent buffer-modifying command's undo info</em>
+<a id='L453' name='L453'></a>   453 <em class='comment'>is never discarded for this reason.</em>
+<a id='L454' name='L454'></a>   454 <em class='comment'></em>
+<a id='L455' name='L455'></a>   455 <em class='comment'>The size is counted as the number of bytes occupied,</em>
+<a id='L456' name='L456'></a>   456 <em class='comment'>which includes both saved text and other data.  */</em>);
+<a id='L457' name='L457'></a>   457   undo_strong_limit = 240000;
+<a id='L458' name='L458'></a>   458 
+<a id='L459' name='L459'></a>   459   <a href='../D/1314.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("undo-outer-limit", Vundo_outer_limit,
+<a id='L460' name='L460'></a>   460               doc: <em class='comment'>/* Outer limit on size of undo information for one command.</em>
+<a id='L461' name='L461'></a>   461 <em class='comment'>At garbage collection time, if the current command has produced</em>
+<a id='L462' name='L462'></a>   462 <em class='comment'>more than this much undo information, it discards the info and displays</em>
+<a id='L463' name='L463'></a>   463 <em class='comment'>a warning.  This is a last-ditch limit to prevent memory overflow.</em>
+<a id='L464' name='L464'></a>   464 <em class='comment'></em>
+<a id='L465' name='L465'></a>   465 <em class='comment'>The size is counted as the number of bytes occupied, which includes</em>
+<a id='L466' name='L466'></a>   466 <em class='comment'>both saved text and other data.  A value of nil means no limit.  In</em>
+<a id='L467' name='L467'></a>   467 <em class='comment'>this case, accumulating one huge undo entry could make Emacs crash as</em>
+<a id='L468' name='L468'></a>   468 <em class='comment'>a result of memory overflow.</em>
+<a id='L469' name='L469'></a>   469 <em class='comment'></em>
+<a id='L470' name='L470'></a>   470 <em class='comment'>In fact, this calls the function which is the value of</em>
+<a id='L471' name='L471'></a>   471 <em class='comment'>`undo-outer-limit-function' with one argument, the size.</em>
+<a id='L472' name='L472'></a>   472 <em class='comment'>The text above describes the behavior of the function</em>
+<a id='L473' name='L473'></a>   473 <em class='comment'>that variable usually specifies.  */</em>);
+<a id='L474' name='L474'></a>   474   Vundo_outer_limit = <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (24000000);
+<a id='L475' name='L475'></a>   475 
+<a id='L476' name='L476'></a>   476   <a href='../D/1314.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("undo-outer-limit-function", Vundo_outer_limit_function,
+<a id='L477' name='L477'></a>   477                doc: <em class='comment'>/* Function to call when an undo list exceeds `undo-outer-limit'.</em>
+<a id='L478' name='L478'></a>   478 <em class='comment'>This function is called with one argument, the current undo list size</em>
+<a id='L479' name='L479'></a>   479 <em class='comment'>for the most recent command (since the last undo boundary).</em>
+<a id='L480' name='L480'></a>   480 <em class='comment'>If the function returns t, that means truncation has been fully handled.</em>
+<a id='L481' name='L481'></a>   481 <em class='comment'>If it returns nil, the other forms of truncation are done.</em>
+<a id='L482' name='L482'></a>   482 <em class='comment'></em>
+<a id='L483' name='L483'></a>   483 <em class='comment'>Garbage collection is inhibited around the call to this function,</em>
+<a id='L484' name='L484'></a>   484 <em class='comment'>so it must make sure not to do a lot of consing.  */</em>);
+<a id='L485' name='L485'></a>   485   Vundo_outer_limit_function = Qnil;
+<a id='L486' name='L486'></a>   486 
+<a id='L487' name='L487'></a>   487   <a href='../D/1310.html' title='Multiple defined in 2 places.'>DEFVAR_BOOL</a> ("undo-inhibit-record-point", undo_inhibit_record_point,
+<a id='L488' name='L488'></a>   488                doc: <em class='comment'>/* Non-nil means do not record `point' in `buffer-undo-list'.  */</em>);
+<a id='L489' name='L489'></a>   489   undo_inhibit_record_point = <a href='../S/42.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L490' name='L490'></a>   490 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L36'>[^]</a><a href='#L423'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

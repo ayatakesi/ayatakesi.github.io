@@ -1,0 +1,218 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>lib/filevercmp.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4493.html'>lib</a>/filevercmp.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L36'>[^]</a><a href='#L142'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L36' title='Defined at 36.'>file_prefixlen</a></li>
+<li><a href='#L62' title='Defined at 62.'>order</a></li>
+<li><a href='#L92' title='Defined at 92.'>verrevcmp</a></li>
+<li><a href='#L134' title='Defined at 134.'>filevercmp</a></li>
+<li><a href='#L142' title='Defined at 142.'>filenvercmp</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Compare file names containing version numbers.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright (C) 1995 Ian Jackson &lt;iwj10@cus.cam.ac.uk&gt;</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>   Copyright (C) 2001 Anthony Towns &lt;aj@azure.humbug.org.au&gt;</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>   Copyright (C) 2008-2023 Free Software Foundation, Inc.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>   This file is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>   it under the terms of the GNU Lesser General Public License as</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>   published by the Free Software Foundation, either version 3 of the</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>   License, or (at your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>   This file is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>   GNU Lesser General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>   You should have received a copy of the GNU Lesser General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> "<a href='2589.html'>filevercmp.h</a>"
+<a id='L22' name='L22'></a>    22 
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;<a href='2643.html'>c-ctype.h</a>&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;limits.h&gt;
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> &lt;<a href='2604.html'>idx.h</a>&gt;
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <em class='comment'>/* Return the length of a prefix of S that corresponds to the suffix</em>
+<a id='L28' name='L28'></a>    28 <em class='comment'>   defined by this extended regular expression in the C locale:</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'>     (\.[A-Za-z~][A-Za-z0-9~]*)*$</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>   Use the longest suffix matching this regular expression,</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>   except do not use all of S as a suffix if S is nonempty.</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'>   If *LEN is -1, S is a string; set *LEN to S's length.</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'>   Otherwise, *LEN should be nonnegative, S is a char array,</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>   and *LEN does not change.  */</em>
+<a id='L35' name='L35'></a>    35 <strong class='reserved'>static</strong> <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a>
+<a id='L36' name='L36'></a>    36 <a href='../R/9143.html' title='Multiple referred from 2 places.'>file_prefixlen</a> (<strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *s, ptrdiff_t *len)
+<a id='L37' name='L37'></a>    37 <em class='brace'>{</em>
+<a id='L38' name='L38'></a>    38   size_t n = *len;  <em class='comment'>/* SIZE_MAX if N == -1.  */</em>
+<a id='L39' name='L39'></a>    39   <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> prefixlen = 0;
+<a id='L40' name='L40'></a>    40 
+<a id='L41' name='L41'></a>    41   <strong class='reserved'>for</strong> (<a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> i = 0; ; )
+<a id='L42' name='L42'></a>    42     <em class='brace'>{</em>
+<a id='L43' name='L43'></a>    43       <strong class='reserved'>if</strong> (*len &lt; 0 ? !s[i] : i == n)
+<a id='L44' name='L44'></a>    44         <em class='brace'>{</em>
+<a id='L45' name='L45'></a>    45           *len = i;
+<a id='L46' name='L46'></a>    46           <strong class='reserved'>return</strong> prefixlen;
+<a id='L47' name='L47'></a>    47         <em class='brace'>}</em>
+<a id='L48' name='L48'></a>    48 
+<a id='L49' name='L49'></a>    49       i++;
+<a id='L50' name='L50'></a>    50       prefixlen = i;
+<a id='L51' name='L51'></a>    51       <strong class='reserved'>while</strong> (i + 1 &lt; n &amp;&amp; s[i] == '.' &amp;&amp; (<a href='../S/2643.html#L182' title='Defined at 182 in lib/c-ctype.h.'>c_isalpha</a> (s[i + 1])
+<a id='L52' name='L52'></a>    52                                           || s[i + 1] == '~'))
+<a id='L53' name='L53'></a>    53         <strong class='reserved'>for</strong> (i += 2; i &lt; n &amp;&amp; (<a href='../S/2643.html#L168' title='Defined at 168 in lib/c-ctype.h.'>c_isalnum</a> (s[i]) || s[i] == '~'); i++)
+<a id='L54' name='L54'></a>    54           <strong class='reserved'>continue</strong>;
+<a id='L55' name='L55'></a>    55     <em class='brace'>}</em>
+<a id='L56' name='L56'></a>    56 <em class='brace'>}</em>
+<a id='L57' name='L57'></a>    57 
+<a id='L58' name='L58'></a>    58 <em class='comment'>/* Return a version sort comparison value for S's byte at position POS.</em>
+<a id='L59' name='L59'></a>    59 <em class='comment'>   S has length LEN.  If POS == LEN, sort before all non-'~' bytes.  */</em>
+<a id='L60' name='L60'></a>    60 
+<a id='L61' name='L61'></a>    61 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L62' name='L62'></a>    62 <a href='../R/12542.html' title='Multiple referred from 34 places.'>order</a> (<strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *s, <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> pos, <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> len)
+<a id='L63' name='L63'></a>    63 <em class='brace'>{</em>
+<a id='L64' name='L64'></a>    64   <strong class='reserved'>if</strong> (pos == len)
+<a id='L65' name='L65'></a>    65     <strong class='reserved'>return</strong> -1;
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a> = s[pos];
+<a id='L68' name='L68'></a>    68   <strong class='reserved'>if</strong> (<a href='../S/2643.html#L232' title='Defined at 232 in lib/c-ctype.h.'>c_isdigit</a> (<a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>))
+<a id='L69' name='L69'></a>    69     <strong class='reserved'>return</strong> 0;
+<a id='L70' name='L70'></a>    70   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../S/2643.html#L182' title='Defined at 182 in lib/c-ctype.h.'>c_isalpha</a> (<a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>))
+<a id='L71' name='L71'></a>    71     <strong class='reserved'>return</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L72' name='L72'></a>    72   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a> == '~')
+<a id='L73' name='L73'></a>    73     <strong class='reserved'>return</strong> -2;
+<a id='L74' name='L74'></a>    74   <strong class='reserved'>else</strong>
+<a id='L75' name='L75'></a>    75     <em class='brace'>{</em>
+<a id='L76' name='L76'></a>    76       <a href='../D/15585.html' title='Multiple defined in 2 places.'>static_assert</a> (UCHAR_MAX &lt;= (INT_MAX - 1 - 2) / 2);
+<a id='L77' name='L77'></a>    77       <strong class='reserved'>return</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a> + UCHAR_MAX + 1;
+<a id='L78' name='L78'></a>    78     <em class='brace'>}</em>
+<a id='L79' name='L79'></a>    79 <em class='brace'>}</em>
+<a id='L80' name='L80'></a>    80 
+<a id='L81' name='L81'></a>    81 <em class='comment'>/* slightly modified verrevcmp function from dpkg</em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>   S1, S2 - compared char array</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>   S1_LEN, S2_LEN - length of arrays to be scanned</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'></em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>   This implements the algorithm for comparison of version strings</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>   specified by Debian and now widely adopted.  The detailed</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'>   specification can be found in the Debian Policy Manual in the</em>
+<a id='L88' name='L88'></a>    88 <em class='comment'>   section on the 'Version' control field.  This version of the code</em>
+<a id='L89' name='L89'></a>    89 <em class='comment'>   implements that from s5.6.12 of Debian Policy v3.8.0.1</em>
+<a id='L90' name='L90'></a>    90 <em class='comment'>   https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Version */</em>
+<a id='L91' name='L91'></a>    91 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../D/6990.html' title='Multiple defined in 7 places.'>_GL_ATTRIBUTE_PURE</a>
+<a id='L92' name='L92'></a>    92 <a href='../R/15476.html' title='Multiple referred from 2 places.'>verrevcmp</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/3849.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>, <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> s1_len, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/3849.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>, <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> s2_len)
+<a id='L93' name='L93'></a>    93 <em class='brace'>{</em>
+<a id='L94' name='L94'></a>    94   <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> s1_pos = 0;
+<a id='L95' name='L95'></a>    95   <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> s2_pos = 0;
+<a id='L96' name='L96'></a>    96   <strong class='reserved'>while</strong> (s1_pos &lt; s1_len || s2_pos &lt; s2_len)
+<a id='L97' name='L97'></a>    97     <em class='brace'>{</em>
+<a id='L98' name='L98'></a>    98       <strong class='reserved'>int</strong> first_diff = 0;
+<a id='L99' name='L99'></a>    99       <strong class='reserved'>while</strong> ((s1_pos &lt; s1_len &amp;&amp; !<a href='../S/2643.html#L232' title='Defined at 232 in lib/c-ctype.h.'>c_isdigit</a> (<a href='../S/3849.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>[s1_pos]))
+<a id='L100' name='L100'></a>   100              || (s2_pos &lt; s2_len &amp;&amp; !<a href='../S/2643.html#L232' title='Defined at 232 in lib/c-ctype.h.'>c_isdigit</a> (<a href='../S/3849.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>[s2_pos])))
+<a id='L101' name='L101'></a>   101         <em class='brace'>{</em>
+<a id='L102' name='L102'></a>   102           <strong class='reserved'>int</strong> s1_c = <a href='../D/13622.html' title='Multiple defined in 5 places.'>order</a> (<a href='../S/3849.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>, s1_pos, s1_len);
+<a id='L103' name='L103'></a>   103           <strong class='reserved'>int</strong> s2_c = <a href='../D/13622.html' title='Multiple defined in 5 places.'>order</a> (<a href='../S/3849.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>, s2_pos, s2_len);
+<a id='L104' name='L104'></a>   104           <strong class='reserved'>if</strong> (s1_c != s2_c)
+<a id='L105' name='L105'></a>   105             <strong class='reserved'>return</strong> s1_c - s2_c;
+<a id='L106' name='L106'></a>   106           s1_pos++;
+<a id='L107' name='L107'></a>   107           s2_pos++;
+<a id='L108' name='L108'></a>   108         <em class='brace'>}</em>
+<a id='L109' name='L109'></a>   109       <strong class='reserved'>while</strong> (s1_pos &lt; s1_len &amp;&amp; <a href='../S/3849.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>[s1_pos] == '0')
+<a id='L110' name='L110'></a>   110         s1_pos++;
+<a id='L111' name='L111'></a>   111       <strong class='reserved'>while</strong> (s2_pos &lt; s2_len &amp;&amp; <a href='../S/3849.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>[s2_pos] == '0')
+<a id='L112' name='L112'></a>   112         s2_pos++;
+<a id='L113' name='L113'></a>   113       <strong class='reserved'>while</strong> (s1_pos &lt; s1_len &amp;&amp; s2_pos &lt; s2_len
+<a id='L114' name='L114'></a>   114              &amp;&amp; <a href='../S/2643.html#L232' title='Defined at 232 in lib/c-ctype.h.'>c_isdigit</a> (<a href='../S/3849.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>[s1_pos]) &amp;&amp; <a href='../S/2643.html#L232' title='Defined at 232 in lib/c-ctype.h.'>c_isdigit</a> (<a href='../S/3849.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>[s2_pos]))
+<a id='L115' name='L115'></a>   115         <em class='brace'>{</em>
+<a id='L116' name='L116'></a>   116           <strong class='reserved'>if</strong> (!first_diff)
+<a id='L117' name='L117'></a>   117             first_diff = <a href='../S/3849.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>[s1_pos] - <a href='../S/3849.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>[s2_pos];
+<a id='L118' name='L118'></a>   118           s1_pos++;
+<a id='L119' name='L119'></a>   119           s2_pos++;
+<a id='L120' name='L120'></a>   120         <em class='brace'>}</em>
+<a id='L121' name='L121'></a>   121       <strong class='reserved'>if</strong> (s1_pos &lt; s1_len &amp;&amp; <a href='../S/2643.html#L232' title='Defined at 232 in lib/c-ctype.h.'>c_isdigit</a> (<a href='../S/3849.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>[s1_pos]))
+<a id='L122' name='L122'></a>   122         <strong class='reserved'>return</strong> 1;
+<a id='L123' name='L123'></a>   123       <strong class='reserved'>if</strong> (s2_pos &lt; s2_len &amp;&amp; <a href='../S/2643.html#L232' title='Defined at 232 in lib/c-ctype.h.'>c_isdigit</a> (<a href='../S/3849.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>[s2_pos]))
+<a id='L124' name='L124'></a>   124         <strong class='reserved'>return</strong> -1;
+<a id='L125' name='L125'></a>   125       <strong class='reserved'>if</strong> (first_diff)
+<a id='L126' name='L126'></a>   126         <strong class='reserved'>return</strong> first_diff;
+<a id='L127' name='L127'></a>   127     <em class='brace'>}</em>
+<a id='L128' name='L128'></a>   128   <strong class='reserved'>return</strong> 0;
+<a id='L129' name='L129'></a>   129 <em class='brace'>}</em>
+<a id='L130' name='L130'></a>   130 
+<a id='L131' name='L131'></a>   131 <em class='comment'>/* Compare version strings S1 and S2.</em>
+<a id='L132' name='L132'></a>   132 <em class='comment'>   See filevercmp.h for function description.  */</em>
+<a id='L133' name='L133'></a>   133 <strong class='reserved'>int</strong>
+<a id='L134' name='L134'></a>   134 <a href='../S/2589.html#L69' title='Referred from 69 in lib/filevercmp.h.'>filevercmp</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/3849.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/3849.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>)
+<a id='L135' name='L135'></a>   135 <em class='brace'>{</em>
+<a id='L136' name='L136'></a>   136   <strong class='reserved'>return</strong> <a href='../S/2712.html#L142' title='Defined at 142 in lib/filevercmp.c.'>filenvercmp</a> (<a href='../S/3849.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>, -1, <a href='../S/3849.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>, -1);
+<a id='L137' name='L137'></a>   137 <em class='brace'>}</em>
+<a id='L138' name='L138'></a>   138 
+<a id='L139' name='L139'></a>   139 <em class='comment'>/* Compare versions A (of length ALEN) and B (of length BLEN).</em>
+<a id='L140' name='L140'></a>   140 <em class='comment'>   See filevercmp.h for function description.  */</em>
+<a id='L141' name='L141'></a>   141 <strong class='reserved'>int</strong>
+<a id='L142' name='L142'></a>   142 <a href='../R/9155.html' title='Multiple referred from 3 places.'>filenvercmp</a> (<strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, ptrdiff_t alen, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, ptrdiff_t blen)
+<a id='L143' name='L143'></a>   143 <em class='brace'>{</em>
+<a id='L144' name='L144'></a>   144   <em class='comment'>/* Special case for empty versions.  */</em>
+<a id='L145' name='L145'></a>   145   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> aempty = alen &lt; 0 ? !<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>[0] : !alen;
+<a id='L146' name='L146'></a>   146   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> bempty = blen &lt; 0 ? !<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>[0] : !blen;
+<a id='L147' name='L147'></a>   147   <strong class='reserved'>if</strong> (aempty)
+<a id='L148' name='L148'></a>   148     <strong class='reserved'>return</strong> -!bempty;
+<a id='L149' name='L149'></a>   149   <strong class='reserved'>if</strong> (bempty)
+<a id='L150' name='L150'></a>   150     <strong class='reserved'>return</strong> 1;
+<a id='L151' name='L151'></a>   151 
+<a id='L152' name='L152'></a>   152   <em class='comment'>/* Special cases for leading ".": "." sorts first, then "..", then</em>
+<a id='L153' name='L153'></a>   153 <em class='comment'>     other names with leading ".", then other names.  */</em>
+<a id='L154' name='L154'></a>   154   <strong class='reserved'>if</strong> (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>[0] == '.')
+<a id='L155' name='L155'></a>   155     <em class='brace'>{</em>
+<a id='L156' name='L156'></a>   156       <strong class='reserved'>if</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>[0] != '.')
+<a id='L157' name='L157'></a>   157         <strong class='reserved'>return</strong> -1;
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159       <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> adot = alen &lt; 0 ? !<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>[1] : alen == 1;
+<a id='L160' name='L160'></a>   160       <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> bdot = blen &lt; 0 ? !<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>[1] : blen == 1;
+<a id='L161' name='L161'></a>   161       <strong class='reserved'>if</strong> (adot)
+<a id='L162' name='L162'></a>   162         <strong class='reserved'>return</strong> -!bdot;
+<a id='L163' name='L163'></a>   163       <strong class='reserved'>if</strong> (bdot)
+<a id='L164' name='L164'></a>   164         <strong class='reserved'>return</strong> 1;
+<a id='L165' name='L165'></a>   165 
+<a id='L166' name='L166'></a>   166       <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> adotdot = <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>[1] == '.' &amp;&amp; (alen &lt; 0 ? !<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>[2] : alen == 2);
+<a id='L167' name='L167'></a>   167       <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> bdotdot = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>[1] == '.' &amp;&amp; (blen &lt; 0 ? !<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>[2] : blen == 2);
+<a id='L168' name='L168'></a>   168       <strong class='reserved'>if</strong> (adotdot)
+<a id='L169' name='L169'></a>   169         <strong class='reserved'>return</strong> -!bdotdot;
+<a id='L170' name='L170'></a>   170       <strong class='reserved'>if</strong> (bdotdot)
+<a id='L171' name='L171'></a>   171         <strong class='reserved'>return</strong> 1;
+<a id='L172' name='L172'></a>   172     <em class='brace'>}</em>
+<a id='L173' name='L173'></a>   173   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>[0] == '.')
+<a id='L174' name='L174'></a>   174     <strong class='reserved'>return</strong> 1;
+<a id='L175' name='L175'></a>   175 
+<a id='L176' name='L176'></a>   176   <em class='comment'>/* Cut file suffixes.  */</em>
+<a id='L177' name='L177'></a>   177   <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> aprefixlen = <a href='../S/2712.html#L36' title='Defined at 36 in lib/filevercmp.c.'>file_prefixlen</a> (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, &amp;alen);
+<a id='L178' name='L178'></a>   178   <a href='../S/2604.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> bprefixlen = <a href='../S/2712.html#L36' title='Defined at 36 in lib/filevercmp.c.'>file_prefixlen</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, &amp;blen);
+<a id='L179' name='L179'></a>   179 
+<a id='L180' name='L180'></a>   180   <em class='comment'>/* If both suffixes are empty, a second pass would return the same thing.  */</em>
+<a id='L181' name='L181'></a>   181   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> one_pass_only = aprefixlen == alen &amp;&amp; bprefixlen == blen;
+<a id='L182' name='L182'></a>   182 
+<a id='L183' name='L183'></a>   183   <strong class='reserved'>int</strong> result = <a href='../S/2712.html#L92' title='Defined at 92 in lib/filevercmp.c.'>verrevcmp</a> (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, aprefixlen, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, bprefixlen);
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185   <em class='comment'>/* Return the initial result if nonzero, or if no second pass is needed.</em>
+<a id='L186' name='L186'></a>   186 <em class='comment'>     Otherwise, restore the suffixes and try again.  */</em>
+<a id='L187' name='L187'></a>   187   <strong class='reserved'>return</strong> result || one_pass_only ? result : <a href='../S/2712.html#L92' title='Defined at 92 in lib/filevercmp.c.'>verrevcmp</a> (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, alen, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, blen);
+<a id='L188' name='L188'></a>   188 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L36'>[^]</a><a href='#L142'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

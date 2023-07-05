@@ -1,0 +1,1261 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/ralloc.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/ralloc.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L174'>[^]</a><a href='#L1158'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L174' title='Defined at 174.'>find_heap</a></li>
+<li><a href='#L206' title='Defined at 206.'>obtain</a></li>
+<li><a href='#L287' title='Defined at 287.'>relinquish</a></li>
+<li><a href='#L349' title='Defined at 349.'>find_bloc</a></li>
+<li><a href='#L374' title='Defined at 374.'>get_bloc</a></li>
+<li><a href='#L429' title='Defined at 429.'>relocate_blocs</a></li>
+<li><a href='#L488' title='Defined at 488.'>update_heap_bloc_correspondence</a></li>
+<li><a href='#L550' title='Defined at 550.'>resize_bloc</a></li>
+<li><a href='#L650' title='Defined at 650.'>free_bloc</a></li>
+<li><a href='#L735' title='Defined at 735.'>r_alloc_sbrk</a></li>
+<li><a href='#L888' title='Defined at 888.'>r_alloc</a></li>
+<li><a href='#L911' title='Defined at 911.'>r_alloc_free</a></li>
+<li><a href='#L943' title='Defined at 943.'>r_re_alloc</a></li>
+<li><a href='#L1004' title='Defined at 1004.'>r_alloc_reinit</a></li>
+<li><a href='#L1022' title='Defined at 1022.'>r_alloc_check</a></li>
+<li><a href='#L1117' title='Defined at 1117.'>r_alloc_reset_variable</a></li>
+<li><a href='#L1140' title='Defined at 1140.'>r_alloc_inhibit_buffer_relocation</a></li>
+<li><a href='#L1158' title='Defined at 1158.'>r_alloc_init</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Block-relocating memory allocator.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1993, 1995, 2000-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L18' name='L18'></a>    18 
+<a id='L19' name='L19'></a>    19 <em class='comment'>/* NOTES:</em>
+<a id='L20' name='L20'></a>    20 <em class='comment'></em>
+<a id='L21' name='L21'></a>    21 <em class='comment'>   Only relocate the blocs necessary for SIZE in r_alloc_sbrk,</em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>   rather than all of them.  This means allowing for a possible</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'>   hole between the first bloc and the end of malloc storage.  */</em>
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;stddef.h&gt;
+<a id='L28' name='L28'></a>    28 
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> "<a href='1990.html'>blockinput.h</a>"
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;<a href='27.html'>unistd.h</a>&gt;
+<a id='L32' name='L32'></a>    32 
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#include</em> "<a href='2064.html'>getpagesize.h</a>"
+<a id='L34' name='L34'></a>    34 
+<a id='L35' name='L35'></a>    35 <em class='comment'>/* A flag to indicate whether we have initialized ralloc yet.  For</em>
+<a id='L36' name='L36'></a>    36 <em class='comment'>   Emacs's sake, please do not make this local to malloc_init; on some</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'>   machines, the dumping procedure makes all static variables</em>
+<a id='L38' name='L38'></a>    38 <em class='comment'>   read-only.  On these machines, the word static is #defined to be</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>   the empty string, meaning that r_alloc_initialized becomes an</em>
+<a id='L40' name='L40'></a>    40 <em class='comment'>   automatic variable, and loses its value each time Emacs is started</em>
+<a id='L41' name='L41'></a>    41 <em class='comment'>   up.  */</em>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> r_alloc_initialized = 0;
+<a id='L44' name='L44'></a>    44 
+<a id='L45' name='L45'></a>    45 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2189.html#L1158' title='Defined at 1158 in src/ralloc.c.'>r_alloc_init</a> (<strong class='reserved'>void</strong>);
+<a id='L46' name='L46'></a>    46 
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48 <em class='comment'>/* Declarations for working with the malloc, ralloc, and system breaks.  */</em>
+<a id='L49' name='L49'></a>    49 
+<a id='L50' name='L50'></a>    50 <em class='comment'>/* Function to set the real break value.  */</em>
+<a id='L51' name='L51'></a>    51 <strong class='reserved'>void</strong> *(*real_morecore) (ptrdiff_t);
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 <em class='comment'>/* The break value, as seen by malloc.  */</em>
+<a id='L54' name='L54'></a>    54 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> *virtual_break_value;
+<a id='L55' name='L55'></a>    55 
+<a id='L56' name='L56'></a>    56 <em class='comment'>/* The address of the end of the last data in use by ralloc,</em>
+<a id='L57' name='L57'></a>    57 <em class='comment'>   including relocatable blocs as well as malloc data.  */</em>
+<a id='L58' name='L58'></a>    58 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> *break_value;
+<a id='L59' name='L59'></a>    59 
+<a id='L60' name='L60'></a>    60 <em class='comment'>/* This is the size of a page.  We round memory requests to this boundary.  */</em>
+<a id='L61' name='L61'></a>    61 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> page_size;
+<a id='L62' name='L62'></a>    62 
+<a id='L63' name='L63'></a>    63 <em class='comment'>/* Whenever we get memory from the system, get this many extra bytes.  This</em>
+<a id='L64' name='L64'></a>    64 <em class='comment'>   must be a multiple of page_size.  */</em>
+<a id='L65' name='L65'></a>    65 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> extra_bytes;
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67 <em class='comment'>/* Macros for rounding.  Note that rounding to any value is possible</em>
+<a id='L68' name='L68'></a>    68 <em class='comment'>   by changing the definition of PAGE.  */</em>
+<a id='L69' name='L69'></a>    69 <em class='sharp'>#define</em> <a href='../S/2189.html#L1164' title='Referred from 1164 in src/ralloc.c.'>PAGE</a> (<a href='../D/10931.html' title='Multiple defined in 10 places.'>getpagesize</a> ())
+<a id='L70' name='L70'></a>    70 <em class='sharp'>#define</em> <a href='../R/3879.html' title='Multiple referred from 10 places.'>PAGE_ROUNDUP</a>(<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>) (((size_t) (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>) + page_size - 1) \
+<a id='L71' name='L71'></a>    71                        &amp; ~((size_t) (page_size - 1)))
+<a id='L72' name='L72'></a>    72 
+<a id='L73' name='L73'></a>    73 <em class='sharp'>#define</em> <a href='../R/3327.html' title='Multiple referred from 3 places.'>MEM_ALIGN</a> <strong class='reserved'>sizeof</strong> (<strong class='reserved'>double</strong>)
+<a id='L74' name='L74'></a>    74 <em class='sharp'>#define</em> <a href='../R/3331.html' title='Multiple referred from 14 places.'>MEM_ROUNDUP</a>(addr) (((size_t) (addr) + <a href='../D/3665.html' title='Multiple defined in 2 places.'>MEM_ALIGN</a> - 1) \
+<a id='L75' name='L75'></a>    75                            &amp; ~(<a href='../D/3665.html' title='Multiple defined in 2 places.'>MEM_ALIGN</a> - 1))
+<a id='L76' name='L76'></a>    76 
+<a id='L77' name='L77'></a>    77 <em class='comment'>/* The hook `malloc' uses for the function which gets more space</em>
+<a id='L78' name='L78'></a>    78 <em class='comment'>   from the system.  */</em>
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80 <em class='sharp'>#ifdef</em> HAVE_MALLOC_H
+<a id='L81' name='L81'></a>    81 <em class='sharp'># include</em> &lt;malloc.h&gt;
+<a id='L82' name='L82'></a>    82 <em class='sharp'>#endif</em>
+<a id='L83' name='L83'></a>    83 <em class='sharp'>#ifndef</em> DOUG_LEA_MALLOC
+<a id='L84' name='L84'></a>    84 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> *(*__morecore) (ptrdiff_t);
+<a id='L85' name='L85'></a>    85 <em class='sharp'>#endif</em>
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87 
+<a id='L88' name='L88'></a>    88 
+<a id='L89' name='L89'></a>    89 <em class='comment'>/***********************************************************************</em>
+<a id='L90' name='L90'></a>    90 <em class='comment'>                      Implementation using sbrk</em>
+<a id='L91' name='L91'></a>    91 <em class='comment'> ***********************************************************************/</em>
+<a id='L92' name='L92'></a>    92 
+<a id='L93' name='L93'></a>    93 <em class='comment'>/* Data structures of heaps and blocs.  */</em>
+<a id='L94' name='L94'></a>    94 
+<a id='L95' name='L95'></a>    95 <em class='comment'>/* The relocatable objects, or blocs, and the malloc data</em>
+<a id='L96' name='L96'></a>    96 <em class='comment'>   both reside within one or more heaps.</em>
+<a id='L97' name='L97'></a>    97 <em class='comment'>   Each heap contains malloc data, running from `start' to `bloc_start',</em>
+<a id='L98' name='L98'></a>    98 <em class='comment'>   and relocatable objects, running from `bloc_start' to `free'.</em>
+<a id='L99' name='L99'></a>    99 <em class='comment'></em>
+<a id='L100' name='L100'></a>   100 <em class='comment'>   Relocatable objects may relocate within the same heap</em>
+<a id='L101' name='L101'></a>   101 <em class='comment'>   or may move into another heap; the heaps themselves may grow</em>
+<a id='L102' name='L102'></a>   102 <em class='comment'>   but they never move.</em>
+<a id='L103' name='L103'></a>   103 <em class='comment'></em>
+<a id='L104' name='L104'></a>   104 <em class='comment'>   We try to make just one heap and make it larger as necessary.</em>
+<a id='L105' name='L105'></a>   105 <em class='comment'>   But sometimes we can't do that, because we can't get contiguous</em>
+<a id='L106' name='L106'></a>   106 <em class='comment'>   space to add onto the heap.  When that happens, we start a new heap.  */</em>
+<a id='L107' name='L107'></a>   107 
+<a id='L108' name='L108'></a>   108 <strong class='reserved'>typedef</strong> <strong class='reserved'>struct</strong> <a href='../R/10640.html' title='Multiple referred from 82 places.'>heap</a>
+<a id='L109' name='L109'></a>   109 <em class='brace'>{</em>
+<a id='L110' name='L110'></a>   110   <strong class='reserved'>struct</strong> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> *next;
+<a id='L111' name='L111'></a>   111   <strong class='reserved'>struct</strong> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> *prev;
+<a id='L112' name='L112'></a>   112   <em class='comment'>/* Start of memory range of this heap.  */</em>
+<a id='L113' name='L113'></a>   113   <strong class='reserved'>void</strong> *<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>;
+<a id='L114' name='L114'></a>   114   <em class='comment'>/* End of memory range of this heap.  */</em>
+<a id='L115' name='L115'></a>   115   <strong class='reserved'>void</strong> *end;
+<a id='L116' name='L116'></a>   116   <em class='comment'>/* Start of relocatable data in this heap.  */</em>
+<a id='L117' name='L117'></a>   117   <strong class='reserved'>void</strong> *bloc_start;
+<a id='L118' name='L118'></a>   118   <em class='comment'>/* Start of unused space in this heap.  */</em>
+<a id='L119' name='L119'></a>   119   <strong class='reserved'>void</strong> *<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a>;
+<a id='L120' name='L120'></a>   120   <em class='comment'>/* First bloc in this heap.  */</em>
+<a id='L121' name='L121'></a>   121   <strong class='reserved'>struct</strong> <a href='../S/2189.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> *first_bloc;
+<a id='L122' name='L122'></a>   122   <em class='comment'>/* Last bloc in this heap.  */</em>
+<a id='L123' name='L123'></a>   123   <strong class='reserved'>struct</strong> <a href='../S/2189.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> *last_bloc;
+<a id='L124' name='L124'></a>   124 <em class='brace'>}</em> *<a href='../R/10642.html' title='Multiple referred from 16 places.'>heap_ptr</a>;
+<a id='L125' name='L125'></a>   125 
+<a id='L126' name='L126'></a>   126 <em class='sharp'>#define</em> <a href='../R/3605.html' title='Multiple referred from 14 places.'>NIL_HEAP</a> ((<a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a>) 0)
+<a id='L127' name='L127'></a>   127 
+<a id='L128' name='L128'></a>   128 <em class='comment'>/* This is the first heap object.</em>
+<a id='L129' name='L129'></a>   129 <em class='comment'>   If we need additional heap objects, each one resides at the beginning of</em>
+<a id='L130' name='L130'></a>   130 <em class='comment'>   the space it covers.   */</em>
+<a id='L131' name='L131'></a>   131 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> heap_base;
+<a id='L132' name='L132'></a>   132 
+<a id='L133' name='L133'></a>   133 <em class='comment'>/* Head and tail of the list of heaps.  */</em>
+<a id='L134' name='L134'></a>   134 <strong class='reserved'>static</strong> <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> first_heap, last_heap;
+<a id='L135' name='L135'></a>   135 
+<a id='L136' name='L136'></a>   136 <em class='comment'>/* These structures are allocated in the malloc arena.</em>
+<a id='L137' name='L137'></a>   137 <em class='comment'>   The linked list is kept in order of increasing '.data' members.</em>
+<a id='L138' name='L138'></a>   138 <em class='comment'>   The data blocks abut each other; if b-&gt;next is non-nil, then</em>
+<a id='L139' name='L139'></a>   139 <em class='comment'>   b-&gt;data + b-&gt;size == b-&gt;next-&gt;data.</em>
+<a id='L140' name='L140'></a>   140 <em class='comment'></em>
+<a id='L141' name='L141'></a>   141 <em class='comment'>   An element with variable==NULL denotes a freed block, which has not yet</em>
+<a id='L142' name='L142'></a>   142 <em class='comment'>   been collected.  They may only appear while r_alloc_freeze_level &gt; 0,</em>
+<a id='L143' name='L143'></a>   143 <em class='comment'>   and will be freed when the arena is thawed.  Currently, these blocs are</em>
+<a id='L144' name='L144'></a>   144 <em class='comment'>   not reusable, while the arena is frozen.  Very inefficient.  */</em>
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146 <strong class='reserved'>typedef</strong> <strong class='reserved'>struct</strong> <a href='../R/7279.html' title='Multiple referred from 227 places.'>bp</a>
+<a id='L147' name='L147'></a>   147 <em class='brace'>{</em>
+<a id='L148' name='L148'></a>   148   <strong class='reserved'>struct</strong> <a href='../S/2189.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> *next;
+<a id='L149' name='L149'></a>   149   <strong class='reserved'>struct</strong> <a href='../S/2189.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a> *prev;
+<a id='L150' name='L150'></a>   150   <strong class='reserved'>void</strong> **variable;
+<a id='L151' name='L151'></a>   151   <strong class='reserved'>void</strong> *data;
+<a id='L152' name='L152'></a>   152   size_t <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L153' name='L153'></a>   153   <strong class='reserved'>void</strong> *new_data;               <em class='comment'>/* temporarily used for relocation */</em>
+<a id='L154' name='L154'></a>   154   <strong class='reserved'>struct</strong> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> *<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>;            <em class='comment'>/* Heap this bloc is in.  */</em>
+<a id='L155' name='L155'></a>   155 <em class='brace'>}</em> *<a href='../R/7245.html' title='Multiple referred from 21 places.'>bloc_ptr</a>;
+<a id='L156' name='L156'></a>   156 
+<a id='L157' name='L157'></a>   157 <em class='sharp'>#define</em> <a href='../R/3604.html' title='Multiple referred from 31 places.'>NIL_BLOC</a> ((<a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a>) 0)
+<a id='L158' name='L158'></a>   158 <em class='sharp'>#define</em> <a href='../S/2189.html#L379' title='Referred from 379 in src/ralloc.c.'>BLOC_PTR_SIZE</a> (<strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../S/2189.html#L146' title='Defined at 146 in src/ralloc.c.'>bp</a>))
+<a id='L159' name='L159'></a>   159 
+<a id='L160' name='L160'></a>   160 <em class='comment'>/* Head and tail of the list of relocatable blocs.  */</em>
+<a id='L161' name='L161'></a>   161 <strong class='reserved'>static</strong> <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> first_bloc, last_bloc;
+<a id='L162' name='L162'></a>   162 
+<a id='L163' name='L163'></a>   163 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> use_relocatable_buffers;
+<a id='L164' name='L164'></a>   164 
+<a id='L165' name='L165'></a>   165 <em class='comment'>/* If &gt;0, no relocation whatsoever takes place.  */</em>
+<a id='L166' name='L166'></a>   166 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> r_alloc_freeze_level;
+<a id='L167' name='L167'></a>   167 
+<a id='L168' name='L168'></a>   168 
+<a id='L169' name='L169'></a>   169 <em class='comment'>/* Functions to get and return memory from the system.  */</em>
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171 <em class='comment'>/* Find the heap that ADDRESS falls within.  */</em>
+<a id='L172' name='L172'></a>   172 
+<a id='L173' name='L173'></a>   173 <strong class='reserved'>static</strong> <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a>
+<a id='L174' name='L174'></a>   174 <a href='../S/2189.html#L395' title='Referred from 395 in src/ralloc.c.'>find_heap</a> (<strong class='reserved'>void</strong> *address)
+<a id='L175' name='L175'></a>   175 <em class='brace'>{</em>
+<a id='L176' name='L176'></a>   176   <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>;
+<a id='L177' name='L177'></a>   177 
+<a id='L178' name='L178'></a>   178   <strong class='reserved'>for</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = last_heap; <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>; <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;prev)
+<a id='L179' name='L179'></a>   179     <em class='brace'>{</em>
+<a id='L180' name='L180'></a>   180       <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a> &lt;= address &amp;&amp; address &lt;= <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;end)
+<a id='L181' name='L181'></a>   181         <strong class='reserved'>return</strong> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>;
+<a id='L182' name='L182'></a>   182     <em class='brace'>}</em>
+<a id='L183' name='L183'></a>   183 
+<a id='L184' name='L184'></a>   184   <strong class='reserved'>return</strong> <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>;
+<a id='L185' name='L185'></a>   185 <em class='brace'>}</em>
+<a id='L186' name='L186'></a>   186 
+<a id='L187' name='L187'></a>   187 <em class='comment'>/* Find SIZE bytes of space in a heap.</em>
+<a id='L188' name='L188'></a>   188 <em class='comment'>   Try to get them at ADDRESS (which must fall within some heap's range)</em>
+<a id='L189' name='L189'></a>   189 <em class='comment'>   if we can get that many within one heap.</em>
+<a id='L190' name='L190'></a>   190 <em class='comment'></em>
+<a id='L191' name='L191'></a>   191 <em class='comment'>   If enough space is not presently available in our reserve, this means</em>
+<a id='L192' name='L192'></a>   192 <em class='comment'>   getting more page-aligned space from the system.  If the returned space</em>
+<a id='L193' name='L193'></a>   193 <em class='comment'>   is not contiguous to the last heap, allocate a new heap, and append it</em>
+<a id='L194' name='L194'></a>   194 <em class='comment'>   to the heap list.</em>
+<a id='L195' name='L195'></a>   195 <em class='comment'></em>
+<a id='L196' name='L196'></a>   196 <em class='comment'>   obtain does not try to keep track of whether space is in use or not</em>
+<a id='L197' name='L197'></a>   197 <em class='comment'>   in use.  It just returns the address of SIZE bytes that fall within a</em>
+<a id='L198' name='L198'></a>   198 <em class='comment'>   single heap.  If you call obtain twice in a row with the same arguments,</em>
+<a id='L199' name='L199'></a>   199 <em class='comment'>   you typically get the same value.  It's the caller's responsibility to</em>
+<a id='L200' name='L200'></a>   200 <em class='comment'>   keep track of what space is in use.</em>
+<a id='L201' name='L201'></a>   201 <em class='comment'></em>
+<a id='L202' name='L202'></a>   202 <em class='comment'>   Return the address of the space if all went well, or zero if we couldn't</em>
+<a id='L203' name='L203'></a>   203 <em class='comment'>   allocate the memory.  */</em>
+<a id='L204' name='L204'></a>   204 
+<a id='L205' name='L205'></a>   205 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> *
+<a id='L206' name='L206'></a>   206 <a href='../R/12486.html' title='Multiple referred from 3 places.'>obtain</a> (<strong class='reserved'>void</strong> *address, size_t <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L207' name='L207'></a>   207 <em class='brace'>{</em>
+<a id='L208' name='L208'></a>   208   <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>;
+<a id='L209' name='L209'></a>   209   size_t already_available;
+<a id='L210' name='L210'></a>   210 
+<a id='L211' name='L211'></a>   211   <em class='comment'>/* Find the heap that ADDRESS falls within.  */</em>
+<a id='L212' name='L212'></a>   212   <strong class='reserved'>for</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = last_heap; <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>; <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;prev)
+<a id='L213' name='L213'></a>   213     <em class='brace'>{</em>
+<a id='L214' name='L214'></a>   214       <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a> &lt;= address &amp;&amp; address &lt;= <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;end)
+<a id='L215' name='L215'></a>   215         <strong class='reserved'>break</strong>;
+<a id='L216' name='L216'></a>   216     <em class='brace'>}</em>
+<a id='L217' name='L217'></a>   217 
+<a id='L218' name='L218'></a>   218   <strong class='reserved'>if</strong> (! <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>)
+<a id='L219' name='L219'></a>   219     <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> ();
+<a id='L220' name='L220'></a>   220 
+<a id='L221' name='L221'></a>   221   <em class='comment'>/* If we can't fit SIZE bytes in that heap,</em>
+<a id='L222' name='L222'></a>   222 <em class='comment'>     try successive later heaps.  */</em>
+<a id='L223' name='L223'></a>   223   <strong class='reserved'>while</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> &amp;&amp; (<strong class='reserved'>char</strong> *) address + <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &gt; (<strong class='reserved'>char</strong> *) <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;end)
+<a id='L224' name='L224'></a>   224     <em class='brace'>{</em>
+<a id='L225' name='L225'></a>   225       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;next;
+<a id='L226' name='L226'></a>   226       <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> == <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>)
+<a id='L227' name='L227'></a>   227         <strong class='reserved'>break</strong>;
+<a id='L228' name='L228'></a>   228       address = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;bloc_start;
+<a id='L229' name='L229'></a>   229     <em class='brace'>}</em>
+<a id='L230' name='L230'></a>   230 
+<a id='L231' name='L231'></a>   231   <em class='comment'>/* If we can't fit them within any existing heap,</em>
+<a id='L232' name='L232'></a>   232 <em class='comment'>     get more space.  */</em>
+<a id='L233' name='L233'></a>   233   <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> == <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>)
+<a id='L234' name='L234'></a>   234     <em class='brace'>{</em>
+<a id='L235' name='L235'></a>   235       <strong class='reserved'>void</strong> *new = real_morecore (0);
+<a id='L236' name='L236'></a>   236       size_t <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a>;
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238       already_available = (<strong class='reserved'>char</strong> *) last_heap-&gt;end - (<strong class='reserved'>char</strong> *) address;
+<a id='L239' name='L239'></a>   239 
+<a id='L240' name='L240'></a>   240       <strong class='reserved'>if</strong> (new != last_heap-&gt;end)
+<a id='L241' name='L241'></a>   241         <em class='brace'>{</em>
+<a id='L242' name='L242'></a>   242           <em class='comment'>/* Someone else called sbrk.  Make a new heap.  */</em>
+<a id='L243' name='L243'></a>   243 
+<a id='L244' name='L244'></a>   244           <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> new_heap = (<a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a>) <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (new);
+<a id='L245' name='L245'></a>   245           <strong class='reserved'>void</strong> *bloc_start = (<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> ((<strong class='reserved'>void</strong> *) (new_heap + 1));
+<a id='L246' name='L246'></a>   246 
+<a id='L247' name='L247'></a>   247           <strong class='reserved'>if</strong> (real_morecore ((<strong class='reserved'>char</strong> *) bloc_start - (<strong class='reserved'>char</strong> *) new) != new)
+<a id='L248' name='L248'></a>   248             <strong class='reserved'>return</strong> 0;
+<a id='L249' name='L249'></a>   249 
+<a id='L250' name='L250'></a>   250           new_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a> = new;
+<a id='L251' name='L251'></a>   251           new_heap-&gt;end = bloc_start;
+<a id='L252' name='L252'></a>   252           new_heap-&gt;bloc_start = bloc_start;
+<a id='L253' name='L253'></a>   253           new_heap-&gt;<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> = bloc_start;
+<a id='L254' name='L254'></a>   254           new_heap-&gt;next = <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>;
+<a id='L255' name='L255'></a>   255           new_heap-&gt;prev = last_heap;
+<a id='L256' name='L256'></a>   256           new_heap-&gt;first_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L257' name='L257'></a>   257           new_heap-&gt;last_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L258' name='L258'></a>   258           last_heap-&gt;next = new_heap;
+<a id='L259' name='L259'></a>   259           last_heap = new_heap;
+<a id='L260' name='L260'></a>   260 
+<a id='L261' name='L261'></a>   261           address = bloc_start;
+<a id='L262' name='L262'></a>   262           already_available = 0;
+<a id='L263' name='L263'></a>   263         <em class='brace'>}</em>
+<a id='L264' name='L264'></a>   264 
+<a id='L265' name='L265'></a>   265       <em class='comment'>/* Add space to the last heap (which we may have just created).</em>
+<a id='L266' name='L266'></a>   266 <em class='comment'>         Get some extra, so we can come here less often.  */</em>
+<a id='L267' name='L267'></a>   267 
+<a id='L268' name='L268'></a>   268       <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a> = <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> + extra_bytes - already_available;
+<a id='L269' name='L269'></a>   269       <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a> = (<strong class='reserved'>char</strong> *) <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> ((<strong class='reserved'>char</strong> *) last_heap-&gt;end + <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a>)
+<a id='L270' name='L270'></a>   270         - (<strong class='reserved'>char</strong> *) last_heap-&gt;end;
+<a id='L271' name='L271'></a>   271 
+<a id='L272' name='L272'></a>   272       <strong class='reserved'>if</strong> (real_morecore (<a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a>) != last_heap-&gt;end)
+<a id='L273' name='L273'></a>   273         <strong class='reserved'>return</strong> 0;
+<a id='L274' name='L274'></a>   274 
+<a id='L275' name='L275'></a>   275       last_heap-&gt;end = (<strong class='reserved'>char</strong> *) last_heap-&gt;end + <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a>;
+<a id='L276' name='L276'></a>   276     <em class='brace'>}</em>
+<a id='L277' name='L277'></a>   277 
+<a id='L278' name='L278'></a>   278   <strong class='reserved'>return</strong> address;
+<a id='L279' name='L279'></a>   279 <em class='brace'>}</em>
+<a id='L280' name='L280'></a>   280 
+<a id='L281' name='L281'></a>   281 <em class='comment'>/* Return unused heap space to the system</em>
+<a id='L282' name='L282'></a>   282 <em class='comment'>   if there is a lot of unused space now.</em>
+<a id='L283' name='L283'></a>   283 <em class='comment'>   This can make the last heap smaller;</em>
+<a id='L284' name='L284'></a>   284 <em class='comment'>   it can also eliminate the last heap entirely.  */</em>
+<a id='L285' name='L285'></a>   285 
+<a id='L286' name='L286'></a>   286 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L287' name='L287'></a>   287 <a href='../R/13590.html' title='Multiple referred from 2 places.'>relinquish</a> (<strong class='reserved'>void</strong>)
+<a id='L288' name='L288'></a>   288 <em class='brace'>{</em>
+<a id='L289' name='L289'></a>   289   <strong class='reserved'>register</strong> <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> h;
+<a id='L290' name='L290'></a>   290   ptrdiff_t excess = 0;
+<a id='L291' name='L291'></a>   291 
+<a id='L292' name='L292'></a>   292   <em class='comment'>/* Add the amount of space beyond break_value</em>
+<a id='L293' name='L293'></a>   293 <em class='comment'>     in all heaps which have extend beyond break_value at all.  */</em>
+<a id='L294' name='L294'></a>   294 
+<a id='L295' name='L295'></a>   295   <strong class='reserved'>for</strong> (h = last_heap; h &amp;&amp; break_value &lt; h-&gt;end; h = h-&gt;prev)
+<a id='L296' name='L296'></a>   296     <em class='brace'>{</em>
+<a id='L297' name='L297'></a>   297       excess += (<strong class='reserved'>char</strong> *) h-&gt;end - (<strong class='reserved'>char</strong> *) ((break_value &lt; h-&gt;bloc_start)
+<a id='L298' name='L298'></a>   298                                             ? h-&gt;bloc_start : break_value);
+<a id='L299' name='L299'></a>   299     <em class='brace'>}</em>
+<a id='L300' name='L300'></a>   300 
+<a id='L301' name='L301'></a>   301   <strong class='reserved'>if</strong> (excess &gt; extra_bytes * 2 &amp;&amp; real_morecore (0) == last_heap-&gt;end)
+<a id='L302' name='L302'></a>   302     <em class='brace'>{</em>
+<a id='L303' name='L303'></a>   303       <em class='comment'>/* Keep extra_bytes worth of empty space.</em>
+<a id='L304' name='L304'></a>   304 <em class='comment'>         And don't free anything unless we can free at least extra_bytes.  */</em>
+<a id='L305' name='L305'></a>   305       excess -= extra_bytes;
+<a id='L306' name='L306'></a>   306 
+<a id='L307' name='L307'></a>   307       <strong class='reserved'>if</strong> ((<strong class='reserved'>char</strong> *) last_heap-&gt;end - (<strong class='reserved'>char</strong> *) last_heap-&gt;bloc_start &lt;= excess)
+<a id='L308' name='L308'></a>   308         <em class='brace'>{</em>
+<a id='L309' name='L309'></a>   309           <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> lh_prev;
+<a id='L310' name='L310'></a>   310 
+<a id='L311' name='L311'></a>   311           <em class='comment'>/* This heap should have no blocs in it.  If it does, we</em>
+<a id='L312' name='L312'></a>   312 <em class='comment'>             cannot return it to the system.  */</em>
+<a id='L313' name='L313'></a>   313           <strong class='reserved'>if</strong> (last_heap-&gt;first_bloc != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>
+<a id='L314' name='L314'></a>   314               || last_heap-&gt;last_bloc != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>)
+<a id='L315' name='L315'></a>   315             <strong class='reserved'>return</strong>;
+<a id='L316' name='L316'></a>   316 
+<a id='L317' name='L317'></a>   317           <em class='comment'>/* Return the last heap, with its header, to the system.  */</em>
+<a id='L318' name='L318'></a>   318           excess = (<strong class='reserved'>char</strong> *) last_heap-&gt;end - (<strong class='reserved'>char</strong> *) last_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>;
+<a id='L319' name='L319'></a>   319           lh_prev = last_heap-&gt;prev;
+<a id='L320' name='L320'></a>   320           <em class='comment'>/* If the system doesn't want that much memory back, leave</em>
+<a id='L321' name='L321'></a>   321 <em class='comment'>             last_heap unaltered to reflect that.  This can occur if</em>
+<a id='L322' name='L322'></a>   322 <em class='comment'>             break_value is still within the original data segment.  */</em>
+<a id='L323' name='L323'></a>   323           <strong class='reserved'>if</strong> (real_morecore (- excess) != 0)
+<a id='L324' name='L324'></a>   324             <em class='brace'>{</em>
+<a id='L325' name='L325'></a>   325               last_heap = lh_prev;
+<a id='L326' name='L326'></a>   326               last_heap-&gt;next = <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>;
+<a id='L327' name='L327'></a>   327             <em class='brace'>}</em>
+<a id='L328' name='L328'></a>   328         <em class='brace'>}</em>
+<a id='L329' name='L329'></a>   329       <strong class='reserved'>else</strong>
+<a id='L330' name='L330'></a>   330         <em class='brace'>{</em>
+<a id='L331' name='L331'></a>   331           excess = ((<strong class='reserved'>char</strong> *) last_heap-&gt;end
+<a id='L332' name='L332'></a>   332                     - (<strong class='reserved'>char</strong> *) <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> ((<strong class='reserved'>char</strong> *) last_heap-&gt;end - excess));
+<a id='L333' name='L333'></a>   333           <em class='comment'>/* If the system doesn't want that much memory back, leave</em>
+<a id='L334' name='L334'></a>   334 <em class='comment'>             the end of the last heap unchanged to reflect that.  This</em>
+<a id='L335' name='L335'></a>   335 <em class='comment'>             can occur if break_value is still within the original</em>
+<a id='L336' name='L336'></a>   336 <em class='comment'>             data segment.  */</em>
+<a id='L337' name='L337'></a>   337           <strong class='reserved'>if</strong> (real_morecore (- excess) != 0)
+<a id='L338' name='L338'></a>   338             last_heap-&gt;end = (<strong class='reserved'>char</strong> *) last_heap-&gt;end - excess;
+<a id='L339' name='L339'></a>   339         <em class='brace'>}</em>
+<a id='L340' name='L340'></a>   340     <em class='brace'>}</em>
+<a id='L341' name='L341'></a>   341 <em class='brace'>}</em>
+<a id='L342' name='L342'></a>   342 
+<a id='L343' name='L343'></a>   343 <em class='comment'>/* The meat - allocating, freeing, and relocating blocs.  */</em>
+<a id='L344' name='L344'></a>   344 
+<a id='L345' name='L345'></a>   345 <em class='comment'>/* Find the bloc referenced by the address in PTR.  Returns a pointer</em>
+<a id='L346' name='L346'></a>   346 <em class='comment'>   to that block.  */</em>
+<a id='L347' name='L347'></a>   347 
+<a id='L348' name='L348'></a>   348 <strong class='reserved'>static</strong> <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a>
+<a id='L349' name='L349'></a>   349 <a href='../R/9197.html' title='Multiple referred from 2 places.'>find_bloc</a> (<strong class='reserved'>void</strong> **ptr)
+<a id='L350' name='L350'></a>   350 <em class='brace'>{</em>
+<a id='L351' name='L351'></a>   351   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> p = first_bloc;
+<a id='L352' name='L352'></a>   352 
+<a id='L353' name='L353'></a>   353   <strong class='reserved'>while</strong> (p != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>)
+<a id='L354' name='L354'></a>   354     <em class='brace'>{</em>
+<a id='L355' name='L355'></a>   355       <em class='comment'>/* Consistency check. Don't return inconsistent blocs.</em>
+<a id='L356' name='L356'></a>   356 <em class='comment'>         Don't abort here, as callers might be expecting this, but</em>
+<a id='L357' name='L357'></a>   357 <em class='comment'>         callers that always expect a bloc to be returned should abort</em>
+<a id='L358' name='L358'></a>   358 <em class='comment'>         if one isn't to avoid a memory corruption bug that is</em>
+<a id='L359' name='L359'></a>   359 <em class='comment'>         difficult to track down.  */</em>
+<a id='L360' name='L360'></a>   360       <strong class='reserved'>if</strong> (p-&gt;variable == ptr &amp;&amp; p-&gt;data == *ptr)
+<a id='L361' name='L361'></a>   361         <strong class='reserved'>return</strong> p;
+<a id='L362' name='L362'></a>   362 
+<a id='L363' name='L363'></a>   363       p = p-&gt;next;
+<a id='L364' name='L364'></a>   364     <em class='brace'>}</em>
+<a id='L365' name='L365'></a>   365 
+<a id='L366' name='L366'></a>   366   <strong class='reserved'>return</strong> p;
+<a id='L367' name='L367'></a>   367 <em class='brace'>}</em>
+<a id='L368' name='L368'></a>   368 
+<a id='L369' name='L369'></a>   369 <em class='comment'>/* Allocate a bloc of SIZE bytes and append it to the chain of blocs.</em>
+<a id='L370' name='L370'></a>   370 <em class='comment'>   Returns a pointer to the new bloc, or zero if we couldn't allocate</em>
+<a id='L371' name='L371'></a>   371 <em class='comment'>   memory for the new block.  */</em>
+<a id='L372' name='L372'></a>   372 
+<a id='L373' name='L373'></a>   373 <strong class='reserved'>static</strong> <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a>
+<a id='L374' name='L374'></a>   374 <a href='../R/9765.html' title='Multiple referred from 2 places.'>get_bloc</a> (size_t <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L375' name='L375'></a>   375 <em class='brace'>{</em>
+<a id='L376' name='L376'></a>   376   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> new_bloc;
+<a id='L377' name='L377'></a>   377   <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>;
+<a id='L378' name='L378'></a>   378 
+<a id='L379' name='L379'></a>   379   <strong class='reserved'>if</strong> (! (new_bloc = <a href='../D/12720.html' title='Multiple defined in 19 places.'>malloc</a> (<a href='../S/2189.html#L158' title='Defined at 158 in src/ralloc.c.'>BLOC_PTR_SIZE</a>))
+<a id='L380' name='L380'></a>   380       || ! (new_bloc-&gt;data = <a href='../S/2189.html#L206' title='Defined at 206 in src/ralloc.c.'>obtain</a> (break_value, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)))
+<a id='L381' name='L381'></a>   381     <em class='brace'>{</em>
+<a id='L382' name='L382'></a>   382       <a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> (new_bloc);
+<a id='L383' name='L383'></a>   383 
+<a id='L384' name='L384'></a>   384       <strong class='reserved'>return</strong> 0;
+<a id='L385' name='L385'></a>   385     <em class='brace'>}</em>
+<a id='L386' name='L386'></a>   386 
+<a id='L387' name='L387'></a>   387   break_value = (<strong class='reserved'>char</strong> *) new_bloc-&gt;data + <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L388' name='L388'></a>   388 
+<a id='L389' name='L389'></a>   389   new_bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L390' name='L390'></a>   390   new_bloc-&gt;next = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L391' name='L391'></a>   391   new_bloc-&gt;variable = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L392' name='L392'></a>   392   new_bloc-&gt;new_data = 0;
+<a id='L393' name='L393'></a>   393 
+<a id='L394' name='L394'></a>   394   <em class='comment'>/* Record in the heap that this space is in use.  */</em>
+<a id='L395' name='L395'></a>   395   <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L174' title='Defined at 174 in src/ralloc.c.'>find_heap</a> (new_bloc-&gt;data);
+<a id='L396' name='L396'></a>   396   <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> = break_value;
+<a id='L397' name='L397'></a>   397 
+<a id='L398' name='L398'></a>   398   <em class='comment'>/* Maintain the correspondence between heaps and blocs.  */</em>
+<a id='L399' name='L399'></a>   399   new_bloc-&gt;<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>;
+<a id='L400' name='L400'></a>   400   <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc = new_bloc;
+<a id='L401' name='L401'></a>   401   <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc == <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>)
+<a id='L402' name='L402'></a>   402     <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc = new_bloc;
+<a id='L403' name='L403'></a>   403 
+<a id='L404' name='L404'></a>   404   <em class='comment'>/* Put this bloc on the doubly-linked list of blocs.  */</em>
+<a id='L405' name='L405'></a>   405   <strong class='reserved'>if</strong> (first_bloc)
+<a id='L406' name='L406'></a>   406     <em class='brace'>{</em>
+<a id='L407' name='L407'></a>   407       new_bloc-&gt;prev = last_bloc;
+<a id='L408' name='L408'></a>   408       last_bloc-&gt;next = new_bloc;
+<a id='L409' name='L409'></a>   409       last_bloc = new_bloc;
+<a id='L410' name='L410'></a>   410     <em class='brace'>}</em>
+<a id='L411' name='L411'></a>   411   <strong class='reserved'>else</strong>
+<a id='L412' name='L412'></a>   412     <em class='brace'>{</em>
+<a id='L413' name='L413'></a>   413       first_bloc = last_bloc = new_bloc;
+<a id='L414' name='L414'></a>   414       new_bloc-&gt;prev = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L415' name='L415'></a>   415     <em class='brace'>}</em>
+<a id='L416' name='L416'></a>   416 
+<a id='L417' name='L417'></a>   417   <strong class='reserved'>return</strong> new_bloc;
+<a id='L418' name='L418'></a>   418 <em class='brace'>}</em>
+<a id='L419' name='L419'></a>   419 
+<a id='L420' name='L420'></a>   420 <em class='comment'>/* Calculate new locations of blocs in the list beginning with BLOC,</em>
+<a id='L421' name='L421'></a>   421 <em class='comment'>   relocating it to start at ADDRESS, in heap HEAP.  If enough space is</em>
+<a id='L422' name='L422'></a>   422 <em class='comment'>   not presently available in our reserve, call obtain for</em>
+<a id='L423' name='L423'></a>   423 <em class='comment'>   more space.</em>
+<a id='L424' name='L424'></a>   424 <em class='comment'></em>
+<a id='L425' name='L425'></a>   425 <em class='comment'>   Store the new location of each bloc in its new_data field.</em>
+<a id='L426' name='L426'></a>   426 <em class='comment'>   Do not touch the contents of blocs or break_value.  */</em>
+<a id='L427' name='L427'></a>   427 
+<a id='L428' name='L428'></a>   428 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L429' name='L429'></a>   429 <a href='../R/13594.html' title='Multiple referred from 3 places.'>relocate_blocs</a> (<a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> bloc, <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>, <strong class='reserved'>void</strong> *address)
+<a id='L430' name='L430'></a>   430 <em class='brace'>{</em>
+<a id='L431' name='L431'></a>   431   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = bloc;
+<a id='L432' name='L432'></a>   432 
+<a id='L433' name='L433'></a>   433   <em class='comment'>/* No need to ever call this if arena is frozen, bug somewhere!  */</em>
+<a id='L434' name='L434'></a>   434   <strong class='reserved'>if</strong> (r_alloc_freeze_level)
+<a id='L435' name='L435'></a>   435     <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> ();
+<a id='L436' name='L436'></a>   436 
+<a id='L437' name='L437'></a>   437   <strong class='reserved'>while</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L438' name='L438'></a>   438     <em class='brace'>{</em>
+<a id='L439' name='L439'></a>   439       <em class='comment'>/* If bloc B won't fit within HEAP,</em>
+<a id='L440' name='L440'></a>   440 <em class='comment'>         move to the next heap and try again.  */</em>
+<a id='L441' name='L441'></a>   441       <strong class='reserved'>while</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> &amp;&amp; (<strong class='reserved'>char</strong> *) address + <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &gt; (<strong class='reserved'>char</strong> *) <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;end)
+<a id='L442' name='L442'></a>   442         <em class='brace'>{</em>
+<a id='L443' name='L443'></a>   443           <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;next;
+<a id='L444' name='L444'></a>   444           <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> == <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>)
+<a id='L445' name='L445'></a>   445             <strong class='reserved'>break</strong>;
+<a id='L446' name='L446'></a>   446           address = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;bloc_start;
+<a id='L447' name='L447'></a>   447         <em class='brace'>}</em>
+<a id='L448' name='L448'></a>   448 
+<a id='L449' name='L449'></a>   449       <em class='comment'>/* If BLOC won't fit in any heap,</em>
+<a id='L450' name='L450'></a>   450 <em class='comment'>         get enough new space to hold BLOC and all following blocs.  */</em>
+<a id='L451' name='L451'></a>   451       <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> == <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>)
+<a id='L452' name='L452'></a>   452         <em class='brace'>{</em>
+<a id='L453' name='L453'></a>   453           <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> tb = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L454' name='L454'></a>   454           size_t s = 0;
+<a id='L455' name='L455'></a>   455 
+<a id='L456' name='L456'></a>   456           <em class='comment'>/* Add up the size of all the following blocs.  */</em>
+<a id='L457' name='L457'></a>   457           <strong class='reserved'>while</strong> (tb != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>)
+<a id='L458' name='L458'></a>   458             <em class='brace'>{</em>
+<a id='L459' name='L459'></a>   459               <strong class='reserved'>if</strong> (tb-&gt;variable)
+<a id='L460' name='L460'></a>   460                 s += tb-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L461' name='L461'></a>   461 
+<a id='L462' name='L462'></a>   462               tb = tb-&gt;next;
+<a id='L463' name='L463'></a>   463             <em class='brace'>}</em>
+<a id='L464' name='L464'></a>   464 
+<a id='L465' name='L465'></a>   465           <em class='comment'>/* Get that space.  */</em>
+<a id='L466' name='L466'></a>   466           address = <a href='../S/2189.html#L206' title='Defined at 206 in src/ralloc.c.'>obtain</a> (address, s);
+<a id='L467' name='L467'></a>   467           <strong class='reserved'>if</strong> (address == 0)
+<a id='L468' name='L468'></a>   468             <strong class='reserved'>return</strong> 0;
+<a id='L469' name='L469'></a>   469 
+<a id='L470' name='L470'></a>   470           <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = last_heap;
+<a id='L471' name='L471'></a>   471         <em class='brace'>}</em>
+<a id='L472' name='L472'></a>   472 
+<a id='L473' name='L473'></a>   473       <em class='comment'>/* Record the new address of this bloc</em>
+<a id='L474' name='L474'></a>   474 <em class='comment'>         and update where the next bloc can start.  */</em>
+<a id='L475' name='L475'></a>   475       <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data = address;
+<a id='L476' name='L476'></a>   476       <strong class='reserved'>if</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;variable)
+<a id='L477' name='L477'></a>   477         address = (<strong class='reserved'>char</strong> *) address + <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L478' name='L478'></a>   478       <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;next;
+<a id='L479' name='L479'></a>   479     <em class='brace'>}</em>
+<a id='L480' name='L480'></a>   480 
+<a id='L481' name='L481'></a>   481   <strong class='reserved'>return</strong> 1;
+<a id='L482' name='L482'></a>   482 <em class='brace'>}</em>
+<a id='L483' name='L483'></a>   483 
+<a id='L484' name='L484'></a>   484 <em class='comment'>/* Update the records of which heaps contain which blocs, starting</em>
+<a id='L485' name='L485'></a>   485 <em class='comment'>   with heap HEAP and bloc BLOC.  */</em>
+<a id='L486' name='L486'></a>   486 
+<a id='L487' name='L487'></a>   487 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L488' name='L488'></a>   488 <a href='../R/15373.html' title='Multiple referred from 2 places.'>update_heap_bloc_correspondence</a> (<a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> bloc, <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>)
+<a id='L489' name='L489'></a>   489 <em class='brace'>{</em>
+<a id='L490' name='L490'></a>   490   <strong class='reserved'>register</strong> <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L491' name='L491'></a>   491 
+<a id='L492' name='L492'></a>   492   <em class='comment'>/* Initialize HEAP's status to reflect blocs before BLOC.  */</em>
+<a id='L493' name='L493'></a>   493   <strong class='reserved'>if</strong> (bloc != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a> &amp;&amp; bloc-&gt;prev != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a> &amp;&amp; bloc-&gt;prev-&gt;<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> == <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>)
+<a id='L494' name='L494'></a>   494     <em class='brace'>{</em>
+<a id='L495' name='L495'></a>   495       <em class='comment'>/* The previous bloc is in HEAP.  */</em>
+<a id='L496' name='L496'></a>   496       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc = bloc-&gt;prev;
+<a id='L497' name='L497'></a>   497       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> = (<strong class='reserved'>char</strong> *) bloc-&gt;prev-&gt;data + bloc-&gt;prev-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L498' name='L498'></a>   498     <em class='brace'>}</em>
+<a id='L499' name='L499'></a>   499   <strong class='reserved'>else</strong>
+<a id='L500' name='L500'></a>   500     <em class='brace'>{</em>
+<a id='L501' name='L501'></a>   501       <em class='comment'>/* HEAP contains no blocs before BLOC.  */</em>
+<a id='L502' name='L502'></a>   502       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L503' name='L503'></a>   503       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L504' name='L504'></a>   504       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;bloc_start;
+<a id='L505' name='L505'></a>   505     <em class='brace'>}</em>
+<a id='L506' name='L506'></a>   506 
+<a id='L507' name='L507'></a>   507   <em class='comment'>/* Advance through blocs one by one.  */</em>
+<a id='L508' name='L508'></a>   508   <strong class='reserved'>for</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = bloc; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;next)
+<a id='L509' name='L509'></a>   509     <em class='brace'>{</em>
+<a id='L510' name='L510'></a>   510       <em class='comment'>/* Advance through heaps, marking them empty,</em>
+<a id='L511' name='L511'></a>   511 <em class='comment'>         till we get to the one that B is in.  */</em>
+<a id='L512' name='L512'></a>   512       <strong class='reserved'>while</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>)
+<a id='L513' name='L513'></a>   513         <em class='brace'>{</em>
+<a id='L514' name='L514'></a>   514           <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;bloc_start &lt;= <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data &amp;&amp; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data &lt;= <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;end)
+<a id='L515' name='L515'></a>   515             <strong class='reserved'>break</strong>;
+<a id='L516' name='L516'></a>   516           <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;next;
+<a id='L517' name='L517'></a>   517           <em class='comment'>/* We know HEAP is not null now,</em>
+<a id='L518' name='L518'></a>   518 <em class='comment'>             because there has to be space for bloc B.  */</em>
+<a id='L519' name='L519'></a>   519           <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L520' name='L520'></a>   520           <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L521' name='L521'></a>   521           <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;bloc_start;
+<a id='L522' name='L522'></a>   522         <em class='brace'>}</em>
+<a id='L523' name='L523'></a>   523 
+<a id='L524' name='L524'></a>   524       <em class='comment'>/* Update HEAP's status for bloc B.  */</em>
+<a id='L525' name='L525'></a>   525       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> = (<strong class='reserved'>char</strong> *) <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data + <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L526' name='L526'></a>   526       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L527' name='L527'></a>   527       <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc == <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>)
+<a id='L528' name='L528'></a>   528         <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L529' name='L529'></a>   529 
+<a id='L530' name='L530'></a>   530       <em class='comment'>/* Record that B is in HEAP.  */</em>
+<a id='L531' name='L531'></a>   531       <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>;
+<a id='L532' name='L532'></a>   532     <em class='brace'>}</em>
+<a id='L533' name='L533'></a>   533 
+<a id='L534' name='L534'></a>   534   <em class='comment'>/* If there are any remaining heaps and no blocs left,</em>
+<a id='L535' name='L535'></a>   535 <em class='comment'>     mark those heaps as empty.  */</em>
+<a id='L536' name='L536'></a>   536   <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;next;
+<a id='L537' name='L537'></a>   537   <strong class='reserved'>while</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>)
+<a id='L538' name='L538'></a>   538     <em class='brace'>{</em>
+<a id='L539' name='L539'></a>   539       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L540' name='L540'></a>   540       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L541' name='L541'></a>   541       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;bloc_start;
+<a id='L542' name='L542'></a>   542       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;next;
+<a id='L543' name='L543'></a>   543     <em class='brace'>}</em>
+<a id='L544' name='L544'></a>   544 <em class='brace'>}</em>
+<a id='L545' name='L545'></a>   545 
+<a id='L546' name='L546'></a>   546 <em class='comment'>/* Resize BLOC to SIZE bytes.  This relocates the blocs</em>
+<a id='L547' name='L547'></a>   547 <em class='comment'>   that come after BLOC in memory.  */</em>
+<a id='L548' name='L548'></a>   548 
+<a id='L549' name='L549'></a>   549 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L550' name='L550'></a>   550 <a href='../R/13663.html' title='Multiple referred from 3 places.'>resize_bloc</a> (<a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> bloc, size_t <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L551' name='L551'></a>   551 <em class='brace'>{</em>
+<a id='L552' name='L552'></a>   552   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L553' name='L553'></a>   553   <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>;
+<a id='L554' name='L554'></a>   554   <strong class='reserved'>void</strong> *address;
+<a id='L555' name='L555'></a>   555   size_t old_size;
+<a id='L556' name='L556'></a>   556 
+<a id='L557' name='L557'></a>   557   <em class='comment'>/* No need to ever call this if arena is frozen, bug somewhere!  */</em>
+<a id='L558' name='L558'></a>   558   <strong class='reserved'>if</strong> (r_alloc_freeze_level)
+<a id='L559' name='L559'></a>   559     <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> ();
+<a id='L560' name='L560'></a>   560 
+<a id='L561' name='L561'></a>   561   <strong class='reserved'>if</strong> (bloc == <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a> || <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> == bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L562' name='L562'></a>   562     <strong class='reserved'>return</strong> 1;
+<a id='L563' name='L563'></a>   563 
+<a id='L564' name='L564'></a>   564   <strong class='reserved'>for</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = first_heap; <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> != <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>; <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;next)
+<a id='L565' name='L565'></a>   565     <em class='brace'>{</em>
+<a id='L566' name='L566'></a>   566       <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;bloc_start &lt;= bloc-&gt;data &amp;&amp; bloc-&gt;data &lt;= <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;end)
+<a id='L567' name='L567'></a>   567         <strong class='reserved'>break</strong>;
+<a id='L568' name='L568'></a>   568     <em class='brace'>}</em>
+<a id='L569' name='L569'></a>   569 
+<a id='L570' name='L570'></a>   570   <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> == <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>)
+<a id='L571' name='L571'></a>   571     <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> ();
+<a id='L572' name='L572'></a>   572 
+<a id='L573' name='L573'></a>   573   old_size = bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L574' name='L574'></a>   574   bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L575' name='L575'></a>   575 
+<a id='L576' name='L576'></a>   576   <em class='comment'>/* Note that bloc could be moved into the previous heap.  */</em>
+<a id='L577' name='L577'></a>   577   address = (bloc-&gt;prev ? (<strong class='reserved'>char</strong> *) bloc-&gt;prev-&gt;data + bloc-&gt;prev-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>
+<a id='L578' name='L578'></a>   578              : (<strong class='reserved'>char</strong> *) first_heap-&gt;bloc_start);
+<a id='L579' name='L579'></a>   579   <strong class='reserved'>while</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>)
+<a id='L580' name='L580'></a>   580     <em class='brace'>{</em>
+<a id='L581' name='L581'></a>   581       <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;bloc_start &lt;= address &amp;&amp; address &lt;= <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;end)
+<a id='L582' name='L582'></a>   582         <strong class='reserved'>break</strong>;
+<a id='L583' name='L583'></a>   583       <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;prev;
+<a id='L584' name='L584'></a>   584     <em class='brace'>}</em>
+<a id='L585' name='L585'></a>   585 
+<a id='L586' name='L586'></a>   586   <strong class='reserved'>if</strong> (! <a href='../S/2189.html#L429' title='Defined at 429 in src/ralloc.c.'>relocate_blocs</a> (bloc, <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>, address))
+<a id='L587' name='L587'></a>   587     <em class='brace'>{</em>
+<a id='L588' name='L588'></a>   588       bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = old_size;
+<a id='L589' name='L589'></a>   589       <strong class='reserved'>return</strong> 0;
+<a id='L590' name='L590'></a>   590     <em class='brace'>}</em>
+<a id='L591' name='L591'></a>   591 
+<a id='L592' name='L592'></a>   592   <strong class='reserved'>if</strong> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &gt; old_size)
+<a id='L593' name='L593'></a>   593     <em class='brace'>{</em>
+<a id='L594' name='L594'></a>   594       <strong class='reserved'>for</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = last_bloc; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> != bloc; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;prev)
+<a id='L595' name='L595'></a>   595         <em class='brace'>{</em>
+<a id='L596' name='L596'></a>   596           <strong class='reserved'>if</strong> (!<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;variable)
+<a id='L597' name='L597'></a>   597             <em class='brace'>{</em>
+<a id='L598' name='L598'></a>   598               <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = 0;
+<a id='L599' name='L599'></a>   599               <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data;
+<a id='L600' name='L600'></a>   600             <em class='brace'>}</em>
+<a id='L601' name='L601'></a>   601           <strong class='reserved'>else</strong>
+<a id='L602' name='L602'></a>   602             <em class='brace'>{</em>
+<a id='L603' name='L603'></a>   603               <strong class='reserved'>if</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data != <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data)
+<a id='L604' name='L604'></a>   604                 <a href='../S/2738.html#L81' title='Defined at 81 in lib/canonicalize-lgpl.c.'>memmove</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L605' name='L605'></a>   605               *<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;variable = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data;
+<a id='L606' name='L606'></a>   606             <em class='brace'>}</em>
+<a id='L607' name='L607'></a>   607         <em class='brace'>}</em>
+<a id='L608' name='L608'></a>   608       <strong class='reserved'>if</strong> (!bloc-&gt;variable)
+<a id='L609' name='L609'></a>   609         <em class='brace'>{</em>
+<a id='L610' name='L610'></a>   610           bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = 0;
+<a id='L611' name='L611'></a>   611           bloc-&gt;data = bloc-&gt;new_data;
+<a id='L612' name='L612'></a>   612         <em class='brace'>}</em>
+<a id='L613' name='L613'></a>   613       <strong class='reserved'>else</strong>
+<a id='L614' name='L614'></a>   614         <em class='brace'>{</em>
+<a id='L615' name='L615'></a>   615           <strong class='reserved'>if</strong> (bloc-&gt;new_data != bloc-&gt;data)
+<a id='L616' name='L616'></a>   616             <a href='../S/2738.html#L81' title='Defined at 81 in lib/canonicalize-lgpl.c.'>memmove</a> (bloc-&gt;new_data, bloc-&gt;data, old_size);
+<a id='L617' name='L617'></a>   617           memset ((<strong class='reserved'>char</strong> *) bloc-&gt;new_data + old_size, 0, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> - old_size);
+<a id='L618' name='L618'></a>   618           *bloc-&gt;variable = bloc-&gt;data = bloc-&gt;new_data;
+<a id='L619' name='L619'></a>   619         <em class='brace'>}</em>
+<a id='L620' name='L620'></a>   620     <em class='brace'>}</em>
+<a id='L621' name='L621'></a>   621   <strong class='reserved'>else</strong>
+<a id='L622' name='L622'></a>   622     <em class='brace'>{</em>
+<a id='L623' name='L623'></a>   623       <strong class='reserved'>for</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = bloc; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;next)
+<a id='L624' name='L624'></a>   624         <em class='brace'>{</em>
+<a id='L625' name='L625'></a>   625           <strong class='reserved'>if</strong> (!<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;variable)
+<a id='L626' name='L626'></a>   626             <em class='brace'>{</em>
+<a id='L627' name='L627'></a>   627               <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = 0;
+<a id='L628' name='L628'></a>   628               <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data;
+<a id='L629' name='L629'></a>   629             <em class='brace'>}</em>
+<a id='L630' name='L630'></a>   630           <strong class='reserved'>else</strong>
+<a id='L631' name='L631'></a>   631             <em class='brace'>{</em>
+<a id='L632' name='L632'></a>   632               <strong class='reserved'>if</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data != <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data)
+<a id='L633' name='L633'></a>   633                 <a href='../S/2738.html#L81' title='Defined at 81 in lib/canonicalize-lgpl.c.'>memmove</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L634' name='L634'></a>   634               *<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;variable = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data;
+<a id='L635' name='L635'></a>   635             <em class='brace'>}</em>
+<a id='L636' name='L636'></a>   636         <em class='brace'>}</em>
+<a id='L637' name='L637'></a>   637     <em class='brace'>}</em>
+<a id='L638' name='L638'></a>   638 
+<a id='L639' name='L639'></a>   639   <a href='../S/2189.html#L488' title='Defined at 488 in src/ralloc.c.'>update_heap_bloc_correspondence</a> (bloc, <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>);
+<a id='L640' name='L640'></a>   640 
+<a id='L641' name='L641'></a>   641   break_value = (last_bloc ? (<strong class='reserved'>char</strong> *) last_bloc-&gt;data + last_bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>
+<a id='L642' name='L642'></a>   642                  : (<strong class='reserved'>char</strong> *) first_heap-&gt;bloc_start);
+<a id='L643' name='L643'></a>   643   <strong class='reserved'>return</strong> 1;
+<a id='L644' name='L644'></a>   644 <em class='brace'>}</em>
+<a id='L645' name='L645'></a>   645 
+<a id='L646' name='L646'></a>   646 <em class='comment'>/* Free BLOC from the chain of blocs, relocating any blocs above it.</em>
+<a id='L647' name='L647'></a>   647 <em class='comment'>   This may return space to the system.  */</em>
+<a id='L648' name='L648'></a>   648 
+<a id='L649' name='L649'></a>   649 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L650' name='L650'></a>   650 <a href='../S/2189.html#L922' title='Referred from 922 in src/ralloc.c.'>free_bloc</a> (<a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> bloc)
+<a id='L651' name='L651'></a>   651 <em class='brace'>{</em>
+<a id='L652' name='L652'></a>   652   <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> = bloc-&gt;<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>;
+<a id='L653' name='L653'></a>   653   <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> h;
+<a id='L654' name='L654'></a>   654 
+<a id='L655' name='L655'></a>   655   <strong class='reserved'>if</strong> (r_alloc_freeze_level)
+<a id='L656' name='L656'></a>   656     <em class='brace'>{</em>
+<a id='L657' name='L657'></a>   657       bloc-&gt;variable = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L658' name='L658'></a>   658       <strong class='reserved'>return</strong>;
+<a id='L659' name='L659'></a>   659     <em class='brace'>}</em>
+<a id='L660' name='L660'></a>   660 
+<a id='L661' name='L661'></a>   661   <a href='../S/2189.html#L550' title='Defined at 550 in src/ralloc.c.'>resize_bloc</a> (bloc, 0);
+<a id='L662' name='L662'></a>   662 
+<a id='L663' name='L663'></a>   663   <strong class='reserved'>if</strong> (bloc == first_bloc &amp;&amp; bloc == last_bloc)
+<a id='L664' name='L664'></a>   664     <em class='brace'>{</em>
+<a id='L665' name='L665'></a>   665       first_bloc = last_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L666' name='L666'></a>   666     <em class='brace'>}</em>
+<a id='L667' name='L667'></a>   667   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (bloc == last_bloc)
+<a id='L668' name='L668'></a>   668     <em class='brace'>{</em>
+<a id='L669' name='L669'></a>   669       last_bloc = bloc-&gt;prev;
+<a id='L670' name='L670'></a>   670       last_bloc-&gt;next = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L671' name='L671'></a>   671     <em class='brace'>}</em>
+<a id='L672' name='L672'></a>   672   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (bloc == first_bloc)
+<a id='L673' name='L673'></a>   673     <em class='brace'>{</em>
+<a id='L674' name='L674'></a>   674       first_bloc = bloc-&gt;next;
+<a id='L675' name='L675'></a>   675       first_bloc-&gt;prev = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L676' name='L676'></a>   676     <em class='brace'>}</em>
+<a id='L677' name='L677'></a>   677   <strong class='reserved'>else</strong>
+<a id='L678' name='L678'></a>   678     <em class='brace'>{</em>
+<a id='L679' name='L679'></a>   679       bloc-&gt;next-&gt;prev = bloc-&gt;prev;
+<a id='L680' name='L680'></a>   680       bloc-&gt;prev-&gt;next = bloc-&gt;next;
+<a id='L681' name='L681'></a>   681     <em class='brace'>}</em>
+<a id='L682' name='L682'></a>   682 
+<a id='L683' name='L683'></a>   683   <em class='comment'>/* Sometimes, 'heap' obtained from bloc-&gt;heap above is not really a</em>
+<a id='L684' name='L684'></a>   684 <em class='comment'>     'heap' structure.  It can even be beyond the current break point,</em>
+<a id='L685' name='L685'></a>   685 <em class='comment'>     which will cause crashes when we dereference it below (see</em>
+<a id='L686' name='L686'></a>   686 <em class='comment'>     bug#12242).  Evidently, the reason is bloc allocations done while</em>
+<a id='L687' name='L687'></a>   687 <em class='comment'>     use_relocatable_buffers was non-positive, because additional</em>
+<a id='L688' name='L688'></a>   688 <em class='comment'>     memory we get then is not recorded in the heaps we manage.  If</em>
+<a id='L689' name='L689'></a>   689 <em class='comment'>     bloc-&gt;heap records such a "heap", we cannot (and don't need to)</em>
+<a id='L690' name='L690'></a>   690 <em class='comment'>     update its records.  So we validate the 'heap' value by making</em>
+<a id='L691' name='L691'></a>   691 <em class='comment'>     sure it is one of the heaps we manage via the heaps linked list,</em>
+<a id='L692' name='L692'></a>   692 <em class='comment'>     and don't touch a 'heap' that isn't found there.  This avoids</em>
+<a id='L693' name='L693'></a>   693 <em class='comment'>     accessing memory we know nothing about.  */</em>
+<a id='L694' name='L694'></a>   694   <strong class='reserved'>for</strong> (h = first_heap; h != <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>; h = h-&gt;next)
+<a id='L695' name='L695'></a>   695     <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> == h)
+<a id='L696' name='L696'></a>   696       <strong class='reserved'>break</strong>;
+<a id='L697' name='L697'></a>   697 
+<a id='L698' name='L698'></a>   698   <strong class='reserved'>if</strong> (h)
+<a id='L699' name='L699'></a>   699     <em class='brace'>{</em>
+<a id='L700' name='L700'></a>   700       <em class='comment'>/* Update the records of which blocs are in HEAP.  */</em>
+<a id='L701' name='L701'></a>   701       <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc == bloc)
+<a id='L702' name='L702'></a>   702         <em class='brace'>{</em>
+<a id='L703' name='L703'></a>   703           <strong class='reserved'>if</strong> (bloc-&gt;next != 0 &amp;&amp; bloc-&gt;next-&gt;<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> == <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>)
+<a id='L704' name='L704'></a>   704             <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc = bloc-&gt;next;
+<a id='L705' name='L705'></a>   705           <strong class='reserved'>else</strong>
+<a id='L706' name='L706'></a>   706             <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L707' name='L707'></a>   707         <em class='brace'>}</em>
+<a id='L708' name='L708'></a>   708       <strong class='reserved'>if</strong> (<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc == bloc)
+<a id='L709' name='L709'></a>   709         <em class='brace'>{</em>
+<a id='L710' name='L710'></a>   710           <strong class='reserved'>if</strong> (bloc-&gt;prev != 0 &amp;&amp; bloc-&gt;prev-&gt;<a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a> == <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>)
+<a id='L711' name='L711'></a>   711             <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc = bloc-&gt;prev;
+<a id='L712' name='L712'></a>   712           <strong class='reserved'>else</strong>
+<a id='L713' name='L713'></a>   713             <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;first_bloc = <a href='../S/2189.html#L108' title='Defined at 108 in src/ralloc.c.'>heap</a>-&gt;last_bloc = <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>;
+<a id='L714' name='L714'></a>   714         <em class='brace'>}</em>
+<a id='L715' name='L715'></a>   715     <em class='brace'>}</em>
+<a id='L716' name='L716'></a>   716 
+<a id='L717' name='L717'></a>   717   <a href='../S/2189.html#L287' title='Defined at 287 in src/ralloc.c.'>relinquish</a> ();
+<a id='L718' name='L718'></a>   718   <a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> (bloc);
+<a id='L719' name='L719'></a>   719 <em class='brace'>}</em>
+<a id='L720' name='L720'></a>   720 
+<a id='L721' name='L721'></a>   721 <em class='comment'>/* Interface routines.  */</em>
+<a id='L722' name='L722'></a>   722 
+<a id='L723' name='L723'></a>   723 <em class='comment'>/* Obtain SIZE bytes of storage from the free pool, or the system, as</em>
+<a id='L724' name='L724'></a>   724 <em class='comment'>   necessary.  If relocatable blocs are in use, this means relocating</em>
+<a id='L725' name='L725'></a>   725 <em class='comment'>   them.  This function gets plugged into the GNU malloc's __morecore</em>
+<a id='L726' name='L726'></a>   726 <em class='comment'>   hook.</em>
+<a id='L727' name='L727'></a>   727 <em class='comment'></em>
+<a id='L728' name='L728'></a>   728 <em class='comment'>   We provide hysteresis, never relocating by less than extra_bytes.</em>
+<a id='L729' name='L729'></a>   729 <em class='comment'></em>
+<a id='L730' name='L730'></a>   730 <em class='comment'>   If we're out of memory, we should return zero, to imitate the other</em>
+<a id='L731' name='L731'></a>   731 <em class='comment'>   __morecore hook values - in particular, __default_morecore in the</em>
+<a id='L732' name='L732'></a>   732 <em class='comment'>   GNU malloc package.  */</em>
+<a id='L733' name='L733'></a>   733 
+<a id='L734' name='L734'></a>   734 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> *
+<a id='L735' name='L735'></a>   735 <a href='../R/13269.html' title='Multiple referred from 3 places.'>r_alloc_sbrk</a> (ptrdiff_t <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L736' name='L736'></a>   736 <em class='brace'>{</em>
+<a id='L737' name='L737'></a>   737   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L738' name='L738'></a>   738   <strong class='reserved'>void</strong> *address;
+<a id='L739' name='L739'></a>   739 
+<a id='L740' name='L740'></a>   740   <strong class='reserved'>if</strong> (! r_alloc_initialized)
+<a id='L741' name='L741'></a>   741     <a href='../S/2189.html#L1158' title='Defined at 1158 in src/ralloc.c.'>r_alloc_init</a> ();
+<a id='L742' name='L742'></a>   742 
+<a id='L743' name='L743'></a>   743   <strong class='reserved'>if</strong> (use_relocatable_buffers &lt;= 0)
+<a id='L744' name='L744'></a>   744     <strong class='reserved'>return</strong> real_morecore (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L745' name='L745'></a>   745 
+<a id='L746' name='L746'></a>   746   <strong class='reserved'>if</strong> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> == 0)
+<a id='L747' name='L747'></a>   747     <strong class='reserved'>return</strong> virtual_break_value;
+<a id='L748' name='L748'></a>   748 
+<a id='L749' name='L749'></a>   749   <strong class='reserved'>if</strong> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &gt; 0)
+<a id='L750' name='L750'></a>   750     <em class='brace'>{</em>
+<a id='L751' name='L751'></a>   751       <em class='comment'>/* Allocate a page-aligned space.  GNU malloc would reclaim an</em>
+<a id='L752' name='L752'></a>   752 <em class='comment'>         extra space if we passed an unaligned one.  But we could</em>
+<a id='L753' name='L753'></a>   753 <em class='comment'>         not always find a space which is contiguous to the previous.  */</em>
+<a id='L754' name='L754'></a>   754       <strong class='reserved'>void</strong> *new_bloc_start;
+<a id='L755' name='L755'></a>   755       <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> h = first_heap;
+<a id='L756' name='L756'></a>   756       size_t <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a> = <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L757' name='L757'></a>   757 
+<a id='L758' name='L758'></a>   758       address = (<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> (virtual_break_value);
+<a id='L759' name='L759'></a>   759 
+<a id='L760' name='L760'></a>   760       <em class='comment'>/* Search the list upward for a heap which is large enough.  */</em>
+<a id='L761' name='L761'></a>   761       <strong class='reserved'>while</strong> ((<strong class='reserved'>char</strong> *) h-&gt;end &lt; (<strong class='reserved'>char</strong> *) <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> ((<strong class='reserved'>char</strong> *) address + <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a>))
+<a id='L762' name='L762'></a>   762         <em class='brace'>{</em>
+<a id='L763' name='L763'></a>   763           h = h-&gt;next;
+<a id='L764' name='L764'></a>   764           <strong class='reserved'>if</strong> (h == <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>)
+<a id='L765' name='L765'></a>   765             <strong class='reserved'>break</strong>;
+<a id='L766' name='L766'></a>   766           address = (<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> (h-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>);
+<a id='L767' name='L767'></a>   767         <em class='brace'>}</em>
+<a id='L768' name='L768'></a>   768 
+<a id='L769' name='L769'></a>   769       <em class='comment'>/* If not found, obtain more space.  */</em>
+<a id='L770' name='L770'></a>   770       <strong class='reserved'>if</strong> (h == <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>)
+<a id='L771' name='L771'></a>   771         <em class='brace'>{</em>
+<a id='L772' name='L772'></a>   772           <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a> += extra_bytes + page_size;
+<a id='L773' name='L773'></a>   773 
+<a id='L774' name='L774'></a>   774           <strong class='reserved'>if</strong> (! <a href='../S/2189.html#L206' title='Defined at 206 in src/ralloc.c.'>obtain</a> (address, <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a>))
+<a id='L775' name='L775'></a>   775             <strong class='reserved'>return</strong> 0;
+<a id='L776' name='L776'></a>   776 
+<a id='L777' name='L777'></a>   777           <strong class='reserved'>if</strong> (first_heap == last_heap)
+<a id='L778' name='L778'></a>   778             address = (<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> (virtual_break_value);
+<a id='L779' name='L779'></a>   779           <strong class='reserved'>else</strong>
+<a id='L780' name='L780'></a>   780             address = (<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> (last_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>);
+<a id='L781' name='L781'></a>   781           h = last_heap;
+<a id='L782' name='L782'></a>   782         <em class='brace'>}</em>
+<a id='L783' name='L783'></a>   783 
+<a id='L784' name='L784'></a>   784       new_bloc_start = (<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> ((<strong class='reserved'>char</strong> *) address + <a href='../S/3147.html#L34' title='Defined at 34 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>get</a>);
+<a id='L785' name='L785'></a>   785 
+<a id='L786' name='L786'></a>   786       <strong class='reserved'>if</strong> (first_heap-&gt;bloc_start &lt; new_bloc_start)
+<a id='L787' name='L787'></a>   787         <em class='brace'>{</em>
+<a id='L788' name='L788'></a>   788           <em class='comment'>/* This is no clean solution - no idea how to do it better.  */</em>
+<a id='L789' name='L789'></a>   789           <strong class='reserved'>if</strong> (r_alloc_freeze_level)
+<a id='L790' name='L790'></a>   790             <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L791' name='L791'></a>   791 
+<a id='L792' name='L792'></a>   792           <em class='comment'>/* There is a bug here: if the above obtain call succeeded, but the</em>
+<a id='L793' name='L793'></a>   793 <em class='comment'>             relocate_blocs call below does not succeed, we need to free</em>
+<a id='L794' name='L794'></a>   794 <em class='comment'>             the memory that we got with obtain.  */</em>
+<a id='L795' name='L795'></a>   795 
+<a id='L796' name='L796'></a>   796           <em class='comment'>/* Move all blocs upward.  */</em>
+<a id='L797' name='L797'></a>   797           <strong class='reserved'>if</strong> (! <a href='../S/2189.html#L429' title='Defined at 429 in src/ralloc.c.'>relocate_blocs</a> (first_bloc, h, new_bloc_start))
+<a id='L798' name='L798'></a>   798             <strong class='reserved'>return</strong> 0;
+<a id='L799' name='L799'></a>   799 
+<a id='L800' name='L800'></a>   800           <em class='comment'>/* Note that (char *) (h + 1) &lt;= (char *) new_bloc_start since</em>
+<a id='L801' name='L801'></a>   801 <em class='comment'>             get &gt;= page_size, so the following does not destroy the heap</em>
+<a id='L802' name='L802'></a>   802 <em class='comment'>             header.  */</em>
+<a id='L803' name='L803'></a>   803           <strong class='reserved'>for</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = last_bloc; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;prev)
+<a id='L804' name='L804'></a>   804             <em class='brace'>{</em>
+<a id='L805' name='L805'></a>   805               <strong class='reserved'>if</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data != <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data)
+<a id='L806' name='L806'></a>   806                 <a href='../S/2738.html#L81' title='Defined at 81 in lib/canonicalize-lgpl.c.'>memmove</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L807' name='L807'></a>   807               *<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;variable = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data;
+<a id='L808' name='L808'></a>   808             <em class='brace'>}</em>
+<a id='L809' name='L809'></a>   809 
+<a id='L810' name='L810'></a>   810           h-&gt;bloc_start = new_bloc_start;
+<a id='L811' name='L811'></a>   811 
+<a id='L812' name='L812'></a>   812           <a href='../S/2189.html#L488' title='Defined at 488 in src/ralloc.c.'>update_heap_bloc_correspondence</a> (first_bloc, h);
+<a id='L813' name='L813'></a>   813         <em class='brace'>}</em>
+<a id='L814' name='L814'></a>   814       <strong class='reserved'>if</strong> (h != first_heap)
+<a id='L815' name='L815'></a>   815         <em class='brace'>{</em>
+<a id='L816' name='L816'></a>   816           <em class='comment'>/* Give up managing heaps below the one the new</em>
+<a id='L817' name='L817'></a>   817 <em class='comment'>             virtual_break_value points to.  */</em>
+<a id='L818' name='L818'></a>   818           first_heap-&gt;prev = <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>;
+<a id='L819' name='L819'></a>   819           first_heap-&gt;next = h-&gt;next;
+<a id='L820' name='L820'></a>   820           first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a> = h-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>;
+<a id='L821' name='L821'></a>   821           first_heap-&gt;end = h-&gt;end;
+<a id='L822' name='L822'></a>   822           first_heap-&gt;<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> = h-&gt;<a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a>;
+<a id='L823' name='L823'></a>   823           first_heap-&gt;first_bloc = h-&gt;first_bloc;
+<a id='L824' name='L824'></a>   824           first_heap-&gt;last_bloc = h-&gt;last_bloc;
+<a id='L825' name='L825'></a>   825           first_heap-&gt;bloc_start = h-&gt;bloc_start;
+<a id='L826' name='L826'></a>   826 
+<a id='L827' name='L827'></a>   827           <strong class='reserved'>if</strong> (first_heap-&gt;next)
+<a id='L828' name='L828'></a>   828             first_heap-&gt;next-&gt;prev = first_heap;
+<a id='L829' name='L829'></a>   829           <strong class='reserved'>else</strong>
+<a id='L830' name='L830'></a>   830             last_heap = first_heap;
+<a id='L831' name='L831'></a>   831         <em class='brace'>}</em>
+<a id='L832' name='L832'></a>   832 
+<a id='L833' name='L833'></a>   833       memset (address, 0, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L834' name='L834'></a>   834     <em class='brace'>}</em>
+<a id='L835' name='L835'></a>   835   <strong class='reserved'>else</strong> <em class='comment'>/* size &lt; 0 */</em>
+<a id='L836' name='L836'></a>   836     <em class='brace'>{</em>
+<a id='L837' name='L837'></a>   837       size_t excess = ((<strong class='reserved'>char</strong> *) first_heap-&gt;bloc_start
+<a id='L838' name='L838'></a>   838                        - ((<strong class='reserved'>char</strong> *) virtual_break_value + <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>));
+<a id='L839' name='L839'></a>   839 
+<a id='L840' name='L840'></a>   840       address = virtual_break_value;
+<a id='L841' name='L841'></a>   841 
+<a id='L842' name='L842'></a>   842       <strong class='reserved'>if</strong> (r_alloc_freeze_level == 0 &amp;&amp; excess &gt; 2 * extra_bytes)
+<a id='L843' name='L843'></a>   843         <em class='brace'>{</em>
+<a id='L844' name='L844'></a>   844           excess -= extra_bytes;
+<a id='L845' name='L845'></a>   845           first_heap-&gt;bloc_start
+<a id='L846' name='L846'></a>   846             = (<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> ((<strong class='reserved'>char</strong> *) first_heap-&gt;bloc_start - excess);
+<a id='L847' name='L847'></a>   847 
+<a id='L848' name='L848'></a>   848           <a href='../S/2189.html#L429' title='Defined at 429 in src/ralloc.c.'>relocate_blocs</a> (first_bloc, first_heap, first_heap-&gt;bloc_start);
+<a id='L849' name='L849'></a>   849 
+<a id='L850' name='L850'></a>   850           <strong class='reserved'>for</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = first_bloc; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;next)
+<a id='L851' name='L851'></a>   851             <em class='brace'>{</em>
+<a id='L852' name='L852'></a>   852               <strong class='reserved'>if</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data != <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data)
+<a id='L853' name='L853'></a>   853                 <a href='../S/2738.html#L81' title='Defined at 81 in lib/canonicalize-lgpl.c.'>memmove</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L854' name='L854'></a>   854               *<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;variable = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;new_data;
+<a id='L855' name='L855'></a>   855             <em class='brace'>}</em>
+<a id='L856' name='L856'></a>   856         <em class='brace'>}</em>
+<a id='L857' name='L857'></a>   857 
+<a id='L858' name='L858'></a>   858       <strong class='reserved'>if</strong> ((<strong class='reserved'>char</strong> *) virtual_break_value + <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &lt; (<strong class='reserved'>char</strong> *) first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>)
+<a id='L859' name='L859'></a>   859         <em class='brace'>{</em>
+<a id='L860' name='L860'></a>   860           <em class='comment'>/* We found an additional space below the first heap */</em>
+<a id='L861' name='L861'></a>   861           first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a> = (<strong class='reserved'>void</strong> *) ((<strong class='reserved'>char</strong> *) virtual_break_value + <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L862' name='L862'></a>   862         <em class='brace'>}</em>
+<a id='L863' name='L863'></a>   863     <em class='brace'>}</em>
+<a id='L864' name='L864'></a>   864 
+<a id='L865' name='L865'></a>   865   virtual_break_value = (<strong class='reserved'>void</strong> *) ((<strong class='reserved'>char</strong> *) address + <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L866' name='L866'></a>   866   break_value = (last_bloc
+<a id='L867' name='L867'></a>   867                  ? (<strong class='reserved'>char</strong> *) last_bloc-&gt;data + last_bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>
+<a id='L868' name='L868'></a>   868                  : (<strong class='reserved'>char</strong> *) first_heap-&gt;bloc_start);
+<a id='L869' name='L869'></a>   869   <strong class='reserved'>if</strong> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &lt; 0)
+<a id='L870' name='L870'></a>   870     <a href='../S/2189.html#L287' title='Defined at 287 in src/ralloc.c.'>relinquish</a> ();
+<a id='L871' name='L871'></a>   871 
+<a id='L872' name='L872'></a>   872   <strong class='reserved'>return</strong> address;
+<a id='L873' name='L873'></a>   873 <em class='brace'>}</em>
+<a id='L874' name='L874'></a>   874 
+<a id='L875' name='L875'></a>   875 
+<a id='L876' name='L876'></a>   876 <em class='comment'>/* Allocate a relocatable bloc of storage of size SIZE.  A pointer to</em>
+<a id='L877' name='L877'></a>   877 <em class='comment'>   the data is returned in *PTR.  PTR is thus the address of some variable</em>
+<a id='L878' name='L878'></a>   878 <em class='comment'>   which will use the data area.</em>
+<a id='L879' name='L879'></a>   879 <em class='comment'></em>
+<a id='L880' name='L880'></a>   880 <em class='comment'>   The allocation of 0 bytes is valid.</em>
+<a id='L881' name='L881'></a>   881 <em class='comment'>   In case r_alloc_freeze_level is set, a best fit of unused blocs could be</em>
+<a id='L882' name='L882'></a>   882 <em class='comment'>   done before allocating a new area.  Not yet done.</em>
+<a id='L883' name='L883'></a>   883 <em class='comment'></em>
+<a id='L884' name='L884'></a>   884 <em class='comment'>   If we can't allocate the necessary memory, set *PTR to zero, and</em>
+<a id='L885' name='L885'></a>   885 <em class='comment'>   return zero.  */</em>
+<a id='L886' name='L886'></a>   886 
+<a id='L887' name='L887'></a>   887 <strong class='reserved'>void</strong> *
+<a id='L888' name='L888'></a>   888 <a href='../R/13264.html' title='Multiple referred from 5 places.'>r_alloc</a> (<strong class='reserved'>void</strong> **ptr, size_t <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L889' name='L889'></a>   889 <em class='brace'>{</em>
+<a id='L890' name='L890'></a>   890   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> new_bloc;
+<a id='L891' name='L891'></a>   891 
+<a id='L892' name='L892'></a>   892   <strong class='reserved'>if</strong> (! r_alloc_initialized)
+<a id='L893' name='L893'></a>   893     <a href='../S/2189.html#L1158' title='Defined at 1158 in src/ralloc.c.'>r_alloc_init</a> ();
+<a id='L894' name='L894'></a>   894 
+<a id='L895' name='L895'></a>   895   new_bloc = <a href='../S/2189.html#L374' title='Defined at 374 in src/ralloc.c.'>get_bloc</a> (<a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>));
+<a id='L896' name='L896'></a>   896   <strong class='reserved'>if</strong> (new_bloc)
+<a id='L897' name='L897'></a>   897     <em class='brace'>{</em>
+<a id='L898' name='L898'></a>   898       new_bloc-&gt;variable = ptr;
+<a id='L899' name='L899'></a>   899       *ptr = new_bloc-&gt;data;
+<a id='L900' name='L900'></a>   900     <em class='brace'>}</em>
+<a id='L901' name='L901'></a>   901   <strong class='reserved'>else</strong>
+<a id='L902' name='L902'></a>   902     *ptr = 0;
+<a id='L903' name='L903'></a>   903 
+<a id='L904' name='L904'></a>   904   <strong class='reserved'>return</strong> *ptr;
+<a id='L905' name='L905'></a>   905 <em class='brace'>}</em>
+<a id='L906' name='L906'></a>   906 
+<a id='L907' name='L907'></a>   907 <em class='comment'>/* Free a bloc of relocatable storage whose data is pointed to by PTR.</em>
+<a id='L908' name='L908'></a>   908 <em class='comment'>   Store 0 in *PTR to show there's no block allocated.  */</em>
+<a id='L909' name='L909'></a>   909 
+<a id='L910' name='L910'></a>   910 <strong class='reserved'>void</strong>
+<a id='L911' name='L911'></a>   911 <a href='../R/13265.html' title='Multiple referred from 4 places.'>r_alloc_free</a> (<strong class='reserved'>void</strong> **ptr)
+<a id='L912' name='L912'></a>   912 <em class='brace'>{</em>
+<a id='L913' name='L913'></a>   913   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> dead_bloc;
+<a id='L914' name='L914'></a>   914 
+<a id='L915' name='L915'></a>   915   <strong class='reserved'>if</strong> (! r_alloc_initialized)
+<a id='L916' name='L916'></a>   916     <a href='../S/2189.html#L1158' title='Defined at 1158 in src/ralloc.c.'>r_alloc_init</a> ();
+<a id='L917' name='L917'></a>   917 
+<a id='L918' name='L918'></a>   918   dead_bloc = <a href='../S/2189.html#L349' title='Defined at 349 in src/ralloc.c.'>find_bloc</a> (ptr);
+<a id='L919' name='L919'></a>   919   <strong class='reserved'>if</strong> (dead_bloc == <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>)
+<a id='L920' name='L920'></a>   920     <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> (); <em class='comment'>/* Double free? PTR not originally used to allocate?  */</em>
+<a id='L921' name='L921'></a>   921 
+<a id='L922' name='L922'></a>   922   <a href='../S/2189.html#L650' title='Defined at 650 in src/ralloc.c.'>free_bloc</a> (dead_bloc);
+<a id='L923' name='L923'></a>   923   *ptr = 0;
+<a id='L924' name='L924'></a>   924 
+<a id='L925' name='L925'></a>   925   <a href='../S/2232.html#L4134' title='Defined at 4134 in src/alloc.c.'>refill_memory_reserve</a> ();
+<a id='L926' name='L926'></a>   926 <em class='brace'>}</em>
+<a id='L927' name='L927'></a>   927 
+<a id='L928' name='L928'></a>   928 <em class='comment'>/* Given a pointer at address PTR to relocatable data, resize it to SIZE.</em>
+<a id='L929' name='L929'></a>   929 <em class='comment'>   Do this by shifting all blocks above this one up in memory, unless</em>
+<a id='L930' name='L930'></a>   930 <em class='comment'>   SIZE is less than or equal to the current bloc size, in which case</em>
+<a id='L931' name='L931'></a>   931 <em class='comment'>   do nothing.</em>
+<a id='L932' name='L932'></a>   932 <em class='comment'></em>
+<a id='L933' name='L933'></a>   933 <em class='comment'>   In case r_alloc_freeze_level is set, a new bloc is allocated, and the</em>
+<a id='L934' name='L934'></a>   934 <em class='comment'>   memory copied to it.  Not very efficient.  We could traverse the</em>
+<a id='L935' name='L935'></a>   935 <em class='comment'>   bloc_list for a best fit of free blocs first.</em>
+<a id='L936' name='L936'></a>   936 <em class='comment'></em>
+<a id='L937' name='L937'></a>   937 <em class='comment'>   Change *PTR to reflect the new bloc, and return this value.</em>
+<a id='L938' name='L938'></a>   938 <em class='comment'></em>
+<a id='L939' name='L939'></a>   939 <em class='comment'>   If more memory cannot be allocated, then leave *PTR unchanged, and</em>
+<a id='L940' name='L940'></a>   940 <em class='comment'>   return zero.  */</em>
+<a id='L941' name='L941'></a>   941 
+<a id='L942' name='L942'></a>   942 <strong class='reserved'>void</strong> *
+<a id='L943' name='L943'></a>   943 <a href='../R/13270.html' title='Multiple referred from 3 places.'>r_re_alloc</a> (<strong class='reserved'>void</strong> **ptr, size_t <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L944' name='L944'></a>   944 <em class='brace'>{</em>
+<a id='L945' name='L945'></a>   945   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> bloc;
+<a id='L946' name='L946'></a>   946 
+<a id='L947' name='L947'></a>   947   <strong class='reserved'>if</strong> (! r_alloc_initialized)
+<a id='L948' name='L948'></a>   948     <a href='../S/2189.html#L1158' title='Defined at 1158 in src/ralloc.c.'>r_alloc_init</a> ();
+<a id='L949' name='L949'></a>   949 
+<a id='L950' name='L950'></a>   950   <strong class='reserved'>if</strong> (!*ptr)
+<a id='L951' name='L951'></a>   951     <strong class='reserved'>return</strong> <a href='../S/2189.html#L888' title='Defined at 888 in src/ralloc.c.'>r_alloc</a> (ptr, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L952' name='L952'></a>   952   <strong class='reserved'>if</strong> (!<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L953' name='L953'></a>   953     <em class='brace'>{</em>
+<a id='L954' name='L954'></a>   954       <a href='../S/2189.html#L911' title='Defined at 911 in src/ralloc.c.'>r_alloc_free</a> (ptr);
+<a id='L955' name='L955'></a>   955       <strong class='reserved'>return</strong> <a href='../S/2189.html#L888' title='Defined at 888 in src/ralloc.c.'>r_alloc</a> (ptr, 0);
+<a id='L956' name='L956'></a>   956     <em class='brace'>}</em>
+<a id='L957' name='L957'></a>   957 
+<a id='L958' name='L958'></a>   958   bloc = <a href='../S/2189.html#L349' title='Defined at 349 in src/ralloc.c.'>find_bloc</a> (ptr);
+<a id='L959' name='L959'></a>   959   <strong class='reserved'>if</strong> (bloc == <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>)
+<a id='L960' name='L960'></a>   960     <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> (); <em class='comment'>/* Already freed? PTR not originally used to allocate?  */</em>
+<a id='L961' name='L961'></a>   961 
+<a id='L962' name='L962'></a>   962   <strong class='reserved'>if</strong> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &lt; bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L963' name='L963'></a>   963     <em class='brace'>{</em>
+<a id='L964' name='L964'></a>   964       <em class='comment'>/* Wouldn't it be useful to actually resize the bloc here?  */</em>
+<a id='L965' name='L965'></a>   965       <em class='comment'>/* I think so too, but not if it's too expensive...  */</em>
+<a id='L966' name='L966'></a>   966       <strong class='reserved'>if</strong> ((bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> - <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>) &gt;= page_size)
+<a id='L967' name='L967'></a>   967           &amp;&amp; r_alloc_freeze_level == 0)
+<a id='L968' name='L968'></a>   968         <em class='brace'>{</em>
+<a id='L969' name='L969'></a>   969           <a href='../S/2189.html#L550' title='Defined at 550 in src/ralloc.c.'>resize_bloc</a> (bloc, <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>));
+<a id='L970' name='L970'></a>   970           <em class='comment'>/* Never mind if this fails, just do nothing...  */</em>
+<a id='L971' name='L971'></a>   971           <em class='comment'>/* It *should* be infallible!  */</em>
+<a id='L972' name='L972'></a>   972         <em class='brace'>}</em>
+<a id='L973' name='L973'></a>   973     <em class='brace'>}</em>
+<a id='L974' name='L974'></a>   974   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &gt; bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L975' name='L975'></a>   975     <em class='brace'>{</em>
+<a id='L976' name='L976'></a>   976       <strong class='reserved'>if</strong> (r_alloc_freeze_level)
+<a id='L977' name='L977'></a>   977         <em class='brace'>{</em>
+<a id='L978' name='L978'></a>   978           <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> new_bloc;
+<a id='L979' name='L979'></a>   979           new_bloc = <a href='../S/2189.html#L374' title='Defined at 374 in src/ralloc.c.'>get_bloc</a> (<a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>));
+<a id='L980' name='L980'></a>   980           <strong class='reserved'>if</strong> (new_bloc)
+<a id='L981' name='L981'></a>   981             <em class='brace'>{</em>
+<a id='L982' name='L982'></a>   982               new_bloc-&gt;variable = ptr;
+<a id='L983' name='L983'></a>   983               *ptr = new_bloc-&gt;data;
+<a id='L984' name='L984'></a>   984               bloc-&gt;variable = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L985' name='L985'></a>   985             <em class='brace'>}</em>
+<a id='L986' name='L986'></a>   986           <strong class='reserved'>else</strong>
+<a id='L987' name='L987'></a>   987             <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L988' name='L988'></a>   988         <em class='brace'>}</em>
+<a id='L989' name='L989'></a>   989       <strong class='reserved'>else</strong>
+<a id='L990' name='L990'></a>   990         <em class='brace'>{</em>
+<a id='L991' name='L991'></a>   991           <strong class='reserved'>if</strong> (! <a href='../S/2189.html#L550' title='Defined at 550 in src/ralloc.c.'>resize_bloc</a> (bloc, <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>)))
+<a id='L992' name='L992'></a>   992             <strong class='reserved'>return</strong> <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L993' name='L993'></a>   993         <em class='brace'>}</em>
+<a id='L994' name='L994'></a>   994     <em class='brace'>}</em>
+<a id='L995' name='L995'></a>   995   <strong class='reserved'>return</strong> *ptr;
+<a id='L996' name='L996'></a>   996 <em class='brace'>}</em>
+<a id='L997' name='L997'></a>   997 
+<a id='L998' name='L998'></a>   998 
+<a id='L999' name='L999'></a>   999 <em class='sharp'>#ifdef</em> DOUG_LEA_MALLOC
+<a id='L1000' name='L1000'></a>  1000 
+<a id='L1001' name='L1001'></a>  1001 <em class='comment'>/* Reinitialize the morecore hook variables after restarting a dumped</em>
+<a id='L1002' name='L1002'></a>  1002 <em class='comment'>   Emacs.  This is needed when using Doug Lea's malloc from GNU libc.  */</em>
+<a id='L1003' name='L1003'></a>  1003 <strong class='reserved'>void</strong>
+<a id='L1004' name='L1004'></a>  1004 r_alloc_reinit (<strong class='reserved'>void</strong>)
+<a id='L1005' name='L1005'></a>  1005 <em class='brace'>{</em>
+<a id='L1006' name='L1006'></a>  1006   <em class='comment'>/* Only do this if the hook has been reset, so that we don't get an</em>
+<a id='L1007' name='L1007'></a>  1007 <em class='comment'>     infinite loop, in case Emacs was linked statically.  */</em>
+<a id='L1008' name='L1008'></a>  1008   <strong class='reserved'>if</strong> (__morecore != <a href='../S/2189.html#L735' title='Defined at 735 in src/ralloc.c.'>r_alloc_sbrk</a>)
+<a id='L1009' name='L1009'></a>  1009     <em class='brace'>{</em>
+<a id='L1010' name='L1010'></a>  1010       real_morecore = __morecore;
+<a id='L1011' name='L1011'></a>  1011       __morecore = <a href='../S/2189.html#L735' title='Defined at 735 in src/ralloc.c.'>r_alloc_sbrk</a>;
+<a id='L1012' name='L1012'></a>  1012     <em class='brace'>}</em>
+<a id='L1013' name='L1013'></a>  1013 <em class='brace'>}</em>
+<a id='L1014' name='L1014'></a>  1014 
+<a id='L1015' name='L1015'></a>  1015 <em class='sharp'>#endif</em> <em class='comment'>/* emacs &amp;&amp; DOUG_LEA_MALLOC */</em>
+<a id='L1016' name='L1016'></a>  1016 
+<a id='L1017' name='L1017'></a>  1017 <em class='sharp'>#ifdef</em> <a href='../D/1230.html' title='Multiple defined in 6 places.'>DEBUG</a>
+<a id='L1018' name='L1018'></a>  1018 
+<a id='L1019' name='L1019'></a>  1019 <em class='sharp'>#include</em> &lt;assert.h&gt;
+<a id='L1020' name='L1020'></a>  1020 
+<a id='L1021' name='L1021'></a>  1021 <strong class='reserved'>void</strong>
+<a id='L1022' name='L1022'></a>  1022 r_alloc_check (<strong class='reserved'>void</strong>)
+<a id='L1023' name='L1023'></a>  1023 <em class='brace'>{</em>
+<a id='L1024' name='L1024'></a>  1024   <strong class='reserved'>int</strong> found = 0;
+<a id='L1025' name='L1025'></a>  1025   <a href='../S/2189.html#L124' title='Defined at 124 in src/ralloc.c.'>heap_ptr</a> h, ph = 0;
+<a id='L1026' name='L1026'></a>  1026   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, pb = 0;
+<a id='L1027' name='L1027'></a>  1027 
+<a id='L1028' name='L1028'></a>  1028   <strong class='reserved'>if</strong> (!r_alloc_initialized)
+<a id='L1029' name='L1029'></a>  1029     <strong class='reserved'>return</strong>;
+<a id='L1030' name='L1030'></a>  1030 
+<a id='L1031' name='L1031'></a>  1031   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (first_heap);
+<a id='L1032' name='L1032'></a>  1032   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (last_heap-&gt;end &lt;= (<strong class='reserved'>void</strong> *) <a href='../S/2175.html#L653' title='Defined at 653 in src/w32heap.c.'>sbrk</a> (0));
+<a id='L1033' name='L1033'></a>  1033   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> ((<strong class='reserved'>void</strong> *) first_heap &lt; first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>);
+<a id='L1034' name='L1034'></a>  1034   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a> &lt;= virtual_break_value);
+<a id='L1035' name='L1035'></a>  1035   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (virtual_break_value &lt;= first_heap-&gt;end);
+<a id='L1036' name='L1036'></a>  1036 
+<a id='L1037' name='L1037'></a>  1037   <strong class='reserved'>for</strong> (h = first_heap; h; h = h-&gt;next)
+<a id='L1038' name='L1038'></a>  1038     <em class='brace'>{</em>
+<a id='L1039' name='L1039'></a>  1039       <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (h-&gt;prev == ph);
+<a id='L1040' name='L1040'></a>  1040       <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> ((<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> (h-&gt;end) == h-&gt;end);
+<a id='L1041' name='L1041'></a>  1041 <em class='sharp'>#if</em> 0 <em class='comment'>/* ??? The code in ralloc.c does not really try to ensure</em>
+<a id='L1042' name='L1042'></a>  1042 <em class='comment'>         the heap start has any sort of alignment.</em>
+<a id='L1043' name='L1043'></a>  1043 <em class='comment'>         Perhaps it should.  */</em>
+<a id='L1044' name='L1044'></a>  1044       <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> ((<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (h-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>) == h-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>);
+<a id='L1045' name='L1045'></a>  1045 <em class='sharp'>#endif</em>
+<a id='L1046' name='L1046'></a>  1046       <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> ((<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (h-&gt;bloc_start) == h-&gt;bloc_start);
+<a id='L1047' name='L1047'></a>  1047       <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (h-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a> &lt;= h-&gt;bloc_start &amp;&amp; h-&gt;bloc_start &lt;= h-&gt;end);
+<a id='L1048' name='L1048'></a>  1048 
+<a id='L1049' name='L1049'></a>  1049       <strong class='reserved'>if</strong> (ph)
+<a id='L1050' name='L1050'></a>  1050         <em class='brace'>{</em>
+<a id='L1051' name='L1051'></a>  1051           <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (ph-&gt;end &lt; h-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>);
+<a id='L1052' name='L1052'></a>  1052           <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (h-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a> &lt;= (<strong class='reserved'>void</strong> *) h &amp;&amp; (<strong class='reserved'>void</strong> *) (h + 1) &lt;= h-&gt;bloc_start);
+<a id='L1053' name='L1053'></a>  1053         <em class='brace'>}</em>
+<a id='L1054' name='L1054'></a>  1054 
+<a id='L1055' name='L1055'></a>  1055       <strong class='reserved'>if</strong> (h-&gt;bloc_start &lt;= break_value &amp;&amp; break_value &lt;= h-&gt;end)
+<a id='L1056' name='L1056'></a>  1056         found = 1;
+<a id='L1057' name='L1057'></a>  1057 
+<a id='L1058' name='L1058'></a>  1058       ph = h;
+<a id='L1059' name='L1059'></a>  1059     <em class='brace'>}</em>
+<a id='L1060' name='L1060'></a>  1060 
+<a id='L1061' name='L1061'></a>  1061   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (found);
+<a id='L1062' name='L1062'></a>  1062   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (last_heap == ph);
+<a id='L1063' name='L1063'></a>  1063 
+<a id='L1064' name='L1064'></a>  1064   <strong class='reserved'>for</strong> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = first_bloc; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;next)
+<a id='L1065' name='L1065'></a>  1065     <em class='brace'>{</em>
+<a id='L1066' name='L1066'></a>  1066       <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;prev == pb);
+<a id='L1067' name='L1067'></a>  1067       <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> ((<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data) == <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data);
+<a id='L1068' name='L1068'></a>  1068       <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> ((size_t) <a href='../S/2189.html#L74' title='Defined at 74 in src/ralloc.c.'>MEM_ROUNDUP</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>) == <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L1069' name='L1069'></a>  1069 
+<a id='L1070' name='L1070'></a>  1070       ph = 0;
+<a id='L1071' name='L1071'></a>  1071       <strong class='reserved'>for</strong> (h = first_heap; h; h = h-&gt;next)
+<a id='L1072' name='L1072'></a>  1072         <em class='brace'>{</em>
+<a id='L1073' name='L1073'></a>  1073           <strong class='reserved'>if</strong> (h-&gt;bloc_start &lt;= <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data &amp;&amp; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data + <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &lt;= h-&gt;end)
+<a id='L1074' name='L1074'></a>  1074             <strong class='reserved'>break</strong>;
+<a id='L1075' name='L1075'></a>  1075           ph = h;
+<a id='L1076' name='L1076'></a>  1076         <em class='brace'>}</em>
+<a id='L1077' name='L1077'></a>  1077 
+<a id='L1078' name='L1078'></a>  1078       <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (h);
+<a id='L1079' name='L1079'></a>  1079 
+<a id='L1080' name='L1080'></a>  1080       <strong class='reserved'>if</strong> (pb &amp;&amp; pb-&gt;data + pb-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> != <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data)
+<a id='L1081' name='L1081'></a>  1081         <em class='brace'>{</em>
+<a id='L1082' name='L1082'></a>  1082           <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (ph &amp;&amp; <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;data == h-&gt;bloc_start);
+<a id='L1083' name='L1083'></a>  1083           <strong class='reserved'>while</strong> (ph)
+<a id='L1084' name='L1084'></a>  1084             <em class='brace'>{</em>
+<a id='L1085' name='L1085'></a>  1085               <strong class='reserved'>if</strong> (ph-&gt;bloc_start &lt;= pb-&gt;data
+<a id='L1086' name='L1086'></a>  1086                   &amp;&amp; pb-&gt;data + pb-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &lt;= ph-&gt;end)
+<a id='L1087' name='L1087'></a>  1087                 <em class='brace'>{</em>
+<a id='L1088' name='L1088'></a>  1088                   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (pb-&gt;data + pb-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> + <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &gt; ph-&gt;end);
+<a id='L1089' name='L1089'></a>  1089                   <strong class='reserved'>break</strong>;
+<a id='L1090' name='L1090'></a>  1090                 <em class='brace'>}</em>
+<a id='L1091' name='L1091'></a>  1091               <strong class='reserved'>else</strong>
+<a id='L1092' name='L1092'></a>  1092                 <em class='brace'>{</em>
+<a id='L1093' name='L1093'></a>  1093                   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (ph-&gt;bloc_start + <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> &gt; ph-&gt;end);
+<a id='L1094' name='L1094'></a>  1094                 <em class='brace'>}</em>
+<a id='L1095' name='L1095'></a>  1095               ph = ph-&gt;prev;
+<a id='L1096' name='L1096'></a>  1096             <em class='brace'>}</em>
+<a id='L1097' name='L1097'></a>  1097         <em class='brace'>}</em>
+<a id='L1098' name='L1098'></a>  1098       pb = <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L1099' name='L1099'></a>  1099     <em class='brace'>}</em>
+<a id='L1100' name='L1100'></a>  1100 
+<a id='L1101' name='L1101'></a>  1101   <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (last_bloc == pb);
+<a id='L1102' name='L1102'></a>  1102 
+<a id='L1103' name='L1103'></a>  1103   <strong class='reserved'>if</strong> (last_bloc)
+<a id='L1104' name='L1104'></a>  1104     <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (last_bloc-&gt;data + last_bloc-&gt;<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> == break_value);
+<a id='L1105' name='L1105'></a>  1105   <strong class='reserved'>else</strong>
+<a id='L1106' name='L1106'></a>  1106     <a href='../D/7828.html' title='Multiple defined in 2 places.'>assert</a> (first_heap-&gt;bloc_start == break_value);
+<a id='L1107' name='L1107'></a>  1107 <em class='brace'>}</em>
+<a id='L1108' name='L1108'></a>  1108 
+<a id='L1109' name='L1109'></a>  1109 <em class='sharp'>#endif</em> <em class='comment'>/* DEBUG */</em>
+<a id='L1110' name='L1110'></a>  1110 
+<a id='L1111' name='L1111'></a>  1111 <em class='comment'>/* Update the internal record of which variable points to some data to NEW.</em>
+<a id='L1112' name='L1112'></a>  1112 <em class='comment'>   Used by buffer-swap-text in Emacs to restore consistency after it</em>
+<a id='L1113' name='L1113'></a>  1113 <em class='comment'>   swaps the buffer text between two buffer objects.  The OLD pointer</em>
+<a id='L1114' name='L1114'></a>  1114 <em class='comment'>   is checked to ensure that memory corruption does not occur due to</em>
+<a id='L1115' name='L1115'></a>  1115 <em class='comment'>   misuse.  */</em>
+<a id='L1116' name='L1116'></a>  1116 <strong class='reserved'>void</strong>
+<a id='L1117' name='L1117'></a>  1117 <a href='../R/13268.html' title='Multiple referred from 4 places.'>r_alloc_reset_variable</a> (<strong class='reserved'>void</strong> **old, <strong class='reserved'>void</strong> **new)
+<a id='L1118' name='L1118'></a>  1118 <em class='brace'>{</em>
+<a id='L1119' name='L1119'></a>  1119   <a href='../S/2189.html#L155' title='Defined at 155 in src/ralloc.c.'>bloc_ptr</a> bloc = first_bloc;
+<a id='L1120' name='L1120'></a>  1120 
+<a id='L1121' name='L1121'></a>  1121   <em class='comment'>/* Find the bloc that corresponds to the data pointed to by pointer.</em>
+<a id='L1122' name='L1122'></a>  1122 <em class='comment'>     find_bloc cannot be used, as it has internal consistency checks</em>
+<a id='L1123' name='L1123'></a>  1123 <em class='comment'>     which fail when the variable needs resetting.  */</em>
+<a id='L1124' name='L1124'></a>  1124   <strong class='reserved'>while</strong> (bloc != <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a>)
+<a id='L1125' name='L1125'></a>  1125     <em class='brace'>{</em>
+<a id='L1126' name='L1126'></a>  1126       <strong class='reserved'>if</strong> (bloc-&gt;data == *new)
+<a id='L1127' name='L1127'></a>  1127         <strong class='reserved'>break</strong>;
+<a id='L1128' name='L1128'></a>  1128 
+<a id='L1129' name='L1129'></a>  1129       bloc = bloc-&gt;next;
+<a id='L1130' name='L1130'></a>  1130     <em class='brace'>}</em>
+<a id='L1131' name='L1131'></a>  1131 
+<a id='L1132' name='L1132'></a>  1132   <strong class='reserved'>if</strong> (bloc == <a href='../S/2189.html#L157' title='Defined at 157 in src/ralloc.c.'>NIL_BLOC</a> || bloc-&gt;variable != old)
+<a id='L1133' name='L1133'></a>  1133     <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> (); <em class='comment'>/* Already freed? OLD not originally used to allocate?  */</em>
+<a id='L1134' name='L1134'></a>  1134 
+<a id='L1135' name='L1135'></a>  1135   <em class='comment'>/* Update variable to point to the new location.  */</em>
+<a id='L1136' name='L1136'></a>  1136   bloc-&gt;variable = new;
+<a id='L1137' name='L1137'></a>  1137 <em class='brace'>}</em>
+<a id='L1138' name='L1138'></a>  1138 
+<a id='L1139' name='L1139'></a>  1139 <strong class='reserved'>void</strong>
+<a id='L1140' name='L1140'></a>  1140 <a href='../R/13266.html' title='Multiple referred from 10 places.'>r_alloc_inhibit_buffer_relocation</a> (<strong class='reserved'>int</strong> inhibit)
+<a id='L1141' name='L1141'></a>  1141 <em class='brace'>{</em>
+<a id='L1142' name='L1142'></a>  1142   <strong class='reserved'>if</strong> (use_relocatable_buffers &gt; 1)
+<a id='L1143' name='L1143'></a>  1143     use_relocatable_buffers = 1;
+<a id='L1144' name='L1144'></a>  1144   <strong class='reserved'>if</strong> (inhibit)
+<a id='L1145' name='L1145'></a>  1145     use_relocatable_buffers--;
+<a id='L1146' name='L1146'></a>  1146   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (use_relocatable_buffers &lt; 1)
+<a id='L1147' name='L1147'></a>  1147     use_relocatable_buffers++;
+<a id='L1148' name='L1148'></a>  1148 <em class='brace'>}</em>
+<a id='L1149' name='L1149'></a>  1149 
+<a id='L1150' name='L1150'></a>  1150 
+<a id='L1151' name='L1151'></a>  1151 <em class='comment'>/***********************************************************************</em>
+<a id='L1152' name='L1152'></a>  1152 <em class='comment'>                            Initialization</em>
+<a id='L1153' name='L1153'></a>  1153 <em class='comment'> ***********************************************************************/</em>
+<a id='L1154' name='L1154'></a>  1154 
+<a id='L1155' name='L1155'></a>  1155 <em class='comment'>/* Initialize various things for memory allocation.  */</em>
+<a id='L1156' name='L1156'></a>  1156 
+<a id='L1157' name='L1157'></a>  1157 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1158' name='L1158'></a>  1158 <a href='../R/13267.html' title='Multiple referred from 5 places.'>r_alloc_init</a> (<strong class='reserved'>void</strong>)
+<a id='L1159' name='L1159'></a>  1159 <em class='brace'>{</em>
+<a id='L1160' name='L1160'></a>  1160   <strong class='reserved'>if</strong> (r_alloc_initialized)
+<a id='L1161' name='L1161'></a>  1161     <strong class='reserved'>return</strong>;
+<a id='L1162' name='L1162'></a>  1162   r_alloc_initialized = 1;
+<a id='L1163' name='L1163'></a>  1163 
+<a id='L1164' name='L1164'></a>  1164   page_size = <a href='../S/2189.html#L69' title='Defined at 69 in src/ralloc.c.'>PAGE</a>;
+<a id='L1165' name='L1165'></a>  1165 <em class='sharp'>#if</em> !<strong class='reserved'>defined</strong> SYSTEM_MALLOC &amp;&amp; !<strong class='reserved'>defined</strong> HYBRID_MALLOC
+<a id='L1166' name='L1166'></a>  1166   real_morecore = __morecore;
+<a id='L1167' name='L1167'></a>  1167   __morecore = <a href='../S/2189.html#L735' title='Defined at 735 in src/ralloc.c.'>r_alloc_sbrk</a>;
+<a id='L1168' name='L1168'></a>  1168 
+<a id='L1169' name='L1169'></a>  1169   first_heap = last_heap = &amp;heap_base;
+<a id='L1170' name='L1170'></a>  1170   first_heap-&gt;next = first_heap-&gt;prev = <a href='../S/2189.html#L126' title='Defined at 126 in src/ralloc.c.'>NIL_HEAP</a>;
+<a id='L1171' name='L1171'></a>  1171   first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a> = first_heap-&gt;bloc_start
+<a id='L1172' name='L1172'></a>  1172     = virtual_break_value = break_value = real_morecore (0);
+<a id='L1173' name='L1173'></a>  1173   <strong class='reserved'>if</strong> (break_value == <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L1174' name='L1174'></a>  1174     <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> ();
+<a id='L1175' name='L1175'></a>  1175 
+<a id='L1176' name='L1176'></a>  1176   extra_bytes = <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> (50000);
+<a id='L1177' name='L1177'></a>  1177 <em class='sharp'>#endif</em>
+<a id='L1178' name='L1178'></a>  1178 
+<a id='L1179' name='L1179'></a>  1179 <em class='sharp'>#ifdef</em> DOUG_LEA_MALLOC
+<a id='L1180' name='L1180'></a>  1180   <a href='../S/1990.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L1181' name='L1181'></a>  1181   mallopt (M_TOP_PAD, 64 * 4096);
+<a id='L1182' name='L1182'></a>  1182   <a href='../D/16459.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L1183' name='L1183'></a>  1183 <em class='sharp'>#else</em>
+<a id='L1184' name='L1184'></a>  1184 <em class='sharp'>#if</em> !<strong class='reserved'>defined</strong> SYSTEM_MALLOC &amp;&amp; !<strong class='reserved'>defined</strong> HYBRID_MALLOC
+<a id='L1185' name='L1185'></a>  1185   <em class='comment'>/* Give GNU malloc's morecore some hysteresis so that we move all</em>
+<a id='L1186' name='L1186'></a>  1186 <em class='comment'>     the relocatable blocks much less often.  The number used to be</em>
+<a id='L1187' name='L1187'></a>  1187 <em class='comment'>     64, but alloc.c would override that with 32 in code that was</em>
+<a id='L1188' name='L1188'></a>  1188 <em class='comment'>     removed when SYNC_INPUT became the only input handling mode.</em>
+<a id='L1189' name='L1189'></a>  1189 <em class='comment'>     That code was conditioned on !DOUG_LEA_MALLOC, so the call to</em>
+<a id='L1190' name='L1190'></a>  1190 <em class='comment'>     mallopt above is left unchanged.  (Actually, I think there's no</em>
+<a id='L1191' name='L1191'></a>  1191 <em class='comment'>     system nowadays that uses DOUG_LEA_MALLOC and also uses</em>
+<a id='L1192' name='L1192'></a>  1192 <em class='comment'>     REL_ALLOC.)  */</em>
+<a id='L1193' name='L1193'></a>  1193   __malloc_extra_blocks = 32;
+<a id='L1194' name='L1194'></a>  1194 <em class='sharp'>#endif</em>
+<a id='L1195' name='L1195'></a>  1195 <em class='sharp'>#endif</em>
+<a id='L1196' name='L1196'></a>  1196 
+<a id='L1197' name='L1197'></a>  1197 <em class='sharp'>#if</em> !<strong class='reserved'>defined</strong> SYSTEM_MALLOC &amp;&amp; !<strong class='reserved'>defined</strong> HYBRID_MALLOC
+<a id='L1198' name='L1198'></a>  1198   first_heap-&gt;end = (<strong class='reserved'>void</strong> *) <a href='../S/2189.html#L70' title='Defined at 70 in src/ralloc.c.'>PAGE_ROUNDUP</a> (first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>);
+<a id='L1199' name='L1199'></a>  1199 
+<a id='L1200' name='L1200'></a>  1200   <em class='comment'>/* The extra call to real_morecore guarantees that the end of the</em>
+<a id='L1201' name='L1201'></a>  1201 <em class='comment'>     address space is a multiple of page_size, even if page_size is</em>
+<a id='L1202' name='L1202'></a>  1202 <em class='comment'>     not really the page size of the system running the binary in</em>
+<a id='L1203' name='L1203'></a>  1203 <em class='comment'>     which page_size is stored.  This allows a binary to be built on a</em>
+<a id='L1204' name='L1204'></a>  1204 <em class='comment'>     system with one page size and run on a system with a smaller page</em>
+<a id='L1205' name='L1205'></a>  1205 <em class='comment'>     size.  */</em>
+<a id='L1206' name='L1206'></a>  1206   real_morecore ((<strong class='reserved'>char</strong> *) first_heap-&gt;end - (<strong class='reserved'>char</strong> *) first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>);
+<a id='L1207' name='L1207'></a>  1207 
+<a id='L1208' name='L1208'></a>  1208   <em class='comment'>/* Clear the rest of the last page; this memory is in our address space</em>
+<a id='L1209' name='L1209'></a>  1209 <em class='comment'>     even though it is after the sbrk value.  */</em>
+<a id='L1210' name='L1210'></a>  1210   <em class='comment'>/* Doubly true, with the additional call that explicitly adds the</em>
+<a id='L1211' name='L1211'></a>  1211 <em class='comment'>     rest of that page to the address space.  */</em>
+<a id='L1212' name='L1212'></a>  1212   memset (first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>, 0,
+<a id='L1213' name='L1213'></a>  1213           (<strong class='reserved'>char</strong> *) first_heap-&gt;end - (<strong class='reserved'>char</strong> *) first_heap-&gt;<a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>);
+<a id='L1214' name='L1214'></a>  1214   virtual_break_value = break_value = first_heap-&gt;bloc_start = first_heap-&gt;end;
+<a id='L1215' name='L1215'></a>  1215 <em class='sharp'>#endif</em>
+<a id='L1216' name='L1216'></a>  1216 
+<a id='L1217' name='L1217'></a>  1217   use_relocatable_buffers = 1;
+<a id='L1218' name='L1218'></a>  1218 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L174'>[^]</a><a href='#L1158'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

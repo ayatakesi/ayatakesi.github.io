@@ -1,0 +1,1020 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/scroll.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/scroll.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L80'>[^]</a><a href='#L957'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L80' title='Defined at 80.'>calculate_scrolling</a></li>
+<li><a href='#L231' title='Defined at 231.'>do_scrolling</a></li>
+<li><a href='#L417' title='Defined at 417.'>calculate_direct_scrolling</a></li>
+<li><a href='#L636' title='Defined at 636.'>do_direct_scrolling</a></li>
+<li><a href='#L789' title='Defined at 789.'>scrolling_1</a></li>
+<li><a href='#L828' title='Defined at 828.'>scrolling_max_lines_saved</a></li>
+<li><a href='#L883' title='Defined at 883.'>line_ins_del</a></li>
+<li><a href='#L901' title='Defined at 901.'>ins_del_costs</a></li>
+<li><a href='#L957' title='Defined at 957.'>do_line_insertion_deletion_costs</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Calculate what line insertion or deletion to do, and do it</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 1985-1986, 1990, 1993-1994, 2001-2023 Free Software</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>Foundation, Inc.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'></em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>your option) any later version.</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'></em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'></em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L19' name='L19'></a>    19 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='2071.html'>termchar.h</a>"
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='2198.html'>dispextern.h</a>"
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> "<a href='2075.html'>frame.h</a>"
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> "<a href='2120.html'>termhooks.h</a>"
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <strong class='reserved'>struct</strong> <a href='../R/11809.html' title='Multiple referred from 11 places.'>matrix_elt</a>
+<a id='L31' name='L31'></a>    31   <em class='brace'>{</em>
+<a id='L32' name='L32'></a>    32     <em class='comment'>/* Cost of outputting through this line</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'>       if no insert/delete is done just above it.  */</em>
+<a id='L34' name='L34'></a>    34     <strong class='reserved'>int</strong> writecost;
+<a id='L35' name='L35'></a>    35     <em class='comment'>/* Cost of outputting through this line</em>
+<a id='L36' name='L36'></a>    36 <em class='comment'>       if an insert is done just above it.  */</em>
+<a id='L37' name='L37'></a>    37     <strong class='reserved'>int</strong> insertcost;
+<a id='L38' name='L38'></a>    38     <em class='comment'>/* Cost of outputting through this line</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>       if a delete is done just above it.  */</em>
+<a id='L40' name='L40'></a>    40     <strong class='reserved'>int</strong> deletecost;
+<a id='L41' name='L41'></a>    41     <em class='comment'>/* Number of inserts so far in this run of inserts,</em>
+<a id='L42' name='L42'></a>    42 <em class='comment'>       for the cost in insertcost.  */</em>
+<a id='L43' name='L43'></a>    43     <strong class='reserved'>int</strong> insertcount;
+<a id='L44' name='L44'></a>    44     <em class='comment'>/* Number of deletes so far in this run of deletes,</em>
+<a id='L45' name='L45'></a>    45 <em class='comment'>       for the cost in deletecost.  */</em>
+<a id='L46' name='L46'></a>    46     <strong class='reserved'>int</strong> deletecount;
+<a id='L47' name='L47'></a>    47     <em class='comment'>/* Number of writes so far since the last insert</em>
+<a id='L48' name='L48'></a>    48 <em class='comment'>       or delete for the cost in writecost. */</em>
+<a id='L49' name='L49'></a>    49     <strong class='reserved'>int</strong> writecount;
+<a id='L50' name='L50'></a>    50   <em class='brace'>}</em>;
+<a id='L51' name='L51'></a>    51 
+<a id='L52' name='L52'></a>    52 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2019.html#L636' title='Defined at 636 in src/scroll.c.'>do_direct_scrolling</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *,
+<a id='L53' name='L53'></a>    53                                  <strong class='reserved'>struct</strong> <a href='../S/2198.html#L733' title='Defined at 733 in src/dispextern.h.'>glyph_matrix</a> *,
+<a id='L54' name='L54'></a>    54                                  <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *,
+<a id='L55' name='L55'></a>    55                                  <strong class='reserved'>int</strong>, <strong class='reserved'>int</strong>);
+<a id='L56' name='L56'></a>    56 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2019.html#L231' title='Defined at 231 in src/scroll.c.'>do_scrolling</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *,
+<a id='L57' name='L57'></a>    57                           <strong class='reserved'>struct</strong> <a href='../S/2198.html#L733' title='Defined at 733 in src/dispextern.h.'>glyph_matrix</a> *,
+<a id='L58' name='L58'></a>    58                           <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *,
+<a id='L59' name='L59'></a>    59                           <strong class='reserved'>int</strong>, <strong class='reserved'>int</strong>);
+<a id='L60' name='L60'></a>    60 
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62 <em class='comment'>/* Determine, in matrix[i,j], the cost of updating the first j old</em>
+<a id='L63' name='L63'></a>    63 <em class='comment'>   lines into the first i new lines using the general scrolling method.</em>
+<a id='L64' name='L64'></a>    64 <em class='comment'>   This involves using insert or delete somewhere if i != j.</em>
+<a id='L65' name='L65'></a>    65 <em class='comment'>   For each matrix elements, three kinds of costs are recorded:</em>
+<a id='L66' name='L66'></a>    66 <em class='comment'>   the smallest cost that ends with an insert, the smallest</em>
+<a id='L67' name='L67'></a>    67 <em class='comment'>   cost that ends with a delete, and the smallest cost that</em>
+<a id='L68' name='L68'></a>    68 <em class='comment'>   ends with neither one.  These are kept separate because</em>
+<a id='L69' name='L69'></a>    69 <em class='comment'>   on some terminals the cost of doing an insert varies</em>
+<a id='L70' name='L70'></a>    70 <em class='comment'>   depending on whether one was just done, etc.  */</em>
+<a id='L71' name='L71'></a>    71 
+<a id='L72' name='L72'></a>    72 <em class='comment'>/* draw_cost[VPOS] is the cost of outputting new line at VPOS.</em>
+<a id='L73' name='L73'></a>    73 <em class='comment'>   old_hash[VPOS] is the hash code of the old line at VPOS.</em>
+<a id='L74' name='L74'></a>    74 <em class='comment'>   new_hash[VPOS] is the hash code of the new line at VPOS.</em>
+<a id='L75' name='L75'></a>    75 <em class='comment'>   Note that these are not true frame vpos's, but relative</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>   to the place at which the first mismatch between old and</em>
+<a id='L77' name='L77'></a>    77 <em class='comment'>   new contents appears.  */</em>
+<a id='L78' name='L78'></a>    78 
+<a id='L79' name='L79'></a>    79 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L80' name='L80'></a>    80 <a href='../S/2019.html#L808' title='Referred from 808 in src/scroll.c.'>calculate_scrolling</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L81' name='L81'></a>    81                      <em class='comment'>/* matrix is of size window_size + 1 on each side.  */</em>
+<a id='L82' name='L82'></a>    82                      <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *matrix,
+<a id='L83' name='L83'></a>    83                      <strong class='reserved'>int</strong> window_size, <strong class='reserved'>int</strong> lines_below,
+<a id='L84' name='L84'></a>    84                      <strong class='reserved'>int</strong> *draw_cost, <strong class='reserved'>unsigned</strong> *old_hash, <strong class='reserved'>unsigned</strong> *new_hash,
+<a id='L85' name='L85'></a>    85                      <strong class='reserved'>int</strong> free_at_end)
+<a id='L86' name='L86'></a>    86 <em class='brace'>{</em>
+<a id='L87' name='L87'></a>    87   <strong class='reserved'>int</strong> i, j;
+<a id='L88' name='L88'></a>    88   <strong class='reserved'>int</strong> frame_total_lines = <a href='../S/2075.html#L956' title='Defined at 956 in src/frame.h.'>FRAME_TOTAL_LINES</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>);
+<a id='L89' name='L89'></a>    89   <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *p, *p1;
+<a id='L90' name='L90'></a>    90   <strong class='reserved'>int</strong> cost, cost1;
+<a id='L91' name='L91'></a>    91 
+<a id='L92' name='L92'></a>    92   <strong class='reserved'>int</strong> lines_moved = window_size
+<a id='L93' name='L93'></a>    93     + (<a href='../S/2120.html#L897' title='Defined at 897 in src/termhooks.h.'>FRAME_SCROLL_REGION_OK</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>) ? 0 : lines_below);
+<a id='L94' name='L94'></a>    94   <em class='comment'>/* first_insert_cost[I] is the cost of doing the first insert-line</em>
+<a id='L95' name='L95'></a>    95 <em class='comment'>     at the i'th line of the lines we are considering,</em>
+<a id='L96' name='L96'></a>    96 <em class='comment'>     where I is origin 1 (as it is below).  */</em>
+<a id='L97' name='L97'></a>    97   <strong class='reserved'>int</strong> *first_insert_cost
+<a id='L98' name='L98'></a>    98     = &amp;<a href='../S/2075.html#L1055' title='Defined at 1055 in src/frame.h.'>FRAME_INSERT_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)[frame_total_lines - 1 - lines_moved];
+<a id='L99' name='L99'></a>    99   <strong class='reserved'>int</strong> *first_delete_cost
+<a id='L100' name='L100'></a>   100     = &amp;<a href='../S/2075.html#L1056' title='Defined at 1056 in src/frame.h.'>FRAME_DELETE_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)[frame_total_lines - 1 - lines_moved];
+<a id='L101' name='L101'></a>   101   <strong class='reserved'>int</strong> *next_insert_cost
+<a id='L102' name='L102'></a>   102     = &amp;<a href='../S/2075.html#L1057' title='Defined at 1057 in src/frame.h.'>FRAME_INSERTN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)[frame_total_lines - 1 - lines_moved];
+<a id='L103' name='L103'></a>   103   <strong class='reserved'>int</strong> *next_delete_cost
+<a id='L104' name='L104'></a>   104     = &amp;<a href='../S/2075.html#L1058' title='Defined at 1058 in src/frame.h.'>FRAME_DELETEN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)[frame_total_lines - 1 - lines_moved];
+<a id='L105' name='L105'></a>   105 
+<a id='L106' name='L106'></a>   106   <em class='comment'>/* Discourage long scrolls on fast lines.</em>
+<a id='L107' name='L107'></a>   107 <em class='comment'>     Don't scroll nearly a full frame height unless it saves</em>
+<a id='L108' name='L108'></a>   108 <em class='comment'>     at least 1/4 second.  */</em>
+<a id='L109' name='L109'></a>   109   <strong class='reserved'>int</strong> extra_cost
+<a id='L110' name='L110'></a>   110     = <a href='../D/8597.html' title='Multiple defined in 2 places.'>clip_to_bounds</a> (1, baud_rate / (10 * 4) / frame_total_lines, INT_MAX / 2);
+<a id='L111' name='L111'></a>   111 
+<a id='L112' name='L112'></a>   112   <em class='comment'>/* initialize the top left corner of the matrix */</em>
+<a id='L113' name='L113'></a>   113   matrix-&gt;writecost = 0;
+<a id='L114' name='L114'></a>   114   matrix-&gt;insertcost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L115' name='L115'></a>   115   matrix-&gt;deletecost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L116' name='L116'></a>   116   matrix-&gt;insertcount = 0;
+<a id='L117' name='L117'></a>   117   matrix-&gt;deletecount = 0;
+<a id='L118' name='L118'></a>   118 
+<a id='L119' name='L119'></a>   119   <em class='comment'>/* initialize the left edge of the matrix */</em>
+<a id='L120' name='L120'></a>   120   cost = first_insert_cost[1] - next_insert_cost[1];
+<a id='L121' name='L121'></a>   121   <strong class='reserved'>for</strong> (i = 1; i &lt;= window_size; i++)
+<a id='L122' name='L122'></a>   122     <em class='brace'>{</em>
+<a id='L123' name='L123'></a>   123       p = matrix + i * (window_size + 1);
+<a id='L124' name='L124'></a>   124       cost += draw_cost[i] + next_insert_cost[i] + extra_cost;
+<a id='L125' name='L125'></a>   125       p-&gt;insertcost = cost;
+<a id='L126' name='L126'></a>   126       p-&gt;writecost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L127' name='L127'></a>   127       p-&gt;deletecost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L128' name='L128'></a>   128       p-&gt;insertcount = i;
+<a id='L129' name='L129'></a>   129       p-&gt;deletecount = 0;
+<a id='L130' name='L130'></a>   130     <em class='brace'>}</em>
+<a id='L131' name='L131'></a>   131 
+<a id='L132' name='L132'></a>   132   <em class='comment'>/* initialize the top edge of the matrix */</em>
+<a id='L133' name='L133'></a>   133   cost = first_delete_cost[1] - next_delete_cost[1];
+<a id='L134' name='L134'></a>   134   <strong class='reserved'>for</strong> (j = 1; j &lt;= window_size; j++)
+<a id='L135' name='L135'></a>   135     <em class='brace'>{</em>
+<a id='L136' name='L136'></a>   136       cost += next_delete_cost[j];
+<a id='L137' name='L137'></a>   137       matrix[j].deletecost = cost;
+<a id='L138' name='L138'></a>   138       matrix[j].writecost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L139' name='L139'></a>   139       matrix[j].insertcost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L140' name='L140'></a>   140       matrix[j].deletecount = j;
+<a id='L141' name='L141'></a>   141       matrix[j].insertcount = 0;
+<a id='L142' name='L142'></a>   142     <em class='brace'>}</em>
+<a id='L143' name='L143'></a>   143 
+<a id='L144' name='L144'></a>   144   <em class='comment'>/* `i' represents the vpos among new frame contents.</em>
+<a id='L145' name='L145'></a>   145 <em class='comment'>     `j' represents the vpos among the old frame contents.  */</em>
+<a id='L146' name='L146'></a>   146   p = matrix + window_size + 2; <em class='comment'>/* matrix [1, 1] */</em>
+<a id='L147' name='L147'></a>   147   <strong class='reserved'>for</strong> (i = 1; i &lt;= window_size; i++, p++)
+<a id='L148' name='L148'></a>   148     <strong class='reserved'>for</strong> (j = 1; j &lt;= window_size; j++, p++)
+<a id='L149' name='L149'></a>   149       <em class='brace'>{</em>
+<a id='L150' name='L150'></a>   150         <em class='comment'>/* p contains the address of matrix [i, j] */</em>
+<a id='L151' name='L151'></a>   151 
+<a id='L152' name='L152'></a>   152         <em class='comment'>/* First calculate the cost assuming we do</em>
+<a id='L153' name='L153'></a>   153 <em class='comment'>           not insert or delete above this line.</em>
+<a id='L154' name='L154'></a>   154 <em class='comment'>           That is, if we update through line i-1</em>
+<a id='L155' name='L155'></a>   155 <em class='comment'>           based on old lines through j-1,</em>
+<a id='L156' name='L156'></a>   156 <em class='comment'>           and then just change old line j to new line i.  */</em>
+<a id='L157' name='L157'></a>   157         p1 = p - window_size - 2; <em class='comment'>/* matrix [i-1, j-1] */</em>
+<a id='L158' name='L158'></a>   158         cost = p1-&gt;writecost;
+<a id='L159' name='L159'></a>   159         <strong class='reserved'>if</strong> (cost &gt; p1-&gt;insertcost)
+<a id='L160' name='L160'></a>   160           cost = p1-&gt;insertcost;
+<a id='L161' name='L161'></a>   161         <strong class='reserved'>if</strong> (cost &gt; p1-&gt;deletecost)
+<a id='L162' name='L162'></a>   162           cost = p1-&gt;deletecost;
+<a id='L163' name='L163'></a>   163         <strong class='reserved'>if</strong> (old_hash[j] != new_hash[i])
+<a id='L164' name='L164'></a>   164           cost += draw_cost[i];
+<a id='L165' name='L165'></a>   165         p-&gt;writecost = cost;
+<a id='L166' name='L166'></a>   166 
+<a id='L167' name='L167'></a>   167         <em class='comment'>/* Calculate the cost if we do an insert-line</em>
+<a id='L168' name='L168'></a>   168 <em class='comment'>           before outputting this line.</em>
+<a id='L169' name='L169'></a>   169 <em class='comment'>           That is, we update through line i-1</em>
+<a id='L170' name='L170'></a>   170 <em class='comment'>           based on old lines through j,</em>
+<a id='L171' name='L171'></a>   171 <em class='comment'>           do an insert-line on line i,</em>
+<a id='L172' name='L172'></a>   172 <em class='comment'>           and then output line i from scratch,</em>
+<a id='L173' name='L173'></a>   173 <em class='comment'>           leaving old lines starting from j for reuse below.  */</em>
+<a id='L174' name='L174'></a>   174         p1 = p - window_size - 1; <em class='comment'>/* matrix [i-1, j] */</em>
+<a id='L175' name='L175'></a>   175         <em class='comment'>/* No need to think about doing a delete followed</em>
+<a id='L176' name='L176'></a>   176 <em class='comment'>           immediately by an insert.  It cannot be as good</em>
+<a id='L177' name='L177'></a>   177 <em class='comment'>           as not doing either of them.  */</em>
+<a id='L178' name='L178'></a>   178         <strong class='reserved'>if</strong> (free_at_end == i)
+<a id='L179' name='L179'></a>   179           <em class='brace'>{</em>
+<a id='L180' name='L180'></a>   180             cost = p1-&gt;writecost;
+<a id='L181' name='L181'></a>   181             cost1 = p1-&gt;insertcost;
+<a id='L182' name='L182'></a>   182           <em class='brace'>}</em>
+<a id='L183' name='L183'></a>   183         <strong class='reserved'>else</strong>
+<a id='L184' name='L184'></a>   184           <em class='brace'>{</em>
+<a id='L185' name='L185'></a>   185             cost = p1-&gt;writecost + first_insert_cost[i];
+<a id='L186' name='L186'></a>   186             <strong class='reserved'>if</strong> (p1-&gt;insertcount &gt; i)
+<a id='L187' name='L187'></a>   187               <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> ();
+<a id='L188' name='L188'></a>   188             cost1 = p1-&gt;insertcost + next_insert_cost[i - p1-&gt;insertcount];
+<a id='L189' name='L189'></a>   189           <em class='brace'>}</em>
+<a id='L190' name='L190'></a>   190         p-&gt;insertcost = <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a> (cost, cost1) + draw_cost[i] + extra_cost;
+<a id='L191' name='L191'></a>   191         p-&gt;insertcount = (cost &lt; cost1) ? 1 : p1-&gt;insertcount + 1;
+<a id='L192' name='L192'></a>   192         <strong class='reserved'>if</strong> (p-&gt;insertcount &gt; i)
+<a id='L193' name='L193'></a>   193           <a href='../D/9633.html' title='Multiple defined in 5 places.'>emacs_abort</a> ();
+<a id='L194' name='L194'></a>   194 
+<a id='L195' name='L195'></a>   195         <em class='comment'>/* Calculate the cost if we do a delete line after</em>
+<a id='L196' name='L196'></a>   196 <em class='comment'>           outputting this line.</em>
+<a id='L197' name='L197'></a>   197 <em class='comment'>           That is, we update through line i</em>
+<a id='L198' name='L198'></a>   198 <em class='comment'>           based on old lines through j-1,</em>
+<a id='L199' name='L199'></a>   199 <em class='comment'>           and throw away old line j.  */</em>
+<a id='L200' name='L200'></a>   200         p1 = p - 1;             <em class='comment'>/* matrix [i, j-1] */</em>
+<a id='L201' name='L201'></a>   201         <em class='comment'>/* No need to think about doing an insert followed</em>
+<a id='L202' name='L202'></a>   202 <em class='comment'>           immediately by a delete.  */</em>
+<a id='L203' name='L203'></a>   203         <strong class='reserved'>if</strong> (free_at_end == i)
+<a id='L204' name='L204'></a>   204           <em class='brace'>{</em>
+<a id='L205' name='L205'></a>   205             cost = p1-&gt;writecost;
+<a id='L206' name='L206'></a>   206             cost1 = p1-&gt;deletecost;
+<a id='L207' name='L207'></a>   207           <em class='brace'>}</em>
+<a id='L208' name='L208'></a>   208         <strong class='reserved'>else</strong>
+<a id='L209' name='L209'></a>   209           <em class='brace'>{</em>
+<a id='L210' name='L210'></a>   210             cost = p1-&gt;writecost + first_delete_cost[i];
+<a id='L211' name='L211'></a>   211             cost1 = p1-&gt;deletecost + next_delete_cost[i];
+<a id='L212' name='L212'></a>   212           <em class='brace'>}</em>
+<a id='L213' name='L213'></a>   213         p-&gt;deletecost = <a href='../D/12982.html' title='Multiple defined in 13 places.'>min</a> (cost, cost1);
+<a id='L214' name='L214'></a>   214         p-&gt;deletecount = (cost &lt; cost1) ? 1 : p1-&gt;deletecount + 1;
+<a id='L215' name='L215'></a>   215       <em class='brace'>}</em>
+<a id='L216' name='L216'></a>   216 <em class='brace'>}</em>
+<a id='L217' name='L217'></a>   217 
+<a id='L218' name='L218'></a>   218 
+<a id='L219' name='L219'></a>   219 
+<a id='L220' name='L220'></a>   220 <em class='comment'>/* Perform insert-lines and delete-lines operations on CURRENT_MATRIX</em>
+<a id='L221' name='L221'></a>   221 <em class='comment'>   according to the costs in MATRIX, using the general scrolling</em>
+<a id='L222' name='L222'></a>   222 <em class='comment'>   method that is used if the terminal does not support the setting of</em>
+<a id='L223' name='L223'></a>   223 <em class='comment'>   scroll windows (scroll_region_ok == 0).</em>
+<a id='L224' name='L224'></a>   224 <em class='comment'></em>
+<a id='L225' name='L225'></a>   225 <em class='comment'>   WINDOW_SIZE is the number of lines being considered for scrolling</em>
+<a id='L226' name='L226'></a>   226 <em class='comment'>   and UNCHANGED_AT_TOP is the vpos of the first line being</em>
+<a id='L227' name='L227'></a>   227 <em class='comment'>   considered.  These two arguments can specify any contiguous range</em>
+<a id='L228' name='L228'></a>   228 <em class='comment'>   of lines.  */</em>
+<a id='L229' name='L229'></a>   229 
+<a id='L230' name='L230'></a>   230 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L231' name='L231'></a>   231 <a href='../R/8433.html' title='Multiple referred from 2 places.'>do_scrolling</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, <strong class='reserved'>struct</strong> <a href='../S/2198.html#L733' title='Defined at 733 in src/dispextern.h.'>glyph_matrix</a> *current_matrix,
+<a id='L232' name='L232'></a>   232               <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *matrix, <strong class='reserved'>int</strong> window_size,
+<a id='L233' name='L233'></a>   233               <strong class='reserved'>int</strong> unchanged_at_top)
+<a id='L234' name='L234'></a>   234 <em class='brace'>{</em>
+<a id='L235' name='L235'></a>   235   <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *p;
+<a id='L236' name='L236'></a>   236   <strong class='reserved'>int</strong> i, j, k;
+<a id='L237' name='L237'></a>   237   <a href='../D/5945.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L238' name='L238'></a>   238 
+<a id='L239' name='L239'></a>   239   <em class='comment'>/* True if we have set a terminal window with set_terminal_window.  */</em>
+<a id='L240' name='L240'></a>   240   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> terminal_window_p = 0;
+<a id='L241' name='L241'></a>   241 
+<a id='L242' name='L242'></a>   242   <em class='comment'>/* A queue for line insertions to be done.  */</em>
+<a id='L243' name='L243'></a>   243   <strong class='reserved'>struct</strong> <a href='../R/13255.html' title='Multiple referred from 31 places.'>queue</a> <em class='brace'>{</em> <strong class='reserved'>int</strong> count, pos; <em class='brace'>}</em>;
+<a id='L244' name='L244'></a>   244   <strong class='reserved'>struct</strong> <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a> *queue_start;
+<a id='L245' name='L245'></a>   245   <a href='../D/4982.html' title='Multiple defined in 2 places.'>SAFE_NALLOCA</a> (queue_start, 1, current_matrix-&gt;nrows);
+<a id='L246' name='L246'></a>   246   <strong class='reserved'>struct</strong> <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a> *<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a> = queue_start;
+<a id='L247' name='L247'></a>   247 
+<a id='L248' name='L248'></a>   248   <strong class='reserved'>char</strong> *retained_p = <a href='../D/4975.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (window_size);
+<a id='L249' name='L249'></a>   249   <strong class='reserved'>int</strong> *copy_from;
+<a id='L250' name='L250'></a>   250   <a href='../D/4982.html' title='Multiple defined in 2 places.'>SAFE_NALLOCA</a> (copy_from, 1, window_size);
+<a id='L251' name='L251'></a>   251 
+<a id='L252' name='L252'></a>   252   <em class='comment'>/* Zero means line is empty.  */</em>
+<a id='L253' name='L253'></a>   253   memset (retained_p, 0, window_size * <strong class='reserved'>sizeof</strong> (<strong class='reserved'>char</strong>));
+<a id='L254' name='L254'></a>   254   <strong class='reserved'>for</strong> (k = 0; k &lt; window_size; ++k)
+<a id='L255' name='L255'></a>   255     copy_from[k] = -1;
+<a id='L256' name='L256'></a>   256 
+<a id='L257' name='L257'></a>   257 <em class='sharp'>#ifdef</em> GLYPH_DEBUG
+<a id='L258' name='L258'></a>   258 <em class='sharp'># define</em> <a href='../S/2019.html#L316' title='Referred from 316 in src/scroll.c.'>CHECK_BOUNDS</a>                                                   \
+<a id='L259' name='L259'></a>   259   <strong class='reserved'>do</strong>                                                                    \
+<a id='L260' name='L260'></a>   260     <em class='brace'>{</em>                                                                   \
+<a id='L261' name='L261'></a>   261       <strong class='reserved'>int</strong> ck;                                                           \
+<a id='L262' name='L262'></a>   262       <strong class='reserved'>for</strong> (ck = 0; ck &lt; window_size; ++ck)                              \
+<a id='L263' name='L263'></a>   263         <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (copy_from[ck] == -1                                    \
+<a id='L264' name='L264'></a>   264                  || (copy_from[ck] &gt;= 0 &amp;&amp; copy_from[ck] &lt; window_size)); \
+<a id='L265' name='L265'></a>   265     <em class='brace'>}</em>                                                                   \
+<a id='L266' name='L266'></a>   266   <strong class='reserved'>while</strong> (0);
+<a id='L267' name='L267'></a>   267 <em class='sharp'>#endif</em>
+<a id='L268' name='L268'></a>   268 
+<a id='L269' name='L269'></a>   269   <em class='comment'>/* When j is advanced, this corresponds to deleted lines.</em>
+<a id='L270' name='L270'></a>   270 <em class='comment'>     When i is advanced, this corresponds to inserted lines.  */</em>
+<a id='L271' name='L271'></a>   271   i = j = window_size;
+<a id='L272' name='L272'></a>   272   <strong class='reserved'>while</strong> (i &gt; 0 || j &gt; 0)
+<a id='L273' name='L273'></a>   273     <em class='brace'>{</em>
+<a id='L274' name='L274'></a>   274       p = matrix + i * (window_size + 1) + j;
+<a id='L275' name='L275'></a>   275 
+<a id='L276' name='L276'></a>   276       <strong class='reserved'>if</strong> (p-&gt;insertcost &lt; p-&gt;writecost &amp;&amp; p-&gt;insertcost &lt; p-&gt;deletecost)
+<a id='L277' name='L277'></a>   277         <em class='brace'>{</em>
+<a id='L278' name='L278'></a>   278           <em class='comment'>/* Insert should be done at vpos i-1, plus maybe some before.</em>
+<a id='L279' name='L279'></a>   279 <em class='comment'>             Queue the screen operation to be performed.  */</em>
+<a id='L280' name='L280'></a>   280           <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;count = p-&gt;insertcount;
+<a id='L281' name='L281'></a>   281           <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;pos = i + unchanged_at_top - p-&gt;insertcount;
+<a id='L282' name='L282'></a>   282           ++<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>;
+<a id='L283' name='L283'></a>   283 
+<a id='L284' name='L284'></a>   284           <em class='comment'>/* By incrementing I, we leave room in the result rows</em>
+<a id='L285' name='L285'></a>   285 <em class='comment'>             for the empty rows opened up.  */</em>
+<a id='L286' name='L286'></a>   286           i -= p-&gt;insertcount;
+<a id='L287' name='L287'></a>   287         <em class='brace'>}</em>
+<a id='L288' name='L288'></a>   288       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (p-&gt;deletecost &lt; p-&gt;writecost)
+<a id='L289' name='L289'></a>   289         <em class='brace'>{</em>
+<a id='L290' name='L290'></a>   290           <em class='comment'>/* Old line at vpos j-1, and maybe some before it, should be</em>
+<a id='L291' name='L291'></a>   291 <em class='comment'>             deleted.  By decrementing J, we skip some lines in the</em>
+<a id='L292' name='L292'></a>   292 <em class='comment'>             temp_rows which is equivalent to omitting these lines in</em>
+<a id='L293' name='L293'></a>   293 <em class='comment'>             the result rows, thus deleting them.  */</em>
+<a id='L294' name='L294'></a>   294           j -= p-&gt;deletecount;
+<a id='L295' name='L295'></a>   295 
+<a id='L296' name='L296'></a>   296           <em class='comment'>/* Set the terminal window, if not done already.  */</em>
+<a id='L297' name='L297'></a>   297           <strong class='reserved'>if</strong> (! terminal_window_p)
+<a id='L298' name='L298'></a>   298             <em class='brace'>{</em>
+<a id='L299' name='L299'></a>   299               <a href='../S/2090.html#L100' title='Defined at 100 in src/terminal.c.'>set_terminal_window</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, window_size + unchanged_at_top);
+<a id='L300' name='L300'></a>   300               terminal_window_p = 1;
+<a id='L301' name='L301'></a>   301             <em class='brace'>}</em>
+<a id='L302' name='L302'></a>   302 
+<a id='L303' name='L303'></a>   303           <em class='comment'>/* Delete lines on the terminal.  */</em>
+<a id='L304' name='L304'></a>   304           <a href='../S/2090.html#L192' title='Defined at 192 in src/terminal.c.'>ins_del_lines</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, j + unchanged_at_top, - p-&gt;deletecount);
+<a id='L305' name='L305'></a>   305         <em class='brace'>}</em>
+<a id='L306' name='L306'></a>   306       <strong class='reserved'>else</strong>
+<a id='L307' name='L307'></a>   307         <em class='brace'>{</em>
+<a id='L308' name='L308'></a>   308           <em class='comment'>/* Best thing done here is no insert or delete, i.e. a write.  */</em>
+<a id='L309' name='L309'></a>   309           --i, --j;
+<a id='L310' name='L310'></a>   310           <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (i &gt;= 0 &amp;&amp; i &lt; window_size);
+<a id='L311' name='L311'></a>   311           <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (j &gt;= 0 &amp;&amp; j &lt; window_size);
+<a id='L312' name='L312'></a>   312           copy_from[i] = j;
+<a id='L313' name='L313'></a>   313           retained_p[j] = 1;
+<a id='L314' name='L314'></a>   314 
+<a id='L315' name='L315'></a>   315 <em class='sharp'>#ifdef</em> GLYPH_DEBUG
+<a id='L316' name='L316'></a>   316           <a href='../S/2019.html#L258' title='Defined at 258 in src/scroll.c.'>CHECK_BOUNDS</a>;
+<a id='L317' name='L317'></a>   317 <em class='sharp'>#endif</em>
+<a id='L318' name='L318'></a>   318         <em class='brace'>}</em>
+<a id='L319' name='L319'></a>   319     <em class='brace'>}</em>
+<a id='L320' name='L320'></a>   320 
+<a id='L321' name='L321'></a>   321   <em class='comment'>/* Now do all insertions queued above.  */</em>
+<a id='L322' name='L322'></a>   322   <strong class='reserved'>if</strong> (<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a> &gt; queue_start)
+<a id='L323' name='L323'></a>   323     <em class='brace'>{</em>
+<a id='L324' name='L324'></a>   324       <strong class='reserved'>int</strong> next = -1;
+<a id='L325' name='L325'></a>   325 
+<a id='L326' name='L326'></a>   326       <em class='comment'>/* Set the terminal window if not yet done.  */</em>
+<a id='L327' name='L327'></a>   327       <strong class='reserved'>if</strong> (!terminal_window_p)
+<a id='L328' name='L328'></a>   328         <em class='brace'>{</em>
+<a id='L329' name='L329'></a>   329           <a href='../S/2090.html#L100' title='Defined at 100 in src/terminal.c.'>set_terminal_window</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, window_size + unchanged_at_top);
+<a id='L330' name='L330'></a>   330           terminal_window_p = 1;
+<a id='L331' name='L331'></a>   331         <em class='brace'>}</em>
+<a id='L332' name='L332'></a>   332 
+<a id='L333' name='L333'></a>   333       <strong class='reserved'>do</strong>
+<a id='L334' name='L334'></a>   334         <em class='brace'>{</em>
+<a id='L335' name='L335'></a>   335           --<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>;
+<a id='L336' name='L336'></a>   336 
+<a id='L337' name='L337'></a>   337           <em class='comment'>/* Do the deletion on the terminal.  */</em>
+<a id='L338' name='L338'></a>   338           <a href='../S/2090.html#L192' title='Defined at 192 in src/terminal.c.'>ins_del_lines</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;pos, <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;count);
+<a id='L339' name='L339'></a>   339 
+<a id='L340' name='L340'></a>   340           <em class='comment'>/* All lines in the range deleted become empty in the glyph</em>
+<a id='L341' name='L341'></a>   341 <em class='comment'>             matrix.  Assign to them glyph rows that are not retained.</em>
+<a id='L342' name='L342'></a>   342 <em class='comment'>             K is the starting position of the deleted range relative</em>
+<a id='L343' name='L343'></a>   343 <em class='comment'>             to the window we are working in.  */</em>
+<a id='L344' name='L344'></a>   344           k = <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;pos - unchanged_at_top;
+<a id='L345' name='L345'></a>   345           <strong class='reserved'>for</strong> (j = 0; j &lt; <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;count; ++j)
+<a id='L346' name='L346'></a>   346             <em class='brace'>{</em>
+<a id='L347' name='L347'></a>   347               <em class='comment'>/* Find the next row not retained.  */</em>
+<a id='L348' name='L348'></a>   348               <strong class='reserved'>while</strong> (retained_p[++next])
+<a id='L349' name='L349'></a>   349                 ;
+<a id='L350' name='L350'></a>   350 
+<a id='L351' name='L351'></a>   351               <em class='comment'>/* Record that this row is to be used for the empty</em>
+<a id='L352' name='L352'></a>   352 <em class='comment'>                 glyph row j.  */</em>
+<a id='L353' name='L353'></a>   353               copy_from[k + j] = next;
+<a id='L354' name='L354'></a>   354             <em class='brace'>}</em>
+<a id='L355' name='L355'></a>   355         <em class='brace'>}</em>
+<a id='L356' name='L356'></a>   356       <strong class='reserved'>while</strong> (<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a> &gt; queue_start);
+<a id='L357' name='L357'></a>   357 
+<a id='L358' name='L358'></a>   358     <em class='brace'>}</em>
+<a id='L359' name='L359'></a>   359 
+<a id='L360' name='L360'></a>   360   <strong class='reserved'>for</strong> (k = 0; k &lt; window_size; ++k)
+<a id='L361' name='L361'></a>   361     <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (copy_from[k] &gt;= 0 &amp;&amp; copy_from[k] &lt; window_size);
+<a id='L362' name='L362'></a>   362 
+<a id='L363' name='L363'></a>   363   <em class='comment'>/* Perform the row swizzling.  */</em>
+<a id='L364' name='L364'></a>   364   <a href='../S/2034.html#L2832' title='Defined at 2832 in src/dispnew.c.'>mirrored_line_dance</a> (current_matrix, unchanged_at_top, window_size,
+<a id='L365' name='L365'></a>   365                        copy_from, retained_p);
+<a id='L366' name='L366'></a>   366 
+<a id='L367' name='L367'></a>   367   <em class='comment'>/* Some sanity checks if GLYPH_DEBUG is defined.  */</em>
+<a id='L368' name='L368'></a>   368   <a href='../D/839.html' title='Multiple defined in 2 places.'>CHECK_MATRIX</a> (current_matrix);
+<a id='L369' name='L369'></a>   369 
+<a id='L370' name='L370'></a>   370   <strong class='reserved'>if</strong> (terminal_window_p)
+<a id='L371' name='L371'></a>   371     <a href='../S/2090.html#L100' title='Defined at 100 in src/terminal.c.'>set_terminal_window</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, 0);
+<a id='L372' name='L372'></a>   372   <a href='../D/4980.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L373' name='L373'></a>   373 <em class='brace'>}</em>
+<a id='L374' name='L374'></a>   374 
+<a id='L375' name='L375'></a>   375 
+<a id='L376' name='L376'></a>   376 <em class='comment'>/* Determine, in matrix[i,j], the cost of updating the first j</em>
+<a id='L377' name='L377'></a>   377 <em class='comment'>   old lines into the first i new lines using the direct</em>
+<a id='L378' name='L378'></a>   378 <em class='comment'>   scrolling method.  When the old line and the new line have</em>
+<a id='L379' name='L379'></a>   379 <em class='comment'>   different hash codes, the calculated cost of updating old</em>
+<a id='L380' name='L380'></a>   380 <em class='comment'>   line j into new line i includes the cost of outputting new</em>
+<a id='L381' name='L381'></a>   381 <em class='comment'>   line i, and if i != j, the cost of outputting the old line j</em>
+<a id='L382' name='L382'></a>   382 <em class='comment'>   is also included, as a penalty for moving the line and then</em>
+<a id='L383' name='L383'></a>   383 <em class='comment'>   erasing it.  In addition, the cost of updating a sequence of</em>
+<a id='L384' name='L384'></a>   384 <em class='comment'>   lines with constant i - j includes the cost of scrolling the</em>
+<a id='L385' name='L385'></a>   385 <em class='comment'>   old lines into their new positions, unless i == j.  Scrolling</em>
+<a id='L386' name='L386'></a>   386 <em class='comment'>   is achieved by setting the screen window to avoid affecting</em>
+<a id='L387' name='L387'></a>   387 <em class='comment'>   other lines below, and inserting or deleting lines at the top</em>
+<a id='L388' name='L388'></a>   388 <em class='comment'>   of the scrolled region.  The cost of scrolling a sequence of</em>
+<a id='L389' name='L389'></a>   389 <em class='comment'>   lines includes the fixed cost of specifying a scroll region,</em>
+<a id='L390' name='L390'></a>   390 <em class='comment'>   plus a variable cost which can depend upon the number of lines</em>
+<a id='L391' name='L391'></a>   391 <em class='comment'>   involved and the distance by which they are scrolled, and an</em>
+<a id='L392' name='L392'></a>   392 <em class='comment'>   extra cost to discourage long scrolls.</em>
+<a id='L393' name='L393'></a>   393 <em class='comment'></em>
+<a id='L394' name='L394'></a>   394 <em class='comment'>   As reflected in the matrix, an insert or delete does not</em>
+<a id='L395' name='L395'></a>   395 <em class='comment'>   correspond directly to the insertion or deletion which is</em>
+<a id='L396' name='L396'></a>   396 <em class='comment'>   used in scrolling lines.  An insert means that the value of i</em>
+<a id='L397' name='L397'></a>   397 <em class='comment'>   has increased without a corresponding increase in the value</em>
+<a id='L398' name='L398'></a>   398 <em class='comment'>   of j.  A delete means that the value of j has increased</em>
+<a id='L399' name='L399'></a>   399 <em class='comment'>   without a corresponding increase in the value of i.  A write</em>
+<a id='L400' name='L400'></a>   400 <em class='comment'>   means that i and j are both increased by the same amount, and</em>
+<a id='L401' name='L401'></a>   401 <em class='comment'>   that the old lines will be moved to their new positions.</em>
+<a id='L402' name='L402'></a>   402 <em class='comment'></em>
+<a id='L403' name='L403'></a>   403 <em class='comment'>   An insert following a delete is allowed only if i &gt; j.</em>
+<a id='L404' name='L404'></a>   404 <em class='comment'>   A delete following an insert is allowed only if i &lt; j.</em>
+<a id='L405' name='L405'></a>   405 <em class='comment'>   These restrictions ensure that the new lines in an insert</em>
+<a id='L406' name='L406'></a>   406 <em class='comment'>   will always be blank as an effect of the neighboring writes.</em>
+<a id='L407' name='L407'></a>   407 <em class='comment'>   Thus the calculated cost of an insert is simply the cost of</em>
+<a id='L408' name='L408'></a>   408 <em class='comment'>   outputting the new line contents.  The direct cost of a</em>
+<a id='L409' name='L409'></a>   409 <em class='comment'>   delete is zero.  Inserts and deletes indirectly affect the</em>
+<a id='L410' name='L410'></a>   410 <em class='comment'>   total cost through their influence on subsequent writes. */</em>
+<a id='L411' name='L411'></a>   411 
+<a id='L412' name='L412'></a>   412 <em class='comment'>/* The vectors draw_cost, old_hash, and new_hash have the same</em>
+<a id='L413' name='L413'></a>   413 <em class='comment'>   meanings here as in calculate_scrolling, and old_draw_cost</em>
+<a id='L414' name='L414'></a>   414 <em class='comment'>   is the equivalent of draw_cost for the old line contents */</em>
+<a id='L415' name='L415'></a>   415 
+<a id='L416' name='L416'></a>   416 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L417' name='L417'></a>   417 <a href='../S/2019.html#L799' title='Referred from 799 in src/scroll.c.'>calculate_direct_scrolling</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L418' name='L418'></a>   418                             <em class='comment'>/* matrix is of size window_size + 1 on each side.  */</em>
+<a id='L419' name='L419'></a>   419                             <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *matrix,
+<a id='L420' name='L420'></a>   420                             <strong class='reserved'>int</strong> window_size, <strong class='reserved'>int</strong> lines_below,
+<a id='L421' name='L421'></a>   421                             <strong class='reserved'>int</strong> *draw_cost, <strong class='reserved'>int</strong> *old_draw_cost,
+<a id='L422' name='L422'></a>   422                             <strong class='reserved'>unsigned</strong> *old_hash, <strong class='reserved'>unsigned</strong> *new_hash,
+<a id='L423' name='L423'></a>   423                             <strong class='reserved'>int</strong> free_at_end)
+<a id='L424' name='L424'></a>   424 <em class='brace'>{</em>
+<a id='L425' name='L425'></a>   425   <strong class='reserved'>int</strong> i, j;
+<a id='L426' name='L426'></a>   426   <strong class='reserved'>int</strong> frame_total_lines = <a href='../S/2075.html#L956' title='Defined at 956 in src/frame.h.'>FRAME_TOTAL_LINES</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>);
+<a id='L427' name='L427'></a>   427   <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *p, *p1;
+<a id='L428' name='L428'></a>   428   <strong class='reserved'>int</strong> cost, cost1, delta;
+<a id='L429' name='L429'></a>   429 
+<a id='L430' name='L430'></a>   430   <em class='comment'>/* first_insert_cost[-I] is the cost of doing the first insert-line</em>
+<a id='L431' name='L431'></a>   431 <em class='comment'>     at a position I lines above the bottom line in the scroll window. */</em>
+<a id='L432' name='L432'></a>   432   <strong class='reserved'>int</strong> *first_insert_cost
+<a id='L433' name='L433'></a>   433     = &amp;<a href='../S/2075.html#L1055' title='Defined at 1055 in src/frame.h.'>FRAME_INSERT_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)[frame_total_lines - 1];
+<a id='L434' name='L434'></a>   434   <strong class='reserved'>int</strong> *first_delete_cost
+<a id='L435' name='L435'></a>   435     = &amp;<a href='../S/2075.html#L1056' title='Defined at 1056 in src/frame.h.'>FRAME_DELETE_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)[frame_total_lines - 1];
+<a id='L436' name='L436'></a>   436   <strong class='reserved'>int</strong> *next_insert_cost
+<a id='L437' name='L437'></a>   437     = &amp;<a href='../S/2075.html#L1057' title='Defined at 1057 in src/frame.h.'>FRAME_INSERTN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)[frame_total_lines - 1];
+<a id='L438' name='L438'></a>   438   <strong class='reserved'>int</strong> *next_delete_cost
+<a id='L439' name='L439'></a>   439     = &amp;<a href='../S/2075.html#L1058' title='Defined at 1058 in src/frame.h.'>FRAME_DELETEN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>)[frame_total_lines - 1];
+<a id='L440' name='L440'></a>   440 
+<a id='L441' name='L441'></a>   441   <strong class='reserved'>int</strong> scroll_overhead;
+<a id='L442' name='L442'></a>   442 
+<a id='L443' name='L443'></a>   443   <em class='comment'>/* Discourage long scrolls on fast lines.</em>
+<a id='L444' name='L444'></a>   444 <em class='comment'>     Don't scroll nearly a full frame height unless it saves</em>
+<a id='L445' name='L445'></a>   445 <em class='comment'>     at least 1/4 second.  */</em>
+<a id='L446' name='L446'></a>   446   <strong class='reserved'>int</strong> extra_cost
+<a id='L447' name='L447'></a>   447     = <a href='../D/8597.html' title='Multiple defined in 2 places.'>clip_to_bounds</a> (1, baud_rate / (10 * 4) / frame_total_lines, INT_MAX / 2);
+<a id='L448' name='L448'></a>   448 
+<a id='L449' name='L449'></a>   449   <em class='comment'>/* Overhead of setting the scroll window, plus the extra</em>
+<a id='L450' name='L450'></a>   450 <em class='comment'>     cost of scrolling by a distance of one.  The extra cost is</em>
+<a id='L451' name='L451'></a>   451 <em class='comment'>     added once for consistency with the cost vectors */</em>
+<a id='L452' name='L452'></a>   452   scroll_overhead
+<a id='L453' name='L453'></a>   453     = <a href='../S/2120.html#L898' title='Defined at 898 in src/termhooks.h.'>FRAME_SCROLL_REGION_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>) + extra_cost;
+<a id='L454' name='L454'></a>   454 
+<a id='L455' name='L455'></a>   455   <em class='comment'>/* initialize the top left corner of the matrix */</em>
+<a id='L456' name='L456'></a>   456   matrix-&gt;writecost = 0;
+<a id='L457' name='L457'></a>   457   matrix-&gt;insertcost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L458' name='L458'></a>   458   matrix-&gt;deletecost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L459' name='L459'></a>   459   matrix-&gt;writecount = 0;
+<a id='L460' name='L460'></a>   460   matrix-&gt;insertcount = 0;
+<a id='L461' name='L461'></a>   461   matrix-&gt;deletecount = 0;
+<a id='L462' name='L462'></a>   462 
+<a id='L463' name='L463'></a>   463   <em class='comment'>/* initialize the left edge of the matrix */</em>
+<a id='L464' name='L464'></a>   464   cost = 0;
+<a id='L465' name='L465'></a>   465   <strong class='reserved'>for</strong> (i = 1; i &lt;= window_size; i++)
+<a id='L466' name='L466'></a>   466     <em class='brace'>{</em>
+<a id='L467' name='L467'></a>   467       p = matrix + i * (window_size + 1);
+<a id='L468' name='L468'></a>   468       cost += draw_cost[i];
+<a id='L469' name='L469'></a>   469       p-&gt;insertcost = cost;
+<a id='L470' name='L470'></a>   470       p-&gt;writecost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L471' name='L471'></a>   471       p-&gt;deletecost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L472' name='L472'></a>   472       p-&gt;insertcount = i;
+<a id='L473' name='L473'></a>   473       p-&gt;writecount = 0;
+<a id='L474' name='L474'></a>   474       p-&gt;deletecount = 0;
+<a id='L475' name='L475'></a>   475     <em class='brace'>}</em>
+<a id='L476' name='L476'></a>   476 
+<a id='L477' name='L477'></a>   477   <em class='comment'>/* initialize the top edge of the matrix */</em>
+<a id='L478' name='L478'></a>   478   <strong class='reserved'>for</strong> (j = 1; j &lt;= window_size; j++)
+<a id='L479' name='L479'></a>   479     <em class='brace'>{</em>
+<a id='L480' name='L480'></a>   480       matrix[j].deletecost = 0;
+<a id='L481' name='L481'></a>   481       matrix[j].writecost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L482' name='L482'></a>   482       matrix[j].insertcost = <a href='../S/2198.html#L3762' title='Defined at 3762 in src/dispextern.h.'>SCROLL_INFINITY</a>;
+<a id='L483' name='L483'></a>   483       matrix[j].deletecount = j;
+<a id='L484' name='L484'></a>   484       matrix[j].writecount = 0;
+<a id='L485' name='L485'></a>   485       matrix[j].insertcount = 0;
+<a id='L486' name='L486'></a>   486     <em class='brace'>}</em>
+<a id='L487' name='L487'></a>   487 
+<a id='L488' name='L488'></a>   488   <em class='comment'>/* `i' represents the vpos among new frame contents.</em>
+<a id='L489' name='L489'></a>   489 <em class='comment'>     `j' represents the vpos among the old frame contents.  */</em>
+<a id='L490' name='L490'></a>   490   p = matrix + window_size + 2; <em class='comment'>/* matrix [1, 1] */</em>
+<a id='L491' name='L491'></a>   491 
+<a id='L492' name='L492'></a>   492   <strong class='reserved'>for</strong> (i = 1; i &lt;= window_size; i++, p++)
+<a id='L493' name='L493'></a>   493     <strong class='reserved'>for</strong> (j = 1; j &lt;= window_size; j++, p++)
+<a id='L494' name='L494'></a>   494       <em class='brace'>{</em>
+<a id='L495' name='L495'></a>   495         <em class='comment'>/* p contains the address of matrix [i, j] */</em>
+<a id='L496' name='L496'></a>   496 
+<a id='L497' name='L497'></a>   497         <em class='comment'>/* First calculate the cost assuming we do</em>
+<a id='L498' name='L498'></a>   498 <em class='comment'>           not insert or delete above this line.</em>
+<a id='L499' name='L499'></a>   499 <em class='comment'>           That is, if we update through line i-1</em>
+<a id='L500' name='L500'></a>   500 <em class='comment'>           based on old lines through j-1,</em>
+<a id='L501' name='L501'></a>   501 <em class='comment'>           and then just change old line j to new line i.</em>
+<a id='L502' name='L502'></a>   502 <em class='comment'></em>
+<a id='L503' name='L503'></a>   503 <em class='comment'>           Depending on which choice gives the lower cost,</em>
+<a id='L504' name='L504'></a>   504 <em class='comment'>           this usually involves either scrolling a single line</em>
+<a id='L505' name='L505'></a>   505 <em class='comment'>           or extending a sequence of scrolled lines, but</em>
+<a id='L506' name='L506'></a>   506 <em class='comment'>           when i == j, no scrolling is required. */</em>
+<a id='L507' name='L507'></a>   507         p1 = p - window_size - 2; <em class='comment'>/* matrix [i-1, j-1] */</em>
+<a id='L508' name='L508'></a>   508         cost = p1-&gt;insertcost;
+<a id='L509' name='L509'></a>   509         <strong class='reserved'>if</strong> (cost &gt; p1-&gt;deletecost)
+<a id='L510' name='L510'></a>   510           cost = p1-&gt;deletecost;
+<a id='L511' name='L511'></a>   511         cost1 = p1-&gt;writecost;
+<a id='L512' name='L512'></a>   512         <strong class='reserved'>if</strong> (i == j)
+<a id='L513' name='L513'></a>   513           <em class='brace'>{</em>
+<a id='L514' name='L514'></a>   514             <strong class='reserved'>if</strong> (cost &gt; cost1)
+<a id='L515' name='L515'></a>   515               <em class='brace'>{</em>
+<a id='L516' name='L516'></a>   516                 cost = cost1;
+<a id='L517' name='L517'></a>   517                 p-&gt;writecount = p1-&gt;writecount + 1;
+<a id='L518' name='L518'></a>   518               <em class='brace'>}</em>
+<a id='L519' name='L519'></a>   519             <strong class='reserved'>else</strong>
+<a id='L520' name='L520'></a>   520               p-&gt;writecount = 1;
+<a id='L521' name='L521'></a>   521             <strong class='reserved'>if</strong> (old_hash[j] != new_hash[i])
+<a id='L522' name='L522'></a>   522               <em class='brace'>{</em>
+<a id='L523' name='L523'></a>   523                 cost += draw_cost[i];
+<a id='L524' name='L524'></a>   524               <em class='brace'>}</em>
+<a id='L525' name='L525'></a>   525           <em class='brace'>}</em>
+<a id='L526' name='L526'></a>   526         <strong class='reserved'>else</strong>
+<a id='L527' name='L527'></a>   527           <em class='brace'>{</em>
+<a id='L528' name='L528'></a>   528             <strong class='reserved'>if</strong> (i &gt; j)
+<a id='L529' name='L529'></a>   529               <em class='brace'>{</em>
+<a id='L530' name='L530'></a>   530                 delta = i - j;
+<a id='L531' name='L531'></a>   531 
+<a id='L532' name='L532'></a>   532                 <em class='comment'>/* The cost added here for scrolling the first line by</em>
+<a id='L533' name='L533'></a>   533 <em class='comment'>                   a distance N includes the overhead of setting the</em>
+<a id='L534' name='L534'></a>   534 <em class='comment'>                   scroll window, the cost of inserting N lines at a</em>
+<a id='L535' name='L535'></a>   535 <em class='comment'>                   position N lines above the bottom line of the window,</em>
+<a id='L536' name='L536'></a>   536 <em class='comment'>                   and an extra cost which is proportional to N. */</em>
+<a id='L537' name='L537'></a>   537                 cost += scroll_overhead + first_insert_cost[-delta] +
+<a id='L538' name='L538'></a>   538                   (delta-1) * (next_insert_cost[-delta] + extra_cost);
+<a id='L539' name='L539'></a>   539 
+<a id='L540' name='L540'></a>   540                 <em class='comment'>/* In the most general case, the insertion overhead and</em>
+<a id='L541' name='L541'></a>   541 <em class='comment'>                   the multiply factor can grow linearly as the distance</em>
+<a id='L542' name='L542'></a>   542 <em class='comment'>                   from the bottom of the window increases.  The incremental</em>
+<a id='L543' name='L543'></a>   543 <em class='comment'>                   cost of scrolling an additional line depends upon the</em>
+<a id='L544' name='L544'></a>   544 <em class='comment'>                   rate of change of these two parameters.  Each of these</em>
+<a id='L545' name='L545'></a>   545 <em class='comment'>                   growth rates can be determined by a simple difference.</em>
+<a id='L546' name='L546'></a>   546 <em class='comment'>                   To reduce the cumulative effects of rounding error, we</em>
+<a id='L547' name='L547'></a>   547 <em class='comment'>                   vary the position at which the difference is computed. */</em>
+<a id='L548' name='L548'></a>   548                 cost1 += first_insert_cost[-j] - first_insert_cost[1-j] +
+<a id='L549' name='L549'></a>   549                   (delta-1) * (next_insert_cost[-j] - next_insert_cost[1-j]);
+<a id='L550' name='L550'></a>   550               <em class='brace'>}</em>
+<a id='L551' name='L551'></a>   551             <strong class='reserved'>else</strong>
+<a id='L552' name='L552'></a>   552               <em class='brace'>{</em>
+<a id='L553' name='L553'></a>   553                 delta = j - i;
+<a id='L554' name='L554'></a>   554                 cost += scroll_overhead + first_delete_cost[-delta] +
+<a id='L555' name='L555'></a>   555                   (delta-1) * (next_delete_cost[-delta] + extra_cost);
+<a id='L556' name='L556'></a>   556                 cost1 += first_delete_cost[-i] - first_delete_cost[1-i] +
+<a id='L557' name='L557'></a>   557                   (delta-1) * ( next_delete_cost[-i] - next_delete_cost[1-i]);
+<a id='L558' name='L558'></a>   558               <em class='brace'>}</em>
+<a id='L559' name='L559'></a>   559             <strong class='reserved'>if</strong> (cost1 &lt; cost)
+<a id='L560' name='L560'></a>   560               <em class='brace'>{</em>
+<a id='L561' name='L561'></a>   561                 cost = cost1;
+<a id='L562' name='L562'></a>   562                 p-&gt;writecount = p1-&gt;writecount + 1;
+<a id='L563' name='L563'></a>   563               <em class='brace'>}</em>
+<a id='L564' name='L564'></a>   564             <strong class='reserved'>else</strong>
+<a id='L565' name='L565'></a>   565               p-&gt;writecount = 1;
+<a id='L566' name='L566'></a>   566             <strong class='reserved'>if</strong> (old_hash[j] != new_hash[i])
+<a id='L567' name='L567'></a>   567               <em class='brace'>{</em>
+<a id='L568' name='L568'></a>   568                 cost += draw_cost[i] + old_draw_cost[j];
+<a id='L569' name='L569'></a>   569               <em class='brace'>}</em>
+<a id='L570' name='L570'></a>   570           <em class='brace'>}</em>
+<a id='L571' name='L571'></a>   571         p-&gt;writecost = cost;
+<a id='L572' name='L572'></a>   572 
+<a id='L573' name='L573'></a>   573         <em class='comment'>/* Calculate the cost if we do an insert-line</em>
+<a id='L574' name='L574'></a>   574 <em class='comment'>           before outputting this line.</em>
+<a id='L575' name='L575'></a>   575 <em class='comment'>           That is, we update through line i-1</em>
+<a id='L576' name='L576'></a>   576 <em class='comment'>           based on old lines through j,</em>
+<a id='L577' name='L577'></a>   577 <em class='comment'>           do an insert-line on line i,</em>
+<a id='L578' name='L578'></a>   578 <em class='comment'>           and then output line i from scratch,</em>
+<a id='L579' name='L579'></a>   579 <em class='comment'>           leaving old lines starting from j for reuse below.  */</em>
+<a id='L580' name='L580'></a>   580         p1 = p - window_size - 1; <em class='comment'>/* matrix [i-1, j] */</em>
+<a id='L581' name='L581'></a>   581         cost = p1-&gt;writecost;
+<a id='L582' name='L582'></a>   582         <em class='comment'>/* If i &gt; j, an insert is allowed after a delete. */</em>
+<a id='L583' name='L583'></a>   583         <strong class='reserved'>if</strong> (i &gt; j &amp;&amp; p1-&gt;deletecost &lt; cost)
+<a id='L584' name='L584'></a>   584           cost = p1-&gt;deletecost;
+<a id='L585' name='L585'></a>   585         <strong class='reserved'>if</strong> (p1-&gt;insertcost &lt;= cost)
+<a id='L586' name='L586'></a>   586           <em class='brace'>{</em>
+<a id='L587' name='L587'></a>   587             cost = p1-&gt;insertcost;
+<a id='L588' name='L588'></a>   588             p-&gt;insertcount = p1-&gt;insertcount + 1;
+<a id='L589' name='L589'></a>   589           <em class='brace'>}</em>
+<a id='L590' name='L590'></a>   590         <strong class='reserved'>else</strong>
+<a id='L591' name='L591'></a>   591           p-&gt;insertcount = 1;
+<a id='L592' name='L592'></a>   592         cost += draw_cost[i];
+<a id='L593' name='L593'></a>   593         p-&gt;insertcost = cost;
+<a id='L594' name='L594'></a>   594 
+<a id='L595' name='L595'></a>   595         <em class='comment'>/* Calculate the cost if we do a delete line after</em>
+<a id='L596' name='L596'></a>   596 <em class='comment'>           outputting this line.</em>
+<a id='L597' name='L597'></a>   597 <em class='comment'>           That is, we update through line i</em>
+<a id='L598' name='L598'></a>   598 <em class='comment'>           based on old lines through j-1,</em>
+<a id='L599' name='L599'></a>   599 <em class='comment'>           and throw away old line j.  */</em>
+<a id='L600' name='L600'></a>   600         p1 = p - 1;             <em class='comment'>/* matrix [i, j-1] */</em>
+<a id='L601' name='L601'></a>   601         cost = p1-&gt;writecost;
+<a id='L602' name='L602'></a>   602         <em class='comment'>/* If i &lt; j, a delete is allowed after an insert. */</em>
+<a id='L603' name='L603'></a>   603         <strong class='reserved'>if</strong> (i &lt; j &amp;&amp; p1-&gt;insertcost &lt; cost)
+<a id='L604' name='L604'></a>   604           cost = p1-&gt;insertcost;
+<a id='L605' name='L605'></a>   605         cost1 = p1-&gt;deletecost;
+<a id='L606' name='L606'></a>   606         <strong class='reserved'>if</strong> (p1-&gt;deletecost &lt;= cost)
+<a id='L607' name='L607'></a>   607           <em class='brace'>{</em>
+<a id='L608' name='L608'></a>   608             cost = p1-&gt;deletecost;
+<a id='L609' name='L609'></a>   609             p-&gt;deletecount = p1-&gt;deletecount + 1;
+<a id='L610' name='L610'></a>   610           <em class='brace'>}</em>
+<a id='L611' name='L611'></a>   611         <strong class='reserved'>else</strong>
+<a id='L612' name='L612'></a>   612           p-&gt;deletecount = 1;
+<a id='L613' name='L613'></a>   613         p-&gt;deletecost = cost;
+<a id='L614' name='L614'></a>   614       <em class='brace'>}</em>
+<a id='L615' name='L615'></a>   615 <em class='brace'>}</em>
+<a id='L616' name='L616'></a>   616 
+<a id='L617' name='L617'></a>   617 
+<a id='L618' name='L618'></a>   618 
+<a id='L619' name='L619'></a>   619 <em class='comment'>/* Perform insert-lines and delete-lines operations on CURRENT_MATRIX</em>
+<a id='L620' name='L620'></a>   620 <em class='comment'>   according to the costs in MATRIX, using the direct scrolling method</em>
+<a id='L621' name='L621'></a>   621 <em class='comment'>   which is used when the terminal supports setting a scroll window</em>
+<a id='L622' name='L622'></a>   622 <em class='comment'>   (scroll_region_ok).</em>
+<a id='L623' name='L623'></a>   623 <em class='comment'></em>
+<a id='L624' name='L624'></a>   624 <em class='comment'>   WINDOW_SIZE is the number of lines being considered for scrolling</em>
+<a id='L625' name='L625'></a>   625 <em class='comment'>   and UNCHANGED_AT_TOP is the vpos of the first line being</em>
+<a id='L626' name='L626'></a>   626 <em class='comment'>   considered.  These two arguments can specify any contiguous range</em>
+<a id='L627' name='L627'></a>   627 <em class='comment'>   of lines.</em>
+<a id='L628' name='L628'></a>   628 <em class='comment'></em>
+<a id='L629' name='L629'></a>   629 <em class='comment'>   In the direct scrolling method, a new scroll window is selected</em>
+<a id='L630' name='L630'></a>   630 <em class='comment'>   before each insertion or deletion, so that groups of lines can be</em>
+<a id='L631' name='L631'></a>   631 <em class='comment'>   scrolled directly to their final vertical positions.  This method</em>
+<a id='L632' name='L632'></a>   632 <em class='comment'>   is described in more detail in calculate_direct_scrolling, where</em>
+<a id='L633' name='L633'></a>   633 <em class='comment'>   the cost matrix for this approach is constructed. */</em>
+<a id='L634' name='L634'></a>   634 
+<a id='L635' name='L635'></a>   635 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L636' name='L636'></a>   636 <a href='../R/8424.html' title='Multiple referred from 2 places.'>do_direct_scrolling</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, <strong class='reserved'>struct</strong> <a href='../S/2198.html#L733' title='Defined at 733 in src/dispextern.h.'>glyph_matrix</a> *current_matrix,
+<a id='L637' name='L637'></a>   637                      <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *cost_matrix, <strong class='reserved'>int</strong> window_size,
+<a id='L638' name='L638'></a>   638                      <strong class='reserved'>int</strong> unchanged_at_top)
+<a id='L639' name='L639'></a>   639 <em class='brace'>{</em>
+<a id='L640' name='L640'></a>   640   <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *p;
+<a id='L641' name='L641'></a>   641   <strong class='reserved'>int</strong> i, j;
+<a id='L642' name='L642'></a>   642   <a href='../D/5945.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L643' name='L643'></a>   643 
+<a id='L644' name='L644'></a>   644   <em class='comment'>/* A queue of deletions and insertions to be performed.  */</em>
+<a id='L645' name='L645'></a>   645   <strong class='reserved'>struct</strong> <a href='../R/6928.html' title='Multiple referred from 2 places.'>alt_queue</a> <em class='brace'>{</em> <strong class='reserved'>int</strong> count, pos, <a href='../S/2200.html#L100' title='Defined at 100 in src/window.h.'>window</a>; <em class='brace'>}</em>;
+<a id='L646' name='L646'></a>   646   <strong class='reserved'>struct</strong> <a href='../S/2019.html#L645' title='Defined at 645 in src/scroll.c.'>alt_queue</a> *queue_start;
+<a id='L647' name='L647'></a>   647   <a href='../D/4982.html' title='Multiple defined in 2 places.'>SAFE_NALLOCA</a> (queue_start, 1, window_size);
+<a id='L648' name='L648'></a>   648   <strong class='reserved'>struct</strong> <a href='../S/2019.html#L645' title='Defined at 645 in src/scroll.c.'>alt_queue</a> *<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a> = queue_start;
+<a id='L649' name='L649'></a>   649 
+<a id='L650' name='L650'></a>   650   <em class='comment'>/* True if a terminal window has been set with set_terminal_window.  */</em>
+<a id='L651' name='L651'></a>   651   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> terminal_window_p = 0;
+<a id='L652' name='L652'></a>   652 
+<a id='L653' name='L653'></a>   653   <em class='comment'>/* If true, a write has been selected, allowing either an insert or a</em>
+<a id='L654' name='L654'></a>   654 <em class='comment'>     delete to be selected next.  If false, a delete cannot be selected</em>
+<a id='L655' name='L655'></a>   655 <em class='comment'>     unless j &lt; i, and an insert cannot be selected unless i &lt; j.</em>
+<a id='L656' name='L656'></a>   656 <em class='comment'>     This corresponds to a similar restriction (with the ordering</em>
+<a id='L657' name='L657'></a>   657 <em class='comment'>     reversed) in calculate_direct_scrolling, which is intended to</em>
+<a id='L658' name='L658'></a>   658 <em class='comment'>     ensure that lines marked as inserted will be blank. */</em>
+<a id='L659' name='L659'></a>   659   <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> write_follows_p = 1;
+<a id='L660' name='L660'></a>   660 
+<a id='L661' name='L661'></a>   661   <em class='comment'>/* For each row in the new matrix what row of the old matrix it is.  */</em>
+<a id='L662' name='L662'></a>   662   <strong class='reserved'>int</strong> *copy_from;
+<a id='L663' name='L663'></a>   663   <a href='../D/4982.html' title='Multiple defined in 2 places.'>SAFE_NALLOCA</a> (copy_from, 1, window_size);
+<a id='L664' name='L664'></a>   664 
+<a id='L665' name='L665'></a>   665   <em class='comment'>/* Non-zero for each row in the new matrix that is retained from the</em>
+<a id='L666' name='L666'></a>   666 <em class='comment'>     old matrix.  Lines not retained are empty.  */</em>
+<a id='L667' name='L667'></a>   667   <strong class='reserved'>char</strong> *retained_p = <a href='../D/4975.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (window_size);
+<a id='L668' name='L668'></a>   668 
+<a id='L669' name='L669'></a>   669   memset (retained_p, 0, window_size * <strong class='reserved'>sizeof</strong> (<strong class='reserved'>char</strong>));
+<a id='L670' name='L670'></a>   670 
+<a id='L671' name='L671'></a>   671   <em class='comment'>/* Perform some sanity checks when GLYPH_DEBUG is on.  */</em>
+<a id='L672' name='L672'></a>   672   <a href='../D/839.html' title='Multiple defined in 2 places.'>CHECK_MATRIX</a> (current_matrix);
+<a id='L673' name='L673'></a>   673 
+<a id='L674' name='L674'></a>   674   <em class='comment'>/* We are working on the line range UNCHANGED_AT_TOP ...</em>
+<a id='L675' name='L675'></a>   675 <em class='comment'>     UNCHANGED_AT_TOP + WINDOW_SIZE (not including) in CURRENT_MATRIX.</em>
+<a id='L676' name='L676'></a>   676 <em class='comment'>     We step through lines in this range from the end to the start.  I</em>
+<a id='L677' name='L677'></a>   677 <em class='comment'>     is an index into new lines, j an index into old lines.  The cost</em>
+<a id='L678' name='L678'></a>   678 <em class='comment'>     matrix determines what to do for ranges of indices.</em>
+<a id='L679' name='L679'></a>   679 <em class='comment'></em>
+<a id='L680' name='L680'></a>   680 <em class='comment'>     If i is decremented without also decrementing j, this corresponds</em>
+<a id='L681' name='L681'></a>   681 <em class='comment'>     to inserting empty lines in the result.  If j is decremented</em>
+<a id='L682' name='L682'></a>   682 <em class='comment'>     without also decrementing i, this corresponds to omitting these</em>
+<a id='L683' name='L683'></a>   683 <em class='comment'>     lines in the new rows, i.e. rows are deleted.  */</em>
+<a id='L684' name='L684'></a>   684   i = j = window_size;
+<a id='L685' name='L685'></a>   685 
+<a id='L686' name='L686'></a>   686   <strong class='reserved'>while</strong> (i &gt; 0 || j &gt; 0)
+<a id='L687' name='L687'></a>   687     <em class='brace'>{</em>
+<a id='L688' name='L688'></a>   688       p = cost_matrix + i * (window_size + 1) + j;
+<a id='L689' name='L689'></a>   689 
+<a id='L690' name='L690'></a>   690       <strong class='reserved'>if</strong> (p-&gt;insertcost &lt; p-&gt;writecost
+<a id='L691' name='L691'></a>   691           &amp;&amp; p-&gt;insertcost &lt; p-&gt;deletecost
+<a id='L692' name='L692'></a>   692           &amp;&amp; (write_follows_p || i &lt; j))
+<a id='L693' name='L693'></a>   693         <em class='brace'>{</em>
+<a id='L694' name='L694'></a>   694           <em class='comment'>/* Insert is cheaper than deleting or writing lines.  Leave</em>
+<a id='L695' name='L695'></a>   695 <em class='comment'>             a hole in the result display that will be filled with</em>
+<a id='L696' name='L696'></a>   696 <em class='comment'>             empty lines when the queue is emptied.  */</em>
+<a id='L697' name='L697'></a>   697           <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;count = 0;
+<a id='L698' name='L698'></a>   698           <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;<a href='../S/2200.html#L100' title='Defined at 100 in src/window.h.'>window</a> = i;
+<a id='L699' name='L699'></a>   699           <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;pos = i - p-&gt;insertcount;
+<a id='L700' name='L700'></a>   700           ++<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>;
+<a id='L701' name='L701'></a>   701 
+<a id='L702' name='L702'></a>   702           i -= p-&gt;insertcount;
+<a id='L703' name='L703'></a>   703           write_follows_p = 0;
+<a id='L704' name='L704'></a>   704         <em class='brace'>}</em>
+<a id='L705' name='L705'></a>   705       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (p-&gt;deletecost &lt; p-&gt;writecost
+<a id='L706' name='L706'></a>   706                &amp;&amp; (write_follows_p || i &gt; j))
+<a id='L707' name='L707'></a>   707         <em class='brace'>{</em>
+<a id='L708' name='L708'></a>   708           <em class='comment'>/* Deleting lines is cheaper.  By decrementing J, omit</em>
+<a id='L709' name='L709'></a>   709 <em class='comment'>             deletecount lines from the original.  */</em>
+<a id='L710' name='L710'></a>   710           write_follows_p = 0;
+<a id='L711' name='L711'></a>   711           j -= p-&gt;deletecount;
+<a id='L712' name='L712'></a>   712         <em class='brace'>}</em>
+<a id='L713' name='L713'></a>   713       <strong class='reserved'>else</strong>
+<a id='L714' name='L714'></a>   714         <em class='brace'>{</em>
+<a id='L715' name='L715'></a>   715           <em class='comment'>/* One or more lines should be written.  In the direct</em>
+<a id='L716' name='L716'></a>   716 <em class='comment'>             scrolling method we do this by scrolling the lines to the</em>
+<a id='L717' name='L717'></a>   717 <em class='comment'>             place they belong.  */</em>
+<a id='L718' name='L718'></a>   718           <strong class='reserved'>int</strong> n_to_write = p-&gt;writecount;
+<a id='L719' name='L719'></a>   719           write_follows_p = 1;
+<a id='L720' name='L720'></a>   720           <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (n_to_write &gt; 0);
+<a id='L721' name='L721'></a>   721 
+<a id='L722' name='L722'></a>   722           <strong class='reserved'>if</strong> (i &gt; j)
+<a id='L723' name='L723'></a>   723             <em class='brace'>{</em>
+<a id='L724' name='L724'></a>   724               <em class='comment'>/* Immediately insert lines */</em>
+<a id='L725' name='L725'></a>   725               <a href='../S/2090.html#L100' title='Defined at 100 in src/terminal.c.'>set_terminal_window</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, i + unchanged_at_top);
+<a id='L726' name='L726'></a>   726               terminal_window_p = 1;
+<a id='L727' name='L727'></a>   727               <a href='../S/2090.html#L192' title='Defined at 192 in src/terminal.c.'>ins_del_lines</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, j - n_to_write + unchanged_at_top, i - j);
+<a id='L728' name='L728'></a>   728             <em class='brace'>}</em>
+<a id='L729' name='L729'></a>   729           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (i &lt; j)
+<a id='L730' name='L730'></a>   730             <em class='brace'>{</em>
+<a id='L731' name='L731'></a>   731               <em class='comment'>/* Queue the deletion of a group of lines */</em>
+<a id='L732' name='L732'></a>   732               <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;pos = i - n_to_write + unchanged_at_top;
+<a id='L733' name='L733'></a>   733               <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;<a href='../S/2200.html#L100' title='Defined at 100 in src/window.h.'>window</a> = j + unchanged_at_top;
+<a id='L734' name='L734'></a>   734               <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;count = i - j;
+<a id='L735' name='L735'></a>   735               ++<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>;
+<a id='L736' name='L736'></a>   736             <em class='brace'>}</em>
+<a id='L737' name='L737'></a>   737 
+<a id='L738' name='L738'></a>   738           <strong class='reserved'>while</strong> (n_to_write &gt; 0)
+<a id='L739' name='L739'></a>   739             <em class='brace'>{</em>
+<a id='L740' name='L740'></a>   740               --i, --j, --n_to_write;
+<a id='L741' name='L741'></a>   741               copy_from[i] = j;
+<a id='L742' name='L742'></a>   742               retained_p[j] = 1;
+<a id='L743' name='L743'></a>   743             <em class='brace'>}</em>
+<a id='L744' name='L744'></a>   744         <em class='brace'>}</em>
+<a id='L745' name='L745'></a>   745     <em class='brace'>}</em>
+<a id='L746' name='L746'></a>   746 
+<a id='L747' name='L747'></a>   747   <em class='comment'>/* Do queued operations.  */</em>
+<a id='L748' name='L748'></a>   748   <strong class='reserved'>if</strong> (<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a> &gt; queue_start)
+<a id='L749' name='L749'></a>   749     <em class='brace'>{</em>
+<a id='L750' name='L750'></a>   750       <strong class='reserved'>int</strong> next = -1;
+<a id='L751' name='L751'></a>   751 
+<a id='L752' name='L752'></a>   752       <strong class='reserved'>do</strong>
+<a id='L753' name='L753'></a>   753         <em class='brace'>{</em>
+<a id='L754' name='L754'></a>   754           --<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>;
+<a id='L755' name='L755'></a>   755           <strong class='reserved'>if</strong> (<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;count)
+<a id='L756' name='L756'></a>   756             <em class='brace'>{</em>
+<a id='L757' name='L757'></a>   757               <a href='../S/2090.html#L100' title='Defined at 100 in src/terminal.c.'>set_terminal_window</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;<a href='../S/2200.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L758' name='L758'></a>   758               terminal_window_p = 1;
+<a id='L759' name='L759'></a>   759               <a href='../S/2090.html#L192' title='Defined at 192 in src/terminal.c.'>ins_del_lines</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;pos, <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;count);
+<a id='L760' name='L760'></a>   760             <em class='brace'>}</em>
+<a id='L761' name='L761'></a>   761           <strong class='reserved'>else</strong>
+<a id='L762' name='L762'></a>   762             <em class='brace'>{</em>
+<a id='L763' name='L763'></a>   763               <strong class='reserved'>for</strong> (j = <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;<a href='../S/2200.html#L100' title='Defined at 100 in src/window.h.'>window</a> - 1; j &gt;= <a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a>-&gt;pos; --j)
+<a id='L764' name='L764'></a>   764                 <em class='brace'>{</em>
+<a id='L765' name='L765'></a>   765                   <strong class='reserved'>while</strong> (retained_p[++next])
+<a id='L766' name='L766'></a>   766                     ;
+<a id='L767' name='L767'></a>   767                   copy_from[j] = next;
+<a id='L768' name='L768'></a>   768                 <em class='brace'>}</em>
+<a id='L769' name='L769'></a>   769             <em class='brace'>}</em>
+<a id='L770' name='L770'></a>   770         <em class='brace'>}</em>
+<a id='L771' name='L771'></a>   771       <strong class='reserved'>while</strong> (<a href='../S/2019.html#L243' title='Defined at 243 in src/scroll.c.'>queue</a> &gt; queue_start);
+<a id='L772' name='L772'></a>   772     <em class='brace'>}</em>
+<a id='L773' name='L773'></a>   773 
+<a id='L774' name='L774'></a>   774   <em class='comment'>/* Now, for each row I in the range of rows we are working on,</em>
+<a id='L775' name='L775'></a>   775 <em class='comment'>     copy_from[i] gives the original line to copy to I, and</em>
+<a id='L776' name='L776'></a>   776 <em class='comment'>     retained_p[copy_from[i]] is zero if line I in the new display is</em>
+<a id='L777' name='L777'></a>   777 <em class='comment'>     empty.  */</em>
+<a id='L778' name='L778'></a>   778   <a href='../S/2034.html#L2832' title='Defined at 2832 in src/dispnew.c.'>mirrored_line_dance</a> (current_matrix, unchanged_at_top, window_size,
+<a id='L779' name='L779'></a>   779                        copy_from, retained_p);
+<a id='L780' name='L780'></a>   780 
+<a id='L781' name='L781'></a>   781   <strong class='reserved'>if</strong> (terminal_window_p)
+<a id='L782' name='L782'></a>   782     <a href='../S/2090.html#L100' title='Defined at 100 in src/terminal.c.'>set_terminal_window</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, 0);
+<a id='L783' name='L783'></a>   783   <a href='../D/4980.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L784' name='L784'></a>   784 <em class='brace'>}</em>
+<a id='L785' name='L785'></a>   785 
+<a id='L786' name='L786'></a>   786 
+<a id='L787' name='L787'></a>   787 
+<a id='L788' name='L788'></a>   788 <strong class='reserved'>void</strong>
+<a id='L789' name='L789'></a>   789 <a href='../R/13921.html' title='Multiple referred from 2 places.'>scrolling_1</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, <strong class='reserved'>int</strong> window_size, <strong class='reserved'>int</strong> unchanged_at_top,
+<a id='L790' name='L790'></a>   790              <strong class='reserved'>int</strong> unchanged_at_bottom, <strong class='reserved'>int</strong> *draw_cost, <strong class='reserved'>int</strong> *old_draw_cost,
+<a id='L791' name='L791'></a>   791              <strong class='reserved'>unsigned</strong> *old_hash, <strong class='reserved'>unsigned</strong> *new_hash, <strong class='reserved'>int</strong> free_at_end)
+<a id='L792' name='L792'></a>   792 <em class='brace'>{</em>
+<a id='L793' name='L793'></a>   793   <a href='../D/5945.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L794' name='L794'></a>   794   <strong class='reserved'>struct</strong> <a href='../S/2019.html#L30' title='Defined at 30 in src/scroll.c.'>matrix_elt</a> *matrix;
+<a id='L795' name='L795'></a>   795   <a href='../D/4982.html' title='Multiple defined in 2 places.'>SAFE_NALLOCA</a> (matrix, window_size + 1, window_size + 1);
+<a id='L796' name='L796'></a>   796 
+<a id='L797' name='L797'></a>   797   <strong class='reserved'>if</strong> (<a href='../S/2120.html#L897' title='Defined at 897 in src/termhooks.h.'>FRAME_SCROLL_REGION_OK</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>))
+<a id='L798' name='L798'></a>   798     <em class='brace'>{</em>
+<a id='L799' name='L799'></a>   799       <a href='../S/2019.html#L417' title='Defined at 417 in src/scroll.c.'>calculate_direct_scrolling</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, matrix, window_size,
+<a id='L800' name='L800'></a>   800                                   unchanged_at_bottom,
+<a id='L801' name='L801'></a>   801                                   draw_cost, old_draw_cost,
+<a id='L802' name='L802'></a>   802                                   old_hash, new_hash, free_at_end);
+<a id='L803' name='L803'></a>   803       <a href='../S/2019.html#L636' title='Defined at 636 in src/scroll.c.'>do_direct_scrolling</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>-&gt;current_matrix,
+<a id='L804' name='L804'></a>   804                            matrix, window_size, unchanged_at_top);
+<a id='L805' name='L805'></a>   805     <em class='brace'>}</em>
+<a id='L806' name='L806'></a>   806   <strong class='reserved'>else</strong>
+<a id='L807' name='L807'></a>   807     <em class='brace'>{</em>
+<a id='L808' name='L808'></a>   808       <a href='../S/2019.html#L80' title='Defined at 80 in src/scroll.c.'>calculate_scrolling</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, matrix, window_size, unchanged_at_bottom,
+<a id='L809' name='L809'></a>   809                            draw_cost, old_hash, new_hash,
+<a id='L810' name='L810'></a>   810                            free_at_end);
+<a id='L811' name='L811'></a>   811       <a href='../S/2019.html#L231' title='Defined at 231 in src/scroll.c.'>do_scrolling</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L812' name='L812'></a>   812                     <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>-&gt;current_matrix, matrix, window_size,
+<a id='L813' name='L813'></a>   813                     unchanged_at_top);
+<a id='L814' name='L814'></a>   814     <em class='brace'>}</em>
+<a id='L815' name='L815'></a>   815 
+<a id='L816' name='L816'></a>   816   <a href='../D/4980.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L817' name='L817'></a>   817 <em class='brace'>}</em>
+<a id='L818' name='L818'></a>   818 
+<a id='L819' name='L819'></a>   819 
+<a id='L820' name='L820'></a>   820 
+<a id='L821' name='L821'></a>   821 <em class='comment'>/* Return number of lines in common between current and desired frame</em>
+<a id='L822' name='L822'></a>   822 <em class='comment'>   contents described to us only as vectors of hash codes OLDHASH and</em>
+<a id='L823' name='L823'></a>   823 <em class='comment'>   NEWHASH.  Consider only vpos range START to END (not including</em>
+<a id='L824' name='L824'></a>   824 <em class='comment'>   END).  Ignore short lines on the assumption that avoiding redrawing</em>
+<a id='L825' name='L825'></a>   825 <em class='comment'>   such a line will have little weight.  */</em>
+<a id='L826' name='L826'></a>   826 
+<a id='L827' name='L827'></a>   827 <strong class='reserved'>int</strong>
+<a id='L828' name='L828'></a>   828 <a href='../R/13922.html' title='Multiple referred from 2 places.'>scrolling_max_lines_saved</a> (<strong class='reserved'>int</strong> <a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>, <strong class='reserved'>int</strong> end,
+<a id='L829' name='L829'></a>   829                            <strong class='reserved'>unsigned</strong> *oldhash, <strong class='reserved'>unsigned</strong> *newhash,
+<a id='L830' name='L830'></a>   830                            <strong class='reserved'>int</strong> *cost)
+<a id='L831' name='L831'></a>   831 <em class='brace'>{</em>
+<a id='L832' name='L832'></a>   832   <strong class='reserved'>enum</strong> <em class='brace'>{</em> <a href='../S/2019.html#L833' title='Referred from 833 in src/scroll.c.'>LOG2_NLINES</a> = 9 <em class='brace'>}</em>;
+<a id='L833' name='L833'></a>   833   <strong class='reserved'>enum</strong> <em class='brace'>{</em> <a href='../R/3609.html' title='Multiple referred from 3 places.'>NLINES</a> = 1 &lt;&lt; <a href='../S/2019.html#L832' title='Defined at 832 in src/scroll.c.'>LOG2_NLINES</a> <em class='brace'>}</em>;
+<a id='L834' name='L834'></a>   834   <strong class='reserved'>struct</strong> <em class='brace'>{</em> <strong class='reserved'>unsigned</strong> <a href='../D/11546.html' title='Multiple defined in 2 places.'>hash</a>; <strong class='reserved'>int</strong> count; <em class='brace'>}</em> lines[<a href='../S/2019.html#L833' title='Defined at 833 in src/scroll.c.'>NLINES</a>];
+<a id='L835' name='L835'></a>   835   <strong class='reserved'>int</strong> i, h;
+<a id='L836' name='L836'></a>   836   <strong class='reserved'>int</strong> matchcount = 0;
+<a id='L837' name='L837'></a>   837   <strong class='reserved'>int</strong> avg_length = 0;
+<a id='L838' name='L838'></a>   838   <strong class='reserved'>int</strong> threshold;
+<a id='L839' name='L839'></a>   839 
+<a id='L840' name='L840'></a>   840   <em class='comment'>/* Compute a threshold which is 1/4 of average length of these lines.  */</em>
+<a id='L841' name='L841'></a>   841 
+<a id='L842' name='L842'></a>   842   <strong class='reserved'>for</strong> (i = <a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>; i &lt; end; i++)
+<a id='L843' name='L843'></a>   843     avg_length += cost[i];
+<a id='L844' name='L844'></a>   844 
+<a id='L845' name='L845'></a>   845   avg_length /= end - <a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>;
+<a id='L846' name='L846'></a>   846   threshold = avg_length / 4;
+<a id='L847' name='L847'></a>   847 
+<a id='L848' name='L848'></a>   848   memset (lines, 0, <strong class='reserved'>sizeof</strong> lines);
+<a id='L849' name='L849'></a>   849 
+<a id='L850' name='L850'></a>   850   <em class='comment'>/* Put new lines' hash codes in hash table.  Ignore lines shorter</em>
+<a id='L851' name='L851'></a>   851 <em class='comment'>     than the threshold.  Thus, if the lines that are in common are</em>
+<a id='L852' name='L852'></a>   852 <em class='comment'>     mainly the ones that are short, they won't count.  */</em>
+<a id='L853' name='L853'></a>   853   <strong class='reserved'>for</strong> (i = <a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>; i &lt; end; i++)
+<a id='L854' name='L854'></a>   854     <em class='brace'>{</em>
+<a id='L855' name='L855'></a>   855       <strong class='reserved'>if</strong> (cost[i] &gt; threshold)
+<a id='L856' name='L856'></a>   856         <em class='brace'>{</em>
+<a id='L857' name='L857'></a>   857           h = newhash[i] &amp; (<a href='../S/2019.html#L833' title='Defined at 833 in src/scroll.c.'>NLINES</a> - 1);
+<a id='L858' name='L858'></a>   858           lines[h].<a href='../D/11546.html' title='Multiple defined in 2 places.'>hash</a> = newhash[i];
+<a id='L859' name='L859'></a>   859           lines[h].count++;
+<a id='L860' name='L860'></a>   860         <em class='brace'>}</em>
+<a id='L861' name='L861'></a>   861     <em class='brace'>}</em>
+<a id='L862' name='L862'></a>   862 
+<a id='L863' name='L863'></a>   863   <em class='comment'>/* Look up old line hash codes in the hash table.  Count number of</em>
+<a id='L864' name='L864'></a>   864 <em class='comment'>     matches between old lines and new.  */</em>
+<a id='L865' name='L865'></a>   865   <strong class='reserved'>for</strong> (i = <a href='../D/15564.html' title='Multiple defined in 2 places.'>start</a>; i &lt; end; i++)
+<a id='L866' name='L866'></a>   866     <em class='brace'>{</em>
+<a id='L867' name='L867'></a>   867       h = oldhash[i] &amp; (<a href='../S/2019.html#L833' title='Defined at 833 in src/scroll.c.'>NLINES</a> - 1);
+<a id='L868' name='L868'></a>   868       <strong class='reserved'>if</strong> (oldhash[i] == lines[h].<a href='../D/11546.html' title='Multiple defined in 2 places.'>hash</a>)
+<a id='L869' name='L869'></a>   869         <em class='brace'>{</em>
+<a id='L870' name='L870'></a>   870           matchcount++;
+<a id='L871' name='L871'></a>   871           <strong class='reserved'>if</strong> (--lines[h].count == 0)
+<a id='L872' name='L872'></a>   872             lines[h].<a href='../D/11546.html' title='Multiple defined in 2 places.'>hash</a> = 0;
+<a id='L873' name='L873'></a>   873         <em class='brace'>}</em>
+<a id='L874' name='L874'></a>   874     <em class='brace'>}</em>
+<a id='L875' name='L875'></a>   875 
+<a id='L876' name='L876'></a>   876   <strong class='reserved'>return</strong> matchcount;
+<a id='L877' name='L877'></a>   877 <em class='brace'>}</em>
+<a id='L878' name='L878'></a>   878 
+<a id='L879' name='L879'></a>   879 <em class='comment'>/* Calculate the line insertion/deletion</em>
+<a id='L880' name='L880'></a>   880 <em class='comment'>   overhead and multiply factor values */</em>
+<a id='L881' name='L881'></a>   881 
+<a id='L882' name='L882'></a>   882 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L883' name='L883'></a>   883 <a href='../R/11303.html' title='Multiple referred from 3 places.'>line_ins_del</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>, <strong class='reserved'>int</strong> ov1, <strong class='reserved'>int</strong> pf1, <strong class='reserved'>int</strong> ovn, <strong class='reserved'>int</strong> pfn,
+<a id='L884' name='L884'></a>   884               <strong class='reserved'>int</strong> *ov, <strong class='reserved'>int</strong> *mf)
+<a id='L885' name='L885'></a>   885 <em class='brace'>{</em>
+<a id='L886' name='L886'></a>   886   <strong class='reserved'>int</strong> i;
+<a id='L887' name='L887'></a>   887   <strong class='reserved'>int</strong> frame_total_lines = <a href='../S/2075.html#L956' title='Defined at 956 in src/frame.h.'>FRAME_TOTAL_LINES</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>);
+<a id='L888' name='L888'></a>   888   <strong class='reserved'>int</strong> insert_overhead = ov1 * 10;
+<a id='L889' name='L889'></a>   889   <strong class='reserved'>int</strong> next_insert_cost = ovn * 10;
+<a id='L890' name='L890'></a>   890 
+<a id='L891' name='L891'></a>   891   <strong class='reserved'>for</strong> (i = frame_total_lines - 1; i &gt;= 0; i--)
+<a id='L892' name='L892'></a>   892     <em class='brace'>{</em>
+<a id='L893' name='L893'></a>   893       mf[i] = next_insert_cost / 10;
+<a id='L894' name='L894'></a>   894       next_insert_cost += pfn;
+<a id='L895' name='L895'></a>   895       ov[i] = (insert_overhead + next_insert_cost) / 10;
+<a id='L896' name='L896'></a>   896       insert_overhead += pf1;
+<a id='L897' name='L897'></a>   897     <em class='brace'>}</em>
+<a id='L898' name='L898'></a>   898 <em class='brace'>}</em>
+<a id='L899' name='L899'></a>   899 
+<a id='L900' name='L900'></a>   900 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L901' name='L901'></a>   901 <a href='../R/10933.html' title='Multiple referred from 2 places.'>ins_del_costs</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L902' name='L902'></a>   902                <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *one_line_string, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *multi_string,
+<a id='L903' name='L903'></a>   903                <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *setup_string, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *cleanup_string,
+<a id='L904' name='L904'></a>   904                <strong class='reserved'>int</strong> *costvec, <strong class='reserved'>int</strong> *ncostvec,
+<a id='L905' name='L905'></a>   905                <strong class='reserved'>int</strong> coefficient)
+<a id='L906' name='L906'></a>   906 <em class='brace'>{</em>
+<a id='L907' name='L907'></a>   907   <strong class='reserved'>if</strong> (multi_string)
+<a id='L908' name='L908'></a>   908     <a href='../S/2019.html#L883' title='Defined at 883 in src/scroll.c.'>line_ins_del</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L909' name='L909'></a>   909                   <a href='../S/2103.html#L1046' title='Defined at 1046 in src/term.c.'>string_cost</a> (multi_string) * coefficient,
+<a id='L910' name='L910'></a>   910                   <a href='../S/2103.html#L1070' title='Defined at 1070 in src/term.c.'>per_line_cost</a> (multi_string) * coefficient,
+<a id='L911' name='L911'></a>   911                   0, 0, costvec, ncostvec);
+<a id='L912' name='L912'></a>   912   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (one_line_string)
+<a id='L913' name='L913'></a>   913     <a href='../S/2019.html#L883' title='Defined at 883 in src/scroll.c.'>line_ins_del</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L914' name='L914'></a>   914                   <a href='../S/2103.html#L1046' title='Defined at 1046 in src/term.c.'>string_cost</a> (setup_string) + <a href='../S/2103.html#L1046' title='Defined at 1046 in src/term.c.'>string_cost</a> (cleanup_string), 0,
+<a id='L915' name='L915'></a>   915                   <a href='../S/2103.html#L1046' title='Defined at 1046 in src/term.c.'>string_cost</a> (one_line_string),
+<a id='L916' name='L916'></a>   916                   <a href='../S/2103.html#L1070' title='Defined at 1070 in src/term.c.'>per_line_cost</a> (one_line_string),
+<a id='L917' name='L917'></a>   917                   costvec, ncostvec);
+<a id='L918' name='L918'></a>   918   <strong class='reserved'>else</strong>
+<a id='L919' name='L919'></a>   919     <a href='../S/2019.html#L883' title='Defined at 883 in src/scroll.c.'>line_ins_del</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L920' name='L920'></a>   920                   9999, 0, 9999, 0,
+<a id='L921' name='L921'></a>   921                   costvec, ncostvec);
+<a id='L922' name='L922'></a>   922 <em class='brace'>}</em>
+<a id='L923' name='L923'></a>   923 
+<a id='L924' name='L924'></a>   924 <em class='comment'>/* Calculate the insert and delete line costs.</em>
+<a id='L925' name='L925'></a>   925 <em class='comment'>   Note that this is done even when running with a window system</em>
+<a id='L926' name='L926'></a>   926 <em class='comment'>   because we want to know how long scrolling takes (and avoid it).</em>
+<a id='L927' name='L927'></a>   927 <em class='comment'>   This must be redone whenever the frame height changes.</em>
+<a id='L928' name='L928'></a>   928 <em class='comment'></em>
+<a id='L929' name='L929'></a>   929 <em class='comment'>   We keep the ID costs in a precomputed array based on the position</em>
+<a id='L930' name='L930'></a>   930 <em class='comment'>   at which the I or D is performed.  Also, there are two kinds of ID</em>
+<a id='L931' name='L931'></a>   931 <em class='comment'>   costs: the "once-only" and the "repeated".  This is to handle both</em>
+<a id='L932' name='L932'></a>   932 <em class='comment'>   those terminals that are able to insert N lines at a time (once-</em>
+<a id='L933' name='L933'></a>   933 <em class='comment'>   only) and those that must repeatedly insert one line.</em>
+<a id='L934' name='L934'></a>   934 <em class='comment'></em>
+<a id='L935' name='L935'></a>   935 <em class='comment'>   The cost to insert N lines at line L is</em>
+<a id='L936' name='L936'></a>   936 <em class='comment'>            [tt.t_ILov  + (frame_total_lines + 1 - L) * tt.t_ILpf] +</em>
+<a id='L937' name='L937'></a>   937 <em class='comment'>        N * [tt.t_ILnov + (frame_total_lines + 1 - L) * tt.t_ILnpf]</em>
+<a id='L938' name='L938'></a>   938 <em class='comment'></em>
+<a id='L939' name='L939'></a>   939 <em class='comment'>   ILov represents the basic insert line overhead.  ILpf is the padding</em>
+<a id='L940' name='L940'></a>   940 <em class='comment'>   required to allow the terminal time to move a line: insertion at line</em>
+<a id='L941' name='L941'></a>   941 <em class='comment'>   L changes (frame_total_lines + 1 - L) lines.</em>
+<a id='L942' name='L942'></a>   942 <em class='comment'></em>
+<a id='L943' name='L943'></a>   943 <em class='comment'>   The first bracketed expression above is the overhead; the second is</em>
+<a id='L944' name='L944'></a>   944 <em class='comment'>   the multiply factor.  Both are dependent only on the position at</em>
+<a id='L945' name='L945'></a>   945 <em class='comment'>   which the insert is performed.  We store the overhead in</em>
+<a id='L946' name='L946'></a>   946 <em class='comment'>   FRAME_INSERT_COST (frame) and the multiply factor in</em>
+<a id='L947' name='L947'></a>   947 <em class='comment'>   FRAME_INSERTN_COST (frame).  Note however that any insertion</em>
+<a id='L948' name='L948'></a>   948 <em class='comment'>   must include at least one multiply factor.  Rather than compute this</em>
+<a id='L949' name='L949'></a>   949 <em class='comment'>   as FRAME_INSERT_COST (frame)[line]+FRAME_INSERTN_COST (frame)[line],</em>
+<a id='L950' name='L950'></a>   950 <em class='comment'>   we add FRAME_INSERTN_COST (frame) into FRAME_INSERT_COST (frame).</em>
+<a id='L951' name='L951'></a>   951 <em class='comment'>   This is reasonable because of the particular algorithm used in calcM.</em>
+<a id='L952' name='L952'></a>   952 <em class='comment'></em>
+<a id='L953' name='L953'></a>   953 <em class='comment'>   Deletion is essentially the same as insertion.</em>
+<a id='L954' name='L954'></a>   954 <em class='comment'> */</em>
+<a id='L955' name='L955'></a>   955 
+<a id='L956' name='L956'></a>   956 <strong class='reserved'>void</strong>
+<a id='L957' name='L957'></a>   957 <a href='../R/8425.html' title='Multiple referred from 3 places.'>do_line_insertion_deletion_costs</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L958' name='L958'></a>   958                                   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *ins_line_string,
+<a id='L959' name='L959'></a>   959                                   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *multi_ins_string,
+<a id='L960' name='L960'></a>   960                                   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *del_line_string,
+<a id='L961' name='L961'></a>   961                                   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *multi_del_string,
+<a id='L962' name='L962'></a>   962                                   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *setup_string,
+<a id='L963' name='L963'></a>   963                                   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *cleanup_string,
+<a id='L964' name='L964'></a>   964                                   <strong class='reserved'>int</strong> coefficient)
+<a id='L965' name='L965'></a>   965 <em class='brace'>{</em>
+<a id='L966' name='L966'></a>   966   <strong class='reserved'>int</strong> frame_total_lines = <a href='../S/2075.html#L956' title='Defined at 956 in src/frame.h.'>FRAME_TOTAL_LINES</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>);
+<a id='L967' name='L967'></a>   967   <a href='../S/2075.html#L1055' title='Defined at 1055 in src/frame.h.'>FRAME_INSERT_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>) =
+<a id='L968' name='L968'></a>   968     <a href='../D/17897.html' title='Multiple defined in 2 places.'>xnrealloc</a> (<a href='../S/2075.html#L1055' title='Defined at 1055 in src/frame.h.'>FRAME_INSERT_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>), frame_total_lines, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>int</strong>));
+<a id='L969' name='L969'></a>   969   <a href='../S/2075.html#L1058' title='Defined at 1058 in src/frame.h.'>FRAME_DELETEN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>) =
+<a id='L970' name='L970'></a>   970     <a href='../D/17897.html' title='Multiple defined in 2 places.'>xnrealloc</a> (<a href='../S/2075.html#L1058' title='Defined at 1058 in src/frame.h.'>FRAME_DELETEN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>), frame_total_lines, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>int</strong>));
+<a id='L971' name='L971'></a>   971   <a href='../S/2075.html#L1057' title='Defined at 1057 in src/frame.h.'>FRAME_INSERTN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>) =
+<a id='L972' name='L972'></a>   972     <a href='../D/17897.html' title='Multiple defined in 2 places.'>xnrealloc</a> (<a href='../S/2075.html#L1057' title='Defined at 1057 in src/frame.h.'>FRAME_INSERTN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>), frame_total_lines, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>int</strong>));
+<a id='L973' name='L973'></a>   973   <a href='../S/2075.html#L1056' title='Defined at 1056 in src/frame.h.'>FRAME_DELETE_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>) =
+<a id='L974' name='L974'></a>   974     <a href='../D/17897.html' title='Multiple defined in 2 places.'>xnrealloc</a> (<a href='../S/2075.html#L1056' title='Defined at 1056 in src/frame.h.'>FRAME_DELETE_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>), frame_total_lines, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>int</strong>));
+<a id='L975' name='L975'></a>   975 
+<a id='L976' name='L976'></a>   976   <a href='../S/2019.html#L901' title='Defined at 901 in src/scroll.c.'>ins_del_costs</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L977' name='L977'></a>   977                  ins_line_string, multi_ins_string,
+<a id='L978' name='L978'></a>   978                  setup_string, cleanup_string,
+<a id='L979' name='L979'></a>   979                  <a href='../S/2075.html#L1055' title='Defined at 1055 in src/frame.h.'>FRAME_INSERT_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>), <a href='../S/2075.html#L1057' title='Defined at 1057 in src/frame.h.'>FRAME_INSERTN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>),
+<a id='L980' name='L980'></a>   980                  coefficient);
+<a id='L981' name='L981'></a>   981   <a href='../S/2019.html#L901' title='Defined at 901 in src/scroll.c.'>ins_del_costs</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>,
+<a id='L982' name='L982'></a>   982                  del_line_string, multi_del_string,
+<a id='L983' name='L983'></a>   983                  setup_string, cleanup_string,
+<a id='L984' name='L984'></a>   984                  <a href='../S/2075.html#L1056' title='Defined at 1056 in src/frame.h.'>FRAME_DELETE_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>), <a href='../S/2075.html#L1058' title='Defined at 1058 in src/frame.h.'>FRAME_DELETEN_COST</a> (<a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a>),
+<a id='L985' name='L985'></a>   985                  coefficient);
+<a id='L986' name='L986'></a>   986 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L80'>[^]</a><a href='#L957'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

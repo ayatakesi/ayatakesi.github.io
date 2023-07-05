@@ -1,0 +1,326 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/xgselect.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4791.html'>src</a>/xgselect.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L40'>[^]</a><a href='#L104'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L40' title='Defined at 40.'>release_select_lock</a></li>
+<li><a href='#L52' title='Defined at 52.'>acquire_select_lock</a></li>
+<li><a href='#L78' title='Defined at 78.'>suppress_xg_select</a></li>
+<li><a href='#L84' title='Defined at 84.'>release_xg_select</a></li>
+<li><a href='#L104' title='Defined at 104.'>xg_select</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Function for handling the GLib event loop.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2009-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> "<a href='2252.html'>xgselect.h</a>"
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#ifdef</em> HAVE_GLIB
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;glib.h&gt;
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> "<a href='2089.html'>blockinput.h</a>"
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> "<a href='2136.html'>systime.h</a>"
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> "<a href='2323.html'>process.h</a>"
+<a id='L32' name='L32'></a>    32 
+<a id='L33' name='L33'></a>    33 <strong class='reserved'>static</strong> ptrdiff_t threads_holding_glib_lock;
+<a id='L34' name='L34'></a>    34 <strong class='reserved'>static</strong> GMainContext *glib_main_context;
+<a id='L35' name='L35'></a>    35 
+<a id='L36' name='L36'></a>    36 <em class='comment'>/* The depth of xg_select suppression.  */</em>
+<a id='L37' name='L37'></a>    37 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> xg_select_suppress_count;
+<a id='L38' name='L38'></a>    38 
+<a id='L39' name='L39'></a>    39 <strong class='reserved'>void</strong>
+<a id='L40' name='L40'></a>    40 <a href='../R/15040.html' title='Multiple referred from 3 places.'>release_select_lock</a> (<strong class='reserved'>void</strong>)
+<a id='L41' name='L41'></a>    41 <em class='brace'>{</em>
+<a id='L42' name='L42'></a>    42 <em class='sharp'>#if</em> <a href='../D/2781.html' title='Multiple defined in 3 places.'>GNUC_PREREQ</a> (4, 7, 0)
+<a id='L43' name='L43'></a>    43   <strong class='reserved'>if</strong> (__atomic_sub_fetch (&amp;threads_holding_glib_lock, 1, __ATOMIC_ACQ_REL) == 0)
+<a id='L44' name='L44'></a>    44     g_main_context_release (glib_main_context);
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#else</em>
+<a id='L46' name='L46'></a>    46   <strong class='reserved'>if</strong> (--threads_holding_glib_lock == 0)
+<a id='L47' name='L47'></a>    47     g_main_context_release (glib_main_context);
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#endif</em>
+<a id='L49' name='L49'></a>    49 <em class='brace'>}</em>
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L52' name='L52'></a>    52 <a href='../R/7425.html' title='Multiple referred from 2 places.'>acquire_select_lock</a> (GMainContext *<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>)
+<a id='L53' name='L53'></a>    53 <em class='brace'>{</em>
+<a id='L54' name='L54'></a>    54 <em class='sharp'>#if</em> <a href='../D/2781.html' title='Multiple defined in 3 places.'>GNUC_PREREQ</a> (4, 7, 0)
+<a id='L55' name='L55'></a>    55   <strong class='reserved'>if</strong> (__atomic_fetch_add (&amp;threads_holding_glib_lock, 1, __ATOMIC_ACQ_REL) == 0)
+<a id='L56' name='L56'></a>    56     <em class='brace'>{</em>
+<a id='L57' name='L57'></a>    57       glib_main_context = <a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>;
+<a id='L58' name='L58'></a>    58       <strong class='reserved'>while</strong> (!g_main_context_acquire (<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>))
+<a id='L59' name='L59'></a>    59         <em class='brace'>{</em>
+<a id='L60' name='L60'></a>    60           <em class='comment'>/* Spin. */</em>
+<a id='L61' name='L61'></a>    61         <em class='brace'>}</em>
+<a id='L62' name='L62'></a>    62     <em class='brace'>}</em>
+<a id='L63' name='L63'></a>    63 <em class='sharp'>#else</em>
+<a id='L64' name='L64'></a>    64   <strong class='reserved'>if</strong> (threads_holding_glib_lock++ == 0)
+<a id='L65' name='L65'></a>    65     <em class='brace'>{</em>
+<a id='L66' name='L66'></a>    66       glib_main_context = <a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>;
+<a id='L67' name='L67'></a>    67       <strong class='reserved'>while</strong> (!g_main_context_acquire (<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>))
+<a id='L68' name='L68'></a>    68         <em class='brace'>{</em>
+<a id='L69' name='L69'></a>    69           <em class='comment'>/* Spin. */</em>
+<a id='L70' name='L70'></a>    70         <em class='brace'>}</em>
+<a id='L71' name='L71'></a>    71     <em class='brace'>}</em>
+<a id='L72' name='L72'></a>    72 <em class='sharp'>#endif</em>
+<a id='L73' name='L73'></a>    73 <em class='brace'>}</em>
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75 <em class='comment'>/* Call this to not use xg_select when using it would be a bad idea,</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>   i.e. during drag-and-drop.  */</em>
+<a id='L77' name='L77'></a>    77 <strong class='reserved'>void</strong>
+<a id='L78' name='L78'></a>    78 <a href='../R/16516.html' title='Multiple referred from 2 places.'>suppress_xg_select</a> (<strong class='reserved'>void</strong>)
+<a id='L79' name='L79'></a>    79 <em class='brace'>{</em>
+<a id='L80' name='L80'></a>    80   ++xg_select_suppress_count;
+<a id='L81' name='L81'></a>    81 <em class='brace'>}</em>
+<a id='L82' name='L82'></a>    82 
+<a id='L83' name='L83'></a>    83 <strong class='reserved'>void</strong>
+<a id='L84' name='L84'></a>    84 <a href='../R/15042.html' title='Multiple referred from 2 places.'>release_xg_select</a> (<strong class='reserved'>void</strong>)
+<a id='L85' name='L85'></a>    85 <em class='brace'>{</em>
+<a id='L86' name='L86'></a>    86   <strong class='reserved'>if</strong> (!xg_select_suppress_count)
+<a id='L87' name='L87'></a>    87     <a href='../D/10886.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L88' name='L88'></a>    88 
+<a id='L89' name='L89'></a>    89   --xg_select_suppress_count;
+<a id='L90' name='L90'></a>    90 <em class='brace'>}</em>
+<a id='L91' name='L91'></a>    91 
+<a id='L92' name='L92'></a>    92 <em class='comment'>/* `xg_select' is a `pselect' replacement.  Why do we need a separate function?</em>
+<a id='L93' name='L93'></a>    93 <em class='comment'>   1. Timeouts.  Glib and Gtk rely on timer events.  If we did pselect</em>
+<a id='L94' name='L94'></a>    94 <em class='comment'>      with a greater timeout then the one scheduled by Glib, we would</em>
+<a id='L95' name='L95'></a>    95 <em class='comment'>      not allow Glib to process its timer events.  We want Glib to</em>
+<a id='L96' name='L96'></a>    96 <em class='comment'>      work smoothly, so we need to reduce our timeout to match Glib.</em>
+<a id='L97' name='L97'></a>    97 <em class='comment'>   2. Descriptors.  Glib may listen to more file descriptors than we do.</em>
+<a id='L98' name='L98'></a>    98 <em class='comment'>      So we add Glib descriptors to our pselect pool, but we don't change</em>
+<a id='L99' name='L99'></a>    99 <em class='comment'>      the value returned by the function.  The return value  matches only</em>
+<a id='L100' name='L100'></a>   100 <em class='comment'>      the descriptors passed as arguments, making it compatible with</em>
+<a id='L101' name='L101'></a>   101 <em class='comment'>      plain pselect.  */</em>
+<a id='L102' name='L102'></a>   102 
+<a id='L103' name='L103'></a>   103 <strong class='reserved'>int</strong>
+<a id='L104' name='L104'></a>   104 <a href='../R/18530.html' title='Multiple referred from 3 places.'>xg_select</a> (<strong class='reserved'>int</strong> fds_lim, <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> *rfds, <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> *wfds, <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> *efds,
+<a id='L105' name='L105'></a>   105            <strong class='reserved'>struct</strong> <a href='../D/18269.html' title='Multiple defined in 3 places.'>timespec</a> *timeout, <a href='../D/17458.html' title='Multiple defined in 3 places.'>sigset_t</a> *sigmask)
+<a id='L106' name='L106'></a>   106 <em class='brace'>{</em>
+<a id='L107' name='L107'></a>   107   <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> all_rfds, all_wfds;
+<a id='L108' name='L108'></a>   108   <strong class='reserved'>struct</strong> <a href='../D/18269.html' title='Multiple defined in 3 places.'>timespec</a> tmo;
+<a id='L109' name='L109'></a>   109   <strong class='reserved'>struct</strong> <a href='../D/18269.html' title='Multiple defined in 3 places.'>timespec</a> *tmop = timeout;
+<a id='L110' name='L110'></a>   110 
+<a id='L111' name='L111'></a>   111   GMainContext *<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>;
+<a id='L112' name='L112'></a>   112   <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> have_wfds = wfds != <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L113' name='L113'></a>   113   GPollFD gfds_buf[128];
+<a id='L114' name='L114'></a>   114   GPollFD *gfds = gfds_buf;
+<a id='L115' name='L115'></a>   115   <strong class='reserved'>int</strong> gfds_size = <a href='../D/185.html' title='Multiple defined in 3 places.'>ARRAYELTS</a> (gfds_buf);
+<a id='L116' name='L116'></a>   116   <strong class='reserved'>int</strong> n_gfds, retval = 0, our_fds = 0, max_fds = fds_lim - 1;
+<a id='L117' name='L117'></a>   117   <strong class='reserved'>int</strong> i, nfds, tmo_in_millisec, must_free = 0;
+<a id='L118' name='L118'></a>   118   <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> need_to_dispatch;
+<a id='L119' name='L119'></a>   119 <em class='sharp'>#ifdef</em> USE_GTK
+<a id='L120' name='L120'></a>   120   <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> already_has_events;
+<a id='L121' name='L121'></a>   121 <em class='sharp'>#endif</em>
+<a id='L122' name='L122'></a>   122 
+<a id='L123' name='L123'></a>   123   <strong class='reserved'>if</strong> (xg_select_suppress_count)
+<a id='L124' name='L124'></a>   124     <strong class='reserved'>return</strong> <a href='../D/15835.html' title='Multiple defined in 7 places.'>pselect</a> (fds_lim, rfds, wfds, efds, timeout, sigmask);
+<a id='L125' name='L125'></a>   125 
+<a id='L126' name='L126'></a>   126   <a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a> = g_main_context_default ();
+<a id='L127' name='L127'></a>   127   <a href='../S/2119.html#L52' title='Defined at 52 in src/xgselect.c.'>acquire_select_lock</a> (<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>);
+<a id='L128' name='L128'></a>   128 
+<a id='L129' name='L129'></a>   129 <em class='sharp'>#ifdef</em> USE_GTK
+<a id='L130' name='L130'></a>   130   already_has_events = g_main_context_pending (<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>);
+<a id='L131' name='L131'></a>   131 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L132' name='L132'></a>   132   already_has_events = already_has_events &amp;&amp; x_gtk_use_native_input;
+<a id='L133' name='L133'></a>   133 <em class='sharp'>#endif</em>
+<a id='L134' name='L134'></a>   134 <em class='sharp'>#endif</em>
+<a id='L135' name='L135'></a>   135 
+<a id='L136' name='L136'></a>   136   <strong class='reserved'>if</strong> (rfds) all_rfds = *rfds;
+<a id='L137' name='L137'></a>   137   <strong class='reserved'>else</strong> <a href='../D/2046.html' title='Multiple defined in 4 places.'>FD_ZERO</a> (&amp;all_rfds);
+<a id='L138' name='L138'></a>   138   <strong class='reserved'>if</strong> (wfds) all_wfds = *wfds;
+<a id='L139' name='L139'></a>   139   <strong class='reserved'>else</strong> <a href='../D/2046.html' title='Multiple defined in 4 places.'>FD_ZERO</a> (&amp;all_wfds);
+<a id='L140' name='L140'></a>   140 
+<a id='L141' name='L141'></a>   141   n_gfds = g_main_context_query (<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>, G_PRIORITY_LOW, &amp;tmo_in_millisec,
+<a id='L142' name='L142'></a>   142                                  gfds, gfds_size);
+<a id='L143' name='L143'></a>   143 
+<a id='L144' name='L144'></a>   144   <strong class='reserved'>if</strong> (gfds_size &lt; n_gfds)
+<a id='L145' name='L145'></a>   145     <em class='brace'>{</em>
+<a id='L146' name='L146'></a>   146       <em class='comment'>/* Avoid using SAFE_NALLOCA, as that implicitly refers to the</em>
+<a id='L147' name='L147'></a>   147 <em class='comment'>         current thread.  Using xnmalloc avoids thread-switching</em>
+<a id='L148' name='L148'></a>   148 <em class='comment'>         problems here.  */</em>
+<a id='L149' name='L149'></a>   149       gfds = <a href='../D/20069.html' title='Multiple defined in 2 places.'>xnmalloc</a> (n_gfds, <strong class='reserved'>sizeof</strong> *gfds);
+<a id='L150' name='L150'></a>   150       must_free = 1;
+<a id='L151' name='L151'></a>   151       gfds_size = n_gfds;
+<a id='L152' name='L152'></a>   152       n_gfds = g_main_context_query (<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>, G_PRIORITY_LOW, &amp;tmo_in_millisec,
+<a id='L153' name='L153'></a>   153                                      gfds, gfds_size);
+<a id='L154' name='L154'></a>   154     <em class='brace'>}</em>
+<a id='L155' name='L155'></a>   155 
+<a id='L156' name='L156'></a>   156   <strong class='reserved'>for</strong> (i = 0; i &lt; n_gfds; ++i)
+<a id='L157' name='L157'></a>   157     <em class='brace'>{</em>
+<a id='L158' name='L158'></a>   158       <strong class='reserved'>if</strong> (gfds[i].events &amp; G_IO_IN)
+<a id='L159' name='L159'></a>   159         <em class='brace'>{</em>
+<a id='L160' name='L160'></a>   160           <a href='../D/2044.html' title='Multiple defined in 6 places.'>FD_SET</a> (gfds[i].fd, &amp;all_rfds);
+<a id='L161' name='L161'></a>   161           <strong class='reserved'>if</strong> (gfds[i].fd &gt; max_fds) max_fds = gfds[i].fd;
+<a id='L162' name='L162'></a>   162         <em class='brace'>}</em>
+<a id='L163' name='L163'></a>   163       <strong class='reserved'>if</strong> (gfds[i].events &amp; G_IO_OUT)
+<a id='L164' name='L164'></a>   164         <em class='brace'>{</em>
+<a id='L165' name='L165'></a>   165           <a href='../D/2044.html' title='Multiple defined in 6 places.'>FD_SET</a> (gfds[i].fd, &amp;all_wfds);
+<a id='L166' name='L166'></a>   166           <strong class='reserved'>if</strong> (gfds[i].fd &gt; max_fds) max_fds = gfds[i].fd;
+<a id='L167' name='L167'></a>   167           have_wfds = <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L168' name='L168'></a>   168         <em class='brace'>}</em>
+<a id='L169' name='L169'></a>   169     <em class='brace'>}</em>
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171   <strong class='reserved'>if</strong> (must_free)
+<a id='L172' name='L172'></a>   172     <a href='../D/19805.html' title='Multiple defined in 3 places.'>xfree</a> (gfds);
+<a id='L173' name='L173'></a>   173 
+<a id='L174' name='L174'></a>   174   <strong class='reserved'>if</strong> (n_gfds &gt;= 0 &amp;&amp; tmo_in_millisec &gt;= 0)
+<a id='L175' name='L175'></a>   175     <em class='brace'>{</em>
+<a id='L176' name='L176'></a>   176       tmo = <a href='../S/2789.html#L56' title='Defined at 56 in lib/timespec.h.'>make_timespec</a> (tmo_in_millisec / 1000,
+<a id='L177' name='L177'></a>   177                            1000 * 1000 * (tmo_in_millisec % 1000));
+<a id='L178' name='L178'></a>   178       <strong class='reserved'>if</strong> (!timeout || <a href='../S/2789.html#L64' title='Defined at 64 in lib/timespec.h.'>timespec_cmp</a> (tmo, *timeout) &lt; 0)
+<a id='L179' name='L179'></a>   179         tmop = &amp;tmo;
+<a id='L180' name='L180'></a>   180     <em class='brace'>}</em>
+<a id='L181' name='L181'></a>   181 
+<a id='L182' name='L182'></a>   182 <em class='sharp'>#ifndef</em> USE_GTK
+<a id='L183' name='L183'></a>   183   fds_lim = max_fds + 1;
+<a id='L184' name='L184'></a>   184   nfds = <a href='../S/2118.html#L631' title='Defined at 631 in src/thread.c.'>thread_select</a> (<a href='../D/15835.html' title='Multiple defined in 7 places.'>pselect</a>, fds_lim,
+<a id='L185' name='L185'></a>   185                         &amp;all_rfds, have_wfds ? &amp;all_wfds : <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, efds,
+<a id='L186' name='L186'></a>   186                         tmop, sigmask);
+<a id='L187' name='L187'></a>   187 <em class='sharp'>#else</em>
+<a id='L188' name='L188'></a>   188   <em class='comment'>/* On PGTK, when you type a key, the key press event are received,</em>
+<a id='L189' name='L189'></a>   189 <em class='comment'>     and one more key press event seems to be received internally.</em>
+<a id='L190' name='L190'></a>   190 <em class='comment'></em>
+<a id='L191' name='L191'></a>   191 <em class='comment'>     The same can happen with GTK native input, which makes input</em>
+<a id='L192' name='L192'></a>   192 <em class='comment'>     slow.</em>
+<a id='L193' name='L193'></a>   193 <em class='comment'></em>
+<a id='L194' name='L194'></a>   194 <em class='comment'>     The second event is not sent via the display connection, so the</em>
+<a id='L195' name='L195'></a>   195 <em class='comment'>     following is the case:</em>
+<a id='L196' name='L196'></a>   196 <em class='comment'></em>
+<a id='L197' name='L197'></a>   197 <em class='comment'>       - socket read buffer is empty</em>
+<a id='L198' name='L198'></a>   198 <em class='comment'>       - a key press event is pending</em>
+<a id='L199' name='L199'></a>   199 <em class='comment'></em>
+<a id='L200' name='L200'></a>   200 <em class='comment'>     In that case, we should not sleep in pselect, and dispatch the</em>
+<a id='L201' name='L201'></a>   201 <em class='comment'>     event immediately.  (Bug#52761) */</em>
+<a id='L202' name='L202'></a>   202   <strong class='reserved'>if</strong> (!already_has_events)
+<a id='L203' name='L203'></a>   203     <em class='brace'>{</em>
+<a id='L204' name='L204'></a>   204       fds_lim = max_fds + 1;
+<a id='L205' name='L205'></a>   205       nfds = <a href='../S/2118.html#L631' title='Defined at 631 in src/thread.c.'>thread_select</a> (<a href='../D/15835.html' title='Multiple defined in 7 places.'>pselect</a>, fds_lim,
+<a id='L206' name='L206'></a>   206                             &amp;all_rfds, have_wfds ? &amp;all_wfds : <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, efds,
+<a id='L207' name='L207'></a>   207                             tmop, sigmask);
+<a id='L208' name='L208'></a>   208     <em class='brace'>}</em>
+<a id='L209' name='L209'></a>   209   <strong class='reserved'>else</strong>
+<a id='L210' name='L210'></a>   210     <em class='brace'>{</em>
+<a id='L211' name='L211'></a>   211       <em class='comment'>/* Emulate return values */</em>
+<a id='L212' name='L212'></a>   212       nfds = 1;
+<a id='L213' name='L213'></a>   213       <a href='../D/2046.html' title='Multiple defined in 4 places.'>FD_ZERO</a> (&amp;all_rfds);
+<a id='L214' name='L214'></a>   214       <strong class='reserved'>if</strong> (have_wfds)
+<a id='L215' name='L215'></a>   215         <a href='../D/2046.html' title='Multiple defined in 4 places.'>FD_ZERO</a> (&amp;all_wfds);
+<a id='L216' name='L216'></a>   216       <strong class='reserved'>if</strong> (efds)
+<a id='L217' name='L217'></a>   217         <a href='../D/2046.html' title='Multiple defined in 4 places.'>FD_ZERO</a> (efds);
+<a id='L218' name='L218'></a>   218       our_fds++;
+<a id='L219' name='L219'></a>   219     <em class='brace'>}</em>
+<a id='L220' name='L220'></a>   220 <em class='sharp'>#endif</em>
+<a id='L221' name='L221'></a>   221 
+<a id='L222' name='L222'></a>   222   <strong class='reserved'>if</strong> (nfds &lt; 0)
+<a id='L223' name='L223'></a>   223     retval = nfds;
+<a id='L224' name='L224'></a>   224   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (nfds &gt; 0)
+<a id='L225' name='L225'></a>   225     <em class='brace'>{</em>
+<a id='L226' name='L226'></a>   226       <strong class='reserved'>for</strong> (i = 0; i &lt; fds_lim; ++i)
+<a id='L227' name='L227'></a>   227         <em class='brace'>{</em>
+<a id='L228' name='L228'></a>   228           <strong class='reserved'>if</strong> (<a href='../D/2043.html' title='Multiple defined in 8 places.'>FD_ISSET</a> (i, &amp;all_rfds))
+<a id='L229' name='L229'></a>   229             <em class='brace'>{</em>
+<a id='L230' name='L230'></a>   230               <strong class='reserved'>if</strong> (rfds &amp;&amp; <a href='../D/2043.html' title='Multiple defined in 8 places.'>FD_ISSET</a> (i, rfds)) ++retval;
+<a id='L231' name='L231'></a>   231               <strong class='reserved'>else</strong> ++our_fds;
+<a id='L232' name='L232'></a>   232             <em class='brace'>}</em>
+<a id='L233' name='L233'></a>   233           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (rfds)
+<a id='L234' name='L234'></a>   234             <a href='../D/2042.html' title='Multiple defined in 6 places.'>FD_CLR</a> (i, rfds);
+<a id='L235' name='L235'></a>   235 
+<a id='L236' name='L236'></a>   236           <strong class='reserved'>if</strong> (have_wfds &amp;&amp; <a href='../D/2043.html' title='Multiple defined in 8 places.'>FD_ISSET</a> (i, &amp;all_wfds))
+<a id='L237' name='L237'></a>   237             <em class='brace'>{</em>
+<a id='L238' name='L238'></a>   238               <strong class='reserved'>if</strong> (wfds &amp;&amp; <a href='../D/2043.html' title='Multiple defined in 8 places.'>FD_ISSET</a> (i, wfds)) ++retval;
+<a id='L239' name='L239'></a>   239               <strong class='reserved'>else</strong> ++our_fds;
+<a id='L240' name='L240'></a>   240             <em class='brace'>}</em>
+<a id='L241' name='L241'></a>   241           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (wfds)
+<a id='L242' name='L242'></a>   242             <a href='../D/2042.html' title='Multiple defined in 6 places.'>FD_CLR</a> (i, wfds);
+<a id='L243' name='L243'></a>   243 
+<a id='L244' name='L244'></a>   244           <strong class='reserved'>if</strong> (efds &amp;&amp; <a href='../D/2043.html' title='Multiple defined in 8 places.'>FD_ISSET</a> (i, efds))
+<a id='L245' name='L245'></a>   245             ++retval;
+<a id='L246' name='L246'></a>   246         <em class='brace'>}</em>
+<a id='L247' name='L247'></a>   247     <em class='brace'>}</em>
+<a id='L248' name='L248'></a>   248 
+<a id='L249' name='L249'></a>   249   <em class='comment'>/* If Gtk+ is in use eventually gtk_main_iteration will be called,</em>
+<a id='L250' name='L250'></a>   250 <em class='comment'>     unless retval is zero.  */</em>
+<a id='L251' name='L251'></a>   251 <em class='sharp'>#ifdef</em> USE_GTK
+<a id='L252' name='L252'></a>   252   need_to_dispatch = retval == 0;
+<a id='L253' name='L253'></a>   253 <em class='sharp'>#else</em>
+<a id='L254' name='L254'></a>   254   need_to_dispatch = <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L255' name='L255'></a>   255 <em class='sharp'>#endif</em>
+<a id='L256' name='L256'></a>   256 
+<a id='L257' name='L257'></a>   257   <em class='comment'>/* xwidgets make heavy use of GLib subprocesses, which add their own</em>
+<a id='L258' name='L258'></a>   258 <em class='comment'>     SIGCHLD handler at arbitrary locations.  That doesn't play well</em>
+<a id='L259' name='L259'></a>   259 <em class='comment'>     with Emacs's own handler, so once GLib does its thing with its</em>
+<a id='L260' name='L260'></a>   260 <em class='comment'>     subprocesses we restore our own SIGCHLD handler (which chains the</em>
+<a id='L261' name='L261'></a>   261 <em class='comment'>     GLib handler) here.</em>
+<a id='L262' name='L262'></a>   262 <em class='comment'></em>
+<a id='L263' name='L263'></a>   263 <em class='comment'>     There is an obvious race condition, but we can't really do</em>
+<a id='L264' name='L264'></a>   264 <em class='comment'>     anything about that, except hope a SIGCHLD arrives soon to clear</em>
+<a id='L265' name='L265'></a>   265 <em class='comment'>     up the situation.  */</em>
+<a id='L266' name='L266'></a>   266 
+<a id='L267' name='L267'></a>   267 <em class='sharp'>#ifdef</em> HAVE_XWIDGETS
+<a id='L268' name='L268'></a>   268   <a href='../S/2235.html#L8386' title='Defined at 8386 in src/process.c.'>catch_child_signal</a> ();
+<a id='L269' name='L269'></a>   269 <em class='sharp'>#endif</em>
+<a id='L270' name='L270'></a>   270 
+<a id='L271' name='L271'></a>   271   <strong class='reserved'>if</strong> (need_to_dispatch)
+<a id='L272' name='L272'></a>   272     <em class='brace'>{</em>
+<a id='L273' name='L273'></a>   273       <a href='../S/2119.html#L52' title='Defined at 52 in src/xgselect.c.'>acquire_select_lock</a> (<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>);
+<a id='L274' name='L274'></a>   274 
+<a id='L275' name='L275'></a>   275       <strong class='reserved'>int</strong> pselect_errno = errno;
+<a id='L276' name='L276'></a>   276       <em class='comment'>/* Prevent g_main_dispatch recursion, that would occur without</em>
+<a id='L277' name='L277'></a>   277 <em class='comment'>         block_input wrapper, because event handlers call</em>
+<a id='L278' name='L278'></a>   278 <em class='comment'>         unblock_input.  Event loop recursion was causing Bug#15801.  */</em>
+<a id='L279' name='L279'></a>   279       <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L280' name='L280'></a>   280       <strong class='reserved'>while</strong> (g_main_context_pending (<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>))
+<a id='L281' name='L281'></a>   281         g_main_context_dispatch (<a href='../S/2779.html#L114' title='Defined at 114 in lib/diffseq.h.'>context</a>);
+<a id='L282' name='L282'></a>   282       <a href='../D/18603.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L283' name='L283'></a>   283       errno = pselect_errno;
+<a id='L284' name='L284'></a>   284       <a href='../D/16273.html' title='Multiple defined in 2 places.'>release_select_lock</a> ();
+<a id='L285' name='L285'></a>   285     <em class='brace'>}</em>
+<a id='L286' name='L286'></a>   286 
+<a id='L287' name='L287'></a>   287   <em class='comment'>/* To not have to recalculate timeout, return like this.  */</em>
+<a id='L288' name='L288'></a>   288   <strong class='reserved'>if</strong> ((our_fds &gt; 0 || (nfds == 0 &amp;&amp; tmop == &amp;tmo)) &amp;&amp; (retval == 0))
+<a id='L289' name='L289'></a>   289     <em class='brace'>{</em>
+<a id='L290' name='L290'></a>   290       retval = -1;
+<a id='L291' name='L291'></a>   291       errno = EINTR;
+<a id='L292' name='L292'></a>   292     <em class='brace'>}</em>
+<a id='L293' name='L293'></a>   293 
+<a id='L294' name='L294'></a>   294   <strong class='reserved'>return</strong> retval;
+<a id='L295' name='L295'></a>   295 <em class='brace'>}</em>
+<a id='L296' name='L296'></a>   296 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_GLIB */</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L40'>[^]</a><a href='#L104'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

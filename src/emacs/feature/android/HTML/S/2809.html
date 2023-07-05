@@ -1,0 +1,145 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>lib/pselect.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4781.html'>lib</a>/pselect.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L39'>[^]</a><a href='#L93'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L39' title='Defined at 39.'>pselect</a></li>
+<li><a href='#L93' title='Defined at 93.'>rpl_pselect</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* pselect - synchronous I/O multiplexing</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright 2011-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>   This file is part of gnulib.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>   This file is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>   it under the terms of the GNU Lesser General Public License as</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>   published by the Free Software Foundation; either version 2.1 of the</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>   License, or (at your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>   This file is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>   GNU Lesser General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>   You should have received a copy of the GNU Lesser General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='comment'>/* written by Paul Eggert */</em>
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;sys/select.h&gt;
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;signal.h&gt;
+<a id='L28' name='L28'></a>    28 
+<a id='L29' name='L29'></a>    29 <em class='comment'>/* Examine the size-NFDS file descriptor sets in RFDS, WFDS, and XFDS</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>   to see whether some of their descriptors are ready for reading,</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>   ready for writing, or have exceptions pending.  Wait for at most</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'>   TIMEOUT seconds, and use signal mask SIGMASK while waiting.  A null</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'>   pointer parameter stands for no descriptors, an infinite timeout,</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>   or an unaffected signal mask.  */</em>
+<a id='L35' name='L35'></a>    35 
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#if</em> !HAVE_PSELECT
+<a id='L37' name='L37'></a>    37 
+<a id='L38' name='L38'></a>    38 <strong class='reserved'>int</strong>
+<a id='L39' name='L39'></a>    39 <a href='../R/14616.html' title='Multiple referred from 26 places.'>pselect</a> (<strong class='reserved'>int</strong> nfds, <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> *<strong class='reserved'>restrict</strong> rfds,
+<a id='L40' name='L40'></a>    40          <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> *<strong class='reserved'>restrict</strong> wfds, <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> *<strong class='reserved'>restrict</strong> xfds,
+<a id='L41' name='L41'></a>    41          <strong class='reserved'>struct</strong> <a href='../D/18269.html' title='Multiple defined in 3 places.'>timespec</a> <strong class='reserved'>const</strong> *<strong class='reserved'>restrict</strong> timeout,
+<a id='L42' name='L42'></a>    42          <a href='../D/17458.html' title='Multiple defined in 3 places.'>sigset_t</a> <strong class='reserved'>const</strong> *<strong class='reserved'>restrict</strong> sigmask)
+<a id='L43' name='L43'></a>    43 <em class='brace'>{</em>
+<a id='L44' name='L44'></a>    44   <strong class='reserved'>int</strong> select_result;
+<a id='L45' name='L45'></a>    45   <a href='../D/17458.html' title='Multiple defined in 3 places.'>sigset_t</a> origmask;
+<a id='L46' name='L46'></a>    46   <strong class='reserved'>struct</strong> <a href='../D/18281.html' title='Multiple defined in 8 places.'>timeval</a> tv, *tvp;
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48   <strong class='reserved'>if</strong> (nfds &lt; 0 || nfds &gt; <a href='../D/2045.html' title='Multiple defined in 4 places.'>FD_SETSIZE</a>)
+<a id='L49' name='L49'></a>    49     <em class='brace'>{</em>
+<a id='L50' name='L50'></a>    50       errno = EINVAL;
+<a id='L51' name='L51'></a>    51       <strong class='reserved'>return</strong> -1;
+<a id='L52' name='L52'></a>    52     <em class='brace'>}</em>
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54   <strong class='reserved'>if</strong> (timeout)
+<a id='L55' name='L55'></a>    55     <em class='brace'>{</em>
+<a id='L56' name='L56'></a>    56       <strong class='reserved'>if</strong> (! (0 &lt;= timeout-&gt;tv_nsec &amp;&amp; timeout-&gt;tv_nsec &lt; 1000000000))
+<a id='L57' name='L57'></a>    57         <em class='brace'>{</em>
+<a id='L58' name='L58'></a>    58           errno = EINVAL;
+<a id='L59' name='L59'></a>    59           <strong class='reserved'>return</strong> -1;
+<a id='L60' name='L60'></a>    60         <em class='brace'>}</em>
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62       tv = (<strong class='reserved'>struct</strong> <a href='../D/18281.html' title='Multiple defined in 8 places.'>timeval</a>) <em class='brace'>{</em>
+<a id='L63' name='L63'></a>    63         .tv_sec = timeout-&gt;tv_sec,
+<a id='L64' name='L64'></a>    64         .tv_usec = (timeout-&gt;tv_nsec + 999) / 1000
+<a id='L65' name='L65'></a>    65       <em class='brace'>}</em>;
+<a id='L66' name='L66'></a>    66       tvp = &amp;tv;
+<a id='L67' name='L67'></a>    67     <em class='brace'>}</em>
+<a id='L68' name='L68'></a>    68   <strong class='reserved'>else</strong>
+<a id='L69' name='L69'></a>    69     tvp = <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L70' name='L70'></a>    70 
+<a id='L71' name='L71'></a>    71   <em class='comment'>/* Signal mask munging should be atomic, but this is the best we can</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>     do in this emulation.  */</em>
+<a id='L73' name='L73'></a>    73   <strong class='reserved'>if</strong> (sigmask)
+<a id='L74' name='L74'></a>    74     <a href='../D/15857.html' title='Multiple defined in 6 places.'>pthread_sigmask</a> (<a href='../D/5832.html' title='Multiple defined in 2 places.'>SIG_SETMASK</a>, sigmask, &amp;origmask);
+<a id='L75' name='L75'></a>    75 
+<a id='L76' name='L76'></a>    76   select_result = <a href='../D/16683.html' title='Multiple defined in 15 places.'>select</a> (nfds, rfds, wfds, xfds, tvp);
+<a id='L77' name='L77'></a>    77 
+<a id='L78' name='L78'></a>    78   <strong class='reserved'>if</strong> (sigmask)
+<a id='L79' name='L79'></a>    79     <em class='brace'>{</em>
+<a id='L80' name='L80'></a>    80       <strong class='reserved'>int</strong> select_errno = errno;
+<a id='L81' name='L81'></a>    81       <a href='../D/15857.html' title='Multiple defined in 6 places.'>pthread_sigmask</a> (<a href='../D/5832.html' title='Multiple defined in 2 places.'>SIG_SETMASK</a>, &amp;origmask, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L82' name='L82'></a>    82       errno = select_errno;
+<a id='L83' name='L83'></a>    83     <em class='brace'>}</em>
+<a id='L84' name='L84'></a>    84 
+<a id='L85' name='L85'></a>    85   <strong class='reserved'>return</strong> select_result;
+<a id='L86' name='L86'></a>    86 <em class='brace'>}</em>
+<a id='L87' name='L87'></a>    87 
+<a id='L88' name='L88'></a>    88 <em class='sharp'>#else</em> <em class='comment'>/* HAVE_PSELECT */</em>
+<a id='L89' name='L89'></a>    89 <em class='sharp'># include</em> &lt;<a href='37.html'>unistd.h</a>&gt;
+<a id='L90' name='L90'></a>    90 <em class='sharp'># undef</em> <a href='../R/14616.html' title='Multiple referred from 26 places.'>pselect</a>
+<a id='L91' name='L91'></a>    91 
+<a id='L92' name='L92'></a>    92 <strong class='reserved'>int</strong>
+<a id='L93' name='L93'></a>    93 <a href='../S/2788.html#L281' title='Referred from 281 in lib/sys_select.in.h.'>rpl_pselect</a> (<strong class='reserved'>int</strong> nfds, <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> *<strong class='reserved'>restrict</strong> rfds,
+<a id='L94' name='L94'></a>    94              <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> *<strong class='reserved'>restrict</strong> wfds, <a href='../D/11303.html' title='Multiple defined in 3 places.'>fd_set</a> *<strong class='reserved'>restrict</strong> xfds,
+<a id='L95' name='L95'></a>    95              <strong class='reserved'>struct</strong> <a href='../D/18269.html' title='Multiple defined in 3 places.'>timespec</a> <strong class='reserved'>const</strong> *<strong class='reserved'>restrict</strong> timeout,
+<a id='L96' name='L96'></a>    96              <a href='../D/17458.html' title='Multiple defined in 3 places.'>sigset_t</a> <strong class='reserved'>const</strong> *<strong class='reserved'>restrict</strong> sigmask)
+<a id='L97' name='L97'></a>    97 <em class='brace'>{</em>
+<a id='L98' name='L98'></a>    98   <strong class='reserved'>int</strong> i;
+<a id='L99' name='L99'></a>    99 
+<a id='L100' name='L100'></a>   100   <em class='comment'>/* FreeBSD 8.2 has a bug: it does not always detect invalid fds.  */</em>
+<a id='L101' name='L101'></a>   101   <strong class='reserved'>if</strong> (nfds &lt; 0 || nfds &gt; <a href='../D/2045.html' title='Multiple defined in 4 places.'>FD_SETSIZE</a>)
+<a id='L102' name='L102'></a>   102     <em class='brace'>{</em>
+<a id='L103' name='L103'></a>   103       errno = EINVAL;
+<a id='L104' name='L104'></a>   104       <strong class='reserved'>return</strong> -1;
+<a id='L105' name='L105'></a>   105     <em class='brace'>}</em>
+<a id='L106' name='L106'></a>   106   <strong class='reserved'>for</strong> (i = 0; i &lt; nfds; i++)
+<a id='L107' name='L107'></a>   107     <em class='brace'>{</em>
+<a id='L108' name='L108'></a>   108       <strong class='reserved'>if</strong> (((rfds &amp;&amp; <a href='../D/2043.html' title='Multiple defined in 8 places.'>FD_ISSET</a> (i, rfds))
+<a id='L109' name='L109'></a>   109            || (wfds &amp;&amp; <a href='../D/2043.html' title='Multiple defined in 8 places.'>FD_ISSET</a> (i, wfds))
+<a id='L110' name='L110'></a>   110            || (xfds &amp;&amp; <a href='../D/2043.html' title='Multiple defined in 8 places.'>FD_ISSET</a> (i, xfds)))
+<a id='L111' name='L111'></a>   111           &amp;&amp; <a href='../D/10839.html' title='Multiple defined in 14 places.'>dup2</a> (i, i) != i)
+<a id='L112' name='L112'></a>   112         <strong class='reserved'>return</strong> -1;
+<a id='L113' name='L113'></a>   113     <em class='brace'>}</em>
+<a id='L114' name='L114'></a>   114 
+<a id='L115' name='L115'></a>   115   <strong class='reserved'>return</strong> <a href='../D/15835.html' title='Multiple defined in 7 places.'>pselect</a> (nfds, rfds, wfds, xfds, timeout, sigmask);
+<a id='L116' name='L116'></a>   116 <em class='brace'>}</em>
+<a id='L117' name='L117'></a>   117 
+<a id='L118' name='L118'></a>   118 <em class='sharp'>#endif</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L39'>[^]</a><a href='#L93'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

@@ -1,0 +1,459 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/w32xfns.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4596.html'>src</a>/w32xfns.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L43'>[^]</a><a href='#L409'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L43' title='Defined at 43.'>init_crit</a></li>
+<li><a href='#L80' title='Defined at 80.'>delete_crit</a></li>
+<li><a href='#L114' title='Defined at 114.'>signal_quit</a></li>
+<li><a href='#L122' title='Defined at 122.'>select_palette</a></li>
+<li><a href='#L149' title='Defined at 149.'>deselect_palette</a></li>
+<li><a href='#L158' title='Defined at 158.'>get_frame_dc</a></li>
+<li><a href='#L229' title='Defined at 229.'>release_frame_dc</a></li>
+<li><a href='#L259' title='Defined at 259.'>get_next_msg</a></li>
+<li><a href='#L345' title='Defined at 345.'>notify_msg_ready</a></li>
+<li><a href='#L357' title='Defined at 357.'>post_msg</a></li>
+<li><a href='#L386' title='Defined at 386.'>prepend_msg</a></li>
+<li><a href='#L409' title='Defined at 409.'>drain_message_queue</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Functions taken directly from X sources for use with the Microsoft Windows API.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1989, 1992-1995, 1999, 2001-2023 Free Software</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;signal.h&gt;
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;windows.h&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;windowsx.h&gt;
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> "<a href='2079.html'>frame.h</a>"
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> "<a href='1995.html'>w32term.h</a>"
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#define</em> <a href='../R/12439.html' title='Multiple referred from 2 places.'>myalloc</a>(cb) GlobalAllocPtr (GPTR, cb)
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#define</em> <a href='../R/12441.html' title='Multiple referred from 2 places.'>myfree</a>(lp) GlobalFreePtr (lp)
+<a id='L32' name='L32'></a>    32 
+<a id='L33' name='L33'></a>    33 CRITICAL_SECTION critsect;
+<a id='L34' name='L34'></a>    34 
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#ifdef</em> <a href='../D/6183.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L36' name='L36'></a>    36 <strong class='reserved'>extern</strong> HANDLE keyboard_handle;
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#endif</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L38' name='L38'></a>    38 
+<a id='L39' name='L39'></a>    39 HANDLE input_available = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L40' name='L40'></a>    40 HANDLE interrupt_handle = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L41' name='L41'></a>    41 
+<a id='L42' name='L42'></a>    42 <strong class='reserved'>void</strong>
+<a id='L43' name='L43'></a>    43 <a href='../R/10888.html' title='Multiple referred from 4 places.'>init_crit</a> (<strong class='reserved'>void</strong>)
+<a id='L44' name='L44'></a>    44 <em class='brace'>{</em>
+<a id='L45' name='L45'></a>    45   InitializeCriticalSection (&amp;critsect);
+<a id='L46' name='L46'></a>    46 
+<a id='L47' name='L47'></a>    47   <em class='comment'>/* For safety, input_available should only be reset by get_next_msg</em>
+<a id='L48' name='L48'></a>    48 <em class='comment'>     when the input queue is empty, so make it a manual reset event. */</em>
+<a id='L49' name='L49'></a>    49   input_available = CreateEvent (<a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/5830.html' title='Multiple defined in 3 places.'>TRUE</a>, <a href='../D/1824.html' title='Multiple defined in 3 places.'>FALSE</a>, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51 <em class='sharp'>#if</em> HAVE_W32NOTIFY
+<a id='L52' name='L52'></a>    52   <em class='comment'>/* Initialize the linked list of notifications sets that will be</em>
+<a id='L53' name='L53'></a>    53 <em class='comment'>     used to communicate between the watching worker threads and the</em>
+<a id='L54' name='L54'></a>    54 <em class='comment'>     main thread.  */</em>
+<a id='L55' name='L55'></a>    55   notifications_set_head = <a href='../D/12802.html' title='Multiple defined in 19 places.'>malloc</a> (<strong class='reserved'>sizeof</strong>(<strong class='reserved'>struct</strong> <a href='../S/1995.html#L763' title='Defined at 763 in src/w32term.h.'>notifications_set</a>));
+<a id='L56' name='L56'></a>    56   <strong class='reserved'>if</strong> (notifications_set_head)
+<a id='L57' name='L57'></a>    57     <em class='brace'>{</em>
+<a id='L58' name='L58'></a>    58       memset (notifications_set_head, 0, <strong class='reserved'>sizeof</strong>(<strong class='reserved'>struct</strong> <a href='../S/1995.html#L763' title='Defined at 763 in src/w32term.h.'>notifications_set</a>));
+<a id='L59' name='L59'></a>    59       notifications_set_head-&gt;next
+<a id='L60' name='L60'></a>    60         = notifications_set_head-&gt;prev = notifications_set_head;
+<a id='L61' name='L61'></a>    61     <em class='brace'>}</em>
+<a id='L62' name='L62'></a>    62   <strong class='reserved'>else</strong>
+<a id='L63' name='L63'></a>    63     <a href='../D/1487.html' title='Multiple defined in 2 places.'>DebPrint</a>(("Out of memory: can't initialize notifications sets."));
+<a id='L64' name='L64'></a>    64 <em class='sharp'>#endif</em>
+<a id='L65' name='L65'></a>    65 
+<a id='L66' name='L66'></a>    66 <em class='sharp'>#ifdef</em> <a href='../D/6183.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L67' name='L67'></a>    67   keyboard_handle = input_available;
+<a id='L68' name='L68'></a>    68 <em class='sharp'>#endif</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70   <em class='comment'>/* interrupt_handle is signaled when quit (C-g) is detected, so that</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>     blocking system calls can be interrupted.  We make it a manual</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>     reset event, so that if we should ever have multiple threads</em>
+<a id='L73' name='L73'></a>    73 <em class='comment'>     performing system calls, they will all be interrupted (I'm guessing</em>
+<a id='L74' name='L74'></a>    74 <em class='comment'>     that would the right response).  Note that we use PulseEvent to</em>
+<a id='L75' name='L75'></a>    75 <em class='comment'>     signal this event, so that it never remains signaled.  */</em>
+<a id='L76' name='L76'></a>    76   interrupt_handle = CreateEvent (<a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/5830.html' title='Multiple defined in 3 places.'>TRUE</a>, <a href='../D/1824.html' title='Multiple defined in 3 places.'>FALSE</a>, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L77' name='L77'></a>    77 <em class='brace'>}</em>
+<a id='L78' name='L78'></a>    78 
+<a id='L79' name='L79'></a>    79 <strong class='reserved'>void</strong>
+<a id='L80' name='L80'></a>    80 <a href='../S/1995.html#L735' title='Referred from 735 in src/w32term.h.'>delete_crit</a> (<strong class='reserved'>void</strong>)
+<a id='L81' name='L81'></a>    81 <em class='brace'>{</em>
+<a id='L82' name='L82'></a>    82   DeleteCriticalSection (&amp;critsect);
+<a id='L83' name='L83'></a>    83 
+<a id='L84' name='L84'></a>    84   <strong class='reserved'>if</strong> (input_available)
+<a id='L85' name='L85'></a>    85     <em class='brace'>{</em>
+<a id='L86' name='L86'></a>    86       CloseHandle (input_available);
+<a id='L87' name='L87'></a>    87       input_available = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L88' name='L88'></a>    88     <em class='brace'>}</em>
+<a id='L89' name='L89'></a>    89   <strong class='reserved'>if</strong> (interrupt_handle)
+<a id='L90' name='L90'></a>    90     <em class='brace'>{</em>
+<a id='L91' name='L91'></a>    91       CloseHandle (interrupt_handle);
+<a id='L92' name='L92'></a>    92       interrupt_handle = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L93' name='L93'></a>    93     <em class='brace'>}</em>
+<a id='L94' name='L94'></a>    94 
+<a id='L95' name='L95'></a>    95 <em class='sharp'>#if</em> HAVE_W32NOTIFY
+<a id='L96' name='L96'></a>    96   <strong class='reserved'>if</strong> (notifications_set_head)
+<a id='L97' name='L97'></a>    97     <em class='brace'>{</em>
+<a id='L98' name='L98'></a>    98       <em class='comment'>/* Free any remaining notifications set that could be left over.  */</em>
+<a id='L99' name='L99'></a>    99       <strong class='reserved'>while</strong> (notifications_set_head-&gt;next != notifications_set_head)
+<a id='L100' name='L100'></a>   100         <em class='brace'>{</em>
+<a id='L101' name='L101'></a>   101           <strong class='reserved'>struct</strong> <a href='../S/1995.html#L763' title='Defined at 763 in src/w32term.h.'>notifications_set</a> *<a href='../S/2587.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a> = notifications_set_head-&gt;next;
+<a id='L102' name='L102'></a>   102           notifications_set_head-&gt;next = <a href='../S/2587.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;next;
+<a id='L103' name='L103'></a>   103           <a href='../S/2587.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;next-&gt;prev = notifications_set_head;
+<a id='L104' name='L104'></a>   104           <strong class='reserved'>if</strong> (<a href='../S/2587.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;notifications)
+<a id='L105' name='L105'></a>   105             <a href='../D/10457.html' title='Multiple defined in 19 places.'>free</a> (<a href='../S/2587.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>-&gt;notifications);
+<a id='L106' name='L106'></a>   106           <a href='../D/10457.html' title='Multiple defined in 19 places.'>free</a> (<a href='../S/2587.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>);
+<a id='L107' name='L107'></a>   107         <em class='brace'>}</em>
+<a id='L108' name='L108'></a>   108     <em class='brace'>}</em>
+<a id='L109' name='L109'></a>   109   <a href='../D/10457.html' title='Multiple defined in 19 places.'>free</a> (notifications_set_head);
+<a id='L110' name='L110'></a>   110 <em class='sharp'>#endif</em>
+<a id='L111' name='L111'></a>   111 <em class='brace'>}</em>
+<a id='L112' name='L112'></a>   112 
+<a id='L113' name='L113'></a>   113 <strong class='reserved'>void</strong>
+<a id='L114' name='L114'></a>   114 <a href='../R/14331.html' title='Multiple referred from 2 places.'>signal_quit</a> (<strong class='reserved'>void</strong>)
+<a id='L115' name='L115'></a>   115 <em class='brace'>{</em>
+<a id='L116' name='L116'></a>   116   <em class='comment'>/* Make sure this event never remains signaled; if the main thread</em>
+<a id='L117' name='L117'></a>   117 <em class='comment'>     isn't in a blocking call, then this should do nothing.  */</em>
+<a id='L118' name='L118'></a>   118   PulseEvent (interrupt_handle);
+<a id='L119' name='L119'></a>   119 <em class='brace'>}</em>
+<a id='L120' name='L120'></a>   120 
+<a id='L121' name='L121'></a>   121 <strong class='reserved'>void</strong>
+<a id='L122' name='L122'></a>   122 <a href='../R/14043.html' title='Multiple referred from 3 places.'>select_palette</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, HDC hdc)
+<a id='L123' name='L123'></a>   123 <em class='brace'>{</em>
+<a id='L124' name='L124'></a>   124   <strong class='reserved'>struct</strong> <a href='../S/1995.html#L82' title='Defined at 82 in src/w32term.h.'>w32_display_info</a> *<a href='../S/2124.html#L517' title='Defined at 517 in src/termhooks.h.'>display_info</a> = <a href='../D/2051.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L125' name='L125'></a>   125 
+<a id='L126' name='L126'></a>   126   <strong class='reserved'>if</strong> (!<a href='../S/2124.html#L517' title='Defined at 517 in src/termhooks.h.'>display_info</a>-&gt;has_palette)
+<a id='L127' name='L127'></a>   127     <strong class='reserved'>return</strong>;
+<a id='L128' name='L128'></a>   128 
+<a id='L129' name='L129'></a>   129   <strong class='reserved'>if</strong> (<a href='../S/2124.html#L517' title='Defined at 517 in src/termhooks.h.'>display_info</a>-&gt;palette == 0)
+<a id='L130' name='L130'></a>   130     <strong class='reserved'>return</strong>;
+<a id='L131' name='L131'></a>   131 
+<a id='L132' name='L132'></a>   132   <strong class='reserved'>if</strong> (!<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (Vw32_enable_palette))
+<a id='L133' name='L133'></a>   133     <a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>-&gt;<a href='../S/2079.html#L585' title='Defined at 585 in src/frame.h.'>output_data</a>.w32-&gt;old_palette =
+<a id='L134' name='L134'></a>   134       SelectPalette (hdc, <a href='../S/2124.html#L517' title='Defined at 517 in src/termhooks.h.'>display_info</a>-&gt;palette, <a href='../D/1824.html' title='Multiple defined in 3 places.'>FALSE</a>);
+<a id='L135' name='L135'></a>   135   <strong class='reserved'>else</strong>
+<a id='L136' name='L136'></a>   136     <a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>-&gt;<a href='../S/2079.html#L585' title='Defined at 585 in src/frame.h.'>output_data</a>.w32-&gt;old_palette = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L137' name='L137'></a>   137 
+<a id='L138' name='L138'></a>   138   <strong class='reserved'>if</strong> (RealizePalette (hdc) != GDI_ERROR)
+<a id='L139' name='L139'></a>   139     <em class='brace'>{</em>
+<a id='L140' name='L140'></a>   140       <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a>, framelist;
+<a id='L141' name='L141'></a>   141       <a href='../S/2079.html#L1307' title='Defined at 1307 in src/frame.h.'>FOR_EACH_FRAME</a> (framelist, <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a>)
+<a id='L142' name='L142'></a>   142         <em class='brace'>{</em>
+<a id='L143' name='L143'></a>   143           <a href='../S/2079.html#L1077' title='Defined at 1077 in src/frame.h.'>SET_FRAME_GARBAGED</a> (<a href='../S/2079.html#L839' title='Defined at 839 in src/frame.h.'>XFRAME</a> (<a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a>));
+<a id='L144' name='L144'></a>   144         <em class='brace'>}</em>
+<a id='L145' name='L145'></a>   145     <em class='brace'>}</em>
+<a id='L146' name='L146'></a>   146 <em class='brace'>}</em>
+<a id='L147' name='L147'></a>   147 
+<a id='L148' name='L148'></a>   148 <strong class='reserved'>void</strong>
+<a id='L149' name='L149'></a>   149 <a href='../R/8389.html' title='Multiple referred from 4 places.'>deselect_palette</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, HDC hdc)
+<a id='L150' name='L150'></a>   150 <em class='brace'>{</em>
+<a id='L151' name='L151'></a>   151   <strong class='reserved'>if</strong> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>-&gt;<a href='../S/2079.html#L585' title='Defined at 585 in src/frame.h.'>output_data</a>.w32-&gt;old_palette)
+<a id='L152' name='L152'></a>   152     SelectPalette (hdc, <a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>-&gt;<a href='../S/2079.html#L585' title='Defined at 585 in src/frame.h.'>output_data</a>.w32-&gt;old_palette, <a href='../D/1824.html' title='Multiple defined in 3 places.'>FALSE</a>);
+<a id='L153' name='L153'></a>   153 <em class='brace'>}</em>
+<a id='L154' name='L154'></a>   154 
+<a id='L155' name='L155'></a>   155 <em class='comment'>/* Get a DC for frame and select palette for drawing; force an update of</em>
+<a id='L156' name='L156'></a>   156 <em class='comment'>   all frames if palette's mapping changes.  */</em>
+<a id='L157' name='L157'></a>   157 HDC
+<a id='L158' name='L158'></a>   158 <a href='../R/9874.html' title='Multiple referred from 42 places.'>get_frame_dc</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L159' name='L159'></a>   159 <em class='brace'>{</em>
+<a id='L160' name='L160'></a>   160   HDC hdc, paint_dc;
+<a id='L161' name='L161'></a>   161   HBITMAP back_buffer;
+<a id='L162' name='L162'></a>   162   HGDIOBJ obj;
+<a id='L163' name='L163'></a>   163   <strong class='reserved'>struct</strong> <a href='../S/1995.html#L305' title='Defined at 305 in src/w32term.h.'>w32_output</a> *output;
+<a id='L164' name='L164'></a>   164 
+<a id='L165' name='L165'></a>   165   <strong class='reserved'>if</strong> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>-&gt;<a href='../S/2124.html#L57' title='Defined at 57 in src/termhooks.h.'>output_method</a> != <a href='../S/2124.html#L63' title='Defined at 63 in src/termhooks.h.'>output_w32</a>)
+<a id='L166' name='L166'></a>   166     <a href='../D/9706.html' title='Multiple defined in 5 places.'>emacs_abort</a> ();
+<a id='L167' name='L167'></a>   167 
+<a id='L168' name='L168'></a>   168   <a href='../S/1995.html#L739' title='Defined at 739 in src/w32term.h.'>enter_crit</a> ();
+<a id='L169' name='L169'></a>   169   output = <a href='../D/2127.html' title='Multiple defined in 6 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171   <strong class='reserved'>if</strong> (output-&gt;paint_dc)
+<a id='L172' name='L172'></a>   172     <em class='brace'>{</em>
+<a id='L173' name='L173'></a>   173       <strong class='reserved'>if</strong> (output-&gt;paint_buffer_width != <a href='../S/2079.html#L953' title='Defined at 953 in src/frame.h.'>FRAME_PIXEL_WIDTH</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L174' name='L174'></a>   174           || output-&gt;paint_buffer_height != <a href='../S/2079.html#L954' title='Defined at 954 in src/frame.h.'>FRAME_PIXEL_HEIGHT</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L175' name='L175'></a>   175           || w32_disable_double_buffering)
+<a id='L176' name='L176'></a>   176         <a href='../S/2108.html#L310' title='Defined at 310 in src/w32term.c.'>w32_release_paint_buffer</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L177' name='L177'></a>   177       <strong class='reserved'>else</strong>
+<a id='L178' name='L178'></a>   178         <em class='brace'>{</em>
+<a id='L179' name='L179'></a>   179           output-&gt;paint_buffer_dirty = 1;
+<a id='L180' name='L180'></a>   180           <strong class='reserved'>return</strong> output-&gt;paint_dc;
+<a id='L181' name='L181'></a>   181         <em class='brace'>}</em>
+<a id='L182' name='L182'></a>   182     <em class='brace'>}</em>
+<a id='L183' name='L183'></a>   183 
+<a id='L184' name='L184'></a>   184   hdc = GetDC (output-&gt;window_desc);
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186   <em class='comment'>/* If this gets called during startup before the frame is valid,</em>
+<a id='L187' name='L187'></a>   187 <em class='comment'>     there is a chance of corrupting random data or crashing. */</em>
+<a id='L188' name='L188'></a>   188   <strong class='reserved'>if</strong> (hdc)
+<a id='L189' name='L189'></a>   189     <em class='brace'>{</em>
+<a id='L190' name='L190'></a>   190       <a href='../S/2161.html#L122' title='Defined at 122 in src/w32xfns.c.'>select_palette</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, hdc);
+<a id='L191' name='L191'></a>   191 
+<a id='L192' name='L192'></a>   192       <strong class='reserved'>if</strong> (!w32_disable_double_buffering
+<a id='L193' name='L193'></a>   193           &amp;&amp; <a href='../D/2127.html' title='Multiple defined in 6 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)-&gt;want_paint_buffer)
+<a id='L194' name='L194'></a>   194         <em class='brace'>{</em>
+<a id='L195' name='L195'></a>   195           back_buffer
+<a id='L196' name='L196'></a>   196             = CreateCompatibleBitmap (hdc, <a href='../S/2079.html#L953' title='Defined at 953 in src/frame.h.'>FRAME_PIXEL_WIDTH</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L197' name='L197'></a>   197                                       <a href='../S/2079.html#L954' title='Defined at 954 in src/frame.h.'>FRAME_PIXEL_HEIGHT</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>));
+<a id='L198' name='L198'></a>   198 
+<a id='L199' name='L199'></a>   199           <strong class='reserved'>if</strong> (back_buffer)
+<a id='L200' name='L200'></a>   200             <em class='brace'>{</em>
+<a id='L201' name='L201'></a>   201               paint_dc = CreateCompatibleDC (hdc);
+<a id='L202' name='L202'></a>   202 
+<a id='L203' name='L203'></a>   203               <strong class='reserved'>if</strong> (!paint_dc)
+<a id='L204' name='L204'></a>   204                 DeleteObject (back_buffer);
+<a id='L205' name='L205'></a>   205               <strong class='reserved'>else</strong>
+<a id='L206' name='L206'></a>   206                 <em class='brace'>{</em>
+<a id='L207' name='L207'></a>   207                   obj = SelectObject (paint_dc, back_buffer);
+<a id='L208' name='L208'></a>   208 
+<a id='L209' name='L209'></a>   209                   output-&gt;paint_dc_object = obj;
+<a id='L210' name='L210'></a>   210                   output-&gt;paint_dc = paint_dc;
+<a id='L211' name='L211'></a>   211                   output-&gt;paint_buffer_handle = hdc;
+<a id='L212' name='L212'></a>   212                   output-&gt;paint_buffer = back_buffer;
+<a id='L213' name='L213'></a>   213                   output-&gt;paint_buffer_width = <a href='../S/2079.html#L953' title='Defined at 953 in src/frame.h.'>FRAME_PIXEL_WIDTH</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L214' name='L214'></a>   214                   output-&gt;paint_buffer_height = <a href='../S/2079.html#L954' title='Defined at 954 in src/frame.h.'>FRAME_PIXEL_HEIGHT</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L215' name='L215'></a>   215                   output-&gt;paint_buffer_dirty = 1;
+<a id='L216' name='L216'></a>   216 
+<a id='L217' name='L217'></a>   217                   <a href='../S/2079.html#L1077' title='Defined at 1077 in src/frame.h.'>SET_FRAME_GARBAGED</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L218' name='L218'></a>   218 
+<a id='L219' name='L219'></a>   219                   <strong class='reserved'>return</strong> paint_dc;
+<a id='L220' name='L220'></a>   220                 <em class='brace'>}</em>
+<a id='L221' name='L221'></a>   221             <em class='brace'>}</em>
+<a id='L222' name='L222'></a>   222         <em class='brace'>}</em>
+<a id='L223' name='L223'></a>   223     <em class='brace'>}</em>
+<a id='L224' name='L224'></a>   224 
+<a id='L225' name='L225'></a>   225   <strong class='reserved'>return</strong> hdc;
+<a id='L226' name='L226'></a>   226 <em class='brace'>}</em>
+<a id='L227' name='L227'></a>   227 
+<a id='L228' name='L228'></a>   228 <strong class='reserved'>int</strong>
+<a id='L229' name='L229'></a>   229 <a href='../R/13669.html' title='Multiple referred from 40 places.'>release_frame_dc</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, HDC hdc)
+<a id='L230' name='L230'></a>   230 <em class='brace'>{</em>
+<a id='L231' name='L231'></a>   231   <strong class='reserved'>int</strong> ret;
+<a id='L232' name='L232'></a>   232 
+<a id='L233' name='L233'></a>   233   <em class='comment'>/* Avoid releasing the double-buffered DC here, since it'll be</em>
+<a id='L234' name='L234'></a>   234 <em class='comment'>     released upon the next buffer flip instead.  */</em>
+<a id='L235' name='L235'></a>   235   <strong class='reserved'>if</strong> (hdc != <a href='../D/2127.html' title='Multiple defined in 6 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)-&gt;paint_dc)
+<a id='L236' name='L236'></a>   236     <em class='brace'>{</em>
+<a id='L237' name='L237'></a>   237       <a href='../S/2161.html#L149' title='Defined at 149 in src/w32xfns.c.'>deselect_palette</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, hdc);
+<a id='L238' name='L238'></a>   238       ret = ReleaseDC (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>-&gt;<a href='../S/2079.html#L585' title='Defined at 585 in src/frame.h.'>output_data</a>.w32-&gt;window_desc, hdc);
+<a id='L239' name='L239'></a>   239     <em class='brace'>}</em>
+<a id='L240' name='L240'></a>   240   <strong class='reserved'>else</strong>
+<a id='L241' name='L241'></a>   241     ret = 0;
+<a id='L242' name='L242'></a>   242 
+<a id='L243' name='L243'></a>   243   <a href='../S/1995.html#L740' title='Defined at 740 in src/w32term.h.'>leave_crit</a> ();
+<a id='L244' name='L244'></a>   244 
+<a id='L245' name='L245'></a>   245   <strong class='reserved'>return</strong> ret;
+<a id='L246' name='L246'></a>   246 <em class='brace'>}</em>
+<a id='L247' name='L247'></a>   247 
+<a id='L248' name='L248'></a>   248 <strong class='reserved'>typedef</strong> <strong class='reserved'>struct</strong> <a href='../R/11046.html' title='Multiple referred from 9 places.'>int_msg</a>
+<a id='L249' name='L249'></a>   249 <em class='brace'>{</em>
+<a id='L250' name='L250'></a>   250   <a href='../D/6128.html' title='Multiple defined in 2 places.'>W32Msg</a> w32msg;
+<a id='L251' name='L251'></a>   251   <strong class='reserved'>struct</strong> <a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> *lpNext;
+<a id='L252' name='L252'></a>   252 <em class='brace'>}</em> <a href='../R/11046.html' title='Multiple referred from 9 places.'>int_msg</a>;
+<a id='L253' name='L253'></a>   253 
+<a id='L254' name='L254'></a>   254 <a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> *lpHead = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L255' name='L255'></a>   255 <a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> *lpTail = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L256' name='L256'></a>   256 <strong class='reserved'>int</strong> nQueue = 0;
+<a id='L257' name='L257'></a>   257 
+<a id='L258' name='L258'></a>   258 <a href='../D/341.html' title='Multiple defined in 3 places.'>BOOL</a>
+<a id='L259' name='L259'></a>   259 <a href='../R/9925.html' title='Multiple referred from 2 places.'>get_next_msg</a> (<a href='../D/6128.html' title='Multiple defined in 2 places.'>W32Msg</a> * lpmsg, <a href='../D/341.html' title='Multiple defined in 3 places.'>BOOL</a> bWait)
+<a id='L260' name='L260'></a>   260 <em class='brace'>{</em>
+<a id='L261' name='L261'></a>   261   <a href='../D/341.html' title='Multiple defined in 3 places.'>BOOL</a> bRet = <a href='../D/1824.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L262' name='L262'></a>   262 
+<a id='L263' name='L263'></a>   263   <a href='../S/1995.html#L739' title='Defined at 739 in src/w32term.h.'>enter_crit</a> ();
+<a id='L264' name='L264'></a>   264 
+<a id='L265' name='L265'></a>   265   <em class='comment'>/* The while loop takes care of multiple sets */</em>
+<a id='L266' name='L266'></a>   266 
+<a id='L267' name='L267'></a>   267   <strong class='reserved'>while</strong> (!nQueue &amp;&amp; bWait)
+<a id='L268' name='L268'></a>   268     <em class='brace'>{</em>
+<a id='L269' name='L269'></a>   269       <a href='../S/1995.html#L740' title='Defined at 740 in src/w32term.h.'>leave_crit</a> ();
+<a id='L270' name='L270'></a>   270       WaitForSingleObject (input_available, INFINITE);
+<a id='L271' name='L271'></a>   271       <a href='../S/1995.html#L739' title='Defined at 739 in src/w32term.h.'>enter_crit</a> ();
+<a id='L272' name='L272'></a>   272     <em class='brace'>}</em>
+<a id='L273' name='L273'></a>   273 
+<a id='L274' name='L274'></a>   274   <strong class='reserved'>if</strong> (nQueue)
+<a id='L275' name='L275'></a>   275     <em class='brace'>{</em>
+<a id='L276' name='L276'></a>   276       memcpy (lpmsg, &amp;lpHead-&gt;w32msg, <strong class='reserved'>sizeof</strong> (<a href='../D/6128.html' title='Multiple defined in 2 places.'>W32Msg</a>));
+<a id='L277' name='L277'></a>   277 
+<a id='L278' name='L278'></a>   278       <em class='brace'>{</em>
+<a id='L279' name='L279'></a>   279         <a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> * lpCur = lpHead;
+<a id='L280' name='L280'></a>   280 
+<a id='L281' name='L281'></a>   281         lpHead = lpHead-&gt;lpNext;
+<a id='L282' name='L282'></a>   282 
+<a id='L283' name='L283'></a>   283         <a href='../S/2161.html#L31' title='Defined at 31 in src/w32xfns.c.'>myfree</a> (lpCur);
+<a id='L284' name='L284'></a>   284       <em class='brace'>}</em>
+<a id='L285' name='L285'></a>   285 
+<a id='L286' name='L286'></a>   286       nQueue--;
+<a id='L287' name='L287'></a>   287       <em class='comment'>/* Consolidate WM_PAINT messages to optimize redrawing.  */</em>
+<a id='L288' name='L288'></a>   288       <strong class='reserved'>if</strong> (lpmsg-&gt;msg.<a href='../D/13050.html' title='Multiple defined in 2 places.'>message</a> == WM_PAINT &amp;&amp; nQueue)
+<a id='L289' name='L289'></a>   289         <em class='brace'>{</em>
+<a id='L290' name='L290'></a>   290           <a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> * lpCur = lpHead;
+<a id='L291' name='L291'></a>   291           <a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> * lpPrev = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L292' name='L292'></a>   292           <a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> * lpNext = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L293' name='L293'></a>   293 
+<a id='L294' name='L294'></a>   294           <strong class='reserved'>while</strong> (lpCur &amp;&amp; nQueue)
+<a id='L295' name='L295'></a>   295             <em class='brace'>{</em>
+<a id='L296' name='L296'></a>   296               lpNext = lpCur-&gt;lpNext;
+<a id='L297' name='L297'></a>   297               <strong class='reserved'>if</strong> (lpCur-&gt;w32msg.msg.<a href='../D/13050.html' title='Multiple defined in 2 places.'>message</a> == WM_PAINT)
+<a id='L298' name='L298'></a>   298                 <em class='brace'>{</em>
+<a id='L299' name='L299'></a>   299                   <em class='comment'>/* Remove this message from the queue.  */</em>
+<a id='L300' name='L300'></a>   300                   <strong class='reserved'>if</strong> (lpPrev)
+<a id='L301' name='L301'></a>   301                     lpPrev-&gt;lpNext = lpNext;
+<a id='L302' name='L302'></a>   302                   <strong class='reserved'>else</strong>
+<a id='L303' name='L303'></a>   303                     lpHead = lpNext;
+<a id='L304' name='L304'></a>   304 
+<a id='L305' name='L305'></a>   305                   <strong class='reserved'>if</strong> (lpCur == lpTail)
+<a id='L306' name='L306'></a>   306                     lpTail = lpPrev;
+<a id='L307' name='L307'></a>   307 
+<a id='L308' name='L308'></a>   308                   <em class='comment'>/* Adjust clip rectangle to cover both.  */</em>
+<a id='L309' name='L309'></a>   309                   <strong class='reserved'>if</strong> (!UnionRect (&amp;(lpmsg-&gt;rect), &amp;(lpmsg-&gt;rect),
+<a id='L310' name='L310'></a>   310                                   &amp;(lpCur-&gt;w32msg.rect)))
+<a id='L311' name='L311'></a>   311                     <em class='brace'>{</em>
+<a id='L312' name='L312'></a>   312                       SetRectEmpty (&amp;(lpmsg-&gt;rect));
+<a id='L313' name='L313'></a>   313                     <em class='brace'>}</em>
+<a id='L314' name='L314'></a>   314 
+<a id='L315' name='L315'></a>   315                   <a href='../S/2161.html#L31' title='Defined at 31 in src/w32xfns.c.'>myfree</a> (lpCur);
+<a id='L316' name='L316'></a>   316 
+<a id='L317' name='L317'></a>   317                   nQueue--;
+<a id='L318' name='L318'></a>   318 
+<a id='L319' name='L319'></a>   319                   lpCur = lpNext;
+<a id='L320' name='L320'></a>   320                 <em class='brace'>}</em>
+<a id='L321' name='L321'></a>   321               <strong class='reserved'>else</strong>
+<a id='L322' name='L322'></a>   322                 <em class='brace'>{</em>
+<a id='L323' name='L323'></a>   323                   lpPrev = lpCur;
+<a id='L324' name='L324'></a>   324                   lpCur = lpNext;
+<a id='L325' name='L325'></a>   325                 <em class='brace'>}</em>
+<a id='L326' name='L326'></a>   326             <em class='brace'>}</em>
+<a id='L327' name='L327'></a>   327         <em class='brace'>}</em>
+<a id='L328' name='L328'></a>   328 
+<a id='L329' name='L329'></a>   329       bRet = <a href='../D/5830.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L330' name='L330'></a>   330     <em class='brace'>}</em>
+<a id='L331' name='L331'></a>   331 
+<a id='L332' name='L332'></a>   332   <strong class='reserved'>if</strong> (nQueue == 0)
+<a id='L333' name='L333'></a>   333     ResetEvent (input_available);
+<a id='L334' name='L334'></a>   334 
+<a id='L335' name='L335'></a>   335   <a href='../S/1995.html#L740' title='Defined at 740 in src/w32term.h.'>leave_crit</a> ();
+<a id='L336' name='L336'></a>   336 
+<a id='L337' name='L337'></a>   337   <strong class='reserved'>return</strong> (bRet);
+<a id='L338' name='L338'></a>   338 <em class='brace'>}</em>
+<a id='L339' name='L339'></a>   339 
+<a id='L340' name='L340'></a>   340 <strong class='reserved'>extern</strong> <strong class='reserved'>char</strong> * <a href='../S/2077.html#L9559' title='Defined at 9559 in src/w32fns.c.'>w32_strerror</a> (<strong class='reserved'>int</strong> error_no);
+<a id='L341' name='L341'></a>   341 
+<a id='L342' name='L342'></a>   342 <em class='comment'>/* Tell the main thread that we have input available; if the main</em>
+<a id='L343' name='L343'></a>   343 <em class='comment'>   thread is blocked in select(), we wake it up here.  */</em>
+<a id='L344' name='L344'></a>   344 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L345' name='L345'></a>   345 <a href='../R/12534.html' title='Multiple referred from 2 places.'>notify_msg_ready</a> (<strong class='reserved'>void</strong>)
+<a id='L346' name='L346'></a>   346 <em class='brace'>{</em>
+<a id='L347' name='L347'></a>   347   SetEvent (input_available);
+<a id='L348' name='L348'></a>   348 
+<a id='L349' name='L349'></a>   349 <em class='sharp'>#ifdef</em> CYGWIN
+<a id='L350' name='L350'></a>   350   <em class='comment'>/* Wakes up the main thread, which is blocked select()ing for /dev/windows,</em>
+<a id='L351' name='L351'></a>   351 <em class='comment'>     among other files.  */</em>
+<a id='L352' name='L352'></a>   352   (<strong class='reserved'>void</strong>) PostThreadMessage (dwMainThreadId, <a href='../S/1995.html#L693' title='Defined at 693 in src/w32term.h.'>WM_EMACS_INPUT_READY</a>, 0, 0);
+<a id='L353' name='L353'></a>   353 <em class='sharp'>#endif</em> <em class='comment'>/* CYGWIN */</em>
+<a id='L354' name='L354'></a>   354 <em class='brace'>}</em>
+<a id='L355' name='L355'></a>   355 
+<a id='L356' name='L356'></a>   356 <a href='../D/341.html' title='Multiple defined in 3 places.'>BOOL</a>
+<a id='L357' name='L357'></a>   357 <a href='../R/13129.html' title='Multiple referred from 6 places.'>post_msg</a> (<a href='../D/6128.html' title='Multiple defined in 2 places.'>W32Msg</a> * lpmsg)
+<a id='L358' name='L358'></a>   358 <em class='brace'>{</em>
+<a id='L359' name='L359'></a>   359   <a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> * lpNew = (<a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> *) <a href='../S/2161.html#L30' title='Defined at 30 in src/w32xfns.c.'>myalloc</a> (<strong class='reserved'>sizeof</strong> (<a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a>));
+<a id='L360' name='L360'></a>   360 
+<a id='L361' name='L361'></a>   361   <strong class='reserved'>if</strong> (!lpNew)
+<a id='L362' name='L362'></a>   362     <strong class='reserved'>return</strong> (<a href='../D/1824.html' title='Multiple defined in 3 places.'>FALSE</a>);
+<a id='L363' name='L363'></a>   363 
+<a id='L364' name='L364'></a>   364   memcpy (&amp;lpNew-&gt;w32msg, lpmsg, <strong class='reserved'>sizeof</strong> (<a href='../D/6128.html' title='Multiple defined in 2 places.'>W32Msg</a>));
+<a id='L365' name='L365'></a>   365   lpNew-&gt;lpNext = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L366' name='L366'></a>   366 
+<a id='L367' name='L367'></a>   367   <a href='../S/1995.html#L739' title='Defined at 739 in src/w32term.h.'>enter_crit</a> ();
+<a id='L368' name='L368'></a>   368 
+<a id='L369' name='L369'></a>   369   <strong class='reserved'>if</strong> (nQueue++)
+<a id='L370' name='L370'></a>   370     <em class='brace'>{</em>
+<a id='L371' name='L371'></a>   371       lpTail-&gt;lpNext = lpNew;
+<a id='L372' name='L372'></a>   372     <em class='brace'>}</em>
+<a id='L373' name='L373'></a>   373   <strong class='reserved'>else</strong>
+<a id='L374' name='L374'></a>   374     <em class='brace'>{</em>
+<a id='L375' name='L375'></a>   375       lpHead = lpNew;
+<a id='L376' name='L376'></a>   376     <em class='brace'>}</em>
+<a id='L377' name='L377'></a>   377 
+<a id='L378' name='L378'></a>   378   lpTail = lpNew;
+<a id='L379' name='L379'></a>   379   <a href='../S/2161.html#L345' title='Defined at 345 in src/w32xfns.c.'>notify_msg_ready</a> ();
+<a id='L380' name='L380'></a>   380   <a href='../S/1995.html#L740' title='Defined at 740 in src/w32term.h.'>leave_crit</a> ();
+<a id='L381' name='L381'></a>   381 
+<a id='L382' name='L382'></a>   382   <strong class='reserved'>return</strong> (<a href='../D/5830.html' title='Multiple defined in 3 places.'>TRUE</a>);
+<a id='L383' name='L383'></a>   383 <em class='brace'>}</em>
+<a id='L384' name='L384'></a>   384 
+<a id='L385' name='L385'></a>   385 <a href='../D/341.html' title='Multiple defined in 3 places.'>BOOL</a>
+<a id='L386' name='L386'></a>   386 <a href='../R/13158.html' title='Multiple referred from 2 places.'>prepend_msg</a> (<a href='../D/6128.html' title='Multiple defined in 2 places.'>W32Msg</a> *lpmsg)
+<a id='L387' name='L387'></a>   387 <em class='brace'>{</em>
+<a id='L388' name='L388'></a>   388   <a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> * lpNew = (<a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a> *) <a href='../S/2161.html#L30' title='Defined at 30 in src/w32xfns.c.'>myalloc</a> (<strong class='reserved'>sizeof</strong> (<a href='../D/12042.html' title='Multiple defined in 2 places.'>int_msg</a>));
+<a id='L389' name='L389'></a>   389 
+<a id='L390' name='L390'></a>   390   <strong class='reserved'>if</strong> (!lpNew)
+<a id='L391' name='L391'></a>   391     <strong class='reserved'>return</strong> (<a href='../D/1824.html' title='Multiple defined in 3 places.'>FALSE</a>);
+<a id='L392' name='L392'></a>   392 
+<a id='L393' name='L393'></a>   393   memcpy (&amp;lpNew-&gt;w32msg, lpmsg, <strong class='reserved'>sizeof</strong> (<a href='../D/6128.html' title='Multiple defined in 2 places.'>W32Msg</a>));
+<a id='L394' name='L394'></a>   394 
+<a id='L395' name='L395'></a>   395   <a href='../S/1995.html#L739' title='Defined at 739 in src/w32term.h.'>enter_crit</a> ();
+<a id='L396' name='L396'></a>   396 
+<a id='L397' name='L397'></a>   397   nQueue++;
+<a id='L398' name='L398'></a>   398   lpNew-&gt;lpNext = lpHead;
+<a id='L399' name='L399'></a>   399   lpHead = lpNew;
+<a id='L400' name='L400'></a>   400   <a href='../S/2161.html#L345' title='Defined at 345 in src/w32xfns.c.'>notify_msg_ready</a> ();
+<a id='L401' name='L401'></a>   401   <a href='../S/1995.html#L740' title='Defined at 740 in src/w32term.h.'>leave_crit</a> ();
+<a id='L402' name='L402'></a>   402 
+<a id='L403' name='L403'></a>   403   <strong class='reserved'>return</strong> (<a href='../D/5830.html' title='Multiple defined in 3 places.'>TRUE</a>);
+<a id='L404' name='L404'></a>   404 <em class='brace'>}</em>
+<a id='L405' name='L405'></a>   405 
+<a id='L406' name='L406'></a>   406 <em class='comment'>/* Process all messages in the current thread's queue.  Value is 1 if</em>
+<a id='L407' name='L407'></a>   407 <em class='comment'>   one of these messages was WM_EMACS_FILENOTIFY, zero otherwise.  */</em>
+<a id='L408' name='L408'></a>   408 <strong class='reserved'>int</strong>
+<a id='L409' name='L409'></a>   409 <a href='../R/8541.html' title='Multiple referred from 3 places.'>drain_message_queue</a> (<strong class='reserved'>void</strong>)
+<a id='L410' name='L410'></a>   410 <em class='brace'>{</em>
+<a id='L411' name='L411'></a>   411   MSG msg;
+<a id='L412' name='L412'></a>   412   <strong class='reserved'>int</strong> retval = 0;
+<a id='L413' name='L413'></a>   413 
+<a id='L414' name='L414'></a>   414   <strong class='reserved'>while</strong> (PeekMessage (&amp;msg, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, 0, 0, PM_REMOVE))
+<a id='L415' name='L415'></a>   415     <em class='brace'>{</em>
+<a id='L416' name='L416'></a>   416       <strong class='reserved'>if</strong> (msg.<a href='../D/13050.html' title='Multiple defined in 2 places.'>message</a> == <a href='../S/1995.html#L694' title='Defined at 694 in src/w32term.h.'>WM_EMACS_FILENOTIFY</a>)
+<a id='L417' name='L417'></a>   417         retval = 1;
+<a id='L418' name='L418'></a>   418       TranslateMessage (&amp;msg);
+<a id='L419' name='L419'></a>   419       <a href='../D/1491.html' title='Multiple defined in 2 places.'>DispatchMessage</a> (&amp;msg);
+<a id='L420' name='L420'></a>   420     <em class='brace'>}</em>
+<a id='L421' name='L421'></a>   421   <strong class='reserved'>return</strong> retval;
+<a id='L422' name='L422'></a>   422 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L43'>[^]</a><a href='#L409'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

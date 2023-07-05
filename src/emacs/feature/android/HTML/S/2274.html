@@ -1,0 +1,879 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/marker.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4791.html'>src</a>/marker.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L42'>[^]</a><a href='#L825'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L42' title='Defined at 42.'>count_markers</a></li>
+<li><a href='#L74' title='Defined at 74.'>clear_charpos_cache</a></li>
+<li><a href='#L132' title='Defined at 132.'>CHECK_MARKER</a></li>
+<li><a href='#L162' title='Defined at 162.'>buf_charpos_to_bytepos</a></li>
+<li><a href='#L319' title='Defined at 319.'>buf_bytepos_to_charpos</a></li>
+<li><a href='#L430' title='Defined at 430.'>DEFUN</a></li>
+<li><a href='#L450' title='Defined at 450.'>DEFUN</a></li>
+<li><a href='#L464' title='Defined at 464.'>attach_marker</a></li>
+<li><a href='#L491' title='Defined at 491.'>live_buffer</a></li>
+<li><a href='#L501' title='Defined at 501.'>set_marker_internal</a></li>
+<li><a href='#L611' title='Defined at 611.'>set_marker_restricted</a></li>
+<li><a href='#L621' title='Defined at 621.'>set_marker_both</a></li>
+<li><a href='#L640' title='Defined at 640.'>set_marker_restricted_both</a></li>
+<li><a href='#L666' title='Defined at 666.'>detach_marker</a></li>
+<li><a href='#L675' title='Defined at 675.'>unchain_marker</a></li>
+<li><a href='#L715' title='Defined at 715.'>marker_position</a></li>
+<li><a href='#L731' title='Defined at 731.'>marker_byte_position</a></li>
+<li><a href='#L765' title='Defined at 765.'>DEFUN</a></li>
+<li><a href='#L793' title='Defined at 793.'>count_markers</a></li>
+<li><a href='#L808' title='Defined at 808.'>verify_bytepos</a></li>
+<li><a href='#L825' title='Defined at 825.'>syms_of_marker</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Markers: examining, setting and deleting.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1985, 1997-1998, 2001-2023 Free Software Foundation,</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L22' name='L22'></a>    22 
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> "<a href='2218.html'>character.h</a>"
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='2130.html'>buffer.h</a>"
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='2317.html'>window.h</a>"
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <em class='comment'>/* Record one cached position found recently by</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'>   buf_charpos_to_bytepos or buf_bytepos_to_charpos.  */</em>
+<a id='L30' name='L30'></a>    30 
+<a id='L31' name='L31'></a>    31 <strong class='reserved'>static</strong> ptrdiff_t cached_charpos;
+<a id='L32' name='L32'></a>    32 <strong class='reserved'>static</strong> ptrdiff_t cached_bytepos;
+<a id='L33' name='L33'></a>    33 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *cached_buffer;
+<a id='L34' name='L34'></a>    34 <strong class='reserved'>static</strong> <a href='../S/2267.html#L3925' title='Defined at 3925 in src/lisp.h.'>modiff_count</a> cached_modiff;
+<a id='L35' name='L35'></a>    35 
+<a id='L36' name='L36'></a>    36 <em class='comment'>/* Juanma Barranquero &lt;lekktu@gmail.com&gt; reported ~3x increased</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'>   bootstrap time when byte_char_debug_check is enabled; so this</em>
+<a id='L38' name='L38'></a>    38 <em class='comment'>   is never turned on by --enable-checking configure option.  */</em>
+<a id='L39' name='L39'></a>    39 
+<a id='L40' name='L40'></a>    40 <em class='sharp'>#ifdef</em> MARKER_DEBUG
+<a id='L41' name='L41'></a>    41 
+<a id='L42' name='L42'></a>    42 <strong class='reserved'>extern</strong> <strong class='reserved'>int</strong> count_markers (<strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *) <a href='../S/2374.html#L277' title='Defined at 277 in src/conf_post.h.'>EXTERNALLY_VISIBLE</a>;
+<a id='L43' name='L43'></a>    43 <strong class='reserved'>extern</strong> ptrdiff_t <a href='../S/2274.html#L808' title='Defined at 808 in src/marker.c.'>verify_bytepos</a> (ptrdiff_t charpos) <a href='../S/2374.html#L277' title='Defined at 277 in src/conf_post.h.'>EXTERNALLY_VISIBLE</a>;
+<a id='L44' name='L44'></a>    44 
+<a id='L45' name='L45'></a>    45 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L46' name='L46'></a>    46 <a href='../S/2274.html#L69' title='Defined at 69 in src/marker.c.'>byte_char_debug_check</a> (<strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, ptrdiff_t charpos, ptrdiff_t bytepos)
+<a id='L47' name='L47'></a>    47 <em class='brace'>{</em>
+<a id='L48' name='L48'></a>    48   ptrdiff_t nchars;
+<a id='L49' name='L49'></a>    49 
+<a id='L50' name='L50'></a>    50   <strong class='reserved'>if</strong> (<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2130.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, enable_multibyte_characters)))
+<a id='L51' name='L51'></a>    51     <strong class='reserved'>return</strong>;
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53   <strong class='reserved'>if</strong> (bytepos &gt; <a href='../S/2130.html#L110' title='Defined at 110 in src/buffer.h.'>BUF_GPT_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>))
+<a id='L54' name='L54'></a>    54     nchars
+<a id='L55' name='L55'></a>    55       = <a href='../S/2146.html#L509' title='Defined at 509 in src/character.c.'>multibyte_chars_in_text</a> (<a href='../S/2130.html#L117' title='Defined at 117 in src/buffer.h.'>BUF_BEG_ADDR</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>),
+<a id='L56' name='L56'></a>    56                                  <a href='../S/2130.html#L110' title='Defined at 110 in src/buffer.h.'>BUF_GPT_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) - <a href='../S/2130.html#L937' title='Defined at 937 in src/buffer.h.'>BUF_BEG_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>))
+<a id='L57' name='L57'></a>    57       + <a href='../S/2146.html#L509' title='Defined at 509 in src/character.c.'>multibyte_chars_in_text</a> (<a href='../S/2130.html#L958' title='Defined at 958 in src/buffer.h.'>BUF_GAP_END_ADDR</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>),
+<a id='L58' name='L58'></a>    58                                  bytepos - <a href='../S/2130.html#L110' title='Defined at 110 in src/buffer.h.'>BUF_GPT_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L59' name='L59'></a>    59   <strong class='reserved'>else</strong>
+<a id='L60' name='L60'></a>    60     nchars = <a href='../S/2146.html#L509' title='Defined at 509 in src/character.c.'>multibyte_chars_in_text</a> (<a href='../S/2130.html#L117' title='Defined at 117 in src/buffer.h.'>BUF_BEG_ADDR</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>),
+<a id='L61' name='L61'></a>    61                                       bytepos - <a href='../S/2130.html#L937' title='Defined at 937 in src/buffer.h.'>BUF_BEG_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L62' name='L62'></a>    62 
+<a id='L63' name='L63'></a>    63   <strong class='reserved'>if</strong> (charpos - 1 != nchars)
+<a id='L64' name='L64'></a>    64     <a href='../D/10886.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L65' name='L65'></a>    65 <em class='brace'>}</em>
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67 <em class='sharp'>#else</em> <em class='comment'>/* not MARKER_DEBUG */</em>
+<a id='L68' name='L68'></a>    68 
+<a id='L69' name='L69'></a>    69 <em class='sharp'>#define</em> <a href='../R/8523.html' title='Multiple referred from 9 places.'>byte_char_debug_check</a>(<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, charpos, bytepos) <strong class='reserved'>do</strong> <em class='brace'>{</em> <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L70' name='L70'></a>    70 
+<a id='L71' name='L71'></a>    71 <em class='sharp'>#endif</em> <em class='comment'>/* MARKER_DEBUG */</em>
+<a id='L72' name='L72'></a>    72 
+<a id='L73' name='L73'></a>    73 <strong class='reserved'>void</strong>
+<a id='L74' name='L74'></a>    74 <a href='../R/8821.html' title='Multiple referred from 5 places.'>clear_charpos_cache</a> (<strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L75' name='L75'></a>    75 <em class='brace'>{</em>
+<a id='L76' name='L76'></a>    76   <strong class='reserved'>if</strong> (cached_buffer == <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L77' name='L77'></a>    77     cached_buffer = 0;
+<a id='L78' name='L78'></a>    78 <em class='brace'>}</em>
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80 <em class='comment'>/* Converting between character positions and byte positions.  */</em>
+<a id='L81' name='L81'></a>    81 
+<a id='L82' name='L82'></a>    82 <em class='comment'>/* There are several places in the buffer where we know</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>   the correspondence: BEG, BEGV, PT, GPT, ZV and Z,</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>   and everywhere there is a marker.  So we find the one of these places</em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>   that is closest to the specified position, and scan from there.  */</em>
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87 <em class='comment'>/* This macro is a subroutine of buf_charpos_to_bytepos.</em>
+<a id='L88' name='L88'></a>    88 <em class='comment'>   Note that it is desirable that BYTEPOS is not evaluated</em>
+<a id='L89' name='L89'></a>    89 <em class='comment'>   except when we really want its value.  */</em>
+<a id='L90' name='L90'></a>    90 
+<a id='L91' name='L91'></a>    91 <em class='sharp'>#define</em> <a href='../R/1156.html' title='Multiple referred from 12 places.'>CONSIDER</a>(<a href='../S/2315.html#L269' title='Defined at 269 in src/dispextern.h.'>CHARPOS</a>, <a href='../S/2315.html#L268' title='Defined at 268 in src/dispextern.h.'>BYTEPOS</a>)                                      \
+<a id='L92' name='L92'></a>    92 <em class='brace'>{</em>                                                                       \
+<a id='L93' name='L93'></a>    93   ptrdiff_t this_charpos = (<a href='../S/2315.html#L269' title='Defined at 269 in src/dispextern.h.'>CHARPOS</a>);                                   \
+<a id='L94' name='L94'></a>    94   <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> changed = <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;                                                 \
+<a id='L95' name='L95'></a>    95                                                                         \
+<a id='L96' name='L96'></a>    96   <strong class='reserved'>if</strong> (this_charpos == charpos)                                          \
+<a id='L97' name='L97'></a>    97     <em class='brace'>{</em>                                                                   \
+<a id='L98' name='L98'></a>    98       ptrdiff_t <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = (<a href='../S/2315.html#L268' title='Defined at 268 in src/dispextern.h.'>BYTEPOS</a>);                                      \
+<a id='L99' name='L99'></a>    99                                                                         \
+<a id='L100' name='L100'></a>   100       <a href='../S/2274.html#L69' title='Defined at 69 in src/marker.c.'>byte_char_debug_check</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, charpos, <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);                        \
+<a id='L101' name='L101'></a>   101       <strong class='reserved'>return</strong> <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;                                                     \
+<a id='L102' name='L102'></a>   102     <em class='brace'>}</em>                                                                   \
+<a id='L103' name='L103'></a>   103   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (this_charpos &gt; charpos)                                      \
+<a id='L104' name='L104'></a>   104     <em class='brace'>{</em>                                                                   \
+<a id='L105' name='L105'></a>   105       <strong class='reserved'>if</strong> (this_charpos &lt; best_above)                                    \
+<a id='L106' name='L106'></a>   106         <em class='brace'>{</em>                                                               \
+<a id='L107' name='L107'></a>   107           best_above = this_charpos;                                    \
+<a id='L108' name='L108'></a>   108           best_above_byte = (<a href='../S/2315.html#L268' title='Defined at 268 in src/dispextern.h.'>BYTEPOS</a>);                                  \
+<a id='L109' name='L109'></a>   109           changed = <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;                                               \
+<a id='L110' name='L110'></a>   110         <em class='brace'>}</em>                                                               \
+<a id='L111' name='L111'></a>   111     <em class='brace'>}</em>                                                                   \
+<a id='L112' name='L112'></a>   112   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (this_charpos &gt; best_below)                                   \
+<a id='L113' name='L113'></a>   113     <em class='brace'>{</em>                                                                   \
+<a id='L114' name='L114'></a>   114       best_below = this_charpos;                                        \
+<a id='L115' name='L115'></a>   115       best_below_byte = (<a href='../S/2315.html#L268' title='Defined at 268 in src/dispextern.h.'>BYTEPOS</a>);                                      \
+<a id='L116' name='L116'></a>   116       changed = <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;                                                   \
+<a id='L117' name='L117'></a>   117     <em class='brace'>}</em>                                                                   \
+<a id='L118' name='L118'></a>   118                                                                         \
+<a id='L119' name='L119'></a>   119   <strong class='reserved'>if</strong> (changed)                                                          \
+<a id='L120' name='L120'></a>   120     <em class='brace'>{</em>                                                                   \
+<a id='L121' name='L121'></a>   121       <strong class='reserved'>if</strong> (best_above - best_below == best_above_byte - best_below_byte) \
+<a id='L122' name='L122'></a>   122         <em class='brace'>{</em>                                                               \
+<a id='L123' name='L123'></a>   123           ptrdiff_t <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = best_below_byte + (charpos - best_below);   \
+<a id='L124' name='L124'></a>   124                                                                         \
+<a id='L125' name='L125'></a>   125           <a href='../S/2274.html#L69' title='Defined at 69 in src/marker.c.'>byte_char_debug_check</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, charpos, <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);                    \
+<a id='L126' name='L126'></a>   126           <strong class='reserved'>return</strong> <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;                                                 \
+<a id='L127' name='L127'></a>   127         <em class='brace'>}</em>                                                               \
+<a id='L128' name='L128'></a>   128     <em class='brace'>}</em>                                                                   \
+<a id='L129' name='L129'></a>   129 <em class='brace'>}</em>
+<a id='L130' name='L130'></a>   130 
+<a id='L131' name='L131'></a>   131 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L132' name='L132'></a>   132 <a href='../R/929.html' title='Multiple referred from 7 places.'>CHECK_MARKER</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/4100.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>)
+<a id='L133' name='L133'></a>   133 <em class='brace'>{</em>
+<a id='L134' name='L134'></a>   134   <a href='../D/1012.html' title='Multiple defined in 2 places.'>CHECK_TYPE</a> (<a href='../D/3898.html' title='Multiple defined in 2 places.'>MARKERP</a> (<a href='../S/4100.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>), Qmarkerp, <a href='../S/4100.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>);
+<a id='L135' name='L135'></a>   135 <em class='brace'>}</em>
+<a id='L136' name='L136'></a>   136 
+<a id='L137' name='L137'></a>   137 <em class='comment'>/* When converting bytes from/to chars, we look through the list of</em>
+<a id='L138' name='L138'></a>   138 <em class='comment'>   markers to try and find a good starting point (since markers keep</em>
+<a id='L139' name='L139'></a>   139 <em class='comment'>   track of both bytepos and charpos at the same time).</em>
+<a id='L140' name='L140'></a>   140 <em class='comment'>   But if there are many markers, it can take too much time to find a "good"</em>
+<a id='L141' name='L141'></a>   141 <em class='comment'>   marker from which to start.  Worse yet: if it takes a long time and we end</em>
+<a id='L142' name='L142'></a>   142 <em class='comment'>   up finding a nearby markers, we won't add a new marker to cache this</em>
+<a id='L143' name='L143'></a>   143 <em class='comment'>   result, so next time around we'll have to go through this same long list</em>
+<a id='L144' name='L144'></a>   144 <em class='comment'>   to (re)find this best marker.  So the further down the list of</em>
+<a id='L145' name='L145'></a>   145 <em class='comment'>   markers we go, the less demanding we are w.r.t what is a good marker.</em>
+<a id='L146' name='L146'></a>   146 <em class='comment'></em>
+<a id='L147' name='L147'></a>   147 <em class='comment'>   The previous code used INITIAL=50 and INCREMENT=0 and this lead to</em>
+<a id='L148' name='L148'></a>   148 <em class='comment'>   really poor performance when there are many markers.</em>
+<a id='L149' name='L149'></a>   149 <em class='comment'>   I haven't tried to tweak INITIAL, but experiments on my trusty Thinkpad</em>
+<a id='L150' name='L150'></a>   150 <em class='comment'>   T61 using various artificial test cases seem to suggest that INCREMENT=50</em>
+<a id='L151' name='L151'></a>   151 <em class='comment'>   might be "the best compromise": it significantly improved the</em>
+<a id='L152' name='L152'></a>   152 <em class='comment'>   worst case and it was rarely slower and never by much.</em>
+<a id='L153' name='L153'></a>   153 <em class='comment'></em>
+<a id='L154' name='L154'></a>   154 <em class='comment'>   The asymptotic behavior is still poor, tho, so in largish buffers with many</em>
+<a id='L155' name='L155'></a>   155 <em class='comment'>   overlays (e.g. 300KB and 30K overlays), it can still be a bottleneck.  */</em>
+<a id='L156' name='L156'></a>   156 <em class='sharp'>#define</em> <a href='../R/582.html' title='Multiple referred from 2 places.'>BYTECHAR_DISTANCE_INITIAL</a> 50
+<a id='L157' name='L157'></a>   157 <em class='sharp'>#define</em> <a href='../R/581.html' title='Multiple referred from 2 places.'>BYTECHAR_DISTANCE_INCREMENT</a> 50
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159 <em class='comment'>/* Return the byte position corresponding to CHARPOS in B.  */</em>
+<a id='L160' name='L160'></a>   160 
+<a id='L161' name='L161'></a>   161 ptrdiff_t
+<a id='L162' name='L162'></a>   162 <a href='../R/8467.html' title='Multiple referred from 27 places.'>buf_charpos_to_bytepos</a> (<strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, ptrdiff_t charpos)
+<a id='L163' name='L163'></a>   163 <em class='brace'>{</em>
+<a id='L164' name='L164'></a>   164   <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>;
+<a id='L165' name='L165'></a>   165   ptrdiff_t best_above, best_above_byte;
+<a id='L166' name='L166'></a>   166   ptrdiff_t best_below, best_below_byte;
+<a id='L167' name='L167'></a>   167   ptrdiff_t distance = <a href='../S/2274.html#L156' title='Defined at 156 in src/marker.c.'>BYTECHAR_DISTANCE_INITIAL</a>;
+<a id='L168' name='L168'></a>   168 
+<a id='L169' name='L169'></a>   169   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../S/2130.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) &lt;= charpos &amp;&amp; charpos &lt;= <a href='../S/2130.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171   best_above = <a href='../S/2130.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L172' name='L172'></a>   172   best_above_byte = <a href='../S/2130.html#L114' title='Defined at 114 in src/buffer.h.'>BUF_Z_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L173' name='L173'></a>   173 
+<a id='L174' name='L174'></a>   174   <em class='comment'>/* If this buffer has as many characters as bytes,</em>
+<a id='L175' name='L175'></a>   175 <em class='comment'>     each character must be one byte.</em>
+<a id='L176' name='L176'></a>   176 <em class='comment'>     This takes care of the case where enable-multibyte-characters is nil.  */</em>
+<a id='L177' name='L177'></a>   177   <strong class='reserved'>if</strong> (best_above == best_above_byte)
+<a id='L178' name='L178'></a>   178     <strong class='reserved'>return</strong> charpos;
+<a id='L179' name='L179'></a>   179 
+<a id='L180' name='L180'></a>   180   best_below = <a href='../S/2130.html#L38' title='Defined at 38 in src/buffer.h.'>BEG</a>;
+<a id='L181' name='L181'></a>   181   best_below_byte = <a href='../S/2130.html#L38' title='Defined at 38 in src/buffer.h.'>BEG_BYTE</a>;
+<a id='L182' name='L182'></a>   182 
+<a id='L183' name='L183'></a>   183   <em class='comment'>/* We find in best_above and best_above_byte</em>
+<a id='L184' name='L184'></a>   184 <em class='comment'>     the closest known point above CHARPOS,</em>
+<a id='L185' name='L185'></a>   185 <em class='comment'>     and in best_below and best_below_byte</em>
+<a id='L186' name='L186'></a>   186 <em class='comment'>     the closest known point below CHARPOS,</em>
+<a id='L187' name='L187'></a>   187 <em class='comment'></em>
+<a id='L188' name='L188'></a>   188 <em class='comment'>     If at any point we can tell that the space between those</em>
+<a id='L189' name='L189'></a>   189 <em class='comment'>     two best approximations is all single-byte,</em>
+<a id='L190' name='L190'></a>   190 <em class='comment'>     we interpolate the result immediately.  */</em>
+<a id='L191' name='L191'></a>   191 
+<a id='L192' name='L192'></a>   192   <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/2130.html#L895' title='Defined at 895 in src/buffer.h.'>BUF_PT</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), <a href='../S/2130.html#L903' title='Defined at 903 in src/buffer.h.'>BUF_PT_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L193' name='L193'></a>   193   <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/2130.html#L109' title='Defined at 109 in src/buffer.h.'>BUF_GPT</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), <a href='../S/2130.html#L110' title='Defined at 110 in src/buffer.h.'>BUF_GPT_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L194' name='L194'></a>   194   <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/2130.html#L878' title='Defined at 878 in src/buffer.h.'>BUF_BEGV</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), <a href='../S/2130.html#L886' title='Defined at 886 in src/buffer.h.'>BUF_BEGV_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L195' name='L195'></a>   195   <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/2130.html#L912' title='Defined at 912 in src/buffer.h.'>BUF_ZV</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), <a href='../S/2130.html#L920' title='Defined at 920 in src/buffer.h.'>BUF_ZV_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L196' name='L196'></a>   196 
+<a id='L197' name='L197'></a>   197   <strong class='reserved'>if</strong> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> == cached_buffer &amp;&amp; <a href='../S/2130.html#L123' title='Defined at 123 in src/buffer.h.'>BUF_MODIFF</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) == cached_modiff)
+<a id='L198' name='L198'></a>   198     <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (cached_charpos, cached_bytepos);
+<a id='L199' name='L199'></a>   199 
+<a id='L200' name='L200'></a>   200   <strong class='reserved'>for</strong> (<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = <a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>); <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>; <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;next)
+<a id='L201' name='L201'></a>   201     <em class='brace'>{</em>
+<a id='L202' name='L202'></a>   202       <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;charpos, <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;bytepos);
+<a id='L203' name='L203'></a>   203 
+<a id='L204' name='L204'></a>   204       <em class='comment'>/* If we are down to a range of 50 chars,</em>
+<a id='L205' name='L205'></a>   205 <em class='comment'>         don't bother checking any other markers;</em>
+<a id='L206' name='L206'></a>   206 <em class='comment'>         scan the intervening chars directly now.  */</em>
+<a id='L207' name='L207'></a>   207       <strong class='reserved'>if</strong> (best_above - charpos &lt; distance
+<a id='L208' name='L208'></a>   208           || charpos - best_below &lt; distance)
+<a id='L209' name='L209'></a>   209         <strong class='reserved'>break</strong>;
+<a id='L210' name='L210'></a>   210       <strong class='reserved'>else</strong>
+<a id='L211' name='L211'></a>   211         distance += <a href='../S/2274.html#L157' title='Defined at 157 in src/marker.c.'>BYTECHAR_DISTANCE_INCREMENT</a>;
+<a id='L212' name='L212'></a>   212     <em class='brace'>}</em>
+<a id='L213' name='L213'></a>   213 
+<a id='L214' name='L214'></a>   214   <em class='comment'>/* We get here if we did not exactly hit one of the known places.</em>
+<a id='L215' name='L215'></a>   215 <em class='comment'>     We have one known above and one known below.</em>
+<a id='L216' name='L216'></a>   216 <em class='comment'>     Scan, counting characters, from whichever one is closer.  */</em>
+<a id='L217' name='L217'></a>   217 
+<a id='L218' name='L218'></a>   218   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (best_below &lt;= charpos &amp;&amp; charpos &lt;= best_above);
+<a id='L219' name='L219'></a>   219   <strong class='reserved'>if</strong> (charpos - best_below &lt; best_above - charpos)
+<a id='L220' name='L220'></a>   220     <em class='brace'>{</em>
+<a id='L221' name='L221'></a>   221       <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> <a href='../D/16162.html' title='Multiple defined in 2 places.'>record</a> = charpos - best_below &gt; 5000;
+<a id='L222' name='L222'></a>   222 
+<a id='L223' name='L223'></a>   223       <strong class='reserved'>while</strong> (best_below &lt; charpos)
+<a id='L224' name='L224'></a>   224         <em class='brace'>{</em>
+<a id='L225' name='L225'></a>   225           best_below++;
+<a id='L226' name='L226'></a>   226           best_below_byte += <a href='../S/2130.html#L1692' title='Defined at 1692 in src/buffer.h.'>buf_next_char_len</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_below_byte);
+<a id='L227' name='L227'></a>   227         <em class='brace'>}</em>
+<a id='L228' name='L228'></a>   228 
+<a id='L229' name='L229'></a>   229       <em class='comment'>/* If this position is quite far from the nearest known position,</em>
+<a id='L230' name='L230'></a>   230 <em class='comment'>         cache the correspondence by creating a marker here.</em>
+<a id='L231' name='L231'></a>   231 <em class='comment'>         It will last until the next GC.  */</em>
+<a id='L232' name='L232'></a>   232       <strong class='reserved'>if</strong> (<a href='../D/16162.html' title='Multiple defined in 2 places.'>record</a>)
+<a id='L233' name='L233'></a>   233         <a href='../S/2350.html#L3977' title='Defined at 3977 in src/alloc.c.'>build_marker</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_below, best_below_byte);
+<a id='L234' name='L234'></a>   234 
+<a id='L235' name='L235'></a>   235       <a href='../S/2274.html#L69' title='Defined at 69 in src/marker.c.'>byte_char_debug_check</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_below, best_below_byte);
+<a id='L236' name='L236'></a>   236 
+<a id='L237' name='L237'></a>   237       cached_buffer = <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L238' name='L238'></a>   238       cached_modiff = <a href='../S/2130.html#L123' title='Defined at 123 in src/buffer.h.'>BUF_MODIFF</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L239' name='L239'></a>   239       cached_charpos = best_below;
+<a id='L240' name='L240'></a>   240       cached_bytepos = best_below_byte;
+<a id='L241' name='L241'></a>   241 
+<a id='L242' name='L242'></a>   242       <strong class='reserved'>return</strong> best_below_byte;
+<a id='L243' name='L243'></a>   243     <em class='brace'>}</em>
+<a id='L244' name='L244'></a>   244   <strong class='reserved'>else</strong>
+<a id='L245' name='L245'></a>   245     <em class='brace'>{</em>
+<a id='L246' name='L246'></a>   246       <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> <a href='../D/16162.html' title='Multiple defined in 2 places.'>record</a> = best_above - charpos &gt; 5000;
+<a id='L247' name='L247'></a>   247 
+<a id='L248' name='L248'></a>   248       <strong class='reserved'>while</strong> (best_above &gt; charpos)
+<a id='L249' name='L249'></a>   249         <em class='brace'>{</em>
+<a id='L250' name='L250'></a>   250           best_above--;
+<a id='L251' name='L251'></a>   251           best_above_byte -= <a href='../S/2130.html#L1708' title='Defined at 1708 in src/buffer.h.'>buf_prev_char_len</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_above_byte);
+<a id='L252' name='L252'></a>   252         <em class='brace'>}</em>
+<a id='L253' name='L253'></a>   253 
+<a id='L254' name='L254'></a>   254       <em class='comment'>/* If this position is quite far from the nearest known position,</em>
+<a id='L255' name='L255'></a>   255 <em class='comment'>         cache the correspondence by creating a marker here.</em>
+<a id='L256' name='L256'></a>   256 <em class='comment'>         It will last until the next GC.  */</em>
+<a id='L257' name='L257'></a>   257       <strong class='reserved'>if</strong> (<a href='../D/16162.html' title='Multiple defined in 2 places.'>record</a>)
+<a id='L258' name='L258'></a>   258         <a href='../S/2350.html#L3977' title='Defined at 3977 in src/alloc.c.'>build_marker</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_above, best_above_byte);
+<a id='L259' name='L259'></a>   259 
+<a id='L260' name='L260'></a>   260       <a href='../S/2274.html#L69' title='Defined at 69 in src/marker.c.'>byte_char_debug_check</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_above, best_above_byte);
+<a id='L261' name='L261'></a>   261 
+<a id='L262' name='L262'></a>   262       cached_buffer = <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L263' name='L263'></a>   263       cached_modiff = <a href='../S/2130.html#L123' title='Defined at 123 in src/buffer.h.'>BUF_MODIFF</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L264' name='L264'></a>   264       cached_charpos = best_above;
+<a id='L265' name='L265'></a>   265       cached_bytepos = best_above_byte;
+<a id='L266' name='L266'></a>   266 
+<a id='L267' name='L267'></a>   267       <strong class='reserved'>return</strong> best_above_byte;
+<a id='L268' name='L268'></a>   268     <em class='brace'>}</em>
+<a id='L269' name='L269'></a>   269 <em class='brace'>}</em>
+<a id='L270' name='L270'></a>   270 
+<a id='L271' name='L271'></a>   271 <em class='sharp'>#undef</em> <a href='../R/1156.html' title='Multiple referred from 12 places.'>CONSIDER</a>
+<a id='L272' name='L272'></a>   272 
+<a id='L273' name='L273'></a>   273 <em class='comment'>/* This macro is a subroutine of buf_bytepos_to_charpos.</em>
+<a id='L274' name='L274'></a>   274 <em class='comment'>   It is used when BYTEPOS is actually the byte position.  */</em>
+<a id='L275' name='L275'></a>   275 
+<a id='L276' name='L276'></a>   276 <em class='sharp'>#define</em> <a href='../R/1156.html' title='Multiple referred from 12 places.'>CONSIDER</a>(<a href='../S/2315.html#L268' title='Defined at 268 in src/dispextern.h.'>BYTEPOS</a>, <a href='../S/2315.html#L269' title='Defined at 269 in src/dispextern.h.'>CHARPOS</a>)                                      \
+<a id='L277' name='L277'></a>   277 <em class='brace'>{</em>                                                                       \
+<a id='L278' name='L278'></a>   278   ptrdiff_t this_bytepos = (<a href='../S/2315.html#L268' title='Defined at 268 in src/dispextern.h.'>BYTEPOS</a>);                                   \
+<a id='L279' name='L279'></a>   279   <strong class='reserved'>int</strong> changed = <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;                                                  \
+<a id='L280' name='L280'></a>   280                                                                         \
+<a id='L281' name='L281'></a>   281   <strong class='reserved'>if</strong> (this_bytepos == bytepos)                                          \
+<a id='L282' name='L282'></a>   282     <em class='brace'>{</em>                                                                   \
+<a id='L283' name='L283'></a>   283       ptrdiff_t <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = (<a href='../S/2315.html#L269' title='Defined at 269 in src/dispextern.h.'>CHARPOS</a>);                                      \
+<a id='L284' name='L284'></a>   284                                                                         \
+<a id='L285' name='L285'></a>   285       <a href='../S/2274.html#L69' title='Defined at 69 in src/marker.c.'>byte_char_debug_check</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>, bytepos);                        \
+<a id='L286' name='L286'></a>   286       <strong class='reserved'>return</strong> <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;                                                     \
+<a id='L287' name='L287'></a>   287     <em class='brace'>}</em>                                                                   \
+<a id='L288' name='L288'></a>   288   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (this_bytepos &gt; bytepos)                                      \
+<a id='L289' name='L289'></a>   289     <em class='brace'>{</em>                                                                   \
+<a id='L290' name='L290'></a>   290       <strong class='reserved'>if</strong> (this_bytepos &lt; best_above_byte)                               \
+<a id='L291' name='L291'></a>   291         <em class='brace'>{</em>                                                               \
+<a id='L292' name='L292'></a>   292           best_above = (<a href='../S/2315.html#L269' title='Defined at 269 in src/dispextern.h.'>CHARPOS</a>);                                       \
+<a id='L293' name='L293'></a>   293           best_above_byte = this_bytepos;                               \
+<a id='L294' name='L294'></a>   294           changed = <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;                                               \
+<a id='L295' name='L295'></a>   295         <em class='brace'>}</em>                                                               \
+<a id='L296' name='L296'></a>   296     <em class='brace'>}</em>                                                                   \
+<a id='L297' name='L297'></a>   297   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (this_bytepos &gt; best_below_byte)                              \
+<a id='L298' name='L298'></a>   298     <em class='brace'>{</em>                                                                   \
+<a id='L299' name='L299'></a>   299       best_below = (<a href='../S/2315.html#L269' title='Defined at 269 in src/dispextern.h.'>CHARPOS</a>);                                           \
+<a id='L300' name='L300'></a>   300       best_below_byte = this_bytepos;                                   \
+<a id='L301' name='L301'></a>   301       changed = <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;                                                   \
+<a id='L302' name='L302'></a>   302     <em class='brace'>}</em>                                                                   \
+<a id='L303' name='L303'></a>   303                                                                         \
+<a id='L304' name='L304'></a>   304   <strong class='reserved'>if</strong> (changed)                                                          \
+<a id='L305' name='L305'></a>   305     <em class='brace'>{</em>                                                                   \
+<a id='L306' name='L306'></a>   306       <strong class='reserved'>if</strong> (best_above - best_below == best_above_byte - best_below_byte) \
+<a id='L307' name='L307'></a>   307         <em class='brace'>{</em>                                                               \
+<a id='L308' name='L308'></a>   308           ptrdiff_t <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = best_below + (bytepos - best_below_byte);   \
+<a id='L309' name='L309'></a>   309                                                                         \
+<a id='L310' name='L310'></a>   310           <a href='../S/2274.html#L69' title='Defined at 69 in src/marker.c.'>byte_char_debug_check</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>, bytepos);                    \
+<a id='L311' name='L311'></a>   311           <strong class='reserved'>return</strong> <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;                                                 \
+<a id='L312' name='L312'></a>   312         <em class='brace'>}</em>                                                               \
+<a id='L313' name='L313'></a>   313     <em class='brace'>}</em>                                                                   \
+<a id='L314' name='L314'></a>   314 <em class='brace'>}</em>
+<a id='L315' name='L315'></a>   315 
+<a id='L316' name='L316'></a>   316 <em class='comment'>/* Return the character position corresponding to BYTEPOS in B.  */</em>
+<a id='L317' name='L317'></a>   317 
+<a id='L318' name='L318'></a>   318 ptrdiff_t
+<a id='L319' name='L319'></a>   319 <a href='../R/8466.html' title='Multiple referred from 10 places.'>buf_bytepos_to_charpos</a> (<strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, ptrdiff_t bytepos)
+<a id='L320' name='L320'></a>   320 <em class='brace'>{</em>
+<a id='L321' name='L321'></a>   321   <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>;
+<a id='L322' name='L322'></a>   322   ptrdiff_t best_above, best_above_byte;
+<a id='L323' name='L323'></a>   323   ptrdiff_t best_below, best_below_byte;
+<a id='L324' name='L324'></a>   324   ptrdiff_t distance = <a href='../S/2274.html#L156' title='Defined at 156 in src/marker.c.'>BYTECHAR_DISTANCE_INITIAL</a>;
+<a id='L325' name='L325'></a>   325 
+<a id='L326' name='L326'></a>   326   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../S/2130.html#L937' title='Defined at 937 in src/buffer.h.'>BUF_BEG_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) &lt;= bytepos &amp;&amp; bytepos &lt;= <a href='../S/2130.html#L114' title='Defined at 114 in src/buffer.h.'>BUF_Z_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L327' name='L327'></a>   327 
+<a id='L328' name='L328'></a>   328   best_above = <a href='../S/2130.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L329' name='L329'></a>   329   best_above_byte = <a href='../S/2130.html#L114' title='Defined at 114 in src/buffer.h.'>BUF_Z_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L330' name='L330'></a>   330 
+<a id='L331' name='L331'></a>   331   <em class='comment'>/* If this buffer has as many characters as bytes,</em>
+<a id='L332' name='L332'></a>   332 <em class='comment'>     each character must be one byte.</em>
+<a id='L333' name='L333'></a>   333 <em class='comment'>     This takes care of the case where enable-multibyte-characters is nil.  */</em>
+<a id='L334' name='L334'></a>   334   <strong class='reserved'>if</strong> (best_above == best_above_byte)
+<a id='L335' name='L335'></a>   335     <strong class='reserved'>return</strong> bytepos;
+<a id='L336' name='L336'></a>   336 
+<a id='L337' name='L337'></a>   337   <em class='comment'>/* Check bytepos is not in the middle of a character. */</em>
+<a id='L338' name='L338'></a>   338   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (bytepos &gt;= <a href='../S/2130.html#L114' title='Defined at 114 in src/buffer.h.'>BUF_Z_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L339' name='L339'></a>   339            || <a href='../S/2218.html#L286' title='Defined at 286 in src/character.h.'>CHAR_HEAD_P</a> (<a href='../S/2130.html#L1368' title='Defined at 1368 in src/buffer.h.'>BUF_FETCH_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, bytepos)));
+<a id='L340' name='L340'></a>   340 
+<a id='L341' name='L341'></a>   341   best_below = <a href='../S/2130.html#L38' title='Defined at 38 in src/buffer.h.'>BEG</a>;
+<a id='L342' name='L342'></a>   342   best_below_byte = <a href='../S/2130.html#L38' title='Defined at 38 in src/buffer.h.'>BEG_BYTE</a>;
+<a id='L343' name='L343'></a>   343 
+<a id='L344' name='L344'></a>   344   <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/2130.html#L903' title='Defined at 903 in src/buffer.h.'>BUF_PT_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), <a href='../S/2130.html#L895' title='Defined at 895 in src/buffer.h.'>BUF_PT</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L345' name='L345'></a>   345   <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/2130.html#L110' title='Defined at 110 in src/buffer.h.'>BUF_GPT_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), <a href='../S/2130.html#L109' title='Defined at 109 in src/buffer.h.'>BUF_GPT</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L346' name='L346'></a>   346   <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/2130.html#L886' title='Defined at 886 in src/buffer.h.'>BUF_BEGV_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), <a href='../S/2130.html#L878' title='Defined at 878 in src/buffer.h.'>BUF_BEGV</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L347' name='L347'></a>   347   <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/2130.html#L920' title='Defined at 920 in src/buffer.h.'>BUF_ZV_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), <a href='../S/2130.html#L912' title='Defined at 912 in src/buffer.h.'>BUF_ZV</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L348' name='L348'></a>   348 
+<a id='L349' name='L349'></a>   349   <strong class='reserved'>if</strong> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> == cached_buffer &amp;&amp; <a href='../S/2130.html#L123' title='Defined at 123 in src/buffer.h.'>BUF_MODIFF</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) == cached_modiff)
+<a id='L350' name='L350'></a>   350     <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (cached_bytepos, cached_charpos);
+<a id='L351' name='L351'></a>   351 
+<a id='L352' name='L352'></a>   352   <strong class='reserved'>for</strong> (<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = <a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>); <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>; <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;next)
+<a id='L353' name='L353'></a>   353     <em class='brace'>{</em>
+<a id='L354' name='L354'></a>   354       <a href='../D/1226.html' title='Multiple defined in 4 places.'>CONSIDER</a> (<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;bytepos, <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;charpos);
+<a id='L355' name='L355'></a>   355 
+<a id='L356' name='L356'></a>   356       <em class='comment'>/* If we are down to a range of 50 chars,</em>
+<a id='L357' name='L357'></a>   357 <em class='comment'>         don't bother checking any other markers;</em>
+<a id='L358' name='L358'></a>   358 <em class='comment'>         scan the intervening chars directly now.  */</em>
+<a id='L359' name='L359'></a>   359       <strong class='reserved'>if</strong> (best_above - bytepos &lt; distance
+<a id='L360' name='L360'></a>   360           || bytepos - best_below &lt; distance)
+<a id='L361' name='L361'></a>   361         <strong class='reserved'>break</strong>;
+<a id='L362' name='L362'></a>   362       <strong class='reserved'>else</strong>
+<a id='L363' name='L363'></a>   363         distance += <a href='../S/2274.html#L157' title='Defined at 157 in src/marker.c.'>BYTECHAR_DISTANCE_INCREMENT</a>;
+<a id='L364' name='L364'></a>   364     <em class='brace'>}</em>
+<a id='L365' name='L365'></a>   365 
+<a id='L366' name='L366'></a>   366   <em class='comment'>/* We get here if we did not exactly hit one of the known places.</em>
+<a id='L367' name='L367'></a>   367 <em class='comment'>     We have one known above and one known below.</em>
+<a id='L368' name='L368'></a>   368 <em class='comment'>     Scan, counting characters, from whichever one is closer.  */</em>
+<a id='L369' name='L369'></a>   369 
+<a id='L370' name='L370'></a>   370   <strong class='reserved'>if</strong> (bytepos - best_below_byte &lt; best_above_byte - bytepos)
+<a id='L371' name='L371'></a>   371     <em class='brace'>{</em>
+<a id='L372' name='L372'></a>   372       <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> <a href='../D/16162.html' title='Multiple defined in 2 places.'>record</a> = bytepos - best_below_byte &gt; 5000;
+<a id='L373' name='L373'></a>   373 
+<a id='L374' name='L374'></a>   374       <strong class='reserved'>while</strong> (best_below_byte &lt; bytepos)
+<a id='L375' name='L375'></a>   375         <em class='brace'>{</em>
+<a id='L376' name='L376'></a>   376           best_below++;
+<a id='L377' name='L377'></a>   377           best_below_byte += <a href='../S/2130.html#L1692' title='Defined at 1692 in src/buffer.h.'>buf_next_char_len</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_below_byte);
+<a id='L378' name='L378'></a>   378         <em class='brace'>}</em>
+<a id='L379' name='L379'></a>   379 
+<a id='L380' name='L380'></a>   380       <em class='comment'>/* If this position is quite far from the nearest known position,</em>
+<a id='L381' name='L381'></a>   381 <em class='comment'>         cache the correspondence by creating a marker here.</em>
+<a id='L382' name='L382'></a>   382 <em class='comment'>         It will last until the next GC.</em>
+<a id='L383' name='L383'></a>   383 <em class='comment'>         But don't do it if BUF_MARKERS is nil;</em>
+<a id='L384' name='L384'></a>   384 <em class='comment'>         that is a signal from Fset_buffer_multibyte.  */</em>
+<a id='L385' name='L385'></a>   385       <strong class='reserved'>if</strong> (<a href='../D/16162.html' title='Multiple defined in 2 places.'>record</a> &amp;&amp; <a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>))
+<a id='L386' name='L386'></a>   386         <a href='../S/2350.html#L3977' title='Defined at 3977 in src/alloc.c.'>build_marker</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_below, best_below_byte);
+<a id='L387' name='L387'></a>   387 
+<a id='L388' name='L388'></a>   388       <a href='../S/2274.html#L69' title='Defined at 69 in src/marker.c.'>byte_char_debug_check</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_below, best_below_byte);
+<a id='L389' name='L389'></a>   389 
+<a id='L390' name='L390'></a>   390       cached_buffer = <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L391' name='L391'></a>   391       cached_modiff = <a href='../S/2130.html#L123' title='Defined at 123 in src/buffer.h.'>BUF_MODIFF</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L392' name='L392'></a>   392       cached_charpos = best_below;
+<a id='L393' name='L393'></a>   393       cached_bytepos = best_below_byte;
+<a id='L394' name='L394'></a>   394 
+<a id='L395' name='L395'></a>   395       <strong class='reserved'>return</strong> best_below;
+<a id='L396' name='L396'></a>   396     <em class='brace'>}</em>
+<a id='L397' name='L397'></a>   397   <strong class='reserved'>else</strong>
+<a id='L398' name='L398'></a>   398     <em class='brace'>{</em>
+<a id='L399' name='L399'></a>   399       <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> <a href='../D/16162.html' title='Multiple defined in 2 places.'>record</a> = best_above_byte - bytepos &gt; 5000;
+<a id='L400' name='L400'></a>   400 
+<a id='L401' name='L401'></a>   401       <strong class='reserved'>while</strong> (best_above_byte &gt; bytepos)
+<a id='L402' name='L402'></a>   402         <em class='brace'>{</em>
+<a id='L403' name='L403'></a>   403           best_above--;
+<a id='L404' name='L404'></a>   404           best_above_byte -= <a href='../S/2130.html#L1708' title='Defined at 1708 in src/buffer.h.'>buf_prev_char_len</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_above_byte);
+<a id='L405' name='L405'></a>   405         <em class='brace'>}</em>
+<a id='L406' name='L406'></a>   406 
+<a id='L407' name='L407'></a>   407       <em class='comment'>/* If this position is quite far from the nearest known position,</em>
+<a id='L408' name='L408'></a>   408 <em class='comment'>         cache the correspondence by creating a marker here.</em>
+<a id='L409' name='L409'></a>   409 <em class='comment'>         It will last until the next GC.</em>
+<a id='L410' name='L410'></a>   410 <em class='comment'>         But don't do it if BUF_MARKERS is nil;</em>
+<a id='L411' name='L411'></a>   411 <em class='comment'>         that is a signal from Fset_buffer_multibyte.  */</em>
+<a id='L412' name='L412'></a>   412       <strong class='reserved'>if</strong> (<a href='../D/16162.html' title='Multiple defined in 2 places.'>record</a> &amp;&amp; <a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>))
+<a id='L413' name='L413'></a>   413         <a href='../S/2350.html#L3977' title='Defined at 3977 in src/alloc.c.'>build_marker</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_above, best_above_byte);
+<a id='L414' name='L414'></a>   414 
+<a id='L415' name='L415'></a>   415       <a href='../S/2274.html#L69' title='Defined at 69 in src/marker.c.'>byte_char_debug_check</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, best_above, best_above_byte);
+<a id='L416' name='L416'></a>   416 
+<a id='L417' name='L417'></a>   417       cached_buffer = <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L418' name='L418'></a>   418       cached_modiff = <a href='../S/2130.html#L123' title='Defined at 123 in src/buffer.h.'>BUF_MODIFF</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L419' name='L419'></a>   419       cached_charpos = best_above;
+<a id='L420' name='L420'></a>   420       cached_bytepos = best_above_byte;
+<a id='L421' name='L421'></a>   421 
+<a id='L422' name='L422'></a>   422       <strong class='reserved'>return</strong> best_above;
+<a id='L423' name='L423'></a>   423     <em class='brace'>}</em>
+<a id='L424' name='L424'></a>   424 <em class='brace'>}</em>
+<a id='L425' name='L425'></a>   425 
+<a id='L426' name='L426'></a>   426 <em class='sharp'>#undef</em> <a href='../R/1156.html' title='Multiple referred from 12 places.'>CONSIDER</a>
+<a id='L427' name='L427'></a>   427 
+<a id='L428' name='L428'></a>   428 <em class='comment'>/* Operations on markers. */</em>
+<a id='L429' name='L429'></a>   429 
+<a id='L430' name='L430'></a>   430 <a href='../R/1363.html' title='Multiple referred from 830 places.'>DEFUN</a> ("marker-buffer", Fmarker_buffer, Smarker_buffer, 1, 1, 0,
+<a id='L431' name='L431'></a>   431        doc: <em class='comment'>/* Return the buffer that MARKER points into, or nil if none.</em>
+<a id='L432' name='L432'></a>   432 <em class='comment'>Returns nil if MARKER points into a dead buffer.  */</em>)
+<a id='L433' name='L433'></a>   433   (<strong class='reserved'>register</strong> <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker)
+<a id='L434' name='L434'></a>   434 <em class='brace'>{</em>
+<a id='L435' name='L435'></a>   435   <strong class='reserved'>register</strong> <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> buf;
+<a id='L436' name='L436'></a>   436   <a href='../S/2274.html#L132' title='Defined at 132 in src/marker.c.'>CHECK_MARKER</a> (marker);
+<a id='L437' name='L437'></a>   437   <strong class='reserved'>if</strong> (<a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker)-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)
+<a id='L438' name='L438'></a>   438     <em class='brace'>{</em>
+<a id='L439' name='L439'></a>   439       <a href='../D/7330.html' title='Multiple defined in 2 places.'>XSETBUFFER</a> (buf, <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker)-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>);
+<a id='L440' name='L440'></a>   440       <em class='comment'>/* If the buffer is dead, we're in trouble: the buffer pointer here</em>
+<a id='L441' name='L441'></a>   441 <em class='comment'>         does not preserve the buffer from being GC'd (it's weak), so</em>
+<a id='L442' name='L442'></a>   442 <em class='comment'>         markers have to be unlinked from their buffer as soon as the buffer</em>
+<a id='L443' name='L443'></a>   443 <em class='comment'>         is killed.  */</em>
+<a id='L444' name='L444'></a>   444       <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../S/2130.html#L1104' title='Defined at 1104 in src/buffer.h.'>BUFFER_LIVE_P</a> (<a href='../D/7018.html' title='Multiple defined in 2 places.'>XBUFFER</a> (buf)));
+<a id='L445' name='L445'></a>   445       <strong class='reserved'>return</strong> buf;
+<a id='L446' name='L446'></a>   446     <em class='brace'>}</em>
+<a id='L447' name='L447'></a>   447   <strong class='reserved'>return</strong> Qnil;
+<a id='L448' name='L448'></a>   448 <em class='brace'>}</em>
+<a id='L449' name='L449'></a>   449 
+<a id='L450' name='L450'></a>   450 <a href='../R/1363.html' title='Multiple referred from 830 places.'>DEFUN</a> ("marker-position", Fmarker_position, Smarker_position, 1, 1, 0,
+<a id='L451' name='L451'></a>   451        doc: <em class='comment'>/* Return the position of MARKER, or nil if it points nowhere.  */</em>)
+<a id='L452' name='L452'></a>   452   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker)
+<a id='L453' name='L453'></a>   453 <em class='brace'>{</em>
+<a id='L454' name='L454'></a>   454   <a href='../S/2274.html#L132' title='Defined at 132 in src/marker.c.'>CHECK_MARKER</a> (marker);
+<a id='L455' name='L455'></a>   455   <strong class='reserved'>if</strong> (<a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker)-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)
+<a id='L456' name='L456'></a>   456     <strong class='reserved'>return</strong> <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker)-&gt;charpos);
+<a id='L457' name='L457'></a>   457 
+<a id='L458' name='L458'></a>   458   <strong class='reserved'>return</strong> Qnil;
+<a id='L459' name='L459'></a>   459 <em class='brace'>}</em>
+<a id='L460' name='L460'></a>   460 
+<a id='L461' name='L461'></a>   461 <em class='comment'>/* Change M so it points to B at CHARPOS and BYTEPOS.  */</em>
+<a id='L462' name='L462'></a>   462 
+<a id='L463' name='L463'></a>   463 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L464' name='L464'></a>   464 <a href='../R/8100.html' title='Multiple referred from 3 places.'>attach_marker</a> (<strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *m, <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>,
+<a id='L465' name='L465'></a>   465                ptrdiff_t charpos, ptrdiff_t bytepos)
+<a id='L466' name='L466'></a>   466 <em class='brace'>{</em>
+<a id='L467' name='L467'></a>   467   <em class='comment'>/* In a single-byte buffer, two positions must be equal.</em>
+<a id='L468' name='L468'></a>   468 <em class='comment'>     Otherwise, every character is at least one byte.  */</em>
+<a id='L469' name='L469'></a>   469   <strong class='reserved'>if</strong> (<a href='../S/2130.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) == <a href='../S/2130.html#L114' title='Defined at 114 in src/buffer.h.'>BUF_Z_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>))
+<a id='L470' name='L470'></a>   470     <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (charpos == bytepos);
+<a id='L471' name='L471'></a>   471   <strong class='reserved'>else</strong>
+<a id='L472' name='L472'></a>   472     <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (charpos &lt;= bytepos);
+<a id='L473' name='L473'></a>   473 
+<a id='L474' name='L474'></a>   474   m-&gt;charpos = charpos;
+<a id='L475' name='L475'></a>   475   m-&gt;bytepos = bytepos;
+<a id='L476' name='L476'></a>   476 
+<a id='L477' name='L477'></a>   477   <strong class='reserved'>if</strong> (m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> != <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L478' name='L478'></a>   478     <em class='brace'>{</em>
+<a id='L479' name='L479'></a>   479       <a href='../S/2274.html#L675' title='Defined at 675 in src/marker.c.'>unchain_marker</a> (m);
+<a id='L480' name='L480'></a>   480       m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>;
+<a id='L481' name='L481'></a>   481       m-&gt;next = <a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L482' name='L482'></a>   482       <a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) = m;
+<a id='L483' name='L483'></a>   483     <em class='brace'>}</em>
+<a id='L484' name='L484'></a>   484 <em class='brace'>}</em>
+<a id='L485' name='L485'></a>   485 
+<a id='L486' name='L486'></a>   486 <em class='comment'>/* If BUFFER is nil, return current buffer pointer.  Next, check</em>
+<a id='L487' name='L487'></a>   487 <em class='comment'>   whether BUFFER is a buffer object and return buffer pointer</em>
+<a id='L488' name='L488'></a>   488 <em class='comment'>   corresponding to BUFFER if BUFFER is live, or NULL otherwise.  */</em>
+<a id='L489' name='L489'></a>   489 
+<a id='L490' name='L490'></a>   490 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *
+<a id='L491' name='L491'></a>   491 <a href='../R/12753.html' title='Multiple referred from 3 places.'>live_buffer</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)
+<a id='L492' name='L492'></a>   492 <em class='brace'>{</em>
+<a id='L493' name='L493'></a>   493   <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> = <a href='../S/2130.html#L1200' title='Defined at 1200 in src/buffer.h.'>decode_buffer</a> (<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>);
+<a id='L494' name='L494'></a>   494   <strong class='reserved'>return</strong> <a href='../S/2130.html#L1104' title='Defined at 1104 in src/buffer.h.'>BUFFER_LIVE_P</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) ? <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> : <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L495' name='L495'></a>   495 <em class='brace'>}</em>
+<a id='L496' name='L496'></a>   496 
+<a id='L497' name='L497'></a>   497 <em class='comment'>/* Internal function to set MARKER in BUFFER at POSITION.  Non-zero</em>
+<a id='L498' name='L498'></a>   498 <em class='comment'>   RESTRICTED means limit the POSITION by the visible part of BUFFER.  */</em>
+<a id='L499' name='L499'></a>   499 
+<a id='L500' name='L500'></a>   500 <strong class='reserved'>static</strong> <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L501' name='L501'></a>   501 <a href='../R/15575.html' title='Multiple referred from 2 places.'>set_marker_internal</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>,
+<a id='L502' name='L502'></a>   502                      <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> restricted)
+<a id='L503' name='L503'></a>   503 <em class='brace'>{</em>
+<a id='L504' name='L504'></a>   504   <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *m;
+<a id='L505' name='L505'></a>   505   <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> = <a href='../S/2274.html#L491' title='Defined at 491 in src/marker.c.'>live_buffer</a> (<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>);
+<a id='L506' name='L506'></a>   506 
+<a id='L507' name='L507'></a>   507   <a href='../S/2274.html#L132' title='Defined at 132 in src/marker.c.'>CHECK_MARKER</a> (marker);
+<a id='L508' name='L508'></a>   508   m = <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker);
+<a id='L509' name='L509'></a>   509 
+<a id='L510' name='L510'></a>   510   <em class='comment'>/* Set MARKER to point nowhere if BUFFER is dead, or</em>
+<a id='L511' name='L511'></a>   511 <em class='comment'>     POSITION is nil or a marker points to nowhere.  */</em>
+<a id='L512' name='L512'></a>   512   <strong class='reserved'>if</strong> (<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>)
+<a id='L513' name='L513'></a>   513       || (<a href='../D/3898.html' title='Multiple defined in 2 places.'>MARKERP</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>) &amp;&amp; !<a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>)-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)
+<a id='L514' name='L514'></a>   514       || !<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L515' name='L515'></a>   515     <a href='../S/2274.html#L675' title='Defined at 675 in src/marker.c.'>unchain_marker</a> (m);
+<a id='L516' name='L516'></a>   516 
+<a id='L517' name='L517'></a>   517   <em class='comment'>/* Optimize the special case where we are copying the position of</em>
+<a id='L518' name='L518'></a>   518 <em class='comment'>     an existing marker, and MARKER is already in the same buffer.  */</em>
+<a id='L519' name='L519'></a>   519   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/3898.html' title='Multiple defined in 2 places.'>MARKERP</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>) &amp;&amp; <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> == <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>)-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>
+<a id='L520' name='L520'></a>   520            &amp;&amp; <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> == m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)
+<a id='L521' name='L521'></a>   521     <em class='brace'>{</em>
+<a id='L522' name='L522'></a>   522       m-&gt;bytepos = <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>)-&gt;bytepos;
+<a id='L523' name='L523'></a>   523       m-&gt;charpos = <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>)-&gt;charpos;
+<a id='L524' name='L524'></a>   524     <em class='brace'>}</em>
+<a id='L525' name='L525'></a>   525 
+<a id='L526' name='L526'></a>   526   <strong class='reserved'>else</strong>
+<a id='L527' name='L527'></a>   527     <em class='brace'>{</em>
+<a id='L528' name='L528'></a>   528       <strong class='reserved'>register</strong> ptrdiff_t charpos, bytepos;
+<a id='L529' name='L529'></a>   529 
+<a id='L530' name='L530'></a>   530       <em class='comment'>/* Do not use CHECK_FIXNUM_COERCE_MARKER because we</em>
+<a id='L531' name='L531'></a>   531 <em class='comment'>         don't want to call buf_charpos_to_bytepos if POSITION</em>
+<a id='L532' name='L532'></a>   532 <em class='comment'>         is a marker and so we know the bytepos already.  */</em>
+<a id='L533' name='L533'></a>   533       <strong class='reserved'>if</strong> (<a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>))
+<a id='L534' name='L534'></a>   534         <em class='brace'>{</em>
+<a id='L535' name='L535'></a>   535 <em class='sharp'>#if</em> <a href='../D/1721.html' title='Multiple defined in 9 places.'>EMACS_INT_MAX</a> &gt; <a href='../D/5007.html' title='Multiple defined in 5 places.'>PTRDIFF_MAX</a>
+<a id='L536' name='L536'></a>   536           <em class='comment'>/* A --with-wide-int build.  */</em>
+<a id='L537' name='L537'></a>   537           <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> cpos = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>);
+<a id='L538' name='L538'></a>   538           <strong class='reserved'>if</strong> (cpos &gt; <a href='../D/5007.html' title='Multiple defined in 5 places.'>PTRDIFF_MAX</a>)
+<a id='L539' name='L539'></a>   539             cpos = <a href='../D/5007.html' title='Multiple defined in 5 places.'>PTRDIFF_MAX</a>;
+<a id='L540' name='L540'></a>   540           charpos = cpos;
+<a id='L541' name='L541'></a>   541           bytepos = -1;
+<a id='L542' name='L542'></a>   542 <em class='sharp'>#else</em>
+<a id='L543' name='L543'></a>   543           charpos = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>), bytepos = -1;
+<a id='L544' name='L544'></a>   544 <em class='sharp'>#endif</em>
+<a id='L545' name='L545'></a>   545         <em class='brace'>}</em>
+<a id='L546' name='L546'></a>   546       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/3898.html' title='Multiple defined in 2 places.'>MARKERP</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>))
+<a id='L547' name='L547'></a>   547         <em class='brace'>{</em>
+<a id='L548' name='L548'></a>   548           charpos = <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>)-&gt;charpos;
+<a id='L549' name='L549'></a>   549           bytepos = <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>)-&gt;bytepos;
+<a id='L550' name='L550'></a>   550         <em class='brace'>}</em>
+<a id='L551' name='L551'></a>   551       <strong class='reserved'>else</strong>
+<a id='L552' name='L552'></a>   552         <a href='../S/2167.html#L140' title='Defined at 140 in src/data.c.'>wrong_type_argument</a> (Qinteger_or_marker_p, <a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>);
+<a id='L553' name='L553'></a>   553 
+<a id='L554' name='L554'></a>   554       charpos = <a href='../D/9786.html' title='Multiple defined in 2 places.'>clip_to_bounds</a>
+<a id='L555' name='L555'></a>   555         (restricted ? <a href='../S/2130.html#L878' title='Defined at 878 in src/buffer.h.'>BUF_BEGV</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) : <a href='../S/2130.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), charpos,
+<a id='L556' name='L556'></a>   556          restricted ? <a href='../S/2130.html#L912' title='Defined at 912 in src/buffer.h.'>BUF_ZV</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) : <a href='../S/2130.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L557' name='L557'></a>   557       <em class='comment'>/* Don't believe BYTEPOS if it comes from a different buffer,</em>
+<a id='L558' name='L558'></a>   558 <em class='comment'>         since that buffer might have a very different correspondence</em>
+<a id='L559' name='L559'></a>   559 <em class='comment'>         between character and byte positions.  */</em>
+<a id='L560' name='L560'></a>   560       <strong class='reserved'>if</strong> (bytepos == -1
+<a id='L561' name='L561'></a>   561           || !(<a href='../D/3898.html' title='Multiple defined in 2 places.'>MARKERP</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>) &amp;&amp; <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>)-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> == <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>))
+<a id='L562' name='L562'></a>   562         bytepos = <a href='../S/2274.html#L162' title='Defined at 162 in src/marker.c.'>buf_charpos_to_bytepos</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, charpos);
+<a id='L563' name='L563'></a>   563       <strong class='reserved'>else</strong>
+<a id='L564' name='L564'></a>   564         bytepos = <a href='../D/9786.html' title='Multiple defined in 2 places.'>clip_to_bounds</a>
+<a id='L565' name='L565'></a>   565           (restricted ? <a href='../S/2130.html#L886' title='Defined at 886 in src/buffer.h.'>BUF_BEGV_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) : <a href='../S/2130.html#L937' title='Defined at 937 in src/buffer.h.'>BUF_BEG_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>),
+<a id='L566' name='L566'></a>   566            bytepos, restricted ? <a href='../S/2130.html#L920' title='Defined at 920 in src/buffer.h.'>BUF_ZV_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>) : <a href='../S/2130.html#L114' title='Defined at 114 in src/buffer.h.'>BUF_Z_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L567' name='L567'></a>   567 
+<a id='L568' name='L568'></a>   568       <a href='../S/2274.html#L464' title='Defined at 464 in src/marker.c.'>attach_marker</a> (m, <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, charpos, bytepos);
+<a id='L569' name='L569'></a>   569     <em class='brace'>}</em>
+<a id='L570' name='L570'></a>   570 
+<a id='L571' name='L571'></a>   571 <em class='sharp'>#ifdef</em> HAVE_TEXT_CONVERSION
+<a id='L572' name='L572'></a>   572 
+<a id='L573' name='L573'></a>   573   <em class='comment'>/* If B is the buffer's mark and there is a window displaying B, and</em>
+<a id='L574' name='L574'></a>   574 <em class='comment'>     text conversion is enabled while the mark is active, redisplay</em>
+<a id='L575' name='L575'></a>   575 <em class='comment'>     the buffer.</em>
+<a id='L576' name='L576'></a>   576 <em class='comment'></em>
+<a id='L577' name='L577'></a>   577 <em class='comment'>     propagate_window_redisplay will propagate this redisplay to the</em>
+<a id='L578' name='L578'></a>   578 <em class='comment'>     window, which will eventually reach</em>
+<a id='L579' name='L579'></a>   579 <em class='comment'>     mark_window_display_accurate_1.  At that point,</em>
+<a id='L580' name='L580'></a>   580 <em class='comment'>     report_point_change will be told to update the mark as seen by</em>
+<a id='L581' name='L581'></a>   581 <em class='comment'>     the input method.</em>
+<a id='L582' name='L582'></a>   582 <em class='comment'></em>
+<a id='L583' name='L583'></a>   583 <em class='comment'>     This is done all the way in (the seemingly irrelevant) redisplay</em>
+<a id='L584' name='L584'></a>   584 <em class='comment'>     because the selection reported to the input method is actually what</em>
+<a id='L585' name='L585'></a>   585 <em class='comment'>     is visible on screen, namely w-&gt;last_point.  */</em>
+<a id='L586' name='L586'></a>   586 
+<a id='L587' name='L587'></a>   587   <strong class='reserved'>if</strong> (m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>
+<a id='L588' name='L588'></a>   588       &amp;&amp; <a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (marker, <a href='../S/2130.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, mark))
+<a id='L589' name='L589'></a>   589       &amp;&amp; !<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2130.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, mark_active))
+<a id='L590' name='L590'></a>   590       &amp;&amp; <a href='../S/2130.html#L1388' title='Defined at 1388 in src/buffer.h.'>buffer_window_count</a> (m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>))
+<a id='L591' name='L591'></a>   591     <a href='../S/2224.html#L847' title='Defined at 847 in src/xdisp.c.'>bset_redisplay</a> (m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>);
+<a id='L592' name='L592'></a>   592 
+<a id='L593' name='L593'></a>   593 <em class='sharp'>#endif</em>
+<a id='L594' name='L594'></a>   594 
+<a id='L595' name='L595'></a>   595   <strong class='reserved'>return</strong> marker;
+<a id='L596' name='L596'></a>   596 <em class='brace'>}</em>
+<a id='L597' name='L597'></a>   597 
+<a id='L598' name='L598'></a>   598 <a href='../D/1456.html' title='Multiple defined in 1013 places.'>DEFUN</a> ("set-marker", Fset_marker, Sset_marker, 2, 3, 0,
+<a id='L599' name='L599'></a>   599        doc: <em class='comment'>/* Position MARKER before character number POSITION in BUFFER.</em>
+<a id='L600' name='L600'></a>   600 <em class='comment'>If BUFFER is omitted or nil, it defaults to the current buffer.  If</em>
+<a id='L601' name='L601'></a>   601 <em class='comment'>POSITION is nil, makes marker point nowhere so it no longer slows down</em>
+<a id='L602' name='L602'></a>   602 <em class='comment'>editing in any buffer.  Returns MARKER.  */</em>)
+<a id='L603' name='L603'></a>   603   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)
+<a id='L604' name='L604'></a>   604 <em class='brace'>{</em>
+<a id='L605' name='L605'></a>   605   <strong class='reserved'>return</strong> <a href='../S/2274.html#L501' title='Defined at 501 in src/marker.c.'>set_marker_internal</a> (marker, <a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>, <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L606' name='L606'></a>   606 <em class='brace'>}</em>
+<a id='L607' name='L607'></a>   607 
+<a id='L608' name='L608'></a>   608 <em class='comment'>/* Like the above, but won't let the position be outside the visible part.  */</em>
+<a id='L609' name='L609'></a>   609 
+<a id='L610' name='L610'></a>   610 <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L611' name='L611'></a>   611 <a href='../R/15576.html' title='Multiple referred from 10 places.'>set_marker_restricted</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>,
+<a id='L612' name='L612'></a>   612                        <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)
+<a id='L613' name='L613'></a>   613 <em class='brace'>{</em>
+<a id='L614' name='L614'></a>   614   <strong class='reserved'>return</strong> <a href='../S/2274.html#L501' title='Defined at 501 in src/marker.c.'>set_marker_internal</a> (marker, <a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>, <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
+<a id='L615' name='L615'></a>   615 <em class='brace'>}</em>
+<a id='L616' name='L616'></a>   616 
+<a id='L617' name='L617'></a>   617 <em class='comment'>/* Set the position of MARKER, specifying both the</em>
+<a id='L618' name='L618'></a>   618 <em class='comment'>   character position and the corresponding byte position.  */</em>
+<a id='L619' name='L619'></a>   619 
+<a id='L620' name='L620'></a>   620 <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L621' name='L621'></a>   621 <a href='../R/15574.html' title='Multiple referred from 34 places.'>set_marker_both</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>,
+<a id='L622' name='L622'></a>   622                  ptrdiff_t charpos, ptrdiff_t bytepos)
+<a id='L623' name='L623'></a>   623 <em class='brace'>{</em>
+<a id='L624' name='L624'></a>   624   <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *m;
+<a id='L625' name='L625'></a>   625   <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> = <a href='../S/2274.html#L491' title='Defined at 491 in src/marker.c.'>live_buffer</a> (<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>);
+<a id='L626' name='L626'></a>   626 
+<a id='L627' name='L627'></a>   627   <a href='../S/2274.html#L132' title='Defined at 132 in src/marker.c.'>CHECK_MARKER</a> (marker);
+<a id='L628' name='L628'></a>   628   m = <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker);
+<a id='L629' name='L629'></a>   629 
+<a id='L630' name='L630'></a>   630   <strong class='reserved'>if</strong> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L631' name='L631'></a>   631     <a href='../S/2274.html#L464' title='Defined at 464 in src/marker.c.'>attach_marker</a> (m, <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>, charpos, bytepos);
+<a id='L632' name='L632'></a>   632   <strong class='reserved'>else</strong>
+<a id='L633' name='L633'></a>   633     <a href='../S/2274.html#L675' title='Defined at 675 in src/marker.c.'>unchain_marker</a> (m);
+<a id='L634' name='L634'></a>   634   <strong class='reserved'>return</strong> marker;
+<a id='L635' name='L635'></a>   635 <em class='brace'>}</em>
+<a id='L636' name='L636'></a>   636 
+<a id='L637' name='L637'></a>   637 <em class='comment'>/* Like the above, but won't let the position be outside the visible part.  */</em>
+<a id='L638' name='L638'></a>   638 
+<a id='L639' name='L639'></a>   639 <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L640' name='L640'></a>   640 <a href='../R/15577.html' title='Multiple referred from 20 places.'>set_marker_restricted_both</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>,
+<a id='L641' name='L641'></a>   641                             ptrdiff_t charpos, ptrdiff_t bytepos)
+<a id='L642' name='L642'></a>   642 <em class='brace'>{</em>
+<a id='L643' name='L643'></a>   643   <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *m;
+<a id='L644' name='L644'></a>   644   <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> = <a href='../S/2274.html#L491' title='Defined at 491 in src/marker.c.'>live_buffer</a> (<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>);
+<a id='L645' name='L645'></a>   645 
+<a id='L646' name='L646'></a>   646   <a href='../S/2274.html#L132' title='Defined at 132 in src/marker.c.'>CHECK_MARKER</a> (marker);
+<a id='L647' name='L647'></a>   647   m = <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker);
+<a id='L648' name='L648'></a>   648 
+<a id='L649' name='L649'></a>   649   <strong class='reserved'>if</strong> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L650' name='L650'></a>   650     <em class='brace'>{</em>
+<a id='L651' name='L651'></a>   651       <a href='../S/2274.html#L464' title='Defined at 464 in src/marker.c.'>attach_marker</a>
+<a id='L652' name='L652'></a>   652         (m, <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>,
+<a id='L653' name='L653'></a>   653          <a href='../D/9786.html' title='Multiple defined in 2 places.'>clip_to_bounds</a> (<a href='../S/2130.html#L878' title='Defined at 878 in src/buffer.h.'>BUF_BEGV</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), charpos, <a href='../S/2130.html#L912' title='Defined at 912 in src/buffer.h.'>BUF_ZV</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)),
+<a id='L654' name='L654'></a>   654          <a href='../D/9786.html' title='Multiple defined in 2 places.'>clip_to_bounds</a> (<a href='../S/2130.html#L886' title='Defined at 886 in src/buffer.h.'>BUF_BEGV_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>), bytepos, <a href='../S/2130.html#L920' title='Defined at 920 in src/buffer.h.'>BUF_ZV_BYTE</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)));
+<a id='L655' name='L655'></a>   655     <em class='brace'>}</em>
+<a id='L656' name='L656'></a>   656   <strong class='reserved'>else</strong>
+<a id='L657' name='L657'></a>   657     <a href='../S/2274.html#L675' title='Defined at 675 in src/marker.c.'>unchain_marker</a> (m);
+<a id='L658' name='L658'></a>   658   <strong class='reserved'>return</strong> marker;
+<a id='L659' name='L659'></a>   659 <em class='brace'>}</em>
+<a id='L660' name='L660'></a>   660 
+<a id='L661' name='L661'></a>   661 <em class='comment'>/* Detach a marker so that it no longer points anywhere and no longer</em>
+<a id='L662' name='L662'></a>   662 <em class='comment'>   slows down editing.  Do not free the marker, though, as a change</em>
+<a id='L663' name='L663'></a>   663 <em class='comment'>   function could have inserted it into an undo list (Bug#30931).  */</em>
+<a id='L664' name='L664'></a>   664 
+<a id='L665' name='L665'></a>   665 <strong class='reserved'>void</strong>
+<a id='L666' name='L666'></a>   666 <a href='../R/9480.html' title='Multiple referred from 5 places.'>detach_marker</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker)
+<a id='L667' name='L667'></a>   667 <em class='brace'>{</em>
+<a id='L668' name='L668'></a>   668   Fset_marker (marker, Qnil, Qnil);
+<a id='L669' name='L669'></a>   669 <em class='brace'>}</em>
+<a id='L670' name='L670'></a>   670 
+<a id='L671' name='L671'></a>   671 <em class='comment'>/* Remove MARKER from the chain of whatever buffer it is in.  Set its</em>
+<a id='L672' name='L672'></a>   672 <em class='comment'>   buffer NULL.  */</em>
+<a id='L673' name='L673'></a>   673 
+<a id='L674' name='L674'></a>   674 <strong class='reserved'>void</strong>
+<a id='L675' name='L675'></a>   675 <a href='../R/17261.html' title='Multiple referred from 22 places.'>unchain_marker</a> (<strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *marker)
+<a id='L676' name='L676'></a>   676 <em class='brace'>{</em>
+<a id='L677' name='L677'></a>   677   <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a> = marker-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>;
+<a id='L678' name='L678'></a>   678 
+<a id='L679' name='L679'></a>   679   <strong class='reserved'>if</strong> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>)
+<a id='L680' name='L680'></a>   680     <em class='brace'>{</em>
+<a id='L681' name='L681'></a>   681       <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>, **prev;
+<a id='L682' name='L682'></a>   682 
+<a id='L683' name='L683'></a>   683       <em class='comment'>/* No dead buffers here.  */</em>
+<a id='L684' name='L684'></a>   684       <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../S/2130.html#L1104' title='Defined at 1104 in src/buffer.h.'>BUFFER_LIVE_P</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>));
+<a id='L685' name='L685'></a>   685 
+<a id='L686' name='L686'></a>   686       marker-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L687' name='L687'></a>   687       prev = &amp;<a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>);
+<a id='L688' name='L688'></a>   688 
+<a id='L689' name='L689'></a>   689       <strong class='reserved'>for</strong> (<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = <a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>); <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>; prev = &amp;<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;next, <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = *prev)
+<a id='L690' name='L690'></a>   690         <strong class='reserved'>if</strong> (marker == <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>)
+<a id='L691' name='L691'></a>   691           <em class='brace'>{</em>
+<a id='L692' name='L692'></a>   692             <strong class='reserved'>if</strong> (*prev == <a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (<a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>))
+<a id='L693' name='L693'></a>   693               <em class='brace'>{</em>
+<a id='L694' name='L694'></a>   694                 <em class='comment'>/* Deleting first marker from the buffer's chain.  Crash</em>
+<a id='L695' name='L695'></a>   695 <em class='comment'>                   if new first marker in chain does not say it belongs</em>
+<a id='L696' name='L696'></a>   696 <em class='comment'>                   to the same buffer, or at least that they have the same</em>
+<a id='L697' name='L697'></a>   697 <em class='comment'>                   base buffer.  */</em>
+<a id='L698' name='L698'></a>   698                 <strong class='reserved'>if</strong> (<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;next &amp;&amp; <a href='../D/9016.html' title='Multiple defined in 8 places.'>b</a>-&gt;text != <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;next-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>-&gt;text)
+<a id='L699' name='L699'></a>   699                   <a href='../D/10886.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L700' name='L700'></a>   700               <em class='brace'>}</em>
+<a id='L701' name='L701'></a>   701             *prev = <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;next;
+<a id='L702' name='L702'></a>   702             <em class='comment'>/* We have removed the marker from the chain;</em>
+<a id='L703' name='L703'></a>   703 <em class='comment'>               no need to scan the rest of the chain.  */</em>
+<a id='L704' name='L704'></a>   704             <strong class='reserved'>break</strong>;
+<a id='L705' name='L705'></a>   705           <em class='brace'>}</em>
+<a id='L706' name='L706'></a>   706 
+<a id='L707' name='L707'></a>   707       <em class='comment'>/* Error if marker was not in it's chain.  */</em>
+<a id='L708' name='L708'></a>   708       <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> != <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L709' name='L709'></a>   709     <em class='brace'>}</em>
+<a id='L710' name='L710'></a>   710 <em class='brace'>}</em>
+<a id='L711' name='L711'></a>   711 
+<a id='L712' name='L712'></a>   712 <em class='comment'>/* Return the char position of marker MARKER, as a C integer.  */</em>
+<a id='L713' name='L713'></a>   713 
+<a id='L714' name='L714'></a>   714 ptrdiff_t
+<a id='L715' name='L715'></a>   715 <a href='../R/13174.html' title='Multiple referred from 87 places.'>marker_position</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker)
+<a id='L716' name='L716'></a>   716 <em class='brace'>{</em>
+<a id='L717' name='L717'></a>   717   <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *m = <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker);
+<a id='L718' name='L718'></a>   718   <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf = m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>;
+<a id='L719' name='L719'></a>   719 
+<a id='L720' name='L720'></a>   720   <strong class='reserved'>if</strong> (!buf)
+<a id='L721' name='L721'></a>   721     <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Marker does not point anywhere");
+<a id='L722' name='L722'></a>   722 
+<a id='L723' name='L723'></a>   723   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../S/2130.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (buf) &lt;= m-&gt;charpos &amp;&amp; m-&gt;charpos &lt;= <a href='../S/2130.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (buf));
+<a id='L724' name='L724'></a>   724 
+<a id='L725' name='L725'></a>   725   <strong class='reserved'>return</strong> m-&gt;charpos;
+<a id='L726' name='L726'></a>   726 <em class='brace'>}</em>
+<a id='L727' name='L727'></a>   727 
+<a id='L728' name='L728'></a>   728 <em class='comment'>/* Return the byte position of marker MARKER, as a C integer.  */</em>
+<a id='L729' name='L729'></a>   729 
+<a id='L730' name='L730'></a>   730 ptrdiff_t
+<a id='L731' name='L731'></a>   731 <a href='../R/13173.html' title='Multiple referred from 42 places.'>marker_byte_position</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker)
+<a id='L732' name='L732'></a>   732 <em class='brace'>{</em>
+<a id='L733' name='L733'></a>   733   <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *m = <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker);
+<a id='L734' name='L734'></a>   734   <strong class='reserved'>register</strong> <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf = m-&gt;<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>;
+<a id='L735' name='L735'></a>   735 
+<a id='L736' name='L736'></a>   736   <strong class='reserved'>if</strong> (!buf)
+<a id='L737' name='L737'></a>   737     <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Marker does not point anywhere");
+<a id='L738' name='L738'></a>   738 
+<a id='L739' name='L739'></a>   739   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../S/2130.html#L937' title='Defined at 937 in src/buffer.h.'>BUF_BEG_BYTE</a> (buf) &lt;= m-&gt;bytepos &amp;&amp; m-&gt;bytepos &lt;= <a href='../S/2130.html#L114' title='Defined at 114 in src/buffer.h.'>BUF_Z_BYTE</a> (buf));
+<a id='L740' name='L740'></a>   740 
+<a id='L741' name='L741'></a>   741   <strong class='reserved'>return</strong> m-&gt;bytepos;
+<a id='L742' name='L742'></a>   742 <em class='brace'>}</em>
+<a id='L743' name='L743'></a>   743 
+<a id='L744' name='L744'></a>   744 <a href='../D/1456.html' title='Multiple defined in 1013 places.'>DEFUN</a> ("copy-marker", Fcopy_marker, Scopy_marker, 0, 2, 0,
+<a id='L745' name='L745'></a>   745        doc: <em class='comment'>/* Return a new marker pointing at the same place as MARKER.</em>
+<a id='L746' name='L746'></a>   746 <em class='comment'>If argument is a number, makes a new marker pointing</em>
+<a id='L747' name='L747'></a>   747 <em class='comment'>at that position in the current buffer.</em>
+<a id='L748' name='L748'></a>   748 <em class='comment'>If MARKER is not specified, the new marker does not point anywhere.</em>
+<a id='L749' name='L749'></a>   749 <em class='comment'>The optional argument TYPE specifies the insertion type of the new marker;</em>
+<a id='L750' name='L750'></a>   750 <em class='comment'>see `marker-insertion-type'.  */</em>)
+<a id='L751' name='L751'></a>   751   (<strong class='reserved'>register</strong> <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> type)
+<a id='L752' name='L752'></a>   752 <em class='brace'>{</em>
+<a id='L753' name='L753'></a>   753   <strong class='reserved'>register</strong> <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> new;
+<a id='L754' name='L754'></a>   754 
+<a id='L755' name='L755'></a>   755   <strong class='reserved'>if</strong> (!<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (marker))
+<a id='L756' name='L756'></a>   756   <a href='../D/1012.html' title='Multiple defined in 2 places.'>CHECK_TYPE</a> (<a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (marker) || <a href='../D/3898.html' title='Multiple defined in 2 places.'>MARKERP</a> (marker), Qinteger_or_marker_p, marker);
+<a id='L757' name='L757'></a>   757 
+<a id='L758' name='L758'></a>   758   new = Fmake_marker ();
+<a id='L759' name='L759'></a>   759   Fset_marker (new, marker,
+<a id='L760' name='L760'></a>   760                (<a href='../D/3898.html' title='Multiple defined in 2 places.'>MARKERP</a> (marker) ? Fmarker_buffer (marker) : Qnil));
+<a id='L761' name='L761'></a>   761   <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (new)-&gt;insertion_type = !<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (type);
+<a id='L762' name='L762'></a>   762   <strong class='reserved'>return</strong> new;
+<a id='L763' name='L763'></a>   763 <em class='brace'>}</em>
+<a id='L764' name='L764'></a>   764 
+<a id='L765' name='L765'></a>   765 <a href='../R/1363.html' title='Multiple referred from 830 places.'>DEFUN</a> ("marker-insertion-type", Fmarker_insertion_type,
+<a id='L766' name='L766'></a>   766        Smarker_insertion_type, 1, 1, 0,
+<a id='L767' name='L767'></a>   767        doc: <em class='comment'>/* Return insertion type of MARKER: t if it stays after inserted text.</em>
+<a id='L768' name='L768'></a>   768 <em class='comment'>The value nil means the marker stays before text inserted there.  */</em>)
+<a id='L769' name='L769'></a>   769   (<strong class='reserved'>register</strong> <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker)
+<a id='L770' name='L770'></a>   770 <em class='brace'>{</em>
+<a id='L771' name='L771'></a>   771   <a href='../S/2274.html#L132' title='Defined at 132 in src/marker.c.'>CHECK_MARKER</a> (marker);
+<a id='L772' name='L772'></a>   772   <strong class='reserved'>return</strong> <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker)-&gt;insertion_type ? Qt : Qnil;
+<a id='L773' name='L773'></a>   773 <em class='brace'>}</em>
+<a id='L774' name='L774'></a>   774 
+<a id='L775' name='L775'></a>   775 <a href='../D/1456.html' title='Multiple defined in 1013 places.'>DEFUN</a> ("set-marker-insertion-type", Fset_marker_insertion_type,
+<a id='L776' name='L776'></a>   776        Sset_marker_insertion_type, 2, 2, 0,
+<a id='L777' name='L777'></a>   777        doc: <em class='comment'>/* Set the insertion-type of MARKER to TYPE.</em>
+<a id='L778' name='L778'></a>   778 <em class='comment'>If TYPE is t, it means the marker advances when you insert text at it.</em>
+<a id='L779' name='L779'></a>   779 <em class='comment'>If TYPE is nil, it means the marker stays behind when you insert text at it.  */</em>)
+<a id='L780' name='L780'></a>   780   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> marker, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> type)
+<a id='L781' name='L781'></a>   781 <em class='brace'>{</em>
+<a id='L782' name='L782'></a>   782   <a href='../S/2274.html#L132' title='Defined at 132 in src/marker.c.'>CHECK_MARKER</a> (marker);
+<a id='L783' name='L783'></a>   783 
+<a id='L784' name='L784'></a>   784   <a href='../D/7186.html' title='Multiple defined in 2 places.'>XMARKER</a> (marker)-&gt;insertion_type = ! <a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (type);
+<a id='L785' name='L785'></a>   785   <strong class='reserved'>return</strong> type;
+<a id='L786' name='L786'></a>   786 <em class='brace'>}</em>
+<a id='L787' name='L787'></a>   787 
+<a id='L788' name='L788'></a>   788 <em class='sharp'>#ifdef</em> MARKER_DEBUG
+<a id='L789' name='L789'></a>   789 
+<a id='L790' name='L790'></a>   790 <em class='comment'>/* For debugging -- count the markers in buffer BUF.  */</em>
+<a id='L791' name='L791'></a>   791 
+<a id='L792' name='L792'></a>   792 <strong class='reserved'>int</strong>
+<a id='L793' name='L793'></a>   793 count_markers (<strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf)
+<a id='L794' name='L794'></a>   794 <em class='brace'>{</em>
+<a id='L795' name='L795'></a>   795   <strong class='reserved'>int</strong> total = 0;
+<a id='L796' name='L796'></a>   796   <strong class='reserved'>struct</strong> <a href='../D/3818.html' title='Multiple defined in 2 places.'>Lisp_Marker</a> *<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>;
+<a id='L797' name='L797'></a>   797 
+<a id='L798' name='L798'></a>   798   <strong class='reserved'>for</strong> (<a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = <a href='../S/2130.html#L142' title='Defined at 142 in src/buffer.h.'>BUF_MARKERS</a> (buf); <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>; <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = <a href='../S/4026.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>-&gt;next)
+<a id='L799' name='L799'></a>   799     total++;
+<a id='L800' name='L800'></a>   800 
+<a id='L801' name='L801'></a>   801   <strong class='reserved'>return</strong> total;
+<a id='L802' name='L802'></a>   802 <em class='brace'>}</em>
+<a id='L803' name='L803'></a>   803 
+<a id='L804' name='L804'></a>   804 <em class='comment'>/* For debugging -- recompute the bytepos corresponding</em>
+<a id='L805' name='L805'></a>   805 <em class='comment'>   to CHARPOS in the simplest, most reliable way.  */</em>
+<a id='L806' name='L806'></a>   806 
+<a id='L807' name='L807'></a>   807 ptrdiff_t
+<a id='L808' name='L808'></a>   808 <a href='../S/2274.html#L43' title='Referred from 43 in src/marker.c.'>verify_bytepos</a> (ptrdiff_t charpos)
+<a id='L809' name='L809'></a>   809 <em class='brace'>{</em>
+<a id='L810' name='L810'></a>   810   ptrdiff_t below = <a href='../S/2130.html#L38' title='Defined at 38 in src/buffer.h.'>BEG</a>;
+<a id='L811' name='L811'></a>   811   ptrdiff_t below_byte = <a href='../S/2130.html#L38' title='Defined at 38 in src/buffer.h.'>BEG_BYTE</a>;
+<a id='L812' name='L812'></a>   812 
+<a id='L813' name='L813'></a>   813   <strong class='reserved'>while</strong> (below != charpos)
+<a id='L814' name='L814'></a>   814     <em class='brace'>{</em>
+<a id='L815' name='L815'></a>   815       below++;
+<a id='L816' name='L816'></a>   816       below_byte += <a href='../S/2130.html#L1692' title='Defined at 1692 in src/buffer.h.'>buf_next_char_len</a> (<a href='../S/2352.html#L133' title='Defined at 133 in src/thread.h.'>current_buffer</a>, below_byte);
+<a id='L817' name='L817'></a>   817     <em class='brace'>}</em>
+<a id='L818' name='L818'></a>   818 
+<a id='L819' name='L819'></a>   819   <strong class='reserved'>return</strong> below_byte;
+<a id='L820' name='L820'></a>   820 <em class='brace'>}</em>
+<a id='L821' name='L821'></a>   821 
+<a id='L822' name='L822'></a>   822 <em class='sharp'>#endif</em> <em class='comment'>/* MARKER_DEBUG */</em>
+<a id='L823' name='L823'></a>   823 
+<a id='L824' name='L824'></a>   824 <strong class='reserved'>void</strong>
+<a id='L825' name='L825'></a>   825 <a href='../R/16641.html' title='Multiple referred from 3 places.'>syms_of_marker</a> (<strong class='reserved'>void</strong>)
+<a id='L826' name='L826'></a>   826 <em class='brace'>{</em>
+<a id='L827' name='L827'></a>   827   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Smarker_position);
+<a id='L828' name='L828'></a>   828   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Smarker_buffer);
+<a id='L829' name='L829'></a>   829   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Sset_marker);
+<a id='L830' name='L830'></a>   830   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Scopy_marker);
+<a id='L831' name='L831'></a>   831   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Smarker_insertion_type);
+<a id='L832' name='L832'></a>   832   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Sset_marker_insertion_type);
+<a id='L833' name='L833'></a>   833 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L42'>[^]</a><a href='#L825'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

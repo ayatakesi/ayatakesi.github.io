@@ -1,0 +1,1212 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/xfont.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4596.html'>src</a>/xfont.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L54'>[^]</a><a href='#L1163'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L54' title='Defined at 54.'>xfont_get_pcm</a></li>
+<li><a href='#L119' title='Defined at 119.'>xfont_get_cache</a></li>
+<li><a href='#L127' title='Defined at 127.'>compare_font_names</a></li>
+<li><a href='#L140' title='Defined at 140.'>xfont_decode_coding_xlfd</a></li>
+<li><a href='#L161' title='Defined at 161.'>xfont_encode_coding_xlfd</a></li>
+<li><a href='#L186' title='Defined at 186.'>xfont_chars_supported</a></li>
+<li><a href='#L249' title='Defined at 249.'>xfont_supported_scripts</a></li>
+<li><a href='#L293' title='Defined at 293.'>xfont_list_pattern</a></li>
+<li><a href='#L460' title='Defined at 460.'>xfont_list</a></li>
+<li><a href='#L539' title='Defined at 539.'>xfont_match</a></li>
+<li><a href='#L593' title='Defined at 593.'>xfont_list_family</a></li>
+<li><a href='#L652' title='Defined at 652.'>xfont_open</a></li>
+<li><a href='#L865' title='Defined at 865.'>xfont_close</a></li>
+<li><a href='#L890' title='Defined at 890.'>xfont_prepare_face</a></li>
+<li><a href='#L899' title='Defined at 899.'>xfont_has_char</a></li>
+<li><a href='#L928' title='Defined at 928.'>xfont_encode_char</a></li>
+<li><a href='#L948' title='Defined at 948.'>xfont_text_extents</a></li>
+<li><a href='#L990' title='Defined at 990.'>xfont_draw</a></li>
+<li><a href='#L1121' title='Defined at 1121.'>xfont_check</a></li>
+<li><a href='#L1149' title='Defined at 1149.'>syms_of_xfont</a></li>
+<li><a href='#L1163' title='Defined at 1163.'>syms_of_xfont_for_pdumper</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* xfont.c -- X core font driver.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 2006-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>     National Institute of Advanced Industrial Science and Technology (AIST)</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>     Registration Number H13PRO009</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'></em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>your option) any later version.</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'></em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'></em>
+<a id='L19' name='L19'></a>    19 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L20' name='L20'></a>    20 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;X11/Xlib.h&gt;
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> "<a href='2105.html'>xterm.h</a>"
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> "<a href='2079.html'>frame.h</a>"
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> "<a href='1992.html'>blockinput.h</a>"
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> "<a href='2111.html'>character.h</a>"
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> "<a href='2235.html'>charset.h</a>"
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> "<a href='2184.html'>font.h</a>"
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#include</em> "<a href='2211.html'>pdumper.h</a>"
+<a id='L34' name='L34'></a>    34 
+<a id='L35' name='L35'></a>    35 
+<a id='L36' name='L36'></a>    36 <em class='comment'>/* X core font driver.  */</em>
+<a id='L37' name='L37'></a>    37 
+<a id='L38' name='L38'></a>    38 <strong class='reserved'>struct</strong> <a href='../R/16524.html' title='Multiple referred from 10 places.'>xfont_info</a>
+<a id='L39' name='L39'></a>    39 <em class='brace'>{</em>
+<a id='L40' name='L40'></a>    40   <strong class='reserved'>struct</strong> <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a> <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L41' name='L41'></a>    41   <a href='../D/1492.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>;
+<a id='L42' name='L42'></a>    42   <a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfont;
+<a id='L43' name='L43'></a>    43   <strong class='reserved'>unsigned</strong> x_display_id;
+<a id='L44' name='L44'></a>    44 <em class='brace'>}</em>;
+<a id='L45' name='L45'></a>    45 
+<a id='L46' name='L46'></a>    46 <em class='comment'>/* Prototypes of support functions.  */</em>
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48 <strong class='reserved'>static</strong> <a href='../D/6427.html' title='Multiple defined in 3 places.'>XCharStruct</a> *<a href='../S/2196.html#L54' title='Defined at 54 in src/xfont.c.'>xfont_get_pcm</a> (<a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *, <strong class='reserved'>unsigned</strong> char2b);
+<a id='L49' name='L49'></a>    49 
+<a id='L50' name='L50'></a>    50 <em class='comment'>/* Get metrics of character CHAR2B in XFONT.  Value is null if CHAR2B</em>
+<a id='L51' name='L51'></a>    51 <em class='comment'>   is not contained in the font.  */</em>
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 <strong class='reserved'>static</strong> <a href='../D/6427.html' title='Multiple defined in 3 places.'>XCharStruct</a> *
+<a id='L54' name='L54'></a>    54 <a href='../R/16522.html' title='Multiple referred from 7 places.'>xfont_get_pcm</a> (<a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfont, <strong class='reserved'>unsigned</strong> char2b)
+<a id='L55' name='L55'></a>    55 <em class='brace'>{</em>
+<a id='L56' name='L56'></a>    56   <em class='comment'>/* The result metric information.  */</em>
+<a id='L57' name='L57'></a>    57   <a href='../D/6427.html' title='Multiple defined in 3 places.'>XCharStruct</a> *pcm = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L58' name='L58'></a>    58   <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> byte1 = char2b &gt;&gt; 8;
+<a id='L59' name='L59'></a>    59   <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> byte2 = char2b &amp; 0xFF;
+<a id='L60' name='L60'></a>    60 
+<a id='L61' name='L61'></a>    61   <a href='../D/9688.html' title='Multiple defined in 5 places.'>eassert</a> (xfont);
+<a id='L62' name='L62'></a>    62 
+<a id='L63' name='L63'></a>    63   <strong class='reserved'>if</strong> (xfont-&gt;per_char != <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L64' name='L64'></a>    64     <em class='brace'>{</em>
+<a id='L65' name='L65'></a>    65       <strong class='reserved'>if</strong> (xfont-&gt;min_byte1 == 0 &amp;&amp; xfont-&gt;max_byte1 == 0)
+<a id='L66' name='L66'></a>    66         <em class='brace'>{</em>
+<a id='L67' name='L67'></a>    67           <em class='comment'>/* min_char_or_byte2 specifies the linear character index</em>
+<a id='L68' name='L68'></a>    68 <em class='comment'>             corresponding to the first element of the per_char array,</em>
+<a id='L69' name='L69'></a>    69 <em class='comment'>             max_char_or_byte2 is the index of the last character.  A</em>
+<a id='L70' name='L70'></a>    70 <em class='comment'>             character with non-zero byte1 is not in the font.</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>             A character with byte2 less than min_char_or_byte2 or</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>             greater max_char_or_byte2 is not in the font.  */</em>
+<a id='L73' name='L73'></a>    73           <strong class='reserved'>if</strong> (byte1 == 0
+<a id='L74' name='L74'></a>    74               &amp;&amp; byte2 &gt;= xfont-&gt;min_char_or_byte2
+<a id='L75' name='L75'></a>    75               &amp;&amp; byte2 &lt;= xfont-&gt;max_char_or_byte2)
+<a id='L76' name='L76'></a>    76             pcm = xfont-&gt;per_char + byte2 - xfont-&gt;min_char_or_byte2;
+<a id='L77' name='L77'></a>    77         <em class='brace'>}</em>
+<a id='L78' name='L78'></a>    78       <strong class='reserved'>else</strong>
+<a id='L79' name='L79'></a>    79         <em class='brace'>{</em>
+<a id='L80' name='L80'></a>    80           <em class='comment'>/* If either min_byte1 or max_byte1 are nonzero, both</em>
+<a id='L81' name='L81'></a>    81 <em class='comment'>             min_char_or_byte2 and max_char_or_byte2 are less than</em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>             256, and the 2-byte character index values corresponding</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>             to the per_char array element N (counting from 0) are:</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'></em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>             byte1 = N/D + min_byte1</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>             byte2 = N\D + min_char_or_byte2</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'></em>
+<a id='L88' name='L88'></a>    88 <em class='comment'>             where:</em>
+<a id='L89' name='L89'></a>    89 <em class='comment'></em>
+<a id='L90' name='L90'></a>    90 <em class='comment'>             D = max_char_or_byte2 - min_char_or_byte2 + 1</em>
+<a id='L91' name='L91'></a>    91 <em class='comment'>             / = integer division</em>
+<a id='L92' name='L92'></a>    92 <em class='comment'>             \ = integer modulus  */</em>
+<a id='L93' name='L93'></a>    93           <strong class='reserved'>if</strong> (byte1 &gt;= xfont-&gt;min_byte1
+<a id='L94' name='L94'></a>    94               &amp;&amp; byte1 &lt;= xfont-&gt;max_byte1
+<a id='L95' name='L95'></a>    95               &amp;&amp; byte2 &gt;= xfont-&gt;min_char_or_byte2
+<a id='L96' name='L96'></a>    96               &amp;&amp; byte2 &lt;= xfont-&gt;max_char_or_byte2)
+<a id='L97' name='L97'></a>    97             pcm = (xfont-&gt;per_char
+<a id='L98' name='L98'></a>    98                    + ((xfont-&gt;max_char_or_byte2 - xfont-&gt;min_char_or_byte2 + 1)
+<a id='L99' name='L99'></a>    99                       * (byte1 - xfont-&gt;min_byte1))
+<a id='L100' name='L100'></a>   100                    + (byte2 - xfont-&gt;min_char_or_byte2));
+<a id='L101' name='L101'></a>   101         <em class='brace'>}</em>
+<a id='L102' name='L102'></a>   102     <em class='brace'>}</em>
+<a id='L103' name='L103'></a>   103   <strong class='reserved'>else</strong>
+<a id='L104' name='L104'></a>   104     <em class='brace'>{</em>
+<a id='L105' name='L105'></a>   105       <em class='comment'>/* If the per_char pointer is null, all glyphs between the first</em>
+<a id='L106' name='L106'></a>   106 <em class='comment'>         and last character indexes inclusive have the same</em>
+<a id='L107' name='L107'></a>   107 <em class='comment'>         information, as given by both min_bounds and max_bounds.  */</em>
+<a id='L108' name='L108'></a>   108       <strong class='reserved'>if</strong> (byte2 &gt;= xfont-&gt;min_char_or_byte2
+<a id='L109' name='L109'></a>   109           &amp;&amp; byte2 &lt;= xfont-&gt;max_char_or_byte2)
+<a id='L110' name='L110'></a>   110         pcm = &amp;xfont-&gt;max_bounds;
+<a id='L111' name='L111'></a>   111     <em class='brace'>}</em>
+<a id='L112' name='L112'></a>   112 
+<a id='L113' name='L113'></a>   113   <strong class='reserved'>return</strong> ((pcm == <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>
+<a id='L114' name='L114'></a>   114            || (pcm-&gt;width == 0 &amp;&amp; (pcm-&gt;rbearing - pcm-&gt;lbearing) == 0))
+<a id='L115' name='L115'></a>   115           ? <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a> : pcm);
+<a id='L116' name='L116'></a>   116 <em class='brace'>}</em>
+<a id='L117' name='L117'></a>   117 
+<a id='L118' name='L118'></a>   118 <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L119' name='L119'></a>   119 <a href='../R/16521.html' title='Multiple referred from 3 places.'>xfont_get_cache</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L120' name='L120'></a>   120 <em class='brace'>{</em>
+<a id='L121' name='L121'></a>   121   <a href='../D/1495.html' title='Multiple defined in 7 places.'>Display_Info</a> *dpyinfo = <a href='../D/2051.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L122' name='L122'></a>   122 
+<a id='L123' name='L123'></a>   123   <strong class='reserved'>return</strong> (dpyinfo-&gt;name_list_element);
+<a id='L124' name='L124'></a>   124 <em class='brace'>}</em>
+<a id='L125' name='L125'></a>   125 
+<a id='L126' name='L126'></a>   126 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L127' name='L127'></a>   127 <a href='../S/2196.html#L352' title='Referred from 352 in src/xfont.c.'>compare_font_names</a> (<strong class='reserved'>const</strong> <strong class='reserved'>void</strong> *name1, <strong class='reserved'>const</strong> <strong class='reserved'>void</strong> *name2)
+<a id='L128' name='L128'></a>   128 <em class='brace'>{</em>
+<a id='L129' name='L129'></a>   129   <strong class='reserved'>char</strong> *<strong class='reserved'>const</strong> *n1 = name1;
+<a id='L130' name='L130'></a>   130   <strong class='reserved'>char</strong> *<strong class='reserved'>const</strong> *n2 = name2;
+<a id='L131' name='L131'></a>   131   <strong class='reserved'>return</strong> <a href='../S/2202.html#L89' title='Defined at 89 in src/dispextern.h.'>xstrcasecmp</a> (*n1, *n2);
+<a id='L132' name='L132'></a>   132 <em class='brace'>}</em>
+<a id='L133' name='L133'></a>   133 
+<a id='L134' name='L134'></a>   134 <em class='comment'>/* Decode XLFD as iso-8859-1 into OUTPUT, and return the byte length</em>
+<a id='L135' name='L135'></a>   135 <em class='comment'>   of the decoding result.  LEN is the byte length of XLFD, or -1 if</em>
+<a id='L136' name='L136'></a>   136 <em class='comment'>   XLFD is NULL terminated.  The caller must assure that OUTPUT is at</em>
+<a id='L137' name='L137'></a>   137 <em class='comment'>   least twice (plus 1) as large as XLFD.  */</em>
+<a id='L138' name='L138'></a>   138 
+<a id='L139' name='L139'></a>   139 <strong class='reserved'>static</strong> ptrdiff_t
+<a id='L140' name='L140'></a>   140 <a href='../R/16517.html' title='Multiple referred from 5 places.'>xfont_decode_coding_xlfd</a> (<strong class='reserved'>char</strong> *xlfd, <strong class='reserved'>int</strong> len, <strong class='reserved'>char</strong> *output)
+<a id='L141' name='L141'></a>   141 <em class='brace'>{</em>
+<a id='L142' name='L142'></a>   142   <strong class='reserved'>char</strong> *p0 = xlfd, *p1 = output;
+<a id='L143' name='L143'></a>   143   <strong class='reserved'>int</strong> <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L144' name='L144'></a>   144 
+<a id='L145' name='L145'></a>   145   <strong class='reserved'>while</strong> (*p0)
+<a id='L146' name='L146'></a>   146     <em class='brace'>{</em>
+<a id='L147' name='L147'></a>   147       <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a> = *(<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) p0++;
+<a id='L148' name='L148'></a>   148       p1 += <a href='../S/2111.html#L228' title='Defined at 228 in src/character.h.'>CHAR_STRING</a> (<a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>, (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) p1);
+<a id='L149' name='L149'></a>   149       <strong class='reserved'>if</strong> (--len == 0)
+<a id='L150' name='L150'></a>   150         <strong class='reserved'>break</strong>;
+<a id='L151' name='L151'></a>   151     <em class='brace'>}</em>
+<a id='L152' name='L152'></a>   152   *p1 = 0;
+<a id='L153' name='L153'></a>   153   <strong class='reserved'>return</strong> (p1 - output);
+<a id='L154' name='L154'></a>   154 <em class='brace'>}</em>
+<a id='L155' name='L155'></a>   155 
+<a id='L156' name='L156'></a>   156 <em class='comment'>/* Encode XLFD from UTF-8 to iso-8859-1 destructively, and return the</em>
+<a id='L157' name='L157'></a>   157 <em class='comment'>   resulting byte length.  If XLFD contains unencodable character,</em>
+<a id='L158' name='L158'></a>   158 <em class='comment'>   return -1.  */</em>
+<a id='L159' name='L159'></a>   159 
+<a id='L160' name='L160'></a>   160 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L161' name='L161'></a>   161 <a href='../R/16520.html' title='Multiple referred from 5 places.'>xfont_encode_coding_xlfd</a> (<strong class='reserved'>char</strong> *xlfd)
+<a id='L162' name='L162'></a>   162 <em class='brace'>{</em>
+<a id='L163' name='L163'></a>   163   <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *p0 = (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) xlfd;
+<a id='L164' name='L164'></a>   164   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *p1 = (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) xlfd;
+<a id='L165' name='L165'></a>   165   <strong class='reserved'>int</strong> len = 0;
+<a id='L166' name='L166'></a>   166 
+<a id='L167' name='L167'></a>   167   <strong class='reserved'>while</strong> (*p0)
+<a id='L168' name='L168'></a>   168     <em class='brace'>{</em>
+<a id='L169' name='L169'></a>   169       <strong class='reserved'>int</strong> <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2111.html#L425' title='Defined at 425 in src/character.h.'>string_char_advance</a> (&amp;p0);
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171       <strong class='reserved'>if</strong> (<a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a> &gt;= 0x100)
+<a id='L172' name='L172'></a>   172         <strong class='reserved'>return</strong> -1;
+<a id='L173' name='L173'></a>   173       *p1++ = <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L174' name='L174'></a>   174       len++;
+<a id='L175' name='L175'></a>   175     <em class='brace'>}</em>
+<a id='L176' name='L176'></a>   176   *p1 = 0;
+<a id='L177' name='L177'></a>   177   <strong class='reserved'>return</strong> len;
+<a id='L178' name='L178'></a>   178 <em class='brace'>}</em>
+<a id='L179' name='L179'></a>   179 
+<a id='L180' name='L180'></a>   180 <em class='comment'>/* Check if CHARS (cons or vector) is supported by XFONT whose</em>
+<a id='L181' name='L181'></a>   181 <em class='comment'>   encoding charset is ENCODING (XFONT is NULL) or by a font whose</em>
+<a id='L182' name='L182'></a>   182 <em class='comment'>   registry corresponds to ENCODING and REPERTORY.</em>
+<a id='L183' name='L183'></a>   183 <em class='comment'>   Return true if supported.  */</em>
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185 <strong class='reserved'>static</strong> <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L186' name='L186'></a>   186 <a href='../R/16514.html' title='Multiple referred from 3 places.'>xfont_chars_supported</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> chars, <a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfont,
+<a id='L187' name='L187'></a>   187                        <strong class='reserved'>struct</strong> <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> *encoding, <strong class='reserved'>struct</strong> <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> *repertory)
+<a id='L188' name='L188'></a>   188 <em class='brace'>{</em>
+<a id='L189' name='L189'></a>   189   <strong class='reserved'>struct</strong> <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> *<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> = repertory ? repertory : encoding;
+<a id='L190' name='L190'></a>   190 
+<a id='L191' name='L191'></a>   191   <strong class='reserved'>if</strong> (<a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (chars))
+<a id='L192' name='L192'></a>   192     <em class='brace'>{</em>
+<a id='L193' name='L193'></a>   193       <strong class='reserved'>for</strong> (; <a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (chars); chars = <a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (chars))
+<a id='L194' name='L194'></a>   194         <em class='brace'>{</em>
+<a id='L195' name='L195'></a>   195           <strong class='reserved'>int</strong> <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2158.html#L1280' title='Defined at 1280 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (chars));
+<a id='L196' name='L196'></a>   196           <strong class='reserved'>unsigned</strong> code = <a href='../S/2235.html#L431' title='Defined at 431 in src/charset.h.'>ENCODE_CHAR</a> (<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a>, <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L197' name='L197'></a>   197 
+<a id='L198' name='L198'></a>   198           <strong class='reserved'>if</strong> (code == <a href='../S/2235.html#L310' title='Defined at 310 in src/charset.h.'>CHARSET_INVALID_CODE</a> (<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a>))
+<a id='L199' name='L199'></a>   199             <strong class='reserved'>break</strong>;
+<a id='L200' name='L200'></a>   200           <strong class='reserved'>if</strong> (! xfont)
+<a id='L201' name='L201'></a>   201             <strong class='reserved'>continue</strong>;
+<a id='L202' name='L202'></a>   202           <strong class='reserved'>if</strong> (code &gt;= 0x10000)
+<a id='L203' name='L203'></a>   203             <strong class='reserved'>break</strong>;
+<a id='L204' name='L204'></a>   204           <strong class='reserved'>if</strong> (! <a href='../S/2196.html#L54' title='Defined at 54 in src/xfont.c.'>xfont_get_pcm</a> (xfont, code))
+<a id='L205' name='L205'></a>   205             <strong class='reserved'>break</strong>;
+<a id='L206' name='L206'></a>   206         <em class='brace'>}</em>
+<a id='L207' name='L207'></a>   207       <strong class='reserved'>return</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (chars));
+<a id='L208' name='L208'></a>   208     <em class='brace'>}</em>
+<a id='L209' name='L209'></a>   209   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/6062.html' title='Multiple defined in 2 places.'>VECTORP</a> (chars))
+<a id='L210' name='L210'></a>   210     <em class='brace'>{</em>
+<a id='L211' name='L211'></a>   211       ptrdiff_t i;
+<a id='L212' name='L212'></a>   212 
+<a id='L213' name='L213'></a>   213       <strong class='reserved'>for</strong> (i = <a href='../D/114.html' title='Multiple defined in 2 places.'>ASIZE</a> (chars) - 1; i &gt;= 0; i--)
+<a id='L214' name='L214'></a>   214         <em class='brace'>{</em>
+<a id='L215' name='L215'></a>   215           <strong class='reserved'>int</strong> <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2158.html#L1280' title='Defined at 1280 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (chars, i));
+<a id='L216' name='L216'></a>   216           <strong class='reserved'>unsigned</strong> code = <a href='../S/2235.html#L431' title='Defined at 431 in src/charset.h.'>ENCODE_CHAR</a> (<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a>, <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L217' name='L217'></a>   217 
+<a id='L218' name='L218'></a>   218           <strong class='reserved'>if</strong> (code == <a href='../S/2235.html#L310' title='Defined at 310 in src/charset.h.'>CHARSET_INVALID_CODE</a> (<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a>))
+<a id='L219' name='L219'></a>   219             <strong class='reserved'>continue</strong>;
+<a id='L220' name='L220'></a>   220           <strong class='reserved'>if</strong> (! xfont)
+<a id='L221' name='L221'></a>   221             <strong class='reserved'>break</strong>;
+<a id='L222' name='L222'></a>   222           <strong class='reserved'>if</strong> (code &gt;= 0x10000)
+<a id='L223' name='L223'></a>   223             <strong class='reserved'>continue</strong>;
+<a id='L224' name='L224'></a>   224           <strong class='reserved'>if</strong> (<a href='../S/2196.html#L54' title='Defined at 54 in src/xfont.c.'>xfont_get_pcm</a> (xfont, code))
+<a id='L225' name='L225'></a>   225             <strong class='reserved'>break</strong>;
+<a id='L226' name='L226'></a>   226         <em class='brace'>}</em>
+<a id='L227' name='L227'></a>   227       <strong class='reserved'>return</strong> (i &gt;= 0);
+<a id='L228' name='L228'></a>   228     <em class='brace'>}</em>
+<a id='L229' name='L229'></a>   229   <strong class='reserved'>return</strong> <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L230' name='L230'></a>   230 <em class='brace'>}</em>
+<a id='L231' name='L231'></a>   231 
+<a id='L232' name='L232'></a>   232 <em class='comment'>/* A hash table recoding which font supports which scripts.  Each key</em>
+<a id='L233' name='L233'></a>   233 <em class='comment'>   is a vector of characteristic font properties FOUNDRY to WIDTH and</em>
+<a id='L234' name='L234'></a>   234 <em class='comment'>   ADDSTYLE, and each value is a list of script symbols.</em>
+<a id='L235' name='L235'></a>   235 <em class='comment'></em>
+<a id='L236' name='L236'></a>   236 <em class='comment'>   We assume that fonts that have the same value in the above</em>
+<a id='L237' name='L237'></a>   237 <em class='comment'>   properties supports the same set of characters on all displays.  */</em>
+<a id='L238' name='L238'></a>   238 
+<a id='L239' name='L239'></a>   239 <strong class='reserved'>static</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> xfont_scripts_cache;
+<a id='L240' name='L240'></a>   240 
+<a id='L241' name='L241'></a>   241 <em class='comment'>/* Re-usable vector to store characteristic font properties.   */</em>
+<a id='L242' name='L242'></a>   242 <strong class='reserved'>static</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> xfont_scratch_props;
+<a id='L243' name='L243'></a>   243 
+<a id='L244' name='L244'></a>   244 <em class='comment'>/* Return a list of scripts supported by the font of FONTNAME whose</em>
+<a id='L245' name='L245'></a>   245 <em class='comment'>   characteristic properties are in PROPS and whose encoding charset</em>
+<a id='L246' name='L246'></a>   246 <em class='comment'>   is ENCODING.  A caller must call BLOCK_INPUT in advance.  */</em>
+<a id='L247' name='L247'></a>   247 
+<a id='L248' name='L248'></a>   248 <strong class='reserved'>static</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L249' name='L249'></a>   249 <a href='../S/2196.html#L441' title='Referred from 441 in src/xfont.c.'>xfont_supported_scripts</a> (<a href='../D/1492.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <strong class='reserved'>char</strong> *fontname, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2117.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a>,
+<a id='L250' name='L250'></a>   250                          <strong class='reserved'>struct</strong> <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> *encoding)
+<a id='L251' name='L251'></a>   251 <em class='brace'>{</em>
+<a id='L252' name='L252'></a>   252   <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> scripts;
+<a id='L253' name='L253'></a>   253 
+<a id='L254' name='L254'></a>   254   <em class='comment'>/* Two special cases to avoid opening rather big fonts.  */</em>
+<a id='L255' name='L255'></a>   255   <strong class='reserved'>if</strong> (<a href='../D/1675.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/2117.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a>, 2), Qja))
+<a id='L256' name='L256'></a>   256     <strong class='reserved'>return</strong> <a href='../S/2237.html#L2921' title='Defined at 2921 in src/alloc.c.'>list2</a> (Qkana, Qhan);
+<a id='L257' name='L257'></a>   257   <strong class='reserved'>if</strong> (<a href='../D/1675.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/2117.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a>, 2), Qko))
+<a id='L258' name='L258'></a>   258     <strong class='reserved'>return</strong> <a href='../S/2237.html#L2915' title='Defined at 2915 in src/alloc.c.'>list1</a> (Qhangul);
+<a id='L259' name='L259'></a>   259   scripts = Fgethash (<a href='../S/2117.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a>, xfont_scripts_cache, Qt);
+<a id='L260' name='L260'></a>   260   <strong class='reserved'>if</strong> (<a href='../D/1675.html' title='Multiple defined in 2 places.'>EQ</a> (scripts, Qt))
+<a id='L261' name='L261'></a>   261     <em class='brace'>{</em>
+<a id='L262' name='L262'></a>   262       <a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfont;
+<a id='L263' name='L263'></a>   263       <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> val;
+<a id='L264' name='L264'></a>   264 
+<a id='L265' name='L265'></a>   265       scripts = Qnil;
+<a id='L266' name='L266'></a>   266       xfont = XLoadQueryFont (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, fontname);
+<a id='L267' name='L267'></a>   267       <strong class='reserved'>if</strong> (xfont)
+<a id='L268' name='L268'></a>   268         <em class='brace'>{</em>
+<a id='L269' name='L269'></a>   269           <strong class='reserved'>if</strong> (xfont-&gt;per_char)
+<a id='L270' name='L270'></a>   270             <em class='brace'>{</em>
+<a id='L271' name='L271'></a>   271               <strong class='reserved'>for</strong> (val = Vscript_representative_chars; <a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (val);
+<a id='L272' name='L272'></a>   272                    val = <a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (val))
+<a id='L273' name='L273'></a>   273                 <strong class='reserved'>if</strong> (<a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (val)) &amp;&amp; <a href='../S/3856.html#L397' title='Defined at 397 in test/manual/etags/c-src/emacs/src/lisp.h.'>SYMBOLP</a> (<a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (<a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (val))))
+<a id='L274' name='L274'></a>   274                   <em class='brace'>{</em>
+<a id='L275' name='L275'></a>   275                     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> script = <a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (<a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (val));
+<a id='L276' name='L276'></a>   276                     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> chars = <a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (<a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (val));
+<a id='L277' name='L277'></a>   277 
+<a id='L278' name='L278'></a>   278                     <strong class='reserved'>if</strong> (<a href='../S/2196.html#L186' title='Defined at 186 in src/xfont.c.'>xfont_chars_supported</a> (chars, xfont, encoding, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>))
+<a id='L279' name='L279'></a>   279                       scripts = Fcons (script, scripts);
+<a id='L280' name='L280'></a>   280                   <em class='brace'>}</em>
+<a id='L281' name='L281'></a>   281             <em class='brace'>}</em>
+<a id='L282' name='L282'></a>   282           XFreeFont (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, xfont);
+<a id='L283' name='L283'></a>   283         <em class='brace'>}</em>
+<a id='L284' name='L284'></a>   284       <strong class='reserved'>if</strong> (<a href='../D/1675.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/2117.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a>, 3), Qiso10646_1)
+<a id='L285' name='L285'></a>   285           &amp;&amp; <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (Fmemq (Qlatin, scripts)))
+<a id='L286' name='L286'></a>   286         scripts = Fcons (Qlatin, scripts);
+<a id='L287' name='L287'></a>   287       Fputhash (Fcopy_sequence (<a href='../S/2117.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a>), scripts, xfont_scripts_cache);
+<a id='L288' name='L288'></a>   288     <em class='brace'>}</em>
+<a id='L289' name='L289'></a>   289   <strong class='reserved'>return</strong> scripts;
+<a id='L290' name='L290'></a>   290 <em class='brace'>}</em>
+<a id='L291' name='L291'></a>   291 
+<a id='L292' name='L292'></a>   292 <strong class='reserved'>static</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L293' name='L293'></a>   293 <a href='../R/16527.html' title='Multiple referred from 4 places.'>xfont_list_pattern</a> (<a href='../D/1492.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *pattern,
+<a id='L294' name='L294'></a>   294                     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> registry, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> script)
+<a id='L295' name='L295'></a>   295 <em class='brace'>{</em>
+<a id='L296' name='L296'></a>   296   <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = Qnil;
+<a id='L297' name='L297'></a>   297   <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> chars = Qnil;
+<a id='L298' name='L298'></a>   298   <strong class='reserved'>struct</strong> <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> *encoding = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, *repertory = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L299' name='L299'></a>   299   <strong class='reserved'>int</strong> i, limit, num_fonts;
+<a id='L300' name='L300'></a>   300   <strong class='reserved'>char</strong> **names;
+<a id='L301' name='L301'></a>   301   <em class='comment'>/* Large enough to decode the longest XLFD (255 bytes). */</em>
+<a id='L302' name='L302'></a>   302   <strong class='reserved'>char</strong> buf[512];
+<a id='L303' name='L303'></a>   303 
+<a id='L304' name='L304'></a>   304   <strong class='reserved'>if</strong> (! <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (registry)
+<a id='L305' name='L305'></a>   305       &amp;&amp; <a href='../S/2153.html#L470' title='Defined at 470 in src/font.c.'>font_registry_charsets</a> (registry, &amp;encoding, &amp;repertory) &lt; 0)
+<a id='L306' name='L306'></a>   306     <em class='comment'>/* Unknown REGISTRY, not supported.  */</em>
+<a id='L307' name='L307'></a>   307     <strong class='reserved'>return</strong> Qnil;
+<a id='L308' name='L308'></a>   308   <strong class='reserved'>if</strong> (! <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (script))
+<a id='L309' name='L309'></a>   309     <em class='brace'>{</em>
+<a id='L310' name='L310'></a>   310       chars = <a href='../S/2207.html#L1962' title='Defined at 1962 in src/fns.c.'>assq_no_quit</a> (script, Vscript_representative_chars);
+<a id='L311' name='L311'></a>   311       <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (chars))
+<a id='L312' name='L312'></a>   312         <em class='comment'>/* We can't tell whether or not a font supports SCRIPT.  */</em>
+<a id='L313' name='L313'></a>   313         <strong class='reserved'>return</strong> Qnil;
+<a id='L314' name='L314'></a>   314       chars = <a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (chars);
+<a id='L315' name='L315'></a>   315       <strong class='reserved'>if</strong> (repertory)
+<a id='L316' name='L316'></a>   316         <em class='brace'>{</em>
+<a id='L317' name='L317'></a>   317           <strong class='reserved'>if</strong> (! <a href='../S/2196.html#L186' title='Defined at 186 in src/xfont.c.'>xfont_chars_supported</a> (chars, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, encoding, repertory))
+<a id='L318' name='L318'></a>   318             <strong class='reserved'>return</strong> Qnil;
+<a id='L319' name='L319'></a>   319           script = Qnil;
+<a id='L320' name='L320'></a>   320         <em class='brace'>}</em>
+<a id='L321' name='L321'></a>   321     <em class='brace'>}</em>
+<a id='L322' name='L322'></a>   322 
+<a id='L323' name='L323'></a>   323   <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L324' name='L324'></a>   324   x_catch_errors (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>);
+<a id='L325' name='L325'></a>   325 
+<a id='L326' name='L326'></a>   326   <strong class='reserved'>for</strong> (limit = 512; ; limit *= 2)
+<a id='L327' name='L327'></a>   327     <em class='brace'>{</em>
+<a id='L328' name='L328'></a>   328       names = XListFonts (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, pattern, limit, &amp;num_fonts);
+<a id='L329' name='L329'></a>   329       <strong class='reserved'>if</strong> (x_had_errors_p (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>))
+<a id='L330' name='L330'></a>   330         <em class='brace'>{</em>
+<a id='L331' name='L331'></a>   331           <em class='comment'>/* This error is perhaps due to insufficient memory on X</em>
+<a id='L332' name='L332'></a>   332 <em class='comment'>             server.  Let's just ignore it.  */</em>
+<a id='L333' name='L333'></a>   333           x_clear_errors (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>);
+<a id='L334' name='L334'></a>   334           num_fonts = 0;
+<a id='L335' name='L335'></a>   335           <strong class='reserved'>break</strong>;
+<a id='L336' name='L336'></a>   336         <em class='brace'>}</em>
+<a id='L337' name='L337'></a>   337       <strong class='reserved'>if</strong> (num_fonts &lt; limit)
+<a id='L338' name='L338'></a>   338         <strong class='reserved'>break</strong>;
+<a id='L339' name='L339'></a>   339       XFreeFontNames (names);
+<a id='L340' name='L340'></a>   340     <em class='brace'>}</em>
+<a id='L341' name='L341'></a>   341 
+<a id='L342' name='L342'></a>   342   <strong class='reserved'>if</strong> (num_fonts &gt; 0)
+<a id='L343' name='L343'></a>   343     <em class='brace'>{</em>
+<a id='L344' name='L344'></a>   344       <strong class='reserved'>char</strong> **indices = <a href='../D/7790.html' title='Multiple defined in 8 places.'>alloca</a> (<strong class='reserved'>sizeof</strong> (<strong class='reserved'>char</strong> *) * num_fonts);
+<a id='L345' name='L345'></a>   345       <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *<a href='../S/2117.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a> = <a href='../S/2158.html#L1751' title='Defined at 1751 in src/lisp.h.'>XVECTOR</a> (xfont_scratch_props)-&gt;contents;
+<a id='L346' name='L346'></a>   346       <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> scripts = Qnil, entity = Qnil;
+<a id='L347' name='L347'></a>   347 
+<a id='L348' name='L348'></a>   348       <strong class='reserved'>for</strong> (i = 0; i &lt; <a href='../D/114.html' title='Multiple defined in 2 places.'>ASIZE</a> (xfont_scratch_props); i++)
+<a id='L349' name='L349'></a>   349         <a href='../D/113.html' title='Multiple defined in 2 places.'>ASET</a> (xfont_scratch_props, i, Qnil);
+<a id='L350' name='L350'></a>   350       <strong class='reserved'>for</strong> (i = 0; i &lt; num_fonts; i++)
+<a id='L351' name='L351'></a>   351         indices[i] = names[i];
+<a id='L352' name='L352'></a>   352       qsort (indices, num_fonts, <strong class='reserved'>sizeof</strong> (<strong class='reserved'>char</strong> *), <a href='../S/2196.html#L127' title='Defined at 127 in src/xfont.c.'>compare_font_names</a>);
+<a id='L353' name='L353'></a>   353 
+<a id='L354' name='L354'></a>   354       <em class='comment'>/* Take one or two passes over the font list.  Do the second</em>
+<a id='L355' name='L355'></a>   355 <em class='comment'>         pass only if we really need it, i.e., only if the first pass</em>
+<a id='L356' name='L356'></a>   356 <em class='comment'>         found no fonts and skipped some scalable fonts.  */</em>
+<a id='L357' name='L357'></a>   357       <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> skipped_some_scalable_fonts = <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L358' name='L358'></a>   358       <strong class='reserved'>for</strong> (<strong class='reserved'>int</strong> i_pass = 0;
+<a id='L359' name='L359'></a>   359            (i_pass == 0
+<a id='L360' name='L360'></a>   360             || (i_pass == 1 &amp;&amp; <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>) &amp;&amp; skipped_some_scalable_fonts));
+<a id='L361' name='L361'></a>   361            i_pass++)
+<a id='L362' name='L362'></a>   362         <strong class='reserved'>for</strong> (i = 0; i &lt; num_fonts; i++)
+<a id='L363' name='L363'></a>   363           <em class='brace'>{</em>
+<a id='L364' name='L364'></a>   364             ptrdiff_t len;
+<a id='L365' name='L365'></a>   365 
+<a id='L366' name='L366'></a>   366             <strong class='reserved'>if</strong> (i &gt; 0 &amp;&amp; <a href='../S/2202.html#L89' title='Defined at 89 in src/dispextern.h.'>xstrcasecmp</a> (indices[i - 1], indices[i]) == 0)
+<a id='L367' name='L367'></a>   367               <strong class='reserved'>continue</strong>;
+<a id='L368' name='L368'></a>   368             <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (entity))
+<a id='L369' name='L369'></a>   369               entity = <a href='../S/2153.html#L172' title='Defined at 172 in src/font.c.'>font_make_entity</a> ();
+<a id='L370' name='L370'></a>   370             len = <a href='../S/2196.html#L140' title='Defined at 140 in src/xfont.c.'>xfont_decode_coding_xlfd</a> (indices[i], -1, buf);
+<a id='L371' name='L371'></a>   371             <strong class='reserved'>if</strong> (<a href='../S/2153.html#L1233' title='Defined at 1233 in src/font.c.'>font_parse_xlfd</a> (buf, len, entity) &lt; 0)
+<a id='L372' name='L372'></a>   372               <strong class='reserved'>continue</strong>;
+<a id='L373' name='L373'></a>   373             <a href='../D/113.html' title='Multiple defined in 2 places.'>ASET</a> (entity, <a href='../S/2184.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>, Qx);
+<a id='L374' name='L374'></a>   374             <em class='comment'>/* Avoid auto-scaled fonts.  */</em>
+<a id='L375' name='L375'></a>   375             <strong class='reserved'>if</strong> (<a href='../S/2158.html#L464' title='Defined at 464 in src/lisp.h.'>FIXNUMP</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L117' title='Defined at 117 in src/font.h.'>FONT_DPI_INDEX</a>))
+<a id='L376' name='L376'></a>   376                 &amp;&amp; <a href='../S/2158.html#L464' title='Defined at 464 in src/lisp.h.'>FIXNUMP</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L125' title='Defined at 125 in src/font.h.'>FONT_AVGWIDTH_INDEX</a>))
+<a id='L377' name='L377'></a>   377                 &amp;&amp; <a href='../S/2158.html#L1280' title='Defined at 1280 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L117' title='Defined at 117 in src/font.h.'>FONT_DPI_INDEX</a>)) != 0
+<a id='L378' name='L378'></a>   378                 &amp;&amp; <a href='../S/2158.html#L1280' title='Defined at 1280 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L125' title='Defined at 125 in src/font.h.'>FONT_AVGWIDTH_INDEX</a>)) == 0)
+<a id='L379' name='L379'></a>   379               <strong class='reserved'>continue</strong>;
+<a id='L380' name='L380'></a>   380             <em class='comment'>/* Avoid not-allowed scalable fonts.  */</em>
+<a id='L381' name='L381'></a>   381             <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (Vscalable_fonts_allowed))
+<a id='L382' name='L382'></a>   382               <em class='brace'>{</em>
+<a id='L383' name='L383'></a>   383                 <strong class='reserved'>int</strong> <a href='../D/15490.html' title='Multiple defined in 5 places.'>size</a> = 0;
+<a id='L384' name='L384'></a>   384 
+<a id='L385' name='L385'></a>   385                 <strong class='reserved'>if</strong> (<a href='../S/2158.html#L464' title='Defined at 464 in src/lisp.h.'>FIXNUMP</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L113' title='Defined at 113 in src/font.h.'>FONT_SIZE_INDEX</a>)))
+<a id='L386' name='L386'></a>   386                   <a href='../D/15490.html' title='Multiple defined in 5 places.'>size</a> = <a href='../S/2158.html#L1280' title='Defined at 1280 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L113' title='Defined at 113 in src/font.h.'>FONT_SIZE_INDEX</a>));
+<a id='L387' name='L387'></a>   387                 <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1900.html' title='Multiple defined in 2 places.'>FLOATP</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L113' title='Defined at 113 in src/font.h.'>FONT_SIZE_INDEX</a>)))
+<a id='L388' name='L388'></a>   388                   <a href='../D/15490.html' title='Multiple defined in 5 places.'>size</a> = <a href='../D/6480.html' title='Multiple defined in 2 places.'>XFLOAT_DATA</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L113' title='Defined at 113 in src/font.h.'>FONT_SIZE_INDEX</a>));
+<a id='L389' name='L389'></a>   389                 <strong class='reserved'>if</strong> (<a href='../D/15490.html' title='Multiple defined in 5 places.'>size</a> == 0 &amp;&amp; i_pass == 0)
+<a id='L390' name='L390'></a>   390                   <em class='brace'>{</em>
+<a id='L391' name='L391'></a>   391                     skipped_some_scalable_fonts = <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L392' name='L392'></a>   392                     <strong class='reserved'>continue</strong>;
+<a id='L393' name='L393'></a>   393                   <em class='brace'>}</em>
+<a id='L394' name='L394'></a>   394               <em class='brace'>}</em>
+<a id='L395' name='L395'></a>   395             <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (Vscalable_fonts_allowed))
+<a id='L396' name='L396'></a>   396               <em class='brace'>{</em>
+<a id='L397' name='L397'></a>   397                 <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/3837.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>;
+<a id='L398' name='L398'></a>   398 
+<a id='L399' name='L399'></a>   399                 <strong class='reserved'>for</strong> (<a href='../S/3837.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = Vscalable_fonts_allowed; <a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../S/3837.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>);
+<a id='L400' name='L400'></a>   400                      <a href='../S/3837.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = <a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (<a href='../S/3837.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>))
+<a id='L401' name='L401'></a>   401                   <em class='brace'>{</em>
+<a id='L402' name='L402'></a>   402                     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> elt = <a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (<a href='../S/3837.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>);
+<a id='L403' name='L403'></a>   403                     <strong class='reserved'>if</strong> (<a href='../S/2158.html#L1592' title='Defined at 1592 in src/lisp.h.'>STRINGP</a> (elt)
+<a id='L404' name='L404'></a>   404                         &amp;&amp; (<a href='../S/2158.html#L4789' title='Defined at 4789 in src/lisp.h.'>fast_c_string_match_ignore_case</a> (elt, indices[i],
+<a id='L405' name='L405'></a>   405                                                              len)
+<a id='L406' name='L406'></a>   406                             &gt;= 0))
+<a id='L407' name='L407'></a>   407                       <strong class='reserved'>break</strong>;
+<a id='L408' name='L408'></a>   408                   <em class='brace'>}</em>
+<a id='L409' name='L409'></a>   409                 <strong class='reserved'>if</strong> (! <a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../S/3837.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>))
+<a id='L410' name='L410'></a>   410                   <strong class='reserved'>continue</strong>;
+<a id='L411' name='L411'></a>   411               <em class='brace'>}</em>
+<a id='L412' name='L412'></a>   412 
+<a id='L413' name='L413'></a>   413             <em class='comment'>/* Avoid fonts of invalid registry.  */</em>
+<a id='L414' name='L414'></a>   414             <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L89' title='Defined at 89 in src/font.h.'>FONT_REGISTRY_INDEX</a>)))
+<a id='L415' name='L415'></a>   415               <strong class='reserved'>continue</strong>;
+<a id='L416' name='L416'></a>   416 
+<a id='L417' name='L417'></a>   417             <em class='comment'>/* Update encoding and repertory if necessary.  */</em>
+<a id='L418' name='L418'></a>   418             <strong class='reserved'>if</strong> (! <a href='../D/1675.html' title='Multiple defined in 2 places.'>EQ</a> (registry, <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L89' title='Defined at 89 in src/font.h.'>FONT_REGISTRY_INDEX</a>)))
+<a id='L419' name='L419'></a>   419               <em class='brace'>{</em>
+<a id='L420' name='L420'></a>   420                 registry = <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L89' title='Defined at 89 in src/font.h.'>FONT_REGISTRY_INDEX</a>);
+<a id='L421' name='L421'></a>   421                 <strong class='reserved'>if</strong> (<a href='../S/2153.html#L470' title='Defined at 470 in src/font.c.'>font_registry_charsets</a> (registry, &amp;encoding, &amp;repertory) &lt; 0)
+<a id='L422' name='L422'></a>   422                   encoding = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L423' name='L423'></a>   423               <em class='brace'>}</em>
+<a id='L424' name='L424'></a>   424             <strong class='reserved'>if</strong> (! encoding)
+<a id='L425' name='L425'></a>   425               <em class='comment'>/* Unknown REGISTRY, not supported.  */</em>
+<a id='L426' name='L426'></a>   426               <strong class='reserved'>continue</strong>;
+<a id='L427' name='L427'></a>   427             <strong class='reserved'>if</strong> (repertory)
+<a id='L428' name='L428'></a>   428               <em class='brace'>{</em>
+<a id='L429' name='L429'></a>   429                 <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (script)
+<a id='L430' name='L430'></a>   430                     || <a href='../S/2196.html#L186' title='Defined at 186 in src/xfont.c.'>xfont_chars_supported</a> (chars, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, encoding, repertory))
+<a id='L431' name='L431'></a>   431                   <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = Fcons (entity, <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>), entity = Qnil;
+<a id='L432' name='L432'></a>   432                 <strong class='reserved'>continue</strong>;
+<a id='L433' name='L433'></a>   433               <em class='brace'>}</em>
+<a id='L434' name='L434'></a>   434             <strong class='reserved'>if</strong> (memcmp (<a href='../S/2117.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a>, <a href='../D/7880.html' title='Multiple defined in 2 places.'>aref_addr</a> (entity, <a href='../S/2184.html#L79' title='Defined at 79 in src/font.h.'>FONT_FOUNDRY_INDEX</a>),
+<a id='L435' name='L435'></a>   435                         <a href='../D/17296.html' title='Multiple defined in 2 places.'>word_size</a> * 7)
+<a id='L436' name='L436'></a>   436                 || ! <a href='../D/1675.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L121' title='Defined at 121 in src/font.h.'>FONT_SPACING_INDEX</a>), <a href='../S/2117.html#L951' title='Defined at 951 in src/xdisp.c.'>props</a>[7]))
+<a id='L437' name='L437'></a>   437               <em class='brace'>{</em>
+<a id='L438' name='L438'></a>   438                 <a href='../D/16781.html' title='Multiple defined in 2 places.'>vcopy</a> (xfont_scratch_props, 0,
+<a id='L439' name='L439'></a>   439                        <a href='../D/7880.html' title='Multiple defined in 2 places.'>aref_addr</a> (entity, <a href='../S/2184.html#L79' title='Defined at 79 in src/font.h.'>FONT_FOUNDRY_INDEX</a>), 7);
+<a id='L440' name='L440'></a>   440                 <a href='../D/113.html' title='Multiple defined in 2 places.'>ASET</a> (xfont_scratch_props, 7, <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L121' title='Defined at 121 in src/font.h.'>FONT_SPACING_INDEX</a>));
+<a id='L441' name='L441'></a>   441                 scripts = <a href='../S/2196.html#L249' title='Defined at 249 in src/xfont.c.'>xfont_supported_scripts</a> (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, indices[i],
+<a id='L442' name='L442'></a>   442                                                    xfont_scratch_props,
+<a id='L443' name='L443'></a>   443                                                    encoding);
+<a id='L444' name='L444'></a>   444               <em class='brace'>}</em>
+<a id='L445' name='L445'></a>   445             <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (script)
+<a id='L446' name='L446'></a>   446                 || ! <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (Fmemq (script, scripts)))
+<a id='L447' name='L447'></a>   447               <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = Fcons (entity, <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>), entity = Qnil;
+<a id='L448' name='L448'></a>   448           <em class='brace'>}</em>
+<a id='L449' name='L449'></a>   449       XFreeFontNames (names);
+<a id='L450' name='L450'></a>   450     <em class='brace'>}</em>
+<a id='L451' name='L451'></a>   451 
+<a id='L452' name='L452'></a>   452   x_uncatch_errors ();
+<a id='L453' name='L453'></a>   453   <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L454' name='L454'></a>   454 
+<a id='L455' name='L455'></a>   455   <a href='../S/2184.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("xfont-list", <a href='../D/8326.html' title='Multiple defined in 2 places.'>build_string</a> (pattern), <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>);
+<a id='L456' name='L456'></a>   456   <strong class='reserved'>return</strong> <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>;
+<a id='L457' name='L457'></a>   457 <em class='brace'>}</em>
+<a id='L458' name='L458'></a>   458 
+<a id='L459' name='L459'></a>   459 <strong class='reserved'>static</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L460' name='L460'></a>   460 <a href='../S/2196.html#L1135' title='Referred from 1135 in src/xfont.c.'>xfont_list</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> spec)
+<a id='L461' name='L461'></a>   461 <em class='brace'>{</em>
+<a id='L462' name='L462'></a>   462   <a href='../D/1492.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a> = <a href='../D/2051.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>;
+<a id='L463' name='L463'></a>   463   <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> registry, <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>, val, <a href='../S/2144.html#L3451' title='Defined at 3451 in src/lread.c.'>extra</a>, script;
+<a id='L464' name='L464'></a>   464   <strong class='reserved'>int</strong> len;
+<a id='L465' name='L465'></a>   465   <em class='comment'>/* Large enough to contain the longest XLFD (255 bytes) in UTF-8.  */</em>
+<a id='L466' name='L466'></a>   466   <strong class='reserved'>char</strong> <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>[512];
+<a id='L467' name='L467'></a>   467 
+<a id='L468' name='L468'></a>   468   <a href='../S/2144.html#L3451' title='Defined at 3451 in src/lread.c.'>extra</a> = <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (spec, <a href='../S/2184.html#L161' title='Defined at 161 in src/font.h.'>FONT_EXTRA_INDEX</a>);
+<a id='L469' name='L469'></a>   469   <strong class='reserved'>if</strong> (<a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../S/2144.html#L3451' title='Defined at 3451 in src/lread.c.'>extra</a>))
+<a id='L470' name='L470'></a>   470     <em class='brace'>{</em>
+<a id='L471' name='L471'></a>   471       val = <a href='../S/2207.html#L1962' title='Defined at 1962 in src/fns.c.'>assq_no_quit</a> (QCotf, <a href='../S/2144.html#L3451' title='Defined at 3451 in src/lread.c.'>extra</a>);
+<a id='L472' name='L472'></a>   472       <strong class='reserved'>if</strong> (! <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (val))
+<a id='L473' name='L473'></a>   473         <strong class='reserved'>return</strong> Qnil;
+<a id='L474' name='L474'></a>   474       val = <a href='../S/2207.html#L1962' title='Defined at 1962 in src/fns.c.'>assq_no_quit</a> (QClang, <a href='../S/2144.html#L3451' title='Defined at 3451 in src/lread.c.'>extra</a>);
+<a id='L475' name='L475'></a>   475       <strong class='reserved'>if</strong> (! <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (val))
+<a id='L476' name='L476'></a>   476         <strong class='reserved'>return</strong> Qnil;
+<a id='L477' name='L477'></a>   477     <em class='brace'>}</em>
+<a id='L478' name='L478'></a>   478 
+<a id='L479' name='L479'></a>   479   registry = <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (spec, <a href='../S/2184.html#L89' title='Defined at 89 in src/font.h.'>FONT_REGISTRY_INDEX</a>);
+<a id='L480' name='L480'></a>   480   len = <a href='../S/2153.html#L1259' title='Defined at 1259 in src/font.c.'>font_unparse_xlfd</a> (spec, 0, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, 512);
+<a id='L481' name='L481'></a>   481   <strong class='reserved'>if</strong> (len &lt; 0 || (len = <a href='../S/2196.html#L161' title='Defined at 161 in src/xfont.c.'>xfont_encode_coding_xlfd</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>)) &lt; 0)
+<a id='L482' name='L482'></a>   482     <strong class='reserved'>return</strong> Qnil;
+<a id='L483' name='L483'></a>   483 
+<a id='L484' name='L484'></a>   484   val = <a href='../S/2207.html#L1962' title='Defined at 1962 in src/fns.c.'>assq_no_quit</a> (QCscript, <a href='../S/2144.html#L3451' title='Defined at 3451 in src/lread.c.'>extra</a>);
+<a id='L485' name='L485'></a>   485   script = <a href='../D/686.html' title='Multiple defined in 2 places.'>CDR</a> (val);
+<a id='L486' name='L486'></a>   486   <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = <a href='../S/2196.html#L293' title='Defined at 293 in src/xfont.c.'>xfont_list_pattern</a> (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, registry, script);
+<a id='L487' name='L487'></a>   487   <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>) &amp;&amp; <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (registry))
+<a id='L488' name='L488'></a>   488     <em class='brace'>{</em>
+<a id='L489' name='L489'></a>   489       <em class='comment'>/* Try iso10646-1 */</em>
+<a id='L490' name='L490'></a>   490       <strong class='reserved'>char</strong> *r = <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a> + len - 9; <em class='comment'>/* 9 == strlen (iso8859-1) */</em>
+<a id='L491' name='L491'></a>   491 
+<a id='L492' name='L492'></a>   492       <strong class='reserved'>if</strong> (r - <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a> + 10 &lt; 256)  <em class='comment'>/* 10 == strlen (iso10646-1) */</em>
+<a id='L493' name='L493'></a>   493         <em class='brace'>{</em>
+<a id='L494' name='L494'></a>   494           strcpy (r, "iso10646-1");
+<a id='L495' name='L495'></a>   495           <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = <a href='../S/2196.html#L293' title='Defined at 293 in src/xfont.c.'>xfont_list_pattern</a> (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, Qiso10646_1, script);
+<a id='L496' name='L496'></a>   496         <em class='brace'>}</em>
+<a id='L497' name='L497'></a>   497     <em class='brace'>}</em>
+<a id='L498' name='L498'></a>   498   <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>) &amp;&amp; ! <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (registry))
+<a id='L499' name='L499'></a>   499     <em class='brace'>{</em>
+<a id='L500' name='L500'></a>   500       <em class='comment'>/* Try alternate registries.  */</em>
+<a id='L501' name='L501'></a>   501       <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> alter;
+<a id='L502' name='L502'></a>   502 
+<a id='L503' name='L503'></a>   503       <strong class='reserved'>if</strong> ((alter = Fassoc (<a href='../D/5542.html' title='Multiple defined in 2 places.'>SYMBOL_NAME</a> (registry),
+<a id='L504' name='L504'></a>   504                            Vface_alternative_font_registry_alist,
+<a id='L505' name='L505'></a>   505                            Qnil),
+<a id='L506' name='L506'></a>   506            <a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (alter)))
+<a id='L507' name='L507'></a>   507         <em class='brace'>{</em>
+<a id='L508' name='L508'></a>   508           <em class='comment'>/* Pointer to REGISTRY-ENCODING field.  */</em>
+<a id='L509' name='L509'></a>   509           <strong class='reserved'>char</strong> *r = <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a> + len - <a href='../D/5067.html' title='Multiple defined in 2 places.'>SBYTES</a> (<a href='../D/5542.html' title='Multiple defined in 2 places.'>SYMBOL_NAME</a> (registry));
+<a id='L510' name='L510'></a>   510 
+<a id='L511' name='L511'></a>   511           <strong class='reserved'>for</strong> (alter = <a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (alter); <a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (alter); alter = <a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (alter))
+<a id='L512' name='L512'></a>   512             <strong class='reserved'>if</strong> (<a href='../S/2158.html#L1592' title='Defined at 1592 in src/lisp.h.'>STRINGP</a> (<a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (alter))
+<a id='L513' name='L513'></a>   513                 &amp;&amp; ((r - <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>) + <a href='../D/5067.html' title='Multiple defined in 2 places.'>SBYTES</a> (<a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (alter))) &lt; 256)
+<a id='L514' name='L514'></a>   514               <em class='brace'>{</em>
+<a id='L515' name='L515'></a>   515                 lispstpcpy (r, <a href='../D/6411.html' title='Multiple defined in 2 places.'>XCAR</a> (alter));
+<a id='L516' name='L516'></a>   516                 <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = <a href='../S/2196.html#L293' title='Defined at 293 in src/xfont.c.'>xfont_list_pattern</a> (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, registry, script);
+<a id='L517' name='L517'></a>   517                 <strong class='reserved'>if</strong> (! <a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>))
+<a id='L518' name='L518'></a>   518                   <strong class='reserved'>break</strong>;
+<a id='L519' name='L519'></a>   519               <em class='brace'>}</em>
+<a id='L520' name='L520'></a>   520         <em class='brace'>}</em>
+<a id='L521' name='L521'></a>   521     <em class='brace'>}</em>
+<a id='L522' name='L522'></a>   522   <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>))
+<a id='L523' name='L523'></a>   523     <em class='brace'>{</em>
+<a id='L524' name='L524'></a>   524       <em class='comment'>/* Try alias.  */</em>
+<a id='L525' name='L525'></a>   525       val = <a href='../S/2207.html#L1962' title='Defined at 1962 in src/fns.c.'>assq_no_quit</a> (QCname, <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (spec, <a href='../S/2184.html#L161' title='Defined at 161 in src/font.h.'>FONT_EXTRA_INDEX</a>));
+<a id='L526' name='L526'></a>   526       <strong class='reserved'>if</strong> (<a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (val) &amp;&amp; <a href='../S/2158.html#L1592' title='Defined at 1592 in src/lisp.h.'>STRINGP</a> (<a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (val)) &amp;&amp; <a href='../D/5067.html' title='Multiple defined in 2 places.'>SBYTES</a> (<a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (val)) &lt; 512)
+<a id='L527' name='L527'></a>   527         <em class='brace'>{</em>
+<a id='L528' name='L528'></a>   528           memcpy (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, <a href='../D/5172.html' title='Multiple defined in 2 places.'>SDATA</a> (<a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (val)), <a href='../D/5067.html' title='Multiple defined in 2 places.'>SBYTES</a> (<a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (val)) + 1);
+<a id='L529' name='L529'></a>   529           <strong class='reserved'>if</strong> (<a href='../S/2196.html#L161' title='Defined at 161 in src/xfont.c.'>xfont_encode_coding_xlfd</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>) &lt; 0)
+<a id='L530' name='L530'></a>   530             <strong class='reserved'>return</strong> Qnil;
+<a id='L531' name='L531'></a>   531           <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = <a href='../S/2196.html#L293' title='Defined at 293 in src/xfont.c.'>xfont_list_pattern</a> (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, registry, script);
+<a id='L532' name='L532'></a>   532         <em class='brace'>}</em>
+<a id='L533' name='L533'></a>   533     <em class='brace'>}</em>
+<a id='L534' name='L534'></a>   534 
+<a id='L535' name='L535'></a>   535   <strong class='reserved'>return</strong> <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>;
+<a id='L536' name='L536'></a>   536 <em class='brace'>}</em>
+<a id='L537' name='L537'></a>   537 
+<a id='L538' name='L538'></a>   538 <strong class='reserved'>static</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L539' name='L539'></a>   539 <a href='../S/2196.html#L1136' title='Referred from 1136 in src/xfont.c.'>xfont_match</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> spec)
+<a id='L540' name='L540'></a>   540 <em class='brace'>{</em>
+<a id='L541' name='L541'></a>   541   <a href='../D/1492.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a> = <a href='../D/2051.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>;
+<a id='L542' name='L542'></a>   542   <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2144.html#L3451' title='Defined at 3451 in src/lread.c.'>extra</a>, val, entity;
+<a id='L543' name='L543'></a>   543   <strong class='reserved'>char</strong> <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>[512];
+<a id='L544' name='L544'></a>   544   <a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfont;
+<a id='L545' name='L545'></a>   545   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> <a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
+<a id='L546' name='L546'></a>   546 
+<a id='L547' name='L547'></a>   547   <a href='../S/2144.html#L3451' title='Defined at 3451 in src/lread.c.'>extra</a> = <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (spec, <a href='../S/2184.html#L161' title='Defined at 161 in src/font.h.'>FONT_EXTRA_INDEX</a>);
+<a id='L548' name='L548'></a>   548   val = <a href='../S/2207.html#L1962' title='Defined at 1962 in src/fns.c.'>assq_no_quit</a> (QCname, <a href='../S/2144.html#L3451' title='Defined at 3451 in src/lread.c.'>extra</a>);
+<a id='L549' name='L549'></a>   549   <strong class='reserved'>if</strong> (! <a href='../D/1108.html' title='Multiple defined in 2 places.'>CONSP</a> (val) || ! <a href='../S/2158.html#L1592' title='Defined at 1592 in src/lisp.h.'>STRINGP</a> (<a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (val)))
+<a id='L550' name='L550'></a>   550     <em class='brace'>{</em>
+<a id='L551' name='L551'></a>   551       <strong class='reserved'>if</strong> (<a href='../S/2153.html#L1259' title='Defined at 1259 in src/font.c.'>font_unparse_xlfd</a> (spec, 0, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, 512) &lt; 0)
+<a id='L552' name='L552'></a>   552         <strong class='reserved'>return</strong> Qnil;
+<a id='L553' name='L553'></a>   553     <em class='brace'>}</em>
+<a id='L554' name='L554'></a>   554   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/5067.html' title='Multiple defined in 2 places.'>SBYTES</a> (<a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (val)) &lt; 512)
+<a id='L555' name='L555'></a>   555     memcpy (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, <a href='../D/5172.html' title='Multiple defined in 2 places.'>SDATA</a> (<a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (val)), <a href='../D/5067.html' title='Multiple defined in 2 places.'>SBYTES</a> (<a href='../D/6412.html' title='Multiple defined in 2 places.'>XCDR</a> (val)) + 1);
+<a id='L556' name='L556'></a>   556   <strong class='reserved'>else</strong>
+<a id='L557' name='L557'></a>   557     <strong class='reserved'>return</strong> Qnil;
+<a id='L558' name='L558'></a>   558   <strong class='reserved'>if</strong> (<a href='../S/2196.html#L161' title='Defined at 161 in src/xfont.c.'>xfont_encode_coding_xlfd</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>) &lt; 0)
+<a id='L559' name='L559'></a>   559     <strong class='reserved'>return</strong> Qnil;
+<a id='L560' name='L560'></a>   560 
+<a id='L561' name='L561'></a>   561   <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L562' name='L562'></a>   562   entity = Qnil;
+<a id='L563' name='L563'></a>   563   xfont = XLoadQueryFont (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L564' name='L564'></a>   564   <strong class='reserved'>if</strong> (xfont)
+<a id='L565' name='L565'></a>   565     <em class='brace'>{</em>
+<a id='L566' name='L566'></a>   566       <strong class='reserved'>if</strong> (XGetFontProperty (xfont, XA_FONT, &amp;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>))
+<a id='L567' name='L567'></a>   567         <em class='brace'>{</em>
+<a id='L568' name='L568'></a>   568           <strong class='reserved'>char</strong> *s = XGetAtomName (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, (Atom) <a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
+<a id='L569' name='L569'></a>   569 
+<a id='L570' name='L570'></a>   570           <em class='comment'>/* If DXPC (a Differential X Protocol Compressor)</em>
+<a id='L571' name='L571'></a>   571 <em class='comment'>             Ver.3.7 is running, XGetAtomName will return null</em>
+<a id='L572' name='L572'></a>   572 <em class='comment'>             string.  We must avoid such a name.  */</em>
+<a id='L573' name='L573'></a>   573           <strong class='reserved'>if</strong> (*s)
+<a id='L574' name='L574'></a>   574             <em class='brace'>{</em>
+<a id='L575' name='L575'></a>   575               ptrdiff_t len;
+<a id='L576' name='L576'></a>   576               entity = <a href='../S/2153.html#L172' title='Defined at 172 in src/font.c.'>font_make_entity</a> ();
+<a id='L577' name='L577'></a>   577               <a href='../D/113.html' title='Multiple defined in 2 places.'>ASET</a> (entity, <a href='../S/2184.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>, Qx);
+<a id='L578' name='L578'></a>   578               len = <a href='../S/2196.html#L140' title='Defined at 140 in src/xfont.c.'>xfont_decode_coding_xlfd</a> (s, -1, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L579' name='L579'></a>   579               <strong class='reserved'>if</strong> (<a href='../S/2153.html#L1233' title='Defined at 1233 in src/font.c.'>font_parse_xlfd</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, len, entity) &lt; 0)
+<a id='L580' name='L580'></a>   580                 entity = Qnil;
+<a id='L581' name='L581'></a>   581             <em class='brace'>}</em>
+<a id='L582' name='L582'></a>   582           XFree (s);
+<a id='L583' name='L583'></a>   583         <em class='brace'>}</em>
+<a id='L584' name='L584'></a>   584       XFreeFont (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, xfont);
+<a id='L585' name='L585'></a>   585     <em class='brace'>}</em>
+<a id='L586' name='L586'></a>   586   <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L587' name='L587'></a>   587 
+<a id='L588' name='L588'></a>   588   <a href='../S/2184.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("xfont-match", spec, entity);
+<a id='L589' name='L589'></a>   589   <strong class='reserved'>return</strong> entity;
+<a id='L590' name='L590'></a>   590 <em class='brace'>}</em>
+<a id='L591' name='L591'></a>   591 
+<a id='L592' name='L592'></a>   592 <strong class='reserved'>static</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L593' name='L593'></a>   593 <a href='../S/2196.html#L1137' title='Referred from 1137 in src/xfont.c.'>xfont_list_family</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L594' name='L594'></a>   594 <em class='brace'>{</em>
+<a id='L595' name='L595'></a>   595   <a href='../D/1495.html' title='Multiple defined in 7 places.'>Display_Info</a> *dpyinfo = <a href='../D/2051.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L596' name='L596'></a>   596   <strong class='reserved'>char</strong> **names;
+<a id='L597' name='L597'></a>   597   <strong class='reserved'>int</strong> num_fonts, i;
+<a id='L598' name='L598'></a>   598   <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>;
+<a id='L599' name='L599'></a>   599   <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *last_family;
+<a id='L600' name='L600'></a>   600 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> <a href='../S/2751.html#L45' title='Defined at 45 in lib/canonicalize-lgpl.c.'>GCC_LINT</a> || <strong class='reserved'>defined</strong> lint
+<a id='L601' name='L601'></a>   601   last_family = "";
+<a id='L602' name='L602'></a>   602 <em class='sharp'>#endif</em>
+<a id='L603' name='L603'></a>   603   <strong class='reserved'>int</strong> last_len;
+<a id='L604' name='L604'></a>   604 
+<a id='L605' name='L605'></a>   605   <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L606' name='L606'></a>   606   x_catch_errors (dpyinfo-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>);
+<a id='L607' name='L607'></a>   607   names = XListFonts (dpyinfo-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, "-*-*-*-*-*-*-*-*-*-*-*-*-*-*",
+<a id='L608' name='L608'></a>   608                       0x8000, &amp;num_fonts);
+<a id='L609' name='L609'></a>   609   <strong class='reserved'>if</strong> (x_had_errors_p (dpyinfo-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>))
+<a id='L610' name='L610'></a>   610     <em class='brace'>{</em>
+<a id='L611' name='L611'></a>   611       <em class='comment'>/* This error is perhaps due to insufficient memory on X server.</em>
+<a id='L612' name='L612'></a>   612 <em class='comment'>         Let's just ignore it.  */</em>
+<a id='L613' name='L613'></a>   613       x_clear_errors (dpyinfo-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>);
+<a id='L614' name='L614'></a>   614       num_fonts = 0;
+<a id='L615' name='L615'></a>   615     <em class='brace'>}</em>
+<a id='L616' name='L616'></a>   616 
+<a id='L617' name='L617'></a>   617   <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = Qnil;
+<a id='L618' name='L618'></a>   618   <strong class='reserved'>for</strong> (i = 0, last_len = 0; i &lt; num_fonts; i++)
+<a id='L619' name='L619'></a>   619     <em class='brace'>{</em>
+<a id='L620' name='L620'></a>   620       <strong class='reserved'>char</strong> *p0 = names[i], *p1, buf[512];
+<a id='L621' name='L621'></a>   621       <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> family;
+<a id='L622' name='L622'></a>   622       <strong class='reserved'>int</strong> decoded_len;
+<a id='L623' name='L623'></a>   623 
+<a id='L624' name='L624'></a>   624       p0++;                     <em class='comment'>/* skip the leading '-' */</em>
+<a id='L625' name='L625'></a>   625       <strong class='reserved'>while</strong> (*p0 &amp;&amp; *p0 != '-') p0++; <em class='comment'>/* skip foundry */</em>
+<a id='L626' name='L626'></a>   626       <strong class='reserved'>if</strong> (! *p0)
+<a id='L627' name='L627'></a>   627         <strong class='reserved'>continue</strong>;
+<a id='L628' name='L628'></a>   628       p1 = ++p0;
+<a id='L629' name='L629'></a>   629       <strong class='reserved'>while</strong> (*p1 &amp;&amp; *p1 != '-') p1++; <em class='comment'>/* find the end of family */</em>
+<a id='L630' name='L630'></a>   630       <strong class='reserved'>if</strong> (! *p1 || p1 == p0)
+<a id='L631' name='L631'></a>   631         <strong class='reserved'>continue</strong>;
+<a id='L632' name='L632'></a>   632       <strong class='reserved'>if</strong> (last_len == p1 - p0
+<a id='L633' name='L633'></a>   633           &amp;&amp; memcmp (last_family, p0, last_len) == 0)
+<a id='L634' name='L634'></a>   634         <strong class='reserved'>continue</strong>;
+<a id='L635' name='L635'></a>   635       last_len = p1 - p0;
+<a id='L636' name='L636'></a>   636       last_family = p0;
+<a id='L637' name='L637'></a>   637 
+<a id='L638' name='L638'></a>   638       decoded_len = <a href='../S/2196.html#L140' title='Defined at 140 in src/xfont.c.'>xfont_decode_coding_xlfd</a> (p0, last_len, buf);
+<a id='L639' name='L639'></a>   639       family = <a href='../S/2153.html#L262' title='Defined at 262 in src/font.c.'>font_intern_prop</a> (p0, decoded_len, 1);
+<a id='L640' name='L640'></a>   640       <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2207.html#L1962' title='Defined at 1962 in src/fns.c.'>assq_no_quit</a> (family, <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>)))
+<a id='L641' name='L641'></a>   641         <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = Fcons (family, <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>);
+<a id='L642' name='L642'></a>   642     <em class='brace'>}</em>
+<a id='L643' name='L643'></a>   643 
+<a id='L644' name='L644'></a>   644   XFreeFontNames (names);
+<a id='L645' name='L645'></a>   645   x_uncatch_errors ();
+<a id='L646' name='L646'></a>   646   <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L647' name='L647'></a>   647 
+<a id='L648' name='L648'></a>   648   <strong class='reserved'>return</strong> <a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a>;
+<a id='L649' name='L649'></a>   649 <em class='brace'>}</em>
+<a id='L650' name='L650'></a>   650 
+<a id='L651' name='L651'></a>   651 <strong class='reserved'>static</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L652' name='L652'></a>   652 <a href='../S/2196.html#L1138' title='Referred from 1138 in src/xfont.c.'>xfont_open</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> entity, <strong class='reserved'>int</strong> pixel_size)
+<a id='L653' name='L653'></a>   653 <em class='brace'>{</em>
+<a id='L654' name='L654'></a>   654   <a href='../D/1495.html' title='Multiple defined in 7 places.'>Display_Info</a> *dpyinfo = <a href='../D/2051.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L655' name='L655'></a>   655   <a href='../D/1492.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a> = dpyinfo-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>;
+<a id='L656' name='L656'></a>   656   <strong class='reserved'>char</strong> <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>[512];
+<a id='L657' name='L657'></a>   657   <strong class='reserved'>int</strong> len;
+<a id='L658' name='L658'></a>   658   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> <a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
+<a id='L659' name='L659'></a>   659   <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> registry;
+<a id='L660' name='L660'></a>   660   <strong class='reserved'>struct</strong> <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> *encoding, *repertory;
+<a id='L661' name='L661'></a>   661   <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> font_object, fullname;
+<a id='L662' name='L662'></a>   662   <strong class='reserved'>struct</strong> <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L663' name='L663'></a>   663   <a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfont;
+<a id='L664' name='L664'></a>   664 
+<a id='L665' name='L665'></a>   665   <em class='comment'>/* At first, check if we know how to encode characters for this</em>
+<a id='L666' name='L666'></a>   666 <em class='comment'>     font.  */</em>
+<a id='L667' name='L667'></a>   667   registry = <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L89' title='Defined at 89 in src/font.h.'>FONT_REGISTRY_INDEX</a>);
+<a id='L668' name='L668'></a>   668   <strong class='reserved'>if</strong> (<a href='../S/2153.html#L470' title='Defined at 470 in src/font.c.'>font_registry_charsets</a> (registry, &amp;encoding, &amp;repertory) &lt; 0)
+<a id='L669' name='L669'></a>   669     <em class='brace'>{</em>
+<a id='L670' name='L670'></a>   670       <a href='../S/2184.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("  x:unknown registry", registry, Qnil);
+<a id='L671' name='L671'></a>   671       <strong class='reserved'>return</strong> Qnil;
+<a id='L672' name='L672'></a>   672     <em class='brace'>}</em>
+<a id='L673' name='L673'></a>   673 
+<a id='L674' name='L674'></a>   674   <strong class='reserved'>if</strong> (<a href='../S/2158.html#L1280' title='Defined at 1280 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L113' title='Defined at 113 in src/font.h.'>FONT_SIZE_INDEX</a>)) != 0)
+<a id='L675' name='L675'></a>   675     pixel_size = <a href='../S/2158.html#L1280' title='Defined at 1280 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (entity, <a href='../S/2184.html#L113' title='Defined at 113 in src/font.h.'>FONT_SIZE_INDEX</a>));
+<a id='L676' name='L676'></a>   676   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (pixel_size == 0)
+<a id='L677' name='L677'></a>   677     <em class='brace'>{</em>
+<a id='L678' name='L678'></a>   678       <strong class='reserved'>if</strong> (<a href='../D/2061.html' title='Multiple defined in 6 places.'>FRAME_FONT</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>))
+<a id='L679' name='L679'></a>   679         pixel_size = <a href='../D/2061.html' title='Multiple defined in 6 places.'>FRAME_FONT</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)-&gt;pixel_size;
+<a id='L680' name='L680'></a>   680       <strong class='reserved'>else</strong>
+<a id='L681' name='L681'></a>   681         pixel_size = 14;
+<a id='L682' name='L682'></a>   682     <em class='brace'>}</em>
+<a id='L683' name='L683'></a>   683   len = <a href='../S/2153.html#L1259' title='Defined at 1259 in src/font.c.'>font_unparse_xlfd</a> (entity, pixel_size, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, 512);
+<a id='L684' name='L684'></a>   684   <strong class='reserved'>if</strong> (len &lt;= 0 || (len = <a href='../S/2196.html#L161' title='Defined at 161 in src/xfont.c.'>xfont_encode_coding_xlfd</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>)) &lt; 0)
+<a id='L685' name='L685'></a>   685     <em class='brace'>{</em>
+<a id='L686' name='L686'></a>   686       <a href='../S/2184.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("  x:unparse failed", entity, Qnil);
+<a id='L687' name='L687'></a>   687       <strong class='reserved'>return</strong> Qnil;
+<a id='L688' name='L688'></a>   688     <em class='brace'>}</em>
+<a id='L689' name='L689'></a>   689 
+<a id='L690' name='L690'></a>   690   <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L691' name='L691'></a>   691   x_catch_errors (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>);
+<a id='L692' name='L692'></a>   692   xfont = XLoadQueryFont (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L693' name='L693'></a>   693   <strong class='reserved'>if</strong> (x_had_errors_p (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>))
+<a id='L694' name='L694'></a>   694     <em class='brace'>{</em>
+<a id='L695' name='L695'></a>   695       <em class='comment'>/* This error is perhaps due to insufficient memory on X server.</em>
+<a id='L696' name='L696'></a>   696 <em class='comment'>         Let's just ignore it.  */</em>
+<a id='L697' name='L697'></a>   697       x_clear_errors (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>);
+<a id='L698' name='L698'></a>   698       xfont = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L699' name='L699'></a>   699     <em class='brace'>}</em>
+<a id='L700' name='L700'></a>   700   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (! xfont)
+<a id='L701' name='L701'></a>   701     <em class='brace'>{</em>
+<a id='L702' name='L702'></a>   702       <em class='comment'>/* Some version of X lists:</em>
+<a id='L703' name='L703'></a>   703 <em class='comment'>           -misc-fixed-medium-r-normal--20-*-75-75-c-100-iso8859-1</em>
+<a id='L704' name='L704'></a>   704 <em class='comment'>           -misc-fixed-medium-r-normal--20-*-100-100-c-100-iso8859-1</em>
+<a id='L705' name='L705'></a>   705 <em class='comment'>         but can open only:</em>
+<a id='L706' name='L706'></a>   706 <em class='comment'>           -misc-fixed-medium-r-normal--20-*-100-100-c-100-iso8859-1</em>
+<a id='L707' name='L707'></a>   707 <em class='comment'>         and</em>
+<a id='L708' name='L708'></a>   708 <em class='comment'>           -misc-fixed-medium-r-normal--20-*-*-*-c-100-iso8859-1</em>
+<a id='L709' name='L709'></a>   709 <em class='comment'>         So, we try again with wildcards in RESX and RESY.  */</em>
+<a id='L710' name='L710'></a>   710       <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> temp;
+<a id='L711' name='L711'></a>   711 
+<a id='L712' name='L712'></a>   712       temp = <a href='../S/2153.html#L3886' title='Defined at 3886 in src/font.c.'>copy_font_spec</a> (entity);
+<a id='L713' name='L713'></a>   713       <a href='../D/113.html' title='Multiple defined in 2 places.'>ASET</a> (temp, <a href='../S/2184.html#L117' title='Defined at 117 in src/font.h.'>FONT_DPI_INDEX</a>, Qnil);
+<a id='L714' name='L714'></a>   714       len = <a href='../S/2153.html#L1259' title='Defined at 1259 in src/font.c.'>font_unparse_xlfd</a> (temp, pixel_size, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, 512);
+<a id='L715' name='L715'></a>   715       <strong class='reserved'>if</strong> (len &lt;= 0 || (len = <a href='../S/2196.html#L161' title='Defined at 161 in src/xfont.c.'>xfont_encode_coding_xlfd</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>)) &lt; 0)
+<a id='L716' name='L716'></a>   716         <em class='brace'>{</em>
+<a id='L717' name='L717'></a>   717           <a href='../S/2184.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("  x:unparse failed", temp, Qnil);
+<a id='L718' name='L718'></a>   718           <strong class='reserved'>return</strong> Qnil;
+<a id='L719' name='L719'></a>   719         <em class='brace'>}</em>
+<a id='L720' name='L720'></a>   720       xfont = XLoadQueryFont (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L721' name='L721'></a>   721       <strong class='reserved'>if</strong> (x_had_errors_p (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>))
+<a id='L722' name='L722'></a>   722         <em class='brace'>{</em>
+<a id='L723' name='L723'></a>   723           <em class='comment'>/* This error is perhaps due to insufficient memory on X server.</em>
+<a id='L724' name='L724'></a>   724 <em class='comment'>             Let's just ignore it.  */</em>
+<a id='L725' name='L725'></a>   725           x_clear_errors (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>);
+<a id='L726' name='L726'></a>   726           xfont = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L727' name='L727'></a>   727         <em class='brace'>}</em>
+<a id='L728' name='L728'></a>   728     <em class='brace'>}</em>
+<a id='L729' name='L729'></a>   729   fullname = Qnil;
+<a id='L730' name='L730'></a>   730   <em class='comment'>/* Try to get the full name of FONT.  */</em>
+<a id='L731' name='L731'></a>   731   <strong class='reserved'>if</strong> (xfont &amp;&amp; XGetFontProperty (xfont, XA_FONT, &amp;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>))
+<a id='L732' name='L732'></a>   732     <em class='brace'>{</em>
+<a id='L733' name='L733'></a>   733       <strong class='reserved'>char</strong> *p0, *p;
+<a id='L734' name='L734'></a>   734       <strong class='reserved'>int</strong> dashes = 0;
+<a id='L735' name='L735'></a>   735 
+<a id='L736' name='L736'></a>   736       p0 = p = XGetAtomName (<a href='../D/2217.html' title='Multiple defined in 3 places.'>FRAME_X_DISPLAY</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>), (Atom) <a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
+<a id='L737' name='L737'></a>   737       <em class='comment'>/* Count the number of dashes in the "full name".</em>
+<a id='L738' name='L738'></a>   738 <em class='comment'>         If it is too few, this isn't really the font's full name,</em>
+<a id='L739' name='L739'></a>   739 <em class='comment'>         so don't use it.</em>
+<a id='L740' name='L740'></a>   740 <em class='comment'>         In X11R4, the fonts did not come with their canonical names</em>
+<a id='L741' name='L741'></a>   741 <em class='comment'>         stored in them.  */</em>
+<a id='L742' name='L742'></a>   742       <strong class='reserved'>while</strong> (*p)
+<a id='L743' name='L743'></a>   743         <em class='brace'>{</em>
+<a id='L744' name='L744'></a>   744           <strong class='reserved'>if</strong> (*p == '-')
+<a id='L745' name='L745'></a>   745             dashes++;
+<a id='L746' name='L746'></a>   746           p++;
+<a id='L747' name='L747'></a>   747         <em class='brace'>}</em>
+<a id='L748' name='L748'></a>   748 
+<a id='L749' name='L749'></a>   749       <strong class='reserved'>if</strong> (dashes &gt;= 13)
+<a id='L750' name='L750'></a>   750         <em class='brace'>{</em>
+<a id='L751' name='L751'></a>   751           len = <a href='../S/2196.html#L140' title='Defined at 140 in src/xfont.c.'>xfont_decode_coding_xlfd</a> (p0, -1, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L752' name='L752'></a>   752           fullname = Fdowncase (<a href='../S/2237.html#L2481' title='Defined at 2481 in src/alloc.c.'>make_string</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, len));
+<a id='L753' name='L753'></a>   753         <em class='brace'>}</em>
+<a id='L754' name='L754'></a>   754       XFree (p0);
+<a id='L755' name='L755'></a>   755     <em class='brace'>}</em>
+<a id='L756' name='L756'></a>   756   x_uncatch_errors ();
+<a id='L757' name='L757'></a>   757   <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L758' name='L758'></a>   758 
+<a id='L759' name='L759'></a>   759   <strong class='reserved'>if</strong> (! xfont)
+<a id='L760' name='L760'></a>   760     <em class='brace'>{</em>
+<a id='L761' name='L761'></a>   761       <a href='../S/2184.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("  x:open failed", <a href='../D/8326.html' title='Multiple defined in 2 places.'>build_string</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>), Qnil);
+<a id='L762' name='L762'></a>   762       <strong class='reserved'>return</strong> Qnil;
+<a id='L763' name='L763'></a>   763     <em class='brace'>}</em>
+<a id='L764' name='L764'></a>   764 
+<a id='L765' name='L765'></a>   765   font_object = <a href='../S/2153.html#L187' title='Defined at 187 in src/font.c.'>font_make_object</a> (<a href='../D/6060.html' title='Multiple defined in 2 places.'>VECSIZE</a> (<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a>),
+<a id='L766' name='L766'></a>   766                                   entity, pixel_size);
+<a id='L767' name='L767'></a>   767   <a href='../D/113.html' title='Multiple defined in 2 places.'>ASET</a> (font_object, <a href='../S/2184.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>, Qx);
+<a id='L768' name='L768'></a>   768   <strong class='reserved'>if</strong> (<a href='../S/2158.html#L1592' title='Defined at 1592 in src/lisp.h.'>STRINGP</a> (fullname))
+<a id='L769' name='L769'></a>   769     <em class='brace'>{</em>
+<a id='L770' name='L770'></a>   770       <a href='../S/2153.html#L1233' title='Defined at 1233 in src/font.c.'>font_parse_xlfd</a> (<a href='../D/5401.html' title='Multiple defined in 2 places.'>SSDATA</a> (fullname), <a href='../D/5067.html' title='Multiple defined in 2 places.'>SBYTES</a> (fullname), font_object);
+<a id='L771' name='L771'></a>   771       <a href='../D/113.html' title='Multiple defined in 2 places.'>ASET</a> (font_object, <a href='../S/2184.html#L177' title='Defined at 177 in src/font.h.'>FONT_NAME_INDEX</a>, fullname);
+<a id='L772' name='L772'></a>   772     <em class='brace'>}</em>
+<a id='L773' name='L773'></a>   773   <strong class='reserved'>else</strong>
+<a id='L774' name='L774'></a>   774     <em class='brace'>{</em>
+<a id='L775' name='L775'></a>   775       <strong class='reserved'>char</strong> buf[512];
+<a id='L776' name='L776'></a>   776 
+<a id='L777' name='L777'></a>   777       len = <a href='../S/2196.html#L140' title='Defined at 140 in src/xfont.c.'>xfont_decode_coding_xlfd</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, -1, buf);
+<a id='L778' name='L778'></a>   778       <a href='../D/113.html' title='Multiple defined in 2 places.'>ASET</a> (font_object, <a href='../S/2184.html#L177' title='Defined at 177 in src/font.h.'>FONT_NAME_INDEX</a>, <a href='../S/2237.html#L2481' title='Defined at 2481 in src/alloc.c.'>make_string</a> (buf, len));
+<a id='L779' name='L779'></a>   779     <em class='brace'>}</em>
+<a id='L780' name='L780'></a>   780   <a href='../D/113.html' title='Multiple defined in 2 places.'>ASET</a> (font_object, <a href='../S/2184.html#L182' title='Defined at 182 in src/font.h.'>FONT_FULLNAME_INDEX</a>, fullname);
+<a id='L781' name='L781'></a>   781   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a> = <a href='../S/2184.html#L528' title='Defined at 528 in src/font.h.'>XFONT_OBJECT</a> (font_object);
+<a id='L782' name='L782'></a>   782   ((<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *) <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>)-&gt;xfont = xfont;
+<a id='L783' name='L783'></a>   783   ((<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *) <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>)-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a> = <a href='../D/2217.html' title='Multiple defined in 3 places.'>FRAME_X_DISPLAY</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L784' name='L784'></a>   784   ((<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *) <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>)-&gt;x_display_id = <a href='../D/2051.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)-&gt;x_id;
+<a id='L785' name='L785'></a>   785   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;pixel_size = pixel_size;
+<a id='L786' name='L786'></a>   786   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;driver = &amp;xfont_driver;
+<a id='L787' name='L787'></a>   787   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;encoding_charset = encoding-&gt;id;
+<a id='L788' name='L788'></a>   788   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;repertory_charset = repertory ? repertory-&gt;id : -1;
+<a id='L789' name='L789'></a>   789   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;ascent = xfont-&gt;ascent;
+<a id='L790' name='L790'></a>   790   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;descent = xfont-&gt;descent;
+<a id='L791' name='L791'></a>   791   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;height = <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;ascent + <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;descent;
+<a id='L792' name='L792'></a>   792   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;min_width = xfont-&gt;min_bounds.width;
+<a id='L793' name='L793'></a>   793   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;max_width = xfont-&gt;max_bounds.width;
+<a id='L794' name='L794'></a>   794   <strong class='reserved'>if</strong> (xfont-&gt;min_bounds.width == xfont-&gt;max_bounds.width)
+<a id='L795' name='L795'></a>   795     <em class='brace'>{</em>
+<a id='L796' name='L796'></a>   796       <em class='comment'>/* Fixed width font.  */</em>
+<a id='L797' name='L797'></a>   797       <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;average_width = <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;space_width = xfont-&gt;min_bounds.width;
+<a id='L798' name='L798'></a>   798     <em class='brace'>}</em>
+<a id='L799' name='L799'></a>   799   <strong class='reserved'>else</strong>
+<a id='L800' name='L800'></a>   800     <em class='brace'>{</em>
+<a id='L801' name='L801'></a>   801       <a href='../D/6427.html' title='Multiple defined in 3 places.'>XCharStruct</a> *pcm;
+<a id='L802' name='L802'></a>   802       <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> val;
+<a id='L803' name='L803'></a>   803 
+<a id='L804' name='L804'></a>   804       pcm = <a href='../S/2196.html#L54' title='Defined at 54 in src/xfont.c.'>xfont_get_pcm</a> (xfont, 0x20);
+<a id='L805' name='L805'></a>   805       <strong class='reserved'>if</strong> (pcm)
+<a id='L806' name='L806'></a>   806         <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;space_width = pcm-&gt;width;
+<a id='L807' name='L807'></a>   807       <strong class='reserved'>else</strong>
+<a id='L808' name='L808'></a>   808         <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;space_width = 0;
+<a id='L809' name='L809'></a>   809 
+<a id='L810' name='L810'></a>   810       val = Ffont_get (font_object, QCavgwidth);
+<a id='L811' name='L811'></a>   811       <strong class='reserved'>if</strong> (<a href='../S/2158.html#L464' title='Defined at 464 in src/lisp.h.'>FIXNUMP</a> (val))
+<a id='L812' name='L812'></a>   812         <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;average_width = <a href='../S/2158.html#L1280' title='Defined at 1280 in src/lisp.h.'>XFIXNUM</a> (val) / 10;
+<a id='L813' name='L813'></a>   813       <strong class='reserved'>if</strong> (<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;average_width &lt; 0)
+<a id='L814' name='L814'></a>   814         <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;average_width = - <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;average_width;
+<a id='L815' name='L815'></a>   815       <strong class='reserved'>else</strong>
+<a id='L816' name='L816'></a>   816         <em class='brace'>{</em>
+<a id='L817' name='L817'></a>   817           <strong class='reserved'>if</strong> (<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;average_width == 0
+<a id='L818' name='L818'></a>   818               &amp;&amp; encoding-&gt;ascii_compatible_p)
+<a id='L819' name='L819'></a>   819             <em class='brace'>{</em>
+<a id='L820' name='L820'></a>   820               <strong class='reserved'>int</strong> width = <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;space_width, n = pcm != <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L821' name='L821'></a>   821 
+<a id='L822' name='L822'></a>   822               <strong class='reserved'>for</strong> (<strong class='reserved'>unsigned</strong> char2b = 33; char2b &lt;= 126; ++char2b)
+<a id='L823' name='L823'></a>   823                 <strong class='reserved'>if</strong> ((pcm = <a href='../S/2196.html#L54' title='Defined at 54 in src/xfont.c.'>xfont_get_pcm</a> (xfont, char2b)) != <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L824' name='L824'></a>   824                   width += pcm-&gt;width, n++;
+<a id='L825' name='L825'></a>   825               <strong class='reserved'>if</strong> (n &gt; 0)
+<a id='L826' name='L826'></a>   826                 <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;average_width = width / n;
+<a id='L827' name='L827'></a>   827             <em class='brace'>}</em>
+<a id='L828' name='L828'></a>   828           <strong class='reserved'>if</strong> (<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;average_width == 0)
+<a id='L829' name='L829'></a>   829             <em class='comment'>/* No easy way other than this to get a reasonable</em>
+<a id='L830' name='L830'></a>   830 <em class='comment'>               average_width.  */</em>
+<a id='L831' name='L831'></a>   831             <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;average_width
+<a id='L832' name='L832'></a>   832               = (xfont-&gt;min_bounds.width + xfont-&gt;max_bounds.width) / 2;
+<a id='L833' name='L833'></a>   833         <em class='brace'>}</em>
+<a id='L834' name='L834'></a>   834     <em class='brace'>}</em>
+<a id='L835' name='L835'></a>   835 
+<a id='L836' name='L836'></a>   836   <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L837' name='L837'></a>   837   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;underline_thickness
+<a id='L838' name='L838'></a>   838     = (XGetFontProperty (xfont, XA_UNDERLINE_THICKNESS, &amp;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
+<a id='L839' name='L839'></a>   839        ? (<strong class='reserved'>long</strong>) <a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> : 0);
+<a id='L840' name='L840'></a>   840   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;underline_position
+<a id='L841' name='L841'></a>   841     = (XGetFontProperty (xfont, XA_UNDERLINE_POSITION, &amp;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
+<a id='L842' name='L842'></a>   842        ? (<strong class='reserved'>long</strong>) <a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> : -1);
+<a id='L843' name='L843'></a>   843   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;baseline_offset
+<a id='L844' name='L844'></a>   844     = (XGetFontProperty (xfont, dpyinfo-&gt;Xatom_MULE_BASELINE_OFFSET, &amp;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
+<a id='L845' name='L845'></a>   845        ? (<strong class='reserved'>long</strong>) <a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> : 0);
+<a id='L846' name='L846'></a>   846   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;relative_compose
+<a id='L847' name='L847'></a>   847     = (XGetFontProperty (xfont, dpyinfo-&gt;Xatom_MULE_RELATIVE_COMPOSE, &amp;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
+<a id='L848' name='L848'></a>   848        ? (<strong class='reserved'>long</strong>) <a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> : 0);
+<a id='L849' name='L849'></a>   849   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;default_ascent
+<a id='L850' name='L850'></a>   850     = (XGetFontProperty (xfont, dpyinfo-&gt;Xatom_MULE_DEFAULT_ASCENT, &amp;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
+<a id='L851' name='L851'></a>   851        ? (<strong class='reserved'>long</strong>) <a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> : 0);
+<a id='L852' name='L852'></a>   852   <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L853' name='L853'></a>   853 
+<a id='L854' name='L854'></a>   854   <strong class='reserved'>if</strong> (<a href='../D/4020.html' title='Multiple defined in 2 places.'>NILP</a> (fullname))
+<a id='L855' name='L855'></a>   855     fullname = <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (font_object, <a href='../S/2184.html#L177' title='Defined at 177 in src/font.h.'>FONT_NAME_INDEX</a>);
+<a id='L856' name='L856'></a>   856   <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;vertical_centering
+<a id='L857' name='L857'></a>   857     = (<a href='../S/2158.html#L1592' title='Defined at 1592 in src/lisp.h.'>STRINGP</a> (Vvertical_centering_font_regexp)
+<a id='L858' name='L858'></a>   858        &amp;&amp; (<a href='../D/10065.html' title='Multiple defined in 2 places.'>fast_string_match_ignore_case</a>
+<a id='L859' name='L859'></a>   859            (Vvertical_centering_font_regexp, fullname) &gt;= 0));
+<a id='L860' name='L860'></a>   860 
+<a id='L861' name='L861'></a>   861   <strong class='reserved'>return</strong> font_object;
+<a id='L862' name='L862'></a>   862 <em class='brace'>}</em>
+<a id='L863' name='L863'></a>   863 
+<a id='L864' name='L864'></a>   864 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L865' name='L865'></a>   865 <a href='../S/2196.html#L1139' title='Referred from 1139 in src/xfont.c.'>xfont_close</a> (<strong class='reserved'>struct</strong> <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>)
+<a id='L866' name='L866'></a>   866 <em class='brace'>{</em>
+<a id='L867' name='L867'></a>   867   <strong class='reserved'>struct</strong> <a href='../S/2105.html#L369' title='Defined at 369 in src/xterm.h.'>x_display_info</a> *xdi;
+<a id='L868' name='L868'></a>   868   <strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *xfi = (<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *) <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L869' name='L869'></a>   869 
+<a id='L870' name='L870'></a>   870   <em class='comment'>/* This function may be called from GC when X connection is gone</em>
+<a id='L871' name='L871'></a>   871 <em class='comment'>     (Bug#16093), and an attempt to free font resources on invalid</em>
+<a id='L872' name='L872'></a>   872 <em class='comment'>     display may lead to X protocol errors or segfaults.  Moreover,</em>
+<a id='L873' name='L873'></a>   873 <em class='comment'>     the memory referenced by 'Display *' pointer may be reused for</em>
+<a id='L874' name='L874'></a>   874 <em class='comment'>     the logically different X connection after the previous display</em>
+<a id='L875' name='L875'></a>   875 <em class='comment'>     connection was closed.  That's why we also check whether font's</em>
+<a id='L876' name='L876'></a>   876 <em class='comment'>     ID matches the one recorded in x_display_info for this display.</em>
+<a id='L877' name='L877'></a>   877 <em class='comment'>     See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=16069.  */</em>
+<a id='L878' name='L878'></a>   878   <strong class='reserved'>if</strong> (xfi-&gt;xfont
+<a id='L879' name='L879'></a>   879       &amp;&amp; ((xdi = <a href='../S/2180.html#L6774' title='Defined at 6774 in src/xterm.c.'>x_display_info_for_display</a> (xfi-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>))
+<a id='L880' name='L880'></a>   880           &amp;&amp; xfi-&gt;x_display_id == xdi-&gt;x_id))
+<a id='L881' name='L881'></a>   881     <em class='brace'>{</em>
+<a id='L882' name='L882'></a>   882       <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L883' name='L883'></a>   883       XFreeFont (xfi-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, xfi-&gt;xfont);
+<a id='L884' name='L884'></a>   884       <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L885' name='L885'></a>   885       xfi-&gt;xfont = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L886' name='L886'></a>   886     <em class='brace'>}</em>
+<a id='L887' name='L887'></a>   887 <em class='brace'>}</em>
+<a id='L888' name='L888'></a>   888 
+<a id='L889' name='L889'></a>   889 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L890' name='L890'></a>   890 <a href='../S/2196.html#L1140' title='Referred from 1140 in src/xfont.c.'>xfont_prepare_face</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>struct</strong> <a href='../S/2202.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a> *<a href='../S/2202.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>)
+<a id='L891' name='L891'></a>   891 <em class='brace'>{</em>
+<a id='L892' name='L892'></a>   892   <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L893' name='L893'></a>   893   XSetFont (<a href='../D/2217.html' title='Multiple defined in 3 places.'>FRAME_X_DISPLAY</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>), <a href='../S/2202.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;gc,
+<a id='L894' name='L894'></a>   894             ((<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *) <a href='../S/2202.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>)-&gt;xfont-&gt;fid);
+<a id='L895' name='L895'></a>   895   <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L896' name='L896'></a>   896 <em class='brace'>}</em>
+<a id='L897' name='L897'></a>   897 
+<a id='L898' name='L898'></a>   898 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L899' name='L899'></a>   899 <a href='../S/2196.html#L1141' title='Referred from 1141 in src/xfont.c.'>xfont_has_char</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <strong class='reserved'>int</strong> <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L900' name='L900'></a>   900 <em class='brace'>{</em>
+<a id='L901' name='L901'></a>   901   <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> registry = <a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <a href='../S/2184.html#L89' title='Defined at 89 in src/font.h.'>FONT_REGISTRY_INDEX</a>);
+<a id='L902' name='L902'></a>   902   <strong class='reserved'>struct</strong> <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> *encoding;
+<a id='L903' name='L903'></a>   903   <strong class='reserved'>struct</strong> <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> *repertory = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L904' name='L904'></a>   904 
+<a id='L905' name='L905'></a>   905   <strong class='reserved'>if</strong> (<a href='../D/1675.html' title='Multiple defined in 2 places.'>EQ</a> (registry, Qiso10646_1))
+<a id='L906' name='L906'></a>   906     <em class='brace'>{</em>
+<a id='L907' name='L907'></a>   907       encoding = <a href='../S/2235.html#L254' title='Defined at 254 in src/charset.h.'>CHARSET_FROM_ID</a> (charset_unicode);
+<a id='L908' name='L908'></a>   908       <em class='comment'>/* We use a font of `ja' and `ko' adstyle only for a character</em>
+<a id='L909' name='L909'></a>   909 <em class='comment'>         in JISX0208 and KSC5601 charsets respectively.  */</em>
+<a id='L910' name='L910'></a>   910       <strong class='reserved'>if</strong> (<a href='../D/1675.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <a href='../S/2184.html#L85' title='Defined at 85 in src/font.h.'>FONT_ADSTYLE_INDEX</a>), Qja)
+<a id='L911' name='L911'></a>   911           &amp;&amp; charset_jisx0208 &gt;= 0)
+<a id='L912' name='L912'></a>   912         repertory = <a href='../S/2235.html#L254' title='Defined at 254 in src/charset.h.'>CHARSET_FROM_ID</a> (charset_jisx0208);
+<a id='L913' name='L913'></a>   913       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1675.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../D/66.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <a href='../S/2184.html#L85' title='Defined at 85 in src/font.h.'>FONT_ADSTYLE_INDEX</a>), Qko)
+<a id='L914' name='L914'></a>   914                &amp;&amp; charset_ksc5601 &gt;= 0)
+<a id='L915' name='L915'></a>   915         repertory = <a href='../S/2235.html#L254' title='Defined at 254 in src/charset.h.'>CHARSET_FROM_ID</a> (charset_ksc5601);
+<a id='L916' name='L916'></a>   916     <em class='brace'>}</em>
+<a id='L917' name='L917'></a>   917   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../S/2153.html#L470' title='Defined at 470 in src/font.c.'>font_registry_charsets</a> (registry, &amp;encoding, &amp;repertory) &lt; 0)
+<a id='L918' name='L918'></a>   918     <em class='comment'>/* Unknown REGISTRY, not usable.  */</em>
+<a id='L919' name='L919'></a>   919     <strong class='reserved'>return</strong> 0;
+<a id='L920' name='L920'></a>   920   <strong class='reserved'>if</strong> (<a href='../D/111.html' title='Multiple defined in 2 places.'>ASCII_CHAR_P</a> (<a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>) &amp;&amp; encoding-&gt;ascii_compatible_p)
+<a id='L921' name='L921'></a>   921     <strong class='reserved'>return</strong> 1;
+<a id='L922' name='L922'></a>   922   <strong class='reserved'>if</strong> (! repertory)
+<a id='L923' name='L923'></a>   923     <strong class='reserved'>return</strong> -1;
+<a id='L924' name='L924'></a>   924   <strong class='reserved'>return</strong> (<a href='../S/2235.html#L431' title='Defined at 431 in src/charset.h.'>ENCODE_CHAR</a> (repertory, <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>) != <a href='../S/2235.html#L310' title='Defined at 310 in src/charset.h.'>CHARSET_INVALID_CODE</a> (repertory));
+<a id='L925' name='L925'></a>   925 <em class='brace'>}</em>
+<a id='L926' name='L926'></a>   926 
+<a id='L927' name='L927'></a>   927 <strong class='reserved'>static</strong> <strong class='reserved'>unsigned</strong>
+<a id='L928' name='L928'></a>   928 <a href='../S/2196.html#L1142' title='Referred from 1142 in src/xfont.c.'>xfont_encode_char</a> (<strong class='reserved'>struct</strong> <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <strong class='reserved'>int</strong> <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L929' name='L929'></a>   929 <em class='brace'>{</em>
+<a id='L930' name='L930'></a>   930   <a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfont = ((<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *) <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>)-&gt;xfont;
+<a id='L931' name='L931'></a>   931   <strong class='reserved'>struct</strong> <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> *<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a>;
+<a id='L932' name='L932'></a>   932   <strong class='reserved'>unsigned</strong> code;
+<a id='L933' name='L933'></a>   933 
+<a id='L934' name='L934'></a>   934   <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> = <a href='../S/2235.html#L254' title='Defined at 254 in src/charset.h.'>CHARSET_FROM_ID</a> (<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;encoding_charset);
+<a id='L935' name='L935'></a>   935   code = <a href='../S/2235.html#L431' title='Defined at 431 in src/charset.h.'>ENCODE_CHAR</a> (<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a>, <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L936' name='L936'></a>   936   <strong class='reserved'>if</strong> (code == <a href='../S/2235.html#L310' title='Defined at 310 in src/charset.h.'>CHARSET_INVALID_CODE</a> (<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a>))
+<a id='L937' name='L937'></a>   937     <strong class='reserved'>return</strong> <a href='../S/2184.html#L568' title='Defined at 568 in src/font.h.'>FONT_INVALID_CODE</a>;
+<a id='L938' name='L938'></a>   938   <strong class='reserved'>if</strong> (<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;repertory_charset &gt;= 0)
+<a id='L939' name='L939'></a>   939     <em class='brace'>{</em>
+<a id='L940' name='L940'></a>   940       <a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a> = <a href='../S/2235.html#L254' title='Defined at 254 in src/charset.h.'>CHARSET_FROM_ID</a> (<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;repertory_charset);
+<a id='L941' name='L941'></a>   941       <strong class='reserved'>return</strong> (<a href='../S/2235.html#L431' title='Defined at 431 in src/charset.h.'>ENCODE_CHAR</a> (<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a>, <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>) != <a href='../S/2235.html#L310' title='Defined at 310 in src/charset.h.'>CHARSET_INVALID_CODE</a> (<a href='../D/8477.html' title='Multiple defined in 2 places.'>charset</a>)
+<a id='L942' name='L942'></a>   942               ? code : <a href='../S/2184.html#L568' title='Defined at 568 in src/font.h.'>FONT_INVALID_CODE</a>);
+<a id='L943' name='L943'></a>   943     <em class='brace'>}</em>
+<a id='L944' name='L944'></a>   944   <strong class='reserved'>return</strong> (<a href='../S/2196.html#L54' title='Defined at 54 in src/xfont.c.'>xfont_get_pcm</a> (xfont, code) ? code : <a href='../S/2184.html#L568' title='Defined at 568 in src/font.h.'>FONT_INVALID_CODE</a>);
+<a id='L945' name='L945'></a>   945 <em class='brace'>}</em>
+<a id='L946' name='L946'></a>   946 
+<a id='L947' name='L947'></a>   947 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L948' name='L948'></a>   948 <a href='../S/2196.html#L1143' title='Referred from 1143 in src/xfont.c.'>xfont_text_extents</a> (<strong class='reserved'>struct</strong> <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> *code,
+<a id='L949' name='L949'></a>   949                     <strong class='reserved'>int</strong> nglyphs, <strong class='reserved'>struct</strong> <a href='../S/2184.html#L403' title='Defined at 403 in src/font.h.'>font_metrics</a> *metrics)
+<a id='L950' name='L950'></a>   950 <em class='brace'>{</em>
+<a id='L951' name='L951'></a>   951   <a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfont = ((<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *) <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>)-&gt;xfont;
+<a id='L952' name='L952'></a>   952   <strong class='reserved'>int</strong> i, width = 0;
+<a id='L953' name='L953'></a>   953   <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> <a href='../S/3170.html#L146' title='Defined at 146 in test/lisp/cedet/semantic-utest-ia-resources/testusing.hh.'>first</a>;
+<a id='L954' name='L954'></a>   954 
+<a id='L955' name='L955'></a>   955   <strong class='reserved'>for</strong> (i = 0, <a href='../S/3170.html#L146' title='Defined at 146 in test/lisp/cedet/semantic-utest-ia-resources/testusing.hh.'>first</a> = <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>; i &lt; nglyphs; i++)
+<a id='L956' name='L956'></a>   956     <em class='brace'>{</em>
+<a id='L957' name='L957'></a>   957       <strong class='reserved'>static</strong> <a href='../D/6427.html' title='Multiple defined in 3 places.'>XCharStruct</a> *pcm;
+<a id='L958' name='L958'></a>   958 
+<a id='L959' name='L959'></a>   959       <strong class='reserved'>if</strong> (code[i] &gt;= 0x10000)
+<a id='L960' name='L960'></a>   960         <strong class='reserved'>continue</strong>;
+<a id='L961' name='L961'></a>   961       pcm = <a href='../S/2196.html#L54' title='Defined at 54 in src/xfont.c.'>xfont_get_pcm</a> (xfont, code[i]);
+<a id='L962' name='L962'></a>   962       <strong class='reserved'>if</strong> (! pcm)
+<a id='L963' name='L963'></a>   963         <strong class='reserved'>continue</strong>;
+<a id='L964' name='L964'></a>   964       <strong class='reserved'>if</strong> (<a href='../S/3170.html#L146' title='Defined at 146 in test/lisp/cedet/semantic-utest-ia-resources/testusing.hh.'>first</a>)
+<a id='L965' name='L965'></a>   965         <em class='brace'>{</em>
+<a id='L966' name='L966'></a>   966           metrics-&gt;lbearing = pcm-&gt;lbearing;
+<a id='L967' name='L967'></a>   967           metrics-&gt;rbearing = pcm-&gt;rbearing;
+<a id='L968' name='L968'></a>   968           metrics-&gt;ascent = pcm-&gt;ascent;
+<a id='L969' name='L969'></a>   969           metrics-&gt;descent = pcm-&gt;descent;
+<a id='L970' name='L970'></a>   970           <a href='../S/3170.html#L146' title='Defined at 146 in test/lisp/cedet/semantic-utest-ia-resources/testusing.hh.'>first</a> = <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L971' name='L971'></a>   971         <em class='brace'>}</em>
+<a id='L972' name='L972'></a>   972       <strong class='reserved'>else</strong>
+<a id='L973' name='L973'></a>   973         <em class='brace'>{</em>
+<a id='L974' name='L974'></a>   974           <strong class='reserved'>if</strong> (metrics-&gt;lbearing &gt; width + pcm-&gt;lbearing)
+<a id='L975' name='L975'></a>   975             metrics-&gt;lbearing = width + pcm-&gt;lbearing;
+<a id='L976' name='L976'></a>   976           <strong class='reserved'>if</strong> (metrics-&gt;rbearing &lt; width + pcm-&gt;rbearing)
+<a id='L977' name='L977'></a>   977             metrics-&gt;rbearing = width + pcm-&gt;rbearing;
+<a id='L978' name='L978'></a>   978           <strong class='reserved'>if</strong> (metrics-&gt;ascent &lt; pcm-&gt;ascent)
+<a id='L979' name='L979'></a>   979             metrics-&gt;ascent = pcm-&gt;ascent;
+<a id='L980' name='L980'></a>   980           <strong class='reserved'>if</strong> (metrics-&gt;descent &lt; pcm-&gt;descent)
+<a id='L981' name='L981'></a>   981             metrics-&gt;descent = pcm-&gt;descent;
+<a id='L982' name='L982'></a>   982         <em class='brace'>}</em>
+<a id='L983' name='L983'></a>   983       width += pcm-&gt;width;
+<a id='L984' name='L984'></a>   984     <em class='brace'>}</em>
+<a id='L985' name='L985'></a>   985 
+<a id='L986' name='L986'></a>   986   metrics-&gt;width = width;
+<a id='L987' name='L987'></a>   987 <em class='brace'>}</em>
+<a id='L988' name='L988'></a>   988 
+<a id='L989' name='L989'></a>   989 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L990' name='L990'></a>   990 <a href='../S/2196.html#L1144' title='Referred from 1144 in src/xfont.c.'>xfont_draw</a> (<strong class='reserved'>struct</strong> <a href='../S/2202.html#L1300' title='Defined at 1300 in src/dispextern.h.'>glyph_string</a> *s, <strong class='reserved'>int</strong> from, <strong class='reserved'>int</strong> to, <strong class='reserved'>int</strong> <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y,
+<a id='L991' name='L991'></a>   991             <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> with_background)
+<a id='L992' name='L992'></a>   992 <em class='brace'>{</em>
+<a id='L993' name='L993'></a>   993   <a href='../S/2208.html#L93' title='Defined at 93 in src/msdos.h.'>XFontStruct</a> *xfont = ((<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *) s-&gt;<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>)-&gt;xfont;
+<a id='L994' name='L994'></a>   994   <a href='../D/1492.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a> = <a href='../D/2217.html' title='Multiple defined in 3 places.'>FRAME_X_DISPLAY</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L995' name='L995'></a>   995   <strong class='reserved'>int</strong> len = to - from;
+<a id='L996' name='L996'></a>   996   <a href='../S/2208.html#L94' title='Defined at 94 in src/msdos.h.'>GC</a> gc = s-&gt;gc;
+<a id='L997' name='L997'></a>   997   <strong class='reserved'>int</strong> i;
+<a id='L998' name='L998'></a>   998 
+<a id='L999' name='L999'></a>   999   <strong class='reserved'>if</strong> (s-&gt;gc != s-&gt;<a href='../S/2202.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>-&gt;gc)
+<a id='L1000' name='L1000'></a>  1000     <em class='brace'>{</em>
+<a id='L1001' name='L1001'></a>  1001       <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L1002' name='L1002'></a>  1002       XSetFont (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, gc, xfont-&gt;fid);
+<a id='L1003' name='L1003'></a>  1003       <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L1004' name='L1004'></a>  1004     <em class='brace'>}</em>
+<a id='L1005' name='L1005'></a>  1005 
+<a id='L1006' name='L1006'></a>  1006 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> HAVE_XRENDER &amp;&amp; (RENDER_MAJOR &gt; 0 || (RENDER_MINOR &gt;= 2))
+<a id='L1007' name='L1007'></a>  1007   <strong class='reserved'>if</strong> (with_background
+<a id='L1008' name='L1008'></a>  1008       &amp;&amp; <a href='../D/2051.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>)-&gt;alpha_bits
+<a id='L1009' name='L1009'></a>  1009       &amp;&amp; <a href='../S/2105.html#L1440' title='Defined at 1440 in src/xterm.h.'>FRAME_CHECK_XR_VERSION</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, 0, 2))
+<a id='L1010' name='L1010'></a>  1010     <em class='brace'>{</em>
+<a id='L1011' name='L1011'></a>  1011       <a href='../S/2180.html#L5089' title='Defined at 5089 in src/xterm.c.'>x_xr_ensure_picture</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L1012' name='L1012'></a>  1012 
+<a id='L1013' name='L1013'></a>  1013       <strong class='reserved'>if</strong> (<a href='../S/2105.html#L1439' title='Defined at 1439 in src/xterm.h.'>FRAME_X_PICTURE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>) != None)
+<a id='L1014' name='L1014'></a>  1014         <em class='brace'>{</em>
+<a id='L1015' name='L1015'></a>  1015           XRenderColor xc;
+<a id='L1016' name='L1016'></a>  1016           <strong class='reserved'>int</strong> height = <a href='../S/2184.html#L244' title='Defined at 244 in src/font.h.'>FONT_HEIGHT</a> (s-&gt;<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>), ascent = <a href='../S/2184.html#L245' title='Defined at 245 in src/font.h.'>FONT_BASE</a> (s-&gt;<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>);
+<a id='L1017' name='L1017'></a>  1017 
+<a id='L1018' name='L1018'></a>  1018           <a href='../S/2180.html#L6349' title='Defined at 6349 in src/xterm.c.'>x_xr_apply_ext_clip</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, gc);
+<a id='L1019' name='L1019'></a>  1019           <a href='../S/2180.html#L6436' title='Defined at 6436 in src/xterm.c.'>x_xrender_color_from_gc_background</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, gc, &amp;xc,
+<a id='L1020' name='L1020'></a>  1020                                               s-&gt;hl != <a href='../S/2202.html#L1290' title='Defined at 1290 in src/dispextern.h.'>DRAW_CURSOR</a>);
+<a id='L1021' name='L1021'></a>  1021           XRenderFillRectangle (<a href='../D/2217.html' title='Multiple defined in 3 places.'>FRAME_X_DISPLAY</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1022' name='L1022'></a>  1022                                 PictOpSrc, <a href='../S/2105.html#L1439' title='Defined at 1439 in src/xterm.h.'>FRAME_X_PICTURE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1023' name='L1023'></a>  1023                                 &amp;xc, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y - ascent, s-&gt;width, height);
+<a id='L1024' name='L1024'></a>  1024           <a href='../S/2180.html#L6363' title='Defined at 6363 in src/xterm.c.'>x_xr_reset_ext_clip</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L1025' name='L1025'></a>  1025           <a href='../S/2187.html#L3928' title='Defined at 3928 in src/xfns.c.'>x_mark_frame_dirty</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L1026' name='L1026'></a>  1026 
+<a id='L1027' name='L1027'></a>  1027           with_background = <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L1028' name='L1028'></a>  1028         <em class='brace'>}</em>
+<a id='L1029' name='L1029'></a>  1029     <em class='brace'>}</em>
+<a id='L1030' name='L1030'></a>  1030 <em class='sharp'>#endif</em>
+<a id='L1031' name='L1031'></a>  1031 
+<a id='L1032' name='L1032'></a>  1032   <strong class='reserved'>if</strong> (xfont-&gt;min_byte1 == 0 &amp;&amp; xfont-&gt;max_byte1 == 0)
+<a id='L1033' name='L1033'></a>  1033     <em class='brace'>{</em>
+<a id='L1034' name='L1034'></a>  1034       <a href='../D/6010.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L1035' name='L1035'></a>  1035       <strong class='reserved'>char</strong> *str = <a href='../D/5026.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (len);
+<a id='L1036' name='L1036'></a>  1036       <strong class='reserved'>for</strong> (i = 0; i &lt; len ; i++)
+<a id='L1037' name='L1037'></a>  1037         str[i] = s-&gt;char2b[from + i] &amp; 0xFF;
+<a id='L1038' name='L1038'></a>  1038       <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L1039' name='L1039'></a>  1039       <strong class='reserved'>if</strong> (with_background)
+<a id='L1040' name='L1040'></a>  1040         <em class='brace'>{</em>
+<a id='L1041' name='L1041'></a>  1041           <strong class='reserved'>if</strong> (s-&gt;padding_p)
+<a id='L1042' name='L1042'></a>  1042             <strong class='reserved'>for</strong> (i = 0; i &lt; len; i++)
+<a id='L1043' name='L1043'></a>  1043               XDrawImageString (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../S/2105.html#L1345' title='Defined at 1345 in src/xterm.h.'>FRAME_X_DRAWABLE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1044' name='L1044'></a>  1044                                 gc, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + i, y, str + i, 1);
+<a id='L1045' name='L1045'></a>  1045           <strong class='reserved'>else</strong>
+<a id='L1046' name='L1046'></a>  1046             XDrawImageString (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../S/2105.html#L1345' title='Defined at 1345 in src/xterm.h.'>FRAME_X_DRAWABLE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1047' name='L1047'></a>  1047                               gc, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, str, len);
+<a id='L1048' name='L1048'></a>  1048         <em class='brace'>}</em>
+<a id='L1049' name='L1049'></a>  1049       <strong class='reserved'>else</strong>
+<a id='L1050' name='L1050'></a>  1050         <em class='brace'>{</em>
+<a id='L1051' name='L1051'></a>  1051           <strong class='reserved'>if</strong> (s-&gt;padding_p)
+<a id='L1052' name='L1052'></a>  1052             <strong class='reserved'>for</strong> (i = 0; i &lt; len; i++)
+<a id='L1053' name='L1053'></a>  1053               XDrawString (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../S/2105.html#L1345' title='Defined at 1345 in src/xterm.h.'>FRAME_X_DRAWABLE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1054' name='L1054'></a>  1054                            gc, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + i, y, str + i, 1);
+<a id='L1055' name='L1055'></a>  1055           <strong class='reserved'>else</strong>
+<a id='L1056' name='L1056'></a>  1056             XDrawString (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../S/2105.html#L1345' title='Defined at 1345 in src/xterm.h.'>FRAME_X_DRAWABLE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1057' name='L1057'></a>  1057                          gc, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, str, len);
+<a id='L1058' name='L1058'></a>  1058         <em class='brace'>}</em>
+<a id='L1059' name='L1059'></a>  1059       <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L1060' name='L1060'></a>  1060       <a href='../D/5031.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L1061' name='L1061'></a>  1061       <strong class='reserved'>return</strong> s-&gt;nchars;
+<a id='L1062' name='L1062'></a>  1062     <em class='brace'>}</em>
+<a id='L1063' name='L1063'></a>  1063 
+<a id='L1064' name='L1064'></a>  1064   <a href='../S/1992.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L1065' name='L1065'></a>  1065   <strong class='reserved'>if</strong> (with_background)
+<a id='L1066' name='L1066'></a>  1066     <em class='brace'>{</em>
+<a id='L1067' name='L1067'></a>  1067       <strong class='reserved'>if</strong> (s-&gt;padding_p)
+<a id='L1068' name='L1068'></a>  1068         <strong class='reserved'>for</strong> (i = 0; i &lt; len; i++)
+<a id='L1069' name='L1069'></a>  1069           <em class='brace'>{</em>
+<a id='L1070' name='L1070'></a>  1070             <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> code = s-&gt;char2b[from + i];
+<a id='L1071' name='L1071'></a>  1071             <strong class='reserved'>const</strong> <a href='../S/2047.html#L34' title='Defined at 34 in src/pgtkgui.h.'>XChar2b</a> char2b = <em class='brace'>{</em> .byte1 = code &gt;&gt; 8,
+<a id='L1072' name='L1072'></a>  1072                                      .byte2 = code &amp; 0xFF <em class='brace'>}</em>;
+<a id='L1073' name='L1073'></a>  1073             XDrawImageString16 (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../S/2105.html#L1345' title='Defined at 1345 in src/xterm.h.'>FRAME_X_DRAWABLE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1074' name='L1074'></a>  1074                                 gc, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + i, y, &amp;char2b, 1);
+<a id='L1075' name='L1075'></a>  1075           <em class='brace'>}</em>
+<a id='L1076' name='L1076'></a>  1076       <strong class='reserved'>else</strong>
+<a id='L1077' name='L1077'></a>  1077         <em class='brace'>{</em>
+<a id='L1078' name='L1078'></a>  1078           <a href='../D/6010.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L1079' name='L1079'></a>  1079           <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> *code = s-&gt;char2b + from;
+<a id='L1080' name='L1080'></a>  1080           <a href='../S/2047.html#L34' title='Defined at 34 in src/pgtkgui.h.'>XChar2b</a> *char2b;
+<a id='L1081' name='L1081'></a>  1081           <a href='../D/5033.html' title='Multiple defined in 2 places.'>SAFE_NALLOCA</a> (char2b, 1, len);
+<a id='L1082' name='L1082'></a>  1082           <strong class='reserved'>for</strong> (<strong class='reserved'>int</strong> i = 0; i &lt; len; ++i)
+<a id='L1083' name='L1083'></a>  1083             char2b[i] = (<a href='../S/2047.html#L34' title='Defined at 34 in src/pgtkgui.h.'>XChar2b</a>) <em class='brace'>{</em> .byte1 = code[i] &gt;&gt; 8,
+<a id='L1084' name='L1084'></a>  1084                                     .byte2 = code[i] &amp; 0xFF <em class='brace'>}</em>;
+<a id='L1085' name='L1085'></a>  1085           XDrawImageString16 (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../S/2105.html#L1345' title='Defined at 1345 in src/xterm.h.'>FRAME_X_DRAWABLE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1086' name='L1086'></a>  1086                               gc, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, char2b, len);
+<a id='L1087' name='L1087'></a>  1087           <a href='../D/5031.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L1088' name='L1088'></a>  1088         <em class='brace'>}</em>
+<a id='L1089' name='L1089'></a>  1089     <em class='brace'>}</em>
+<a id='L1090' name='L1090'></a>  1090   <strong class='reserved'>else</strong>
+<a id='L1091' name='L1091'></a>  1091     <em class='brace'>{</em>
+<a id='L1092' name='L1092'></a>  1092       <strong class='reserved'>if</strong> (s-&gt;padding_p)
+<a id='L1093' name='L1093'></a>  1093         <strong class='reserved'>for</strong> (i = 0; i &lt; len; i++)
+<a id='L1094' name='L1094'></a>  1094           <em class='brace'>{</em>
+<a id='L1095' name='L1095'></a>  1095             <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> code = s-&gt;char2b[from + i];
+<a id='L1096' name='L1096'></a>  1096             <strong class='reserved'>const</strong> <a href='../S/2047.html#L34' title='Defined at 34 in src/pgtkgui.h.'>XChar2b</a> char2b = <em class='brace'>{</em> .byte1 = code &gt;&gt; 8,
+<a id='L1097' name='L1097'></a>  1097                                      .byte2 = code &amp; 0xFF <em class='brace'>}</em>;
+<a id='L1098' name='L1098'></a>  1098             XDrawString16 (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../S/2105.html#L1345' title='Defined at 1345 in src/xterm.h.'>FRAME_X_DRAWABLE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1099' name='L1099'></a>  1099                            gc, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> + i, y, &amp;char2b, 1);
+<a id='L1100' name='L1100'></a>  1100           <em class='brace'>}</em>
+<a id='L1101' name='L1101'></a>  1101       <strong class='reserved'>else</strong>
+<a id='L1102' name='L1102'></a>  1102         <em class='brace'>{</em>
+<a id='L1103' name='L1103'></a>  1103           <a href='../D/6010.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L1104' name='L1104'></a>  1104           <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> *code = s-&gt;char2b + from;
+<a id='L1105' name='L1105'></a>  1105           <a href='../S/2047.html#L34' title='Defined at 34 in src/pgtkgui.h.'>XChar2b</a> *char2b;
+<a id='L1106' name='L1106'></a>  1106           <a href='../D/5033.html' title='Multiple defined in 2 places.'>SAFE_NALLOCA</a> (char2b, 1, len);
+<a id='L1107' name='L1107'></a>  1107           <strong class='reserved'>for</strong> (<strong class='reserved'>int</strong> i = 0; i &lt; len; ++i)
+<a id='L1108' name='L1108'></a>  1108             char2b[i] = (<a href='../S/2047.html#L34' title='Defined at 34 in src/pgtkgui.h.'>XChar2b</a>) <em class='brace'>{</em> .byte1 = code[i] &gt;&gt; 8,
+<a id='L1109' name='L1109'></a>  1109                                     .byte2 = code[i] &amp; 0xFF <em class='brace'>}</em>;
+<a id='L1110' name='L1110'></a>  1110           XDrawString16 (<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a>, <a href='../S/2105.html#L1345' title='Defined at 1345 in src/xterm.h.'>FRAME_X_DRAWABLE</a> (s-&gt;<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L1111' name='L1111'></a>  1111                          gc, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, char2b, len);
+<a id='L1112' name='L1112'></a>  1112           <a href='../D/5031.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L1113' name='L1113'></a>  1113         <em class='brace'>}</em>
+<a id='L1114' name='L1114'></a>  1114     <em class='brace'>}</em>
+<a id='L1115' name='L1115'></a>  1115   <a href='../D/16568.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L1116' name='L1116'></a>  1116 
+<a id='L1117' name='L1117'></a>  1117   <strong class='reserved'>return</strong> len;
+<a id='L1118' name='L1118'></a>  1118 <em class='brace'>}</em>
+<a id='L1119' name='L1119'></a>  1119 
+<a id='L1120' name='L1120'></a>  1120 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L1121' name='L1121'></a>  1121 <a href='../S/2196.html#L1145' title='Referred from 1145 in src/xfont.c.'>xfont_check</a> (<strong class='reserved'>struct</strong> <a href='../D/10427.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>struct</strong> <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>)
+<a id='L1122' name='L1122'></a>  1122 <em class='brace'>{</em>
+<a id='L1123' name='L1123'></a>  1123   <strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *xfont = (<strong class='reserved'>struct</strong> <a href='../S/2196.html#L38' title='Defined at 38 in src/xfont.c.'>xfont_info</a> *) <a href='../S/2184.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L1124' name='L1124'></a>  1124 
+<a id='L1125' name='L1125'></a>  1125   <strong class='reserved'>return</strong> (<a href='../D/2217.html' title='Multiple defined in 3 places.'>FRAME_X_DISPLAY</a> (<a href='../D/10018.html' title='Multiple defined in 12 places.'>f</a>) == xfont-&gt;<a href='../S/3908.html#L37' title='Defined at 37 in test/manual/etags/cp-src/conway.cpp.'>display</a> ? 0 : -1);
+<a id='L1126' name='L1126'></a>  1126 <em class='brace'>}</em>
+<a id='L1127' name='L1127'></a>  1127 
+<a id='L1128' name='L1128'></a>  1128 
+<a id='L1129' name='L1129'></a>  1129 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2196.html#L1163' title='Defined at 1163 in src/xfont.c.'>syms_of_xfont_for_pdumper</a> (<strong class='reserved'>void</strong>);
+<a id='L1130' name='L1130'></a>  1130 
+<a id='L1131' name='L1131'></a>  1131 <strong class='reserved'>struct</strong> <a href='../S/2184.html#L572' title='Defined at 572 in src/font.h.'>font_driver</a> <strong class='reserved'>const</strong> xfont_driver =
+<a id='L1132' name='L1132'></a>  1132   <em class='brace'>{</em>
+<a id='L1133' name='L1133'></a>  1133     .type = <a href='../S/2158.html#L936' title='Defined at 936 in src/lisp.h.'>LISPSYM_INITIALLY</a> (Qx),
+<a id='L1134' name='L1134'></a>  1134     .get_cache = <a href='../S/2196.html#L119' title='Defined at 119 in src/xfont.c.'>xfont_get_cache</a>,
+<a id='L1135' name='L1135'></a>  1135     .<a href='../D/12490.html' title='Multiple defined in 3 places.'>list</a> = <a href='../S/2196.html#L460' title='Defined at 460 in src/xfont.c.'>xfont_list</a>,
+<a id='L1136' name='L1136'></a>  1136     .<a href='../D/12904.html' title='Multiple defined in 4 places.'>match</a> = <a href='../S/2196.html#L539' title='Defined at 539 in src/xfont.c.'>xfont_match</a>,
+<a id='L1137' name='L1137'></a>  1137     .list_family = <a href='../S/2196.html#L593' title='Defined at 593 in src/xfont.c.'>xfont_list_family</a>,
+<a id='L1138' name='L1138'></a>  1138     .open_font = <a href='../S/2196.html#L652' title='Defined at 652 in src/xfont.c.'>xfont_open</a>,
+<a id='L1139' name='L1139'></a>  1139     .close_font = <a href='../S/2196.html#L865' title='Defined at 865 in src/xfont.c.'>xfont_close</a>,
+<a id='L1140' name='L1140'></a>  1140     .prepare_face = <a href='../S/2196.html#L890' title='Defined at 890 in src/xfont.c.'>xfont_prepare_face</a>,
+<a id='L1141' name='L1141'></a>  1141     .has_char = <a href='../S/2196.html#L899' title='Defined at 899 in src/xfont.c.'>xfont_has_char</a>,
+<a id='L1142' name='L1142'></a>  1142     .<a href='../S/2142.html#L1727' title='Defined at 1727 in src/charset.c.'>encode_char</a> = <a href='../S/2196.html#L928' title='Defined at 928 in src/xfont.c.'>xfont_encode_char</a>,
+<a id='L1143' name='L1143'></a>  1143     .text_extents = <a href='../S/2196.html#L948' title='Defined at 948 in src/xfont.c.'>xfont_text_extents</a>,
+<a id='L1144' name='L1144'></a>  1144     .draw = <a href='../S/2196.html#L990' title='Defined at 990 in src/xfont.c.'>xfont_draw</a>,
+<a id='L1145' name='L1145'></a>  1145     .check = <a href='../S/2196.html#L1121' title='Defined at 1121 in src/xfont.c.'>xfont_check</a>,
+<a id='L1146' name='L1146'></a>  1146   <em class='brace'>}</em>;
+<a id='L1147' name='L1147'></a>  1147 
+<a id='L1148' name='L1148'></a>  1148 <strong class='reserved'>void</strong>
+<a id='L1149' name='L1149'></a>  1149 <a href='../R/14833.html' title='Multiple referred from 3 places.'>syms_of_xfont</a> (<strong class='reserved'>void</strong>)
+<a id='L1150' name='L1150'></a>  1150 <em class='brace'>{</em>
+<a id='L1151' name='L1151'></a>  1151   <a href='../S/2237.html#L5970' title='Defined at 5970 in src/alloc.c.'>staticpro</a> (&amp;xfont_scripts_cache);
+<a id='L1152' name='L1152'></a>  1152   xfont_scripts_cache = <a href='../D/539.html' title='Multiple defined in 2 places.'>CALLN</a> (Fmake_hash_table, QCtest, Qequal);
+<a id='L1153' name='L1153'></a>  1153   <a href='../S/2237.html#L5970' title='Defined at 5970 in src/alloc.c.'>staticpro</a> (&amp;xfont_scratch_props);
+<a id='L1154' name='L1154'></a>  1154   xfont_scratch_props = <a href='../S/2158.html#L4395' title='Defined at 4395 in src/lisp.h.'>make_nil_vector</a> (8);
+<a id='L1155' name='L1155'></a>  1155   <a href='../S/2211.html#L92' title='Defined at 92 in src/pdumper.h.'>pdumper_do_now_and_after_load</a> (<a href='../S/2196.html#L1163' title='Defined at 1163 in src/xfont.c.'>syms_of_xfont_for_pdumper</a>);
+<a id='L1156' name='L1156'></a>  1156 
+<a id='L1157' name='L1157'></a>  1157   <a href='../D/1322.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qkana, "kana");
+<a id='L1158' name='L1158'></a>  1158   <a href='../D/1322.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qhan, "han");
+<a id='L1159' name='L1159'></a>  1159   <a href='../D/1322.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qhangul, "hangul");
+<a id='L1160' name='L1160'></a>  1160 <em class='brace'>}</em>
+<a id='L1161' name='L1161'></a>  1161 
+<a id='L1162' name='L1162'></a>  1162 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1163' name='L1163'></a>  1163 <a href='../R/14834.html' title='Multiple referred from 2 places.'>syms_of_xfont_for_pdumper</a> (<strong class='reserved'>void</strong>)
+<a id='L1164' name='L1164'></a>  1164 <em class='brace'>{</em>
+<a id='L1165' name='L1165'></a>  1165   <a href='../S/2153.html#L3306' title='Defined at 3306 in src/font.c.'>register_font_driver</a> (&amp;xfont_driver, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1166' name='L1166'></a>  1166 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L54'>[^]</a><a href='#L1163'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

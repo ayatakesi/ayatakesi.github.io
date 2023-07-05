@@ -1,0 +1,1537 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/sound.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4791.html'>src</a>/sound.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L297'>[^]</a><a href='#L1471'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L297' title='Defined at 297.'>sound_perror</a></li>
+<li><a href='#L323' title='Defined at 323.'>sound_warning</a></li>
+<li><a href='#L357' title='Defined at 357.'>parse_sound</a></li>
+<li><a href='#L425' title='Defined at 425.'>string_default</a></li>
+<li><a href='#L435' title='Defined at 435.'>find_sound_type</a></li>
+<li><a href='#L445' title='Defined at 445.'>sound_cleanup</a></li>
+<li><a href='#L463' title='Defined at 463.'>le2hl</a></li>
+<li><a href='#L476' title='Defined at 476.'>le2hs</a></li>
+<li><a href='#L489' title='Defined at 489.'>be2hl</a></li>
+<li><a href='#L508' title='Defined at 508.'>wav_init</a></li>
+<li><a href='#L543' title='Defined at 543.'>wav_play</a></li>
+<li><a href='#L616' title='Defined at 616.'>au_init</a></li>
+<li><a href='#L642' title='Defined at 642.'>au_play</a></li>
+<li><a href='#L689' title='Defined at 689.'>vox_open</a></li>
+<li><a href='#L702' title='Defined at 702.'>vox_configure</a></li>
+<li><a href='#L764' title='Defined at 764.'>vox_close</a></li>
+<li><a href='#L801' title='Defined at 801.'>vox_choose_format</a></li>
+<li><a href='#L844' title='Defined at 844.'>vox_init</a></li>
+<li><a href='#L868' title='Defined at 868.'>vox_write</a></li>
+<li><a href='#L886' title='Defined at 886.'>alsa_sound_perror</a></li>
+<li><a href='#L903' title='Defined at 903.'>alsa_open</a></li>
+<li><a href='#L924' title='Defined at 924.'>alsa_period_size</a></li>
+<li><a href='#L932' title='Defined at 932.'>alsa_configure</a></li>
+<li><a href='#L1051' title='Defined at 1051.'>alsa_close</a></li>
+<li><a href='#L1072' title='Defined at 1072.'>alsa_choose_format</a></li>
+<li><a href='#L1126' title='Defined at 1126.'>alsa_write</a></li>
+<li><a href='#L1173' title='Defined at 1173.'>snd_error_quiet</a></li>
+<li><a href='#L1182' title='Defined at 1182.'>alsa_init</a></li>
+<li><a href='#L1226' title='Defined at 1226.'>do_play_sound</a></li>
+<li><a href='#L1355' title='Defined at 1355.'>DEFUN</a></li>
+<li><a href='#L1471' title='Defined at 1471.'>syms_of_sound</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* sound.c -- sound support.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 1998-1999, 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>Author: Gerd Moellmann &lt;gerd@gnu.org&gt;</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'></em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>your option) any later version.</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'></em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'></em>
+<a id='L19' name='L19'></a>    19 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L20' name='L20'></a>    20 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='comment'>/* Tested with Luigi's driver on FreeBSD 2.2.7 with a SoundBlaster 16.  */</em>
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='comment'>/*</em>
+<a id='L25' name='L25'></a>    25 <em class='comment'>  Modified by Ben Key &lt;Bkey1@tampabay.rr.com&gt; to add a partial</em>
+<a id='L26' name='L26'></a>    26 <em class='comment'>  implementation of the play-sound specification for Windows.</em>
+<a id='L27' name='L27'></a>    27 <em class='comment'></em>
+<a id='L28' name='L28'></a>    28 <em class='comment'>  Notes:</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'>  In the Windows implementation of play-sound-internal only the</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>  :file and :volume keywords are supported.  The :device keyword,</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>  if present, is ignored.  The :data keyword, if present, will</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'>  cause an error to be generated.</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'></em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>  The Windows implementation of play-sound is implemented via the</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'>  Windows API functions mciSendString, waveOutGetVolume, and</em>
+<a id='L36' name='L36'></a>    36 <em class='comment'>  waveOutSetVolume which are exported by Winmm.dll.</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'>*/</em>
+<a id='L38' name='L38'></a>    38 
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L40' name='L40'></a>    40 
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> HAVE_SOUND
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <em class='comment'>/* BEGIN: Common Includes */</em>
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#include</em> &lt;<a href='37.html'>unistd.h</a>&gt;
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#include</em> &lt;sys/types.h&gt;
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L48' name='L48'></a>    48 
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
+<a id='L50' name='L50'></a>    50 <em class='sharp'>#include</em> "<a href='2141.html'>atimer.h</a>"
+<a id='L51' name='L51'></a>    51 <em class='sharp'>#include</em> "<a href='2268.html'>syssignal.h</a>"
+<a id='L52' name='L52'></a>    52 <em class='comment'>/* END: Common Includes */</em>
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54 
+<a id='L55' name='L55'></a>    55 <em class='comment'>/* BEGIN: Non Windows Includes */</em>
+<a id='L56' name='L56'></a>    56 <em class='sharp'>#ifndef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L57' name='L57'></a>    57 
+<a id='L58' name='L58'></a>    58 <em class='sharp'>#include</em> &lt;byteswap.h&gt;
+<a id='L59' name='L59'></a>    59 
+<a id='L60' name='L60'></a>    60 <em class='sharp'>#include</em> &lt;<a href='46.html'>sys/ioctl.h</a>&gt;
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62 <em class='comment'>/* FreeBSD has machine/soundcard.h.  Voxware sound driver docs mention</em>
+<a id='L63' name='L63'></a>    63 <em class='comment'>   sys/soundcard.h.  So, let's try whatever's there.  */</em>
+<a id='L64' name='L64'></a>    64 
+<a id='L65' name='L65'></a>    65 <em class='sharp'>#ifdef</em> HAVE_MACHINE_SOUNDCARD_H
+<a id='L66' name='L66'></a>    66 <em class='sharp'>#include</em> &lt;machine/soundcard.h&gt;
+<a id='L67' name='L67'></a>    67 <em class='sharp'>#endif</em>
+<a id='L68' name='L68'></a>    68 <em class='sharp'>#ifdef</em> HAVE_SYS_SOUNDCARD_H
+<a id='L69' name='L69'></a>    69 <em class='sharp'>#include</em> &lt;sys/soundcard.h&gt;
+<a id='L70' name='L70'></a>    70 <em class='sharp'>#endif</em>
+<a id='L71' name='L71'></a>    71 <em class='sharp'>#ifdef</em> HAVE_SOUNDCARD_H
+<a id='L72' name='L72'></a>    72 <em class='sharp'>#include</em> &lt;soundcard.h&gt;
+<a id='L73' name='L73'></a>    73 <em class='sharp'>#endif</em>
+<a id='L74' name='L74'></a>    74 <em class='sharp'>#ifdef</em> HAVE_ALSA
+<a id='L75' name='L75'></a>    75 <em class='sharp'>#include</em> &lt;alsa/asoundlib.h&gt;
+<a id='L76' name='L76'></a>    76 <em class='sharp'>#endif</em>
+<a id='L77' name='L77'></a>    77 
+<a id='L78' name='L78'></a>    78 <em class='comment'>/* END: Non Windows Includes */</em>
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80 <em class='sharp'>#else</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L81' name='L81'></a>    81 
+<a id='L82' name='L82'></a>    82 <em class='comment'>/* BEGIN: Windows Specific Includes */</em>
+<a id='L83' name='L83'></a>    83 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L84' name='L84'></a>    84 <em class='sharp'>#include</em> &lt;limits.h&gt;
+<a id='L85' name='L85'></a>    85 <em class='sharp'>#include</em> &lt;mbstring.h&gt;
+<a id='L86' name='L86'></a>    86 <em class='sharp'>#include</em> &lt;windows.h&gt;
+<a id='L87' name='L87'></a>    87 <em class='sharp'>#include</em> &lt;mmsystem.h&gt;
+<a id='L88' name='L88'></a>    88 
+<a id='L89' name='L89'></a>    89 <em class='sharp'>#include</em> "<a href='2154.html'>coding.h</a>"
+<a id='L90' name='L90'></a>    90 <em class='sharp'>#include</em> "<a href='2371.html'>w32common.h</a>"
+<a id='L91' name='L91'></a>    91 <em class='sharp'>#include</em> "<a href='2346.html'>w32.h</a>"
+<a id='L92' name='L92'></a>    92 <em class='comment'>/* END: Windows Specific Includes */</em>
+<a id='L93' name='L93'></a>    93 
+<a id='L94' name='L94'></a>    94 <em class='sharp'>#endif</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L95' name='L95'></a>    95 
+<a id='L96' name='L96'></a>    96 <em class='comment'>/* BEGIN: Common Definitions */</em>
+<a id='L97' name='L97'></a>    97 
+<a id='L98' name='L98'></a>    98 <em class='comment'>/* Indices of attributes in a sound attributes vector.  */</em>
+<a id='L99' name='L99'></a>    99 
+<a id='L100' name='L100'></a>   100 <strong class='reserved'>enum</strong> sound_attr
+<a id='L101' name='L101'></a>   101 <em class='brace'>{</em>
+<a id='L102' name='L102'></a>   102   <a href='../R/5284.html' title='Multiple referred from 6 places.'>SOUND_FILE</a>,
+<a id='L103' name='L103'></a>   103   <a href='../R/5282.html' title='Multiple referred from 3 places.'>SOUND_DATA</a>,
+<a id='L104' name='L104'></a>   104   <a href='../R/5283.html' title='Multiple referred from 4 places.'>SOUND_DEVICE</a>,
+<a id='L105' name='L105'></a>   105   <a href='../R/5285.html' title='Multiple referred from 14 places.'>SOUND_VOLUME</a>,
+<a id='L106' name='L106'></a>   106   <a href='../S/2311.html#L1361' title='Referred from 1361 in src/sound.c.'>SOUND_ATTR_SENTINEL</a>
+<a id='L107' name='L107'></a>   107 <em class='brace'>}</em>;
+<a id='L108' name='L108'></a>   108 
+<a id='L109' name='L109'></a>   109 <em class='comment'>/* END: Common Definitions */</em>
+<a id='L110' name='L110'></a>   110 
+<a id='L111' name='L111'></a>   111 <em class='comment'>/* BEGIN: Non Windows Definitions */</em>
+<a id='L112' name='L112'></a>   112 <em class='sharp'>#ifndef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L113' name='L113'></a>   113 
+<a id='L114' name='L114'></a>   114 <em class='comment'>/* Structure forward declarations.  */</em>
+<a id='L115' name='L115'></a>   115 
+<a id='L116' name='L116'></a>   116 <strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>;
+<a id='L117' name='L117'></a>   117 <strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a>;
+<a id='L118' name='L118'></a>   118 
+<a id='L119' name='L119'></a>   119 <em class='comment'>/* The file header of RIFF-WAVE files (*.wav).  Files are always in</em>
+<a id='L120' name='L120'></a>   120 <em class='comment'>   little-endian byte-order.  */</em>
+<a id='L121' name='L121'></a>   121 
+<a id='L122' name='L122'></a>   122 <strong class='reserved'>struct</strong> <a href='../R/17872.html' title='Multiple referred from 5 places.'>wav_header</a>
+<a id='L123' name='L123'></a>   123 <em class='brace'>{</em>
+<a id='L124' name='L124'></a>   124   u_int32_t magic;
+<a id='L125' name='L125'></a>   125   u_int32_t length;
+<a id='L126' name='L126'></a>   126   u_int32_t chunk_type;
+<a id='L127' name='L127'></a>   127   u_int32_t chunk_format;
+<a id='L128' name='L128'></a>   128   u_int32_t chunk_length;
+<a id='L129' name='L129'></a>   129   u_int16_t format;
+<a id='L130' name='L130'></a>   130   u_int16_t channels;
+<a id='L131' name='L131'></a>   131   u_int32_t sample_rate;
+<a id='L132' name='L132'></a>   132   u_int32_t bytes_per_second;
+<a id='L133' name='L133'></a>   133   u_int16_t sample_size;
+<a id='L134' name='L134'></a>   134   u_int16_t precision;
+<a id='L135' name='L135'></a>   135   u_int32_t chunk_data;
+<a id='L136' name='L136'></a>   136   u_int32_t data_length;
+<a id='L137' name='L137'></a>   137 <em class='brace'>}</em>;
+<a id='L138' name='L138'></a>   138 
+<a id='L139' name='L139'></a>   139 <em class='comment'>/* The file header of Sun adio files (*.au).  Files are always in</em>
+<a id='L140' name='L140'></a>   140 <em class='comment'>   big-endian byte-order.  */</em>
+<a id='L141' name='L141'></a>   141 
+<a id='L142' name='L142'></a>   142 <strong class='reserved'>struct</strong> <a href='../R/8102.html' title='Multiple referred from 5 places.'>au_header</a>
+<a id='L143' name='L143'></a>   143 <em class='brace'>{</em>
+<a id='L144' name='L144'></a>   144   <em class='comment'>/* ASCII ".snd" */</em>
+<a id='L145' name='L145'></a>   145   u_int32_t magic_number;
+<a id='L146' name='L146'></a>   146 
+<a id='L147' name='L147'></a>   147   <em class='comment'>/* Offset of data part from start of file. Minimum value is 24.  */</em>
+<a id='L148' name='L148'></a>   148   u_int32_t data_offset;
+<a id='L149' name='L149'></a>   149 
+<a id='L150' name='L150'></a>   150   <em class='comment'>/* Size of data part, 0xffffffff if unknown.  */</em>
+<a id='L151' name='L151'></a>   151   u_int32_t data_size;
+<a id='L152' name='L152'></a>   152 
+<a id='L153' name='L153'></a>   153   <em class='comment'>/* Data encoding format.</em>
+<a id='L154' name='L154'></a>   154 <em class='comment'>     1  8-bit ISDN u-law</em>
+<a id='L155' name='L155'></a>   155 <em class='comment'>     2  8-bit linear PCM (REF-PCM)</em>
+<a id='L156' name='L156'></a>   156 <em class='comment'>     3  16-bit linear PCM</em>
+<a id='L157' name='L157'></a>   157 <em class='comment'>     4  24-bit linear PCM</em>
+<a id='L158' name='L158'></a>   158 <em class='comment'>     5  32-bit linear PCM</em>
+<a id='L159' name='L159'></a>   159 <em class='comment'>     6  32-bit IEEE floating-point</em>
+<a id='L160' name='L160'></a>   160 <em class='comment'>     7  64-bit IEEE floating-point</em>
+<a id='L161' name='L161'></a>   161 <em class='comment'>     23 8-bit u-law compressed using CCITT 0.721 ADPCM voice data</em>
+<a id='L162' name='L162'></a>   162 <em class='comment'>     encoding scheme.  */</em>
+<a id='L163' name='L163'></a>   163   u_int32_t encoding;
+<a id='L164' name='L164'></a>   164 
+<a id='L165' name='L165'></a>   165   <em class='comment'>/* Number of samples per second.  */</em>
+<a id='L166' name='L166'></a>   166   u_int32_t sample_rate;
+<a id='L167' name='L167'></a>   167 
+<a id='L168' name='L168'></a>   168   <em class='comment'>/* Number of interleaved channels.  */</em>
+<a id='L169' name='L169'></a>   169   u_int32_t channels;
+<a id='L170' name='L170'></a>   170 <em class='brace'>}</em>;
+<a id='L171' name='L171'></a>   171 
+<a id='L172' name='L172'></a>   172 <em class='comment'>/* Maximum of all sound file headers sizes.  */</em>
+<a id='L173' name='L173'></a>   173 
+<a id='L174' name='L174'></a>   174 <em class='sharp'>#define</em> <a href='../R/3642.html' title='Multiple referred from 3 places.'>MAX_SOUND_HEADER_BYTES</a> \
+<a id='L175' name='L175'></a>   175      <a href='../D/14320.html' title='Multiple defined in 11 places.'>max</a> (<strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L122' title='Defined at 122 in src/sound.c.'>wav_header</a>), <strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L142' title='Defined at 142 in src/sound.c.'>au_header</a>))
+<a id='L176' name='L176'></a>   176 
+<a id='L177' name='L177'></a>   177 <em class='comment'>/* Interface structure for sound devices.  */</em>
+<a id='L178' name='L178'></a>   178 
+<a id='L179' name='L179'></a>   179 <strong class='reserved'>struct</strong> <a href='../R/16249.html' title='Multiple referred from 27 places.'>sound_device</a>
+<a id='L180' name='L180'></a>   180 <em class='brace'>{</em>
+<a id='L181' name='L181'></a>   181   <em class='comment'>/* If a string, the name of the device; otherwise use a default.  */</em>
+<a id='L182' name='L182'></a>   182   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file;
+<a id='L183' name='L183'></a>   183 
+<a id='L184' name='L184'></a>   184   <em class='comment'>/* File descriptor of the device.  */</em>
+<a id='L185' name='L185'></a>   185   <strong class='reserved'>int</strong> fd;
+<a id='L186' name='L186'></a>   186 
+<a id='L187' name='L187'></a>   187   <em class='comment'>/* Device-dependent format.  */</em>
+<a id='L188' name='L188'></a>   188   <strong class='reserved'>int</strong> format;
+<a id='L189' name='L189'></a>   189 
+<a id='L190' name='L190'></a>   190   <em class='comment'>/* Volume (0..100).  Zero means unspecified.  */</em>
+<a id='L191' name='L191'></a>   191   <strong class='reserved'>int</strong> volume;
+<a id='L192' name='L192'></a>   192 
+<a id='L193' name='L193'></a>   193   <em class='comment'>/* Sample size.  */</em>
+<a id='L194' name='L194'></a>   194   <strong class='reserved'>int</strong> sample_size;
+<a id='L195' name='L195'></a>   195 
+<a id='L196' name='L196'></a>   196   <em class='comment'>/* Sample rate.  */</em>
+<a id='L197' name='L197'></a>   197   <strong class='reserved'>int</strong> sample_rate;
+<a id='L198' name='L198'></a>   198 
+<a id='L199' name='L199'></a>   199   <em class='comment'>/* Bytes per second.  */</em>
+<a id='L200' name='L200'></a>   200   <strong class='reserved'>int</strong> bps;
+<a id='L201' name='L201'></a>   201 
+<a id='L202' name='L202'></a>   202   <em class='comment'>/* 1 = mono, 2 = stereo, 0 = don't set.  */</em>
+<a id='L203' name='L203'></a>   203   <strong class='reserved'>int</strong> channels;
+<a id='L204' name='L204'></a>   204 
+<a id='L205' name='L205'></a>   205   <em class='comment'>/* Open device SD.  */</em>
+<a id='L206' name='L206'></a>   206   <strong class='reserved'>void</strong> (* <a href='../D/15122.html' title='Multiple defined in 11 places.'>open</a>) (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd);
+<a id='L207' name='L207'></a>   207 
+<a id='L208' name='L208'></a>   208   <em class='comment'>/* Close device SD.  */</em>
+<a id='L209' name='L209'></a>   209   <strong class='reserved'>void</strong> (* <a href='../D/9795.html' title='Multiple defined in 18 places.'>close</a>) (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd);
+<a id='L210' name='L210'></a>   210 
+<a id='L211' name='L211'></a>   211   <em class='comment'>/* Configure SD according to device-dependent parameters.  */</em>
+<a id='L212' name='L212'></a>   212   <strong class='reserved'>void</strong> (* configure) (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *device);
+<a id='L213' name='L213'></a>   213 
+<a id='L214' name='L214'></a>   214   <em class='comment'>/* Choose a device-dependent format for outputting sound S.  */</em>
+<a id='L215' name='L215'></a>   215   <strong class='reserved'>void</strong> (* choose_format) (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd,
+<a id='L216' name='L216'></a>   216                           <strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *s);
+<a id='L217' name='L217'></a>   217 
+<a id='L218' name='L218'></a>   218   <em class='comment'>/* Return a preferred data size in bytes to be sent to write (below)</em>
+<a id='L219' name='L219'></a>   219 <em class='comment'>     each time.  2048 is used if this is NULL.  */</em>
+<a id='L220' name='L220'></a>   220   ptrdiff_t (* period_size) (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd);
+<a id='L221' name='L221'></a>   221 
+<a id='L222' name='L222'></a>   222   <em class='comment'>/* Write NYBTES bytes from BUFFER to device SD.  */</em>
+<a id='L223' name='L223'></a>   223   <strong class='reserved'>void</strong> (* <a href='../D/19349.html' title='Multiple defined in 14 places.'>write</a>) (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>,
+<a id='L224' name='L224'></a>   224                   ptrdiff_t nbytes);
+<a id='L225' name='L225'></a>   225 
+<a id='L226' name='L226'></a>   226   <em class='comment'>/* A place for devices to store additional data.  */</em>
+<a id='L227' name='L227'></a>   227   <strong class='reserved'>void</strong> *data;
+<a id='L228' name='L228'></a>   228 <em class='brace'>}</em>;
+<a id='L229' name='L229'></a>   229 
+<a id='L230' name='L230'></a>   230 <em class='comment'>/* An enumerator for each supported sound file type.  */</em>
+<a id='L231' name='L231'></a>   231 
+<a id='L232' name='L232'></a>   232 <strong class='reserved'>enum</strong> <a href='../R/16251.html' title='Multiple referred from 13 places.'>sound_type</a>
+<a id='L233' name='L233'></a>   233 <em class='brace'>{</em>
+<a id='L234' name='L234'></a>   234   <a href='../R/4804.html' title='Multiple referred from 3 places.'>RIFF</a>,
+<a id='L235' name='L235'></a>   235   <a href='../R/5416.html' title='Multiple referred from 3 places.'>SUN_AUDIO</a>
+<a id='L236' name='L236'></a>   236 <em class='brace'>}</em>;
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238 <em class='comment'>/* Interface structure for sound files.  */</em>
+<a id='L239' name='L239'></a>   239 
+<a id='L240' name='L240'></a>   240 <strong class='reserved'>struct</strong> <a href='../R/16247.html' title='Multiple referred from 36 places.'>sound</a>
+<a id='L241' name='L241'></a>   241 <em class='brace'>{</em>
+<a id='L242' name='L242'></a>   242   <em class='comment'>/* The type of the file.  */</em>
+<a id='L243' name='L243'></a>   243   <strong class='reserved'>enum</strong> <a href='../S/2311.html#L232' title='Defined at 232 in src/sound.c.'>sound_type</a> type;
+<a id='L244' name='L244'></a>   244 
+<a id='L245' name='L245'></a>   245   <em class='comment'>/* File descriptor of a sound file.  */</em>
+<a id='L246' name='L246'></a>   246   <strong class='reserved'>int</strong> fd;
+<a id='L247' name='L247'></a>   247 
+<a id='L248' name='L248'></a>   248   <em class='comment'>/* Pointer to sound file header.  This contains header_size bytes</em>
+<a id='L249' name='L249'></a>   249 <em class='comment'>     read from the start of a sound file.  */</em>
+<a id='L250' name='L250'></a>   250   <strong class='reserved'>char</strong> *header;
+<a id='L251' name='L251'></a>   251 
+<a id='L252' name='L252'></a>   252   <em class='comment'>/* Number of bytes read from sound file.  This is always &lt;=</em>
+<a id='L253' name='L253'></a>   253 <em class='comment'>     MAX_SOUND_HEADER_BYTES.  */</em>
+<a id='L254' name='L254'></a>   254   <strong class='reserved'>int</strong> <a href='../D/13010.html' title='Multiple defined in 2 places.'>header_size</a>;
+<a id='L255' name='L255'></a>   255 
+<a id='L256' name='L256'></a>   256   <em class='comment'>/* Sound data, if a string.  */</em>
+<a id='L257' name='L257'></a>   257   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> data;
+<a id='L258' name='L258'></a>   258 
+<a id='L259' name='L259'></a>   259   <em class='comment'>/* Play sound file S on device SD.  */</em>
+<a id='L260' name='L260'></a>   260   <strong class='reserved'>void</strong> (* play) (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *s, <strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd);
+<a id='L261' name='L261'></a>   261 <em class='brace'>}</em>;
+<a id='L262' name='L262'></a>   262 
+<a id='L263' name='L263'></a>   263 <em class='comment'>/* These are set during `play-sound-internal' so that sound_cleanup has</em>
+<a id='L264' name='L264'></a>   264 <em class='comment'>   access to them.  */</em>
+<a id='L265' name='L265'></a>   265 
+<a id='L266' name='L266'></a>   266 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *current_sound_device;
+<a id='L267' name='L267'></a>   267 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *current_sound;
+<a id='L268' name='L268'></a>   268 
+<a id='L269' name='L269'></a>   269 <em class='comment'>/* Function prototypes.  */</em>
+<a id='L270' name='L270'></a>   270 
+<a id='L271' name='L271'></a>   271 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2311.html#L868' title='Defined at 868 in src/sound.c.'>vox_write</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *, ptrdiff_t);
+<a id='L272' name='L272'></a>   272 <strong class='reserved'>static</strong> <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> <a href='../S/2311.html#L508' title='Defined at 508 in src/sound.c.'>wav_init</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *);
+<a id='L273' name='L273'></a>   273 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2311.html#L543' title='Defined at 543 in src/sound.c.'>wav_play</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *, <strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *);
+<a id='L274' name='L274'></a>   274 <strong class='reserved'>static</strong> <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> <a href='../S/2311.html#L616' title='Defined at 616 in src/sound.c.'>au_init</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *);
+<a id='L275' name='L275'></a>   275 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2311.html#L642' title='Defined at 642 in src/sound.c.'>au_play</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *, <strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *);
+<a id='L276' name='L276'></a>   276 
+<a id='L277' name='L277'></a>   277 <em class='comment'>/* END: Non Windows Definitions */</em>
+<a id='L278' name='L278'></a>   278 <em class='sharp'>#else</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L279' name='L279'></a>   279 
+<a id='L280' name='L280'></a>   280 <em class='comment'>/* BEGIN: Windows Specific Definitions */</em>
+<a id='L281' name='L281'></a>   281 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../S/2311.html#L1226' title='Defined at 1226 in src/sound.c.'>do_play_sound</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *, <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong>);
+<a id='L282' name='L282'></a>   282 <em class='comment'>/*</em>
+<a id='L283' name='L283'></a>   283 <em class='comment'>  END: Windows Specific Definitions */</em>
+<a id='L284' name='L284'></a>   284 <em class='sharp'>#endif</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L285' name='L285'></a>   285 
+<a id='L286' name='L286'></a>   286 
+<a id='L287' name='L287'></a>   287 <em class='comment'>/***********************************************************************</em>
+<a id='L288' name='L288'></a>   288 <em class='comment'>                               General</em>
+<a id='L289' name='L289'></a>   289 <em class='comment'> ***********************************************************************/</em>
+<a id='L290' name='L290'></a>   290 
+<a id='L291' name='L291'></a>   291 <em class='comment'>/* BEGIN: Common functions */</em>
+<a id='L292' name='L292'></a>   292 
+<a id='L293' name='L293'></a>   293 <em class='sharp'>#ifndef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L294' name='L294'></a>   294 <em class='comment'>/* Like perror, but signals an error.  */</em>
+<a id='L295' name='L295'></a>   295 
+<a id='L296' name='L296'></a>   296 <strong class='reserved'>static</strong> <a href='../S/2267.html#L151' title='Defined at 151 in src/lisp.h.'>AVOID</a>
+<a id='L297' name='L297'></a>   297 <a href='../R/16250.html' title='Multiple referred from 9 places.'>sound_perror</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *msg)
+<a id='L298' name='L298'></a>   298 <em class='brace'>{</em>
+<a id='L299' name='L299'></a>   299   <strong class='reserved'>int</strong> saved_errno = errno;
+<a id='L300' name='L300'></a>   300 
+<a id='L301' name='L301'></a>   301   <a href='../S/2123.html#L470' title='Defined at 470 in src/atimer.c.'>turn_on_atimers</a> (1);
+<a id='L302' name='L302'></a>   302 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> (USABLE_SIGIO) || <strong class='reserved'>defined</strong> (USABLE_SIGPOLL)
+<a id='L303' name='L303'></a>   303   <em class='brace'>{</em>
+<a id='L304' name='L304'></a>   304     <a href='../D/17458.html' title='Multiple defined in 3 places.'>sigset_t</a> unblocked;
+<a id='L305' name='L305'></a>   305     <a href='../D/17440.html' title='Multiple defined in 4 places.'>sigemptyset</a> (&amp;unblocked);
+<a id='L306' name='L306'></a>   306 <em class='sharp'>#ifdef</em> USABLE_SIGIO
+<a id='L307' name='L307'></a>   307     <a href='../D/17437.html' title='Multiple defined in 4 places.'>sigaddset</a> (&amp;unblocked, SIGIO);
+<a id='L308' name='L308'></a>   308 <em class='sharp'>#else</em>
+<a id='L309' name='L309'></a>   309     <a href='../D/17437.html' title='Multiple defined in 4 places.'>sigaddset</a> (&amp;unblocked, SIGPOLL);
+<a id='L310' name='L310'></a>   310 <em class='sharp'>#endif</em>
+<a id='L311' name='L311'></a>   311     <a href='../D/15857.html' title='Multiple defined in 6 places.'>pthread_sigmask</a> (<a href='../D/5833.html' title='Multiple defined in 2 places.'>SIG_UNBLOCK</a>, &amp;unblocked, 0);
+<a id='L312' name='L312'></a>   312   <em class='brace'>}</em>
+<a id='L313' name='L313'></a>   313 <em class='sharp'>#endif</em>
+<a id='L314' name='L314'></a>   314   <strong class='reserved'>if</strong> (saved_errno != 0)
+<a id='L315' name='L315'></a>   315     <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("%s: %s", msg, <a href='../S/2340.html#L3323' title='Defined at 3323 in src/emacs.c.'>emacs_strerror</a> (saved_errno));
+<a id='L316' name='L316'></a>   316   <strong class='reserved'>else</strong>
+<a id='L317' name='L317'></a>   317     <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("%s", msg);
+<a id='L318' name='L318'></a>   318 <em class='brace'>}</em>
+<a id='L319' name='L319'></a>   319 
+<a id='L320' name='L320'></a>   320 <em class='comment'>/* Display a warning message.  */</em>
+<a id='L321' name='L321'></a>   321 
+<a id='L322' name='L322'></a>   322 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L323' name='L323'></a>   323 <a href='../S/2311.html#L743' title='Referred from 743 in src/sound.c.'>sound_warning</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *msg)
+<a id='L324' name='L324'></a>   324 <em class='brace'>{</em>
+<a id='L325' name='L325'></a>   325   <a href='../S/2224.html#L12122' title='Defined at 12122 in src/xdisp.c.'>message1</a> (msg);
+<a id='L326' name='L326'></a>   326 <em class='brace'>}</em>
+<a id='L327' name='L327'></a>   327 <em class='sharp'>#endif</em>  <em class='comment'>/* !WINDOWSNT */</em>
+<a id='L328' name='L328'></a>   328 
+<a id='L329' name='L329'></a>   329 
+<a id='L330' name='L330'></a>   330 <em class='comment'>/* Parse sound specification SOUND, and fill ATTRS with what is</em>
+<a id='L331' name='L331'></a>   331 <em class='comment'>   found.  Value is non-zero if SOUND Is a valid sound specification.</em>
+<a id='L332' name='L332'></a>   332 <em class='comment'>   A valid sound specification is a list starting with the symbol</em>
+<a id='L333' name='L333'></a>   333 <em class='comment'>   `sound'.  The rest of the list is a property list which may</em>
+<a id='L334' name='L334'></a>   334 <em class='comment'>   contain the following key/value pairs:</em>
+<a id='L335' name='L335'></a>   335 <em class='comment'></em>
+<a id='L336' name='L336'></a>   336 <em class='comment'>   - `:file FILE'</em>
+<a id='L337' name='L337'></a>   337 <em class='comment'></em>
+<a id='L338' name='L338'></a>   338 <em class='comment'>   FILE is the sound file to play.  If it isn't an absolute name,</em>
+<a id='L339' name='L339'></a>   339 <em class='comment'>   it's searched under `data-directory'.</em>
+<a id='L340' name='L340'></a>   340 <em class='comment'></em>
+<a id='L341' name='L341'></a>   341 <em class='comment'>   - `:data DATA'</em>
+<a id='L342' name='L342'></a>   342 <em class='comment'></em>
+<a id='L343' name='L343'></a>   343 <em class='comment'>   DATA is a string containing sound data.  Either :file or :data</em>
+<a id='L344' name='L344'></a>   344 <em class='comment'>   may be present, but not both.</em>
+<a id='L345' name='L345'></a>   345 <em class='comment'></em>
+<a id='L346' name='L346'></a>   346 <em class='comment'>   - `:device DEVICE'</em>
+<a id='L347' name='L347'></a>   347 <em class='comment'></em>
+<a id='L348' name='L348'></a>   348 <em class='comment'>   DEVICE is the name of the device to play on, e.g. "/dev/dsp2".</em>
+<a id='L349' name='L349'></a>   349 <em class='comment'>   If not specified, a default device is used.</em>
+<a id='L350' name='L350'></a>   350 <em class='comment'></em>
+<a id='L351' name='L351'></a>   351 <em class='comment'>   - `:volume VOL'</em>
+<a id='L352' name='L352'></a>   352 <em class='comment'></em>
+<a id='L353' name='L353'></a>   353 <em class='comment'>   VOL must be an integer in the range [0, 100], or a float in the</em>
+<a id='L354' name='L354'></a>   354 <em class='comment'>   range [0, 1].  */</em>
+<a id='L355' name='L355'></a>   355 
+<a id='L356' name='L356'></a>   356 <strong class='reserved'>static</strong> <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L357' name='L357'></a>   357 <a href='../S/2311.html#L1370' title='Referred from 1370 in src/sound.c.'>parse_sound</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *attrs)
+<a id='L358' name='L358'></a>   358 <em class='brace'>{</em>
+<a id='L359' name='L359'></a>   359   <em class='comment'>/* SOUND must be a list starting with the symbol `sound'.  */</em>
+<a id='L360' name='L360'></a>   360   <strong class='reserved'>if</strong> (!<a href='../D/1228.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>) || !<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/7020.html' title='Multiple defined in 2 places.'>XCAR</a> (<a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>), Qsound))
+<a id='L361' name='L361'></a>   361     <strong class='reserved'>return</strong> 0;
+<a id='L362' name='L362'></a>   362 
+<a id='L363' name='L363'></a>   363   <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> = <a href='../D/7021.html' title='Multiple defined in 2 places.'>XCDR</a> (<a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>);
+<a id='L364' name='L364'></a>   364   attrs[<a href='../S/2311.html#L102' title='Defined at 102 in src/sound.c.'>SOUND_FILE</a>] = <a href='../S/2320.html#L2527' title='Defined at 2527 in src/fns.c.'>plist_get</a> (<a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>, QCfile);
+<a id='L365' name='L365'></a>   365   attrs[<a href='../S/2311.html#L103' title='Defined at 103 in src/sound.c.'>SOUND_DATA</a>] = <a href='../S/2320.html#L2527' title='Defined at 2527 in src/fns.c.'>plist_get</a> (<a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>, QCdata);
+<a id='L366' name='L366'></a>   366   attrs[<a href='../S/2311.html#L104' title='Defined at 104 in src/sound.c.'>SOUND_DEVICE</a>] = <a href='../S/2320.html#L2527' title='Defined at 2527 in src/fns.c.'>plist_get</a> (<a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>, QCdevice);
+<a id='L367' name='L367'></a>   367   attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>] = <a href='../S/2320.html#L2527' title='Defined at 2527 in src/fns.c.'>plist_get</a> (<a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>, QCvolume);
+<a id='L368' name='L368'></a>   368 
+<a id='L369' name='L369'></a>   369 <em class='sharp'>#ifndef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L370' name='L370'></a>   370   <em class='comment'>/* File name or data must be specified.  */</em>
+<a id='L371' name='L371'></a>   371   <strong class='reserved'>if</strong> (!<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (attrs[<a href='../S/2311.html#L102' title='Defined at 102 in src/sound.c.'>SOUND_FILE</a>])
+<a id='L372' name='L372'></a>   372       &amp;&amp; !<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (attrs[<a href='../S/2311.html#L103' title='Defined at 103 in src/sound.c.'>SOUND_DATA</a>]))
+<a id='L373' name='L373'></a>   373     <strong class='reserved'>return</strong> 0;
+<a id='L374' name='L374'></a>   374 <em class='sharp'>#else</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L375' name='L375'></a>   375   <em class='comment'>/*</em>
+<a id='L376' name='L376'></a>   376 <em class='comment'>    Data is not supported in Windows.  Therefore a</em>
+<a id='L377' name='L377'></a>   377 <em class='comment'>    File name MUST be supplied.</em>
+<a id='L378' name='L378'></a>   378 <em class='comment'>  */</em>
+<a id='L379' name='L379'></a>   379   <strong class='reserved'>if</strong> (!<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (attrs[<a href='../S/2311.html#L102' title='Defined at 102 in src/sound.c.'>SOUND_FILE</a>]))
+<a id='L380' name='L380'></a>   380     <em class='brace'>{</em>
+<a id='L381' name='L381'></a>   381       <strong class='reserved'>return</strong> 0;
+<a id='L382' name='L382'></a>   382     <em class='brace'>}</em>
+<a id='L383' name='L383'></a>   383 <em class='sharp'>#endif</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L384' name='L384'></a>   384 
+<a id='L385' name='L385'></a>   385   <em class='comment'>/* Volume must be in the range 0..100 or unspecified.  */</em>
+<a id='L386' name='L386'></a>   386   <strong class='reserved'>if</strong> (!<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]))
+<a id='L387' name='L387'></a>   387     <em class='brace'>{</em>
+<a id='L388' name='L388'></a>   388       <strong class='reserved'>if</strong> (<a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]))
+<a id='L389' name='L389'></a>   389         <em class='brace'>{</em>
+<a id='L390' name='L390'></a>   390           <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> volume = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]);
+<a id='L391' name='L391'></a>   391           <strong class='reserved'>if</strong> (! (0 &lt;= volume &amp;&amp; volume &lt;= 100))
+<a id='L392' name='L392'></a>   392             <strong class='reserved'>return</strong> 0;
+<a id='L393' name='L393'></a>   393         <em class='brace'>}</em>
+<a id='L394' name='L394'></a>   394       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/2123.html' title='Multiple defined in 2 places.'>FLOATP</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]))
+<a id='L395' name='L395'></a>   395         <em class='brace'>{</em>
+<a id='L396' name='L396'></a>   396           <strong class='reserved'>double</strong> volume = <a href='../D/7089.html' title='Multiple defined in 2 places.'>XFLOAT_DATA</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]);
+<a id='L397' name='L397'></a>   397           <strong class='reserved'>if</strong> (! (0 &lt;= volume &amp;&amp; volume &lt;= 1))
+<a id='L398' name='L398'></a>   398             <strong class='reserved'>return</strong> 0;
+<a id='L399' name='L399'></a>   399         <em class='brace'>}</em>
+<a id='L400' name='L400'></a>   400       <strong class='reserved'>else</strong>
+<a id='L401' name='L401'></a>   401         <strong class='reserved'>return</strong> 0;
+<a id='L402' name='L402'></a>   402     <em class='brace'>}</em>
+<a id='L403' name='L403'></a>   403 
+<a id='L404' name='L404'></a>   404 <em class='sharp'>#ifndef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L405' name='L405'></a>   405   <em class='comment'>/* Device must be a string or unspecified.  */</em>
+<a id='L406' name='L406'></a>   406   <strong class='reserved'>if</strong> (!<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (attrs[<a href='../S/2311.html#L104' title='Defined at 104 in src/sound.c.'>SOUND_DEVICE</a>])
+<a id='L407' name='L407'></a>   407       &amp;&amp; !<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (attrs[<a href='../S/2311.html#L104' title='Defined at 104 in src/sound.c.'>SOUND_DEVICE</a>]))
+<a id='L408' name='L408'></a>   408     <strong class='reserved'>return</strong> 0;
+<a id='L409' name='L409'></a>   409 <em class='sharp'>#endif</em>  <em class='comment'>/* WINDOWSNT */</em>
+<a id='L410' name='L410'></a>   410   <em class='comment'>/*</em>
+<a id='L411' name='L411'></a>   411 <em class='comment'>    Since device is ignored in Windows, it does not matter</em>
+<a id='L412' name='L412'></a>   412 <em class='comment'>    what it is.</em>
+<a id='L413' name='L413'></a>   413 <em class='comment'>   */</em>
+<a id='L414' name='L414'></a>   414   <strong class='reserved'>return</strong> 1;
+<a id='L415' name='L415'></a>   415 <em class='brace'>}</em>
+<a id='L416' name='L416'></a>   416 
+<a id='L417' name='L417'></a>   417 <em class='comment'>/* END: Common functions */</em>
+<a id='L418' name='L418'></a>   418 
+<a id='L419' name='L419'></a>   419 <em class='comment'>/* BEGIN: Non Windows functions */</em>
+<a id='L420' name='L420'></a>   420 <em class='sharp'>#ifndef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L421' name='L421'></a>   421 
+<a id='L422' name='L422'></a>   422 <em class='comment'>/* Return S's value as a string if S is a string, otherwise DEFAULT_VALUE.  */</em>
+<a id='L423' name='L423'></a>   423 
+<a id='L424' name='L424'></a>   424 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *
+<a id='L425' name='L425'></a>   425 <a href='../R/16443.html' title='Multiple referred from 5 places.'>string_default</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> s, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../S/2167.html#L1887' title='Defined at 1887 in src/data.c.'>default_value</a>)
+<a id='L426' name='L426'></a>   426 <em class='brace'>{</em>
+<a id='L427' name='L427'></a>   427   <strong class='reserved'>return</strong> <a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (s) ? <a href='../D/5916.html' title='Multiple defined in 2 places.'>SSDATA</a> (s) : <a href='../S/2167.html#L1887' title='Defined at 1887 in src/data.c.'>default_value</a>;
+<a id='L428' name='L428'></a>   428 <em class='brace'>}</em>
+<a id='L429' name='L429'></a>   429 
+<a id='L430' name='L430'></a>   430 
+<a id='L431' name='L431'></a>   431 <em class='comment'>/* Find out the type of the sound file whose file descriptor is FD.</em>
+<a id='L432' name='L432'></a>   432 <em class='comment'>   S is the sound file structure to fill in.  */</em>
+<a id='L433' name='L433'></a>   433 
+<a id='L434' name='L434'></a>   434 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L435' name='L435'></a>   435 <a href='../S/2311.html#L1407' title='Referred from 1407 in src/sound.c.'>find_sound_type</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *s)
+<a id='L436' name='L436'></a>   436 <em class='brace'>{</em>
+<a id='L437' name='L437'></a>   437   <strong class='reserved'>if</strong> (!<a href='../S/2311.html#L508' title='Defined at 508 in src/sound.c.'>wav_init</a> (s) &amp;&amp; !<a href='../S/2311.html#L616' title='Defined at 616 in src/sound.c.'>au_init</a> (s))
+<a id='L438' name='L438'></a>   438     <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Unknown sound format");
+<a id='L439' name='L439'></a>   439 <em class='brace'>}</em>
+<a id='L440' name='L440'></a>   440 
+<a id='L441' name='L441'></a>   441 
+<a id='L442' name='L442'></a>   442 <em class='comment'>/* Function installed by play-sound-internal with record_unwind_protect_void.  */</em>
+<a id='L443' name='L443'></a>   443 
+<a id='L444' name='L444'></a>   444 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L445' name='L445'></a>   445 <a href='../S/2311.html#L1378' title='Referred from 1378 in src/sound.c.'>sound_cleanup</a> (<strong class='reserved'>void</strong>)
+<a id='L446' name='L446'></a>   446 <em class='brace'>{</em>
+<a id='L447' name='L447'></a>   447   <strong class='reserved'>if</strong> (current_sound_device-&gt;<a href='../D/9795.html' title='Multiple defined in 18 places.'>close</a>)
+<a id='L448' name='L448'></a>   448     current_sound_device-&gt;<a href='../D/9795.html' title='Multiple defined in 18 places.'>close</a> (current_sound_device);
+<a id='L449' name='L449'></a>   449   <strong class='reserved'>if</strong> (current_sound-&gt;fd &gt; 0)
+<a id='L450' name='L450'></a>   450     <a href='../S/2286.html#L2607' title='Defined at 2607 in src/sysdep.c.'>emacs_close</a> (current_sound-&gt;fd);
+<a id='L451' name='L451'></a>   451   <a href='../D/19805.html' title='Multiple defined in 3 places.'>xfree</a> (current_sound_device);
+<a id='L452' name='L452'></a>   452   <a href='../D/19805.html' title='Multiple defined in 3 places.'>xfree</a> (current_sound);
+<a id='L453' name='L453'></a>   453 <em class='brace'>}</em>
+<a id='L454' name='L454'></a>   454 
+<a id='L455' name='L455'></a>   455 <em class='comment'>/***********************************************************************</em>
+<a id='L456' name='L456'></a>   456 <em class='comment'>                        Byte-order Conversion</em>
+<a id='L457' name='L457'></a>   457 <em class='comment'> ***********************************************************************/</em>
+<a id='L458' name='L458'></a>   458 
+<a id='L459' name='L459'></a>   459 <em class='comment'>/* Convert 32-bit value VALUE which is in little-endian byte-order</em>
+<a id='L460' name='L460'></a>   460 <em class='comment'>   to host byte-order.  */</em>
+<a id='L461' name='L461'></a>   461 
+<a id='L462' name='L462'></a>   462 <strong class='reserved'>static</strong> u_int32_t
+<a id='L463' name='L463'></a>   463 <a href='../R/12609.html' title='Multiple referred from 9 places.'>le2hl</a> (u_int32_t <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
+<a id='L464' name='L464'></a>   464 <em class='brace'>{</em>
+<a id='L465' name='L465'></a>   465 <em class='sharp'>#ifdef</em> <a href='../D/6941.html' title='Multiple defined in 2 places.'>WORDS_BIGENDIAN</a>
+<a id='L466' name='L466'></a>   466   <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = <a href='../D/9373.html' title='Multiple defined in 2 places.'>bswap_32</a> (<a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
+<a id='L467' name='L467'></a>   467 <em class='sharp'>#endif</em>
+<a id='L468' name='L468'></a>   468   <strong class='reserved'>return</strong> <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
+<a id='L469' name='L469'></a>   469 <em class='brace'>}</em>
+<a id='L470' name='L470'></a>   470 
+<a id='L471' name='L471'></a>   471 
+<a id='L472' name='L472'></a>   472 <em class='comment'>/* Convert 16-bit value VALUE which is in little-endian byte-order</em>
+<a id='L473' name='L473'></a>   473 <em class='comment'>   to host byte-order.  */</em>
+<a id='L474' name='L474'></a>   474 
+<a id='L475' name='L475'></a>   475 <strong class='reserved'>static</strong> u_int16_t
+<a id='L476' name='L476'></a>   476 <a href='../R/12610.html' title='Multiple referred from 4 places.'>le2hs</a> (u_int16_t <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
+<a id='L477' name='L477'></a>   477 <em class='brace'>{</em>
+<a id='L478' name='L478'></a>   478 <em class='sharp'>#ifdef</em> <a href='../D/6941.html' title='Multiple defined in 2 places.'>WORDS_BIGENDIAN</a>
+<a id='L479' name='L479'></a>   479   <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = <a href='../S/2893.html#L23' title='Defined at 23 in lib/byteswap.in.h.'>bswap_16</a> (<a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
+<a id='L480' name='L480'></a>   480 <em class='sharp'>#endif</em>
+<a id='L481' name='L481'></a>   481   <strong class='reserved'>return</strong> <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
+<a id='L482' name='L482'></a>   482 <em class='brace'>}</em>
+<a id='L483' name='L483'></a>   483 
+<a id='L484' name='L484'></a>   484 
+<a id='L485' name='L485'></a>   485 <em class='comment'>/* Convert 32-bit value VALUE which is in big-endian byte-order</em>
+<a id='L486' name='L486'></a>   486 <em class='comment'>   to host byte-order.  */</em>
+<a id='L487' name='L487'></a>   487 
+<a id='L488' name='L488'></a>   488 <strong class='reserved'>static</strong> u_int32_t
+<a id='L489' name='L489'></a>   489 <a href='../R/8152.html' title='Multiple referred from 6 places.'>be2hl</a> (u_int32_t <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
+<a id='L490' name='L490'></a>   490 <em class='brace'>{</em>
+<a id='L491' name='L491'></a>   491 <em class='sharp'>#ifndef</em> <a href='../D/6941.html' title='Multiple defined in 2 places.'>WORDS_BIGENDIAN</a>
+<a id='L492' name='L492'></a>   492   <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = <a href='../D/9373.html' title='Multiple defined in 2 places.'>bswap_32</a> (<a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
+<a id='L493' name='L493'></a>   493 <em class='sharp'>#endif</em>
+<a id='L494' name='L494'></a>   494   <strong class='reserved'>return</strong> <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
+<a id='L495' name='L495'></a>   495 <em class='brace'>}</em>
+<a id='L496' name='L496'></a>   496 
+<a id='L497' name='L497'></a>   497 <em class='comment'>/***********************************************************************</em>
+<a id='L498' name='L498'></a>   498 <em class='comment'>                          RIFF-WAVE (*.wav)</em>
+<a id='L499' name='L499'></a>   499 <em class='comment'> ***********************************************************************/</em>
+<a id='L500' name='L500'></a>   500 
+<a id='L501' name='L501'></a>   501 <em class='comment'>/* Try to initialize sound file S from S-&gt;header.  S-&gt;header</em>
+<a id='L502' name='L502'></a>   502 <em class='comment'>   contains the first MAX_SOUND_HEADER_BYTES number of bytes from the</em>
+<a id='L503' name='L503'></a>   503 <em class='comment'>   sound file.  If the file is a WAV-format file, set up interface</em>
+<a id='L504' name='L504'></a>   504 <em class='comment'>   functions in S and convert header fields to host byte-order.</em>
+<a id='L505' name='L505'></a>   505 <em class='comment'>   Value is true if the file is a WAV file.  */</em>
+<a id='L506' name='L506'></a>   506 
+<a id='L507' name='L507'></a>   507 <strong class='reserved'>static</strong> <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L508' name='L508'></a>   508 <a href='../R/17873.html' title='Multiple referred from 2 places.'>wav_init</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *s)
+<a id='L509' name='L509'></a>   509 <em class='brace'>{</em>
+<a id='L510' name='L510'></a>   510   <strong class='reserved'>struct</strong> <a href='../S/2311.html#L122' title='Defined at 122 in src/sound.c.'>wav_header</a> *header = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L122' title='Defined at 122 in src/sound.c.'>wav_header</a> *) s-&gt;header;
+<a id='L511' name='L511'></a>   511 
+<a id='L512' name='L512'></a>   512   <strong class='reserved'>if</strong> (s-&gt;<a href='../D/13010.html' title='Multiple defined in 2 places.'>header_size</a> &lt; <strong class='reserved'>sizeof</strong> *header
+<a id='L513' name='L513'></a>   513       || memcmp (s-&gt;header, "RIFF", 4) != 0)
+<a id='L514' name='L514'></a>   514     <strong class='reserved'>return</strong> 0;
+<a id='L515' name='L515'></a>   515 
+<a id='L516' name='L516'></a>   516   <em class='comment'>/* WAV files are in little-endian order.  Convert the header</em>
+<a id='L517' name='L517'></a>   517 <em class='comment'>     if on a big-endian machine.  */</em>
+<a id='L518' name='L518'></a>   518   header-&gt;magic = <a href='../S/2311.html#L463' title='Defined at 463 in src/sound.c.'>le2hl</a> (header-&gt;magic);
+<a id='L519' name='L519'></a>   519   header-&gt;length = <a href='../S/2311.html#L463' title='Defined at 463 in src/sound.c.'>le2hl</a> (header-&gt;length);
+<a id='L520' name='L520'></a>   520   header-&gt;chunk_type = <a href='../S/2311.html#L463' title='Defined at 463 in src/sound.c.'>le2hl</a> (header-&gt;chunk_type);
+<a id='L521' name='L521'></a>   521   header-&gt;chunk_format = <a href='../S/2311.html#L463' title='Defined at 463 in src/sound.c.'>le2hl</a> (header-&gt;chunk_format);
+<a id='L522' name='L522'></a>   522   header-&gt;chunk_length = <a href='../S/2311.html#L463' title='Defined at 463 in src/sound.c.'>le2hl</a> (header-&gt;chunk_length);
+<a id='L523' name='L523'></a>   523   header-&gt;format = <a href='../S/2311.html#L476' title='Defined at 476 in src/sound.c.'>le2hs</a> (header-&gt;format);
+<a id='L524' name='L524'></a>   524   header-&gt;channels = <a href='../S/2311.html#L476' title='Defined at 476 in src/sound.c.'>le2hs</a> (header-&gt;channels);
+<a id='L525' name='L525'></a>   525   header-&gt;sample_rate = <a href='../S/2311.html#L463' title='Defined at 463 in src/sound.c.'>le2hl</a> (header-&gt;sample_rate);
+<a id='L526' name='L526'></a>   526   header-&gt;bytes_per_second = <a href='../S/2311.html#L463' title='Defined at 463 in src/sound.c.'>le2hl</a> (header-&gt;bytes_per_second);
+<a id='L527' name='L527'></a>   527   header-&gt;sample_size = <a href='../S/2311.html#L476' title='Defined at 476 in src/sound.c.'>le2hs</a> (header-&gt;sample_size);
+<a id='L528' name='L528'></a>   528   header-&gt;precision = <a href='../S/2311.html#L476' title='Defined at 476 in src/sound.c.'>le2hs</a> (header-&gt;precision);
+<a id='L529' name='L529'></a>   529   header-&gt;chunk_data = <a href='../S/2311.html#L463' title='Defined at 463 in src/sound.c.'>le2hl</a> (header-&gt;chunk_data);
+<a id='L530' name='L530'></a>   530   header-&gt;data_length = <a href='../S/2311.html#L463' title='Defined at 463 in src/sound.c.'>le2hl</a> (header-&gt;data_length);
+<a id='L531' name='L531'></a>   531 
+<a id='L532' name='L532'></a>   532   <em class='comment'>/* Set up the interface functions for WAV.  */</em>
+<a id='L533' name='L533'></a>   533   s-&gt;type = <a href='../S/2311.html#L234' title='Defined at 234 in src/sound.c.'>RIFF</a>;
+<a id='L534' name='L534'></a>   534   s-&gt;play = <a href='../S/2311.html#L543' title='Defined at 543 in src/sound.c.'>wav_play</a>;
+<a id='L535' name='L535'></a>   535 
+<a id='L536' name='L536'></a>   536   <strong class='reserved'>return</strong> 1;
+<a id='L537' name='L537'></a>   537 <em class='brace'>}</em>
+<a id='L538' name='L538'></a>   538 
+<a id='L539' name='L539'></a>   539 
+<a id='L540' name='L540'></a>   540 <em class='comment'>/* Play RIFF-WAVE audio file S on sound device SD.  */</em>
+<a id='L541' name='L541'></a>   541 
+<a id='L542' name='L542'></a>   542 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L543' name='L543'></a>   543 <a href='../R/17874.html' title='Multiple referred from 2 places.'>wav_play</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *s, <strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L544' name='L544'></a>   544 <em class='brace'>{</em>
+<a id='L545' name='L545'></a>   545   <strong class='reserved'>struct</strong> <a href='../S/2311.html#L122' title='Defined at 122 in src/sound.c.'>wav_header</a> *header = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L122' title='Defined at 122 in src/sound.c.'>wav_header</a> *) s-&gt;header;
+<a id='L546' name='L546'></a>   546 
+<a id='L547' name='L547'></a>   547   <em class='comment'>/* Let the device choose a suitable device-dependent format</em>
+<a id='L548' name='L548'></a>   548 <em class='comment'>     for the file.  */</em>
+<a id='L549' name='L549'></a>   549   sd-&gt;choose_format (sd, s);
+<a id='L550' name='L550'></a>   550 
+<a id='L551' name='L551'></a>   551   <em class='comment'>/* Configure the device.  */</em>
+<a id='L552' name='L552'></a>   552   sd-&gt;sample_size = header-&gt;sample_size;
+<a id='L553' name='L553'></a>   553   sd-&gt;sample_rate = header-&gt;sample_rate;
+<a id='L554' name='L554'></a>   554   sd-&gt;bps = header-&gt;bytes_per_second;
+<a id='L555' name='L555'></a>   555   sd-&gt;channels = header-&gt;channels;
+<a id='L556' name='L556'></a>   556   sd-&gt;configure (sd);
+<a id='L557' name='L557'></a>   557 
+<a id='L558' name='L558'></a>   558   <em class='comment'>/* Copy sound data to the device.  The WAV file specification is</em>
+<a id='L559' name='L559'></a>   559 <em class='comment'>     actually more complex.  This simple scheme worked with all WAV</em>
+<a id='L560' name='L560'></a>   560 <em class='comment'>     files I found so far.  If someone feels inclined to implement the</em>
+<a id='L561' name='L561'></a>   561 <em class='comment'>     whole RIFF-WAVE spec, please do.  */</em>
+<a id='L562' name='L562'></a>   562   <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (s-&gt;data))
+<a id='L563' name='L563'></a>   563     sd-&gt;<a href='../D/19349.html' title='Multiple defined in 14 places.'>write</a> (sd, <a href='../D/5916.html' title='Multiple defined in 2 places.'>SSDATA</a> (s-&gt;data) + <strong class='reserved'>sizeof</strong> *header,
+<a id='L564' name='L564'></a>   564                <a href='../D/5430.html' title='Multiple defined in 2 places.'>SBYTES</a> (s-&gt;data) - <strong class='reserved'>sizeof</strong> *header);
+<a id='L565' name='L565'></a>   565   <strong class='reserved'>else</strong>
+<a id='L566' name='L566'></a>   566     <em class='brace'>{</em>
+<a id='L567' name='L567'></a>   567       ptrdiff_t nbytes = 0;
+<a id='L568' name='L568'></a>   568       ptrdiff_t blksize = sd-&gt;period_size ? sd-&gt;period_size (sd) : 2048;
+<a id='L569' name='L569'></a>   569       ptrdiff_t data_left = header-&gt;data_length;
+<a id='L570' name='L570'></a>   570       <a href='../D/6612.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L571' name='L571'></a>   571       <strong class='reserved'>char</strong> *<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = <a href='../D/5388.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (blksize);
+<a id='L572' name='L572'></a>   572       <a href='../D/14001.html' title='Multiple defined in 7 places.'>lseek</a> (s-&gt;fd, <strong class='reserved'>sizeof</strong> *header, SEEK_SET);
+<a id='L573' name='L573'></a>   573       <strong class='reserved'>while</strong> (data_left &gt; 0
+<a id='L574' name='L574'></a>   574              &amp;&amp; (nbytes = <a href='../S/2286.html#L2700' title='Defined at 2700 in src/sysdep.c.'>emacs_read</a> (s-&gt;fd, <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, blksize)) &gt; 0)
+<a id='L575' name='L575'></a>   575         <em class='brace'>{</em>
+<a id='L576' name='L576'></a>   576           <em class='comment'>/* Don't play possible garbage at the end of file */</em>
+<a id='L577' name='L577'></a>   577           <strong class='reserved'>if</strong> (data_left &lt; nbytes) nbytes = data_left;
+<a id='L578' name='L578'></a>   578           data_left -= nbytes;
+<a id='L579' name='L579'></a>   579           sd-&gt;<a href='../D/19349.html' title='Multiple defined in 14 places.'>write</a> (sd, <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, nbytes);
+<a id='L580' name='L580'></a>   580         <em class='brace'>}</em>
+<a id='L581' name='L581'></a>   581 
+<a id='L582' name='L582'></a>   582       <strong class='reserved'>if</strong> (nbytes &lt; 0)
+<a id='L583' name='L583'></a>   583         <a href='../S/2311.html#L297' title='Defined at 297 in src/sound.c.'>sound_perror</a> ("Error reading sound file");
+<a id='L584' name='L584'></a>   584       <a href='../D/5393.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L585' name='L585'></a>   585     <em class='brace'>}</em>
+<a id='L586' name='L586'></a>   586 <em class='brace'>}</em>
+<a id='L587' name='L587'></a>   587 
+<a id='L588' name='L588'></a>   588 
+<a id='L589' name='L589'></a>   589 <em class='comment'>/***********************************************************************</em>
+<a id='L590' name='L590'></a>   590 <em class='comment'>                           Sun Audio (*.au)</em>
+<a id='L591' name='L591'></a>   591 <em class='comment'> ***********************************************************************/</em>
+<a id='L592' name='L592'></a>   592 
+<a id='L593' name='L593'></a>   593 <em class='comment'>/* Sun audio file encodings.  */</em>
+<a id='L594' name='L594'></a>   594 
+<a id='L595' name='L595'></a>   595 <strong class='reserved'>enum</strong> au_encoding
+<a id='L596' name='L596'></a>   596 <em class='brace'>{</em>
+<a id='L597' name='L597'></a>   597   <a href='../R/278.html' title='Multiple referred from 2 places.'>AU_ENCODING_ULAW_8</a> = 1,
+<a id='L598' name='L598'></a>   598   <a href='../R/274.html' title='Multiple referred from 2 places.'>AU_ENCODING_8</a>,
+<a id='L599' name='L599'></a>   599   <a href='../R/271.html' title='Multiple referred from 2 places.'>AU_ENCODING_16</a>,
+<a id='L600' name='L600'></a>   600   <a href='../R/272.html' title='Multiple referred from 2 places.'>AU_ENCODING_24</a>,
+<a id='L601' name='L601'></a>   601   <a href='../R/273.html' title='Multiple referred from 2 places.'>AU_ENCODING_32</a>,
+<a id='L602' name='L602'></a>   602   <a href='../R/276.html' title='Multiple referred from 2 places.'>AU_ENCODING_IEEE32</a>,
+<a id='L603' name='L603'></a>   603   <a href='../R/277.html' title='Multiple referred from 2 places.'>AU_ENCODING_IEEE64</a>,
+<a id='L604' name='L604'></a>   604   AU_COMPRESSED = 23,
+<a id='L605' name='L605'></a>   605   <a href='../S/2311.html#L1092' title='Referred from 1092 in src/sound.c.'>AU_ENCODING_ALAW_8</a> = 27
+<a id='L606' name='L606'></a>   606 <em class='brace'>}</em>;
+<a id='L607' name='L607'></a>   607 
+<a id='L608' name='L608'></a>   608 
+<a id='L609' name='L609'></a>   609 <em class='comment'>/* Try to initialize sound file S from S-&gt;header.  S-&gt;header</em>
+<a id='L610' name='L610'></a>   610 <em class='comment'>   contains the first MAX_SOUND_HEADER_BYTES number of bytes from the</em>
+<a id='L611' name='L611'></a>   611 <em class='comment'>   sound file.  If the file is a AU-format file, set up interface</em>
+<a id='L612' name='L612'></a>   612 <em class='comment'>   functions in S and convert header fields to host byte-order.</em>
+<a id='L613' name='L613'></a>   613 <em class='comment'>   Value is true if the file is an AU file.  */</em>
+<a id='L614' name='L614'></a>   614 
+<a id='L615' name='L615'></a>   615 <strong class='reserved'>static</strong> <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L616' name='L616'></a>   616 <a href='../R/8103.html' title='Multiple referred from 2 places.'>au_init</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *s)
+<a id='L617' name='L617'></a>   617 <em class='brace'>{</em>
+<a id='L618' name='L618'></a>   618   <strong class='reserved'>struct</strong> <a href='../S/2311.html#L142' title='Defined at 142 in src/sound.c.'>au_header</a> *header = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L142' title='Defined at 142 in src/sound.c.'>au_header</a> *) s-&gt;header;
+<a id='L619' name='L619'></a>   619 
+<a id='L620' name='L620'></a>   620   <strong class='reserved'>if</strong> (s-&gt;<a href='../D/13010.html' title='Multiple defined in 2 places.'>header_size</a> &lt; <strong class='reserved'>sizeof</strong> *header
+<a id='L621' name='L621'></a>   621       || memcmp (s-&gt;header, ".snd", 4) != 0)
+<a id='L622' name='L622'></a>   622     <strong class='reserved'>return</strong> 0;
+<a id='L623' name='L623'></a>   623 
+<a id='L624' name='L624'></a>   624   header-&gt;magic_number = <a href='../S/2311.html#L489' title='Defined at 489 in src/sound.c.'>be2hl</a> (header-&gt;magic_number);
+<a id='L625' name='L625'></a>   625   header-&gt;data_offset = <a href='../S/2311.html#L489' title='Defined at 489 in src/sound.c.'>be2hl</a> (header-&gt;data_offset);
+<a id='L626' name='L626'></a>   626   header-&gt;data_size = <a href='../S/2311.html#L489' title='Defined at 489 in src/sound.c.'>be2hl</a> (header-&gt;data_size);
+<a id='L627' name='L627'></a>   627   header-&gt;encoding = <a href='../S/2311.html#L489' title='Defined at 489 in src/sound.c.'>be2hl</a> (header-&gt;encoding);
+<a id='L628' name='L628'></a>   628   header-&gt;sample_rate = <a href='../S/2311.html#L489' title='Defined at 489 in src/sound.c.'>be2hl</a> (header-&gt;sample_rate);
+<a id='L629' name='L629'></a>   629   header-&gt;channels = <a href='../S/2311.html#L489' title='Defined at 489 in src/sound.c.'>be2hl</a> (header-&gt;channels);
+<a id='L630' name='L630'></a>   630 
+<a id='L631' name='L631'></a>   631   <em class='comment'>/* Set up the interface functions for AU.  */</em>
+<a id='L632' name='L632'></a>   632   s-&gt;type = <a href='../S/2311.html#L235' title='Defined at 235 in src/sound.c.'>SUN_AUDIO</a>;
+<a id='L633' name='L633'></a>   633   s-&gt;play = <a href='../S/2311.html#L642' title='Defined at 642 in src/sound.c.'>au_play</a>;
+<a id='L634' name='L634'></a>   634 
+<a id='L635' name='L635'></a>   635   <strong class='reserved'>return</strong> 1;
+<a id='L636' name='L636'></a>   636 <em class='brace'>}</em>
+<a id='L637' name='L637'></a>   637 
+<a id='L638' name='L638'></a>   638 
+<a id='L639' name='L639'></a>   639 <em class='comment'>/* Play Sun audio file S on sound device SD.  */</em>
+<a id='L640' name='L640'></a>   640 
+<a id='L641' name='L641'></a>   641 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L642' name='L642'></a>   642 <a href='../R/8104.html' title='Multiple referred from 2 places.'>au_play</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *s, <strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L643' name='L643'></a>   643 <em class='brace'>{</em>
+<a id='L644' name='L644'></a>   644   <strong class='reserved'>struct</strong> <a href='../S/2311.html#L142' title='Defined at 142 in src/sound.c.'>au_header</a> *header = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L142' title='Defined at 142 in src/sound.c.'>au_header</a> *) s-&gt;header;
+<a id='L645' name='L645'></a>   645 
+<a id='L646' name='L646'></a>   646   sd-&gt;sample_size = 0;
+<a id='L647' name='L647'></a>   647   sd-&gt;sample_rate = header-&gt;sample_rate;
+<a id='L648' name='L648'></a>   648   sd-&gt;bps = 0;
+<a id='L649' name='L649'></a>   649   sd-&gt;channels = header-&gt;channels;
+<a id='L650' name='L650'></a>   650   sd-&gt;choose_format (sd, s);
+<a id='L651' name='L651'></a>   651   sd-&gt;configure (sd);
+<a id='L652' name='L652'></a>   652 
+<a id='L653' name='L653'></a>   653   <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (s-&gt;data))
+<a id='L654' name='L654'></a>   654     sd-&gt;<a href='../D/19349.html' title='Multiple defined in 14 places.'>write</a> (sd, <a href='../D/5916.html' title='Multiple defined in 2 places.'>SSDATA</a> (s-&gt;data) + header-&gt;data_offset,
+<a id='L655' name='L655'></a>   655                <a href='../D/5430.html' title='Multiple defined in 2 places.'>SBYTES</a> (s-&gt;data) - header-&gt;data_offset);
+<a id='L656' name='L656'></a>   656   <strong class='reserved'>else</strong>
+<a id='L657' name='L657'></a>   657     <em class='brace'>{</em>
+<a id='L658' name='L658'></a>   658       ptrdiff_t blksize = sd-&gt;period_size ? sd-&gt;period_size (sd) : 2048;
+<a id='L659' name='L659'></a>   659       ptrdiff_t nbytes;
+<a id='L660' name='L660'></a>   660 
+<a id='L661' name='L661'></a>   661       <em class='comment'>/* Seek */</em>
+<a id='L662' name='L662'></a>   662       <a href='../D/14001.html' title='Multiple defined in 7 places.'>lseek</a> (s-&gt;fd, header-&gt;data_offset, SEEK_SET);
+<a id='L663' name='L663'></a>   663 
+<a id='L664' name='L664'></a>   664       <em class='comment'>/* Copy sound data to the device.  */</em>
+<a id='L665' name='L665'></a>   665       <a href='../D/6612.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L666' name='L666'></a>   666       <strong class='reserved'>char</strong> *<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = <a href='../D/5388.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (blksize);
+<a id='L667' name='L667'></a>   667       <strong class='reserved'>while</strong> ((nbytes = <a href='../S/2286.html#L2700' title='Defined at 2700 in src/sysdep.c.'>emacs_read</a> (s-&gt;fd, <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, blksize)) &gt; 0)
+<a id='L668' name='L668'></a>   668         sd-&gt;<a href='../D/19349.html' title='Multiple defined in 14 places.'>write</a> (sd, <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, nbytes);
+<a id='L669' name='L669'></a>   669 
+<a id='L670' name='L670'></a>   670       <strong class='reserved'>if</strong> (nbytes &lt; 0)
+<a id='L671' name='L671'></a>   671         <a href='../S/2311.html#L297' title='Defined at 297 in src/sound.c.'>sound_perror</a> ("Error reading sound file");
+<a id='L672' name='L672'></a>   672       <a href='../D/5393.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L673' name='L673'></a>   673     <em class='brace'>}</em>
+<a id='L674' name='L674'></a>   674 <em class='brace'>}</em>
+<a id='L675' name='L675'></a>   675 
+<a id='L676' name='L676'></a>   676 
+<a id='L677' name='L677'></a>   677 <em class='comment'>/***********************************************************************</em>
+<a id='L678' name='L678'></a>   678 <em class='comment'>                       Voxware Driver Interface</em>
+<a id='L679' name='L679'></a>   679 <em class='comment'> ***********************************************************************/</em>
+<a id='L680' name='L680'></a>   680 
+<a id='L681' name='L681'></a>   681 <em class='comment'>/* This driver is available on GNU/Linux, and the free BSDs.  FreeBSD</em>
+<a id='L682' name='L682'></a>   682 <em class='comment'>   has a compatible own driver aka Luigi's driver.  */</em>
+<a id='L683' name='L683'></a>   683 
+<a id='L684' name='L684'></a>   684 
+<a id='L685' name='L685'></a>   685 <em class='comment'>/* Open device SD.  If SD-&gt;file is a string, open that device,</em>
+<a id='L686' name='L686'></a>   686 <em class='comment'>   otherwise use a default device name.  */</em>
+<a id='L687' name='L687'></a>   687 
+<a id='L688' name='L688'></a>   688 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L689' name='L689'></a>   689 <a href='../S/2311.html#L855' title='Referred from 855 in src/sound.c.'>vox_open</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L690' name='L690'></a>   690 <em class='brace'>{</em>
+<a id='L691' name='L691'></a>   691   <em class='comment'>/* Open the sound device (eg /dev/dsp).  */</em>
+<a id='L692' name='L692'></a>   692   <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file = <a href='../S/2311.html#L425' title='Defined at 425 in src/sound.c.'>string_default</a> (sd-&gt;file, DEFAULT_SOUND_DEVICE);
+<a id='L693' name='L693'></a>   693   sd-&gt;fd = <a href='../S/2286.html#L2484' title='Defined at 2484 in src/sysdep.c.'>emacs_open</a> (file, O_WRONLY, 0);
+<a id='L694' name='L694'></a>   694   <strong class='reserved'>if</strong> (sd-&gt;fd &lt; 0)
+<a id='L695' name='L695'></a>   695     <a href='../S/2311.html#L297' title='Defined at 297 in src/sound.c.'>sound_perror</a> (file);
+<a id='L696' name='L696'></a>   696 <em class='brace'>}</em>
+<a id='L697' name='L697'></a>   697 
+<a id='L698' name='L698'></a>   698 
+<a id='L699' name='L699'></a>   699 <em class='comment'>/* Configure device SD from parameters in it.  */</em>
+<a id='L700' name='L700'></a>   700 
+<a id='L701' name='L701'></a>   701 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L702' name='L702'></a>   702 <a href='../S/2311.html#L857' title='Referred from 857 in src/sound.c.'>vox_configure</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L703' name='L703'></a>   703 <em class='brace'>{</em>
+<a id='L704' name='L704'></a>   704   <strong class='reserved'>int</strong> val;
+<a id='L705' name='L705'></a>   705 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> (USABLE_SIGIO) || <strong class='reserved'>defined</strong> (USABLE_SIGPOLL)
+<a id='L706' name='L706'></a>   706   <a href='../D/17458.html' title='Multiple defined in 3 places.'>sigset_t</a> oldset, blocked;
+<a id='L707' name='L707'></a>   707 <em class='sharp'>#endif</em>
+<a id='L708' name='L708'></a>   708 
+<a id='L709' name='L709'></a>   709   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (sd-&gt;fd &gt;= 0);
+<a id='L710' name='L710'></a>   710 
+<a id='L711' name='L711'></a>   711   <em class='comment'>/* On GNU/Linux, it seems that the device driver doesn't like to be</em>
+<a id='L712' name='L712'></a>   712 <em class='comment'>     interrupted by a signal.  Block the ones we know to cause</em>
+<a id='L713' name='L713'></a>   713 <em class='comment'>     troubles.  */</em>
+<a id='L714' name='L714'></a>   714   <a href='../S/2123.html#L470' title='Defined at 470 in src/atimer.c.'>turn_on_atimers</a> (0);
+<a id='L715' name='L715'></a>   715 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> (USABLE_SIGIO) || <strong class='reserved'>defined</strong> (USABLE_SIGPOLL)
+<a id='L716' name='L716'></a>   716   <a href='../D/17440.html' title='Multiple defined in 4 places.'>sigemptyset</a> (&amp;blocked);
+<a id='L717' name='L717'></a>   717 <em class='sharp'>#ifdef</em> USABLE_SIGIO
+<a id='L718' name='L718'></a>   718   <a href='../D/17437.html' title='Multiple defined in 4 places.'>sigaddset</a> (&amp;blocked, SIGIO);
+<a id='L719' name='L719'></a>   719 <em class='sharp'>#else</em>
+<a id='L720' name='L720'></a>   720   <a href='../D/17437.html' title='Multiple defined in 4 places.'>sigaddset</a> (&amp;blocked, SIGPOLL);
+<a id='L721' name='L721'></a>   721 <em class='sharp'>#endif</em>
+<a id='L722' name='L722'></a>   722   <a href='../D/15857.html' title='Multiple defined in 6 places.'>pthread_sigmask</a> (<a href='../D/5831.html' title='Multiple defined in 2 places.'>SIG_BLOCK</a>, &amp;blocked, &amp;oldset);
+<a id='L723' name='L723'></a>   723 <em class='sharp'>#endif</em>
+<a id='L724' name='L724'></a>   724 
+<a id='L725' name='L725'></a>   725   val = sd-&gt;format;
+<a id='L726' name='L726'></a>   726   <strong class='reserved'>if</strong> (ioctl (sd-&gt;fd, SNDCTL_DSP_SETFMT, &amp;sd-&gt;format) &lt; 0
+<a id='L727' name='L727'></a>   727       || val != sd-&gt;format)
+<a id='L728' name='L728'></a>   728     <a href='../S/2311.html#L297' title='Defined at 297 in src/sound.c.'>sound_perror</a> ("Could not set sound format");
+<a id='L729' name='L729'></a>   729 
+<a id='L730' name='L730'></a>   730   val = sd-&gt;channels != 1;
+<a id='L731' name='L731'></a>   731   <strong class='reserved'>if</strong> (ioctl (sd-&gt;fd, SNDCTL_DSP_STEREO, &amp;val) &lt; 0
+<a id='L732' name='L732'></a>   732       || val != (sd-&gt;channels != 1))
+<a id='L733' name='L733'></a>   733     <a href='../S/2311.html#L297' title='Defined at 297 in src/sound.c.'>sound_perror</a> ("Could not set stereo/mono");
+<a id='L734' name='L734'></a>   734 
+<a id='L735' name='L735'></a>   735   <em class='comment'>/* I think bps and sampling_rate are the same, but who knows.</em>
+<a id='L736' name='L736'></a>   736 <em class='comment'>     Check this. and use SND_DSP_SPEED for both.  */</em>
+<a id='L737' name='L737'></a>   737   <strong class='reserved'>if</strong> (sd-&gt;sample_rate &gt; 0)
+<a id='L738' name='L738'></a>   738     <em class='brace'>{</em>
+<a id='L739' name='L739'></a>   739       val = sd-&gt;sample_rate;
+<a id='L740' name='L740'></a>   740       <strong class='reserved'>if</strong> (ioctl (sd-&gt;fd, SNDCTL_DSP_SPEED, &amp;sd-&gt;sample_rate) &lt; 0)
+<a id='L741' name='L741'></a>   741         <a href='../S/2311.html#L297' title='Defined at 297 in src/sound.c.'>sound_perror</a> ("Could not set sound speed");
+<a id='L742' name='L742'></a>   742       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (val != sd-&gt;sample_rate)
+<a id='L743' name='L743'></a>   743         <a href='../S/2311.html#L323' title='Defined at 323 in src/sound.c.'>sound_warning</a> ("Could not set sample rate");
+<a id='L744' name='L744'></a>   744     <em class='brace'>}</em>
+<a id='L745' name='L745'></a>   745 
+<a id='L746' name='L746'></a>   746   <strong class='reserved'>if</strong> (sd-&gt;volume &gt; 0)
+<a id='L747' name='L747'></a>   747     <em class='brace'>{</em>
+<a id='L748' name='L748'></a>   748       <strong class='reserved'>int</strong> volume = sd-&gt;volume &amp; 0xff;
+<a id='L749' name='L749'></a>   749       volume |= volume &lt;&lt; 8;
+<a id='L750' name='L750'></a>   750       <em class='comment'>/* This may fail if there is no mixer.  Ignore the failure.  */</em>
+<a id='L751' name='L751'></a>   751       ioctl (sd-&gt;fd, SOUND_MIXER_WRITE_PCM, &amp;volume);
+<a id='L752' name='L752'></a>   752     <em class='brace'>}</em>
+<a id='L753' name='L753'></a>   753 
+<a id='L754' name='L754'></a>   754   <a href='../S/2123.html#L470' title='Defined at 470 in src/atimer.c.'>turn_on_atimers</a> (1);
+<a id='L755' name='L755'></a>   755 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> (USABLE_SIGIO) || <strong class='reserved'>defined</strong> (USABLE_SIGPOLL)
+<a id='L756' name='L756'></a>   756   <a href='../D/15857.html' title='Multiple defined in 6 places.'>pthread_sigmask</a> (<a href='../D/5832.html' title='Multiple defined in 2 places.'>SIG_SETMASK</a>, &amp;oldset, 0);
+<a id='L757' name='L757'></a>   757 <em class='sharp'>#endif</em>
+<a id='L758' name='L758'></a>   758 <em class='brace'>}</em>
+<a id='L759' name='L759'></a>   759 
+<a id='L760' name='L760'></a>   760 
+<a id='L761' name='L761'></a>   761 <em class='comment'>/* Close device SD if it is open.  */</em>
+<a id='L762' name='L762'></a>   762 
+<a id='L763' name='L763'></a>   763 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L764' name='L764'></a>   764 <a href='../S/2311.html#L856' title='Referred from 856 in src/sound.c.'>vox_close</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L765' name='L765'></a>   765 <em class='brace'>{</em>
+<a id='L766' name='L766'></a>   766   <strong class='reserved'>if</strong> (sd-&gt;fd &gt;= 0)
+<a id='L767' name='L767'></a>   767     <em class='brace'>{</em>
+<a id='L768' name='L768'></a>   768       <em class='comment'>/* On GNU/Linux, it seems that the device driver doesn't like to</em>
+<a id='L769' name='L769'></a>   769 <em class='comment'>         be interrupted by a signal.  Block the ones we know to cause</em>
+<a id='L770' name='L770'></a>   770 <em class='comment'>         troubles.  */</em>
+<a id='L771' name='L771'></a>   771 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> (USABLE_SIGIO) || <strong class='reserved'>defined</strong> (USABLE_SIGPOLL)
+<a id='L772' name='L772'></a>   772       <a href='../D/17458.html' title='Multiple defined in 3 places.'>sigset_t</a> blocked, oldset;
+<a id='L773' name='L773'></a>   773       <a href='../D/17440.html' title='Multiple defined in 4 places.'>sigemptyset</a> (&amp;blocked);
+<a id='L774' name='L774'></a>   774 <em class='sharp'>#ifdef</em> USABLE_SIGIO
+<a id='L775' name='L775'></a>   775       <a href='../D/17437.html' title='Multiple defined in 4 places.'>sigaddset</a> (&amp;blocked, SIGIO);
+<a id='L776' name='L776'></a>   776 <em class='sharp'>#else</em>
+<a id='L777' name='L777'></a>   777       <a href='../D/17437.html' title='Multiple defined in 4 places.'>sigaddset</a> (&amp;blocked, SIGPOLL);
+<a id='L778' name='L778'></a>   778 <em class='sharp'>#endif</em>
+<a id='L779' name='L779'></a>   779       <a href='../D/15857.html' title='Multiple defined in 6 places.'>pthread_sigmask</a> (<a href='../D/5831.html' title='Multiple defined in 2 places.'>SIG_BLOCK</a>, &amp;blocked, &amp;oldset);
+<a id='L780' name='L780'></a>   780 <em class='sharp'>#endif</em>
+<a id='L781' name='L781'></a>   781       <a href='../S/2123.html#L470' title='Defined at 470 in src/atimer.c.'>turn_on_atimers</a> (0);
+<a id='L782' name='L782'></a>   782 
+<a id='L783' name='L783'></a>   783       <em class='comment'>/* Flush sound data, and reset the device.  */</em>
+<a id='L784' name='L784'></a>   784       ioctl (sd-&gt;fd, SNDCTL_DSP_SYNC, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L785' name='L785'></a>   785 
+<a id='L786' name='L786'></a>   786       <a href='../S/2123.html#L470' title='Defined at 470 in src/atimer.c.'>turn_on_atimers</a> (1);
+<a id='L787' name='L787'></a>   787 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> (USABLE_SIGIO) || <strong class='reserved'>defined</strong> (USABLE_SIGPOLL)
+<a id='L788' name='L788'></a>   788       <a href='../D/15857.html' title='Multiple defined in 6 places.'>pthread_sigmask</a> (<a href='../D/5832.html' title='Multiple defined in 2 places.'>SIG_SETMASK</a>, &amp;oldset, 0);
+<a id='L789' name='L789'></a>   789 <em class='sharp'>#endif</em>
+<a id='L790' name='L790'></a>   790 
+<a id='L791' name='L791'></a>   791       <em class='comment'>/* Close the device.  */</em>
+<a id='L792' name='L792'></a>   792       <a href='../S/2286.html#L2607' title='Defined at 2607 in src/sysdep.c.'>emacs_close</a> (sd-&gt;fd);
+<a id='L793' name='L793'></a>   793       sd-&gt;fd = -1;
+<a id='L794' name='L794'></a>   794     <em class='brace'>}</em>
+<a id='L795' name='L795'></a>   795 <em class='brace'>}</em>
+<a id='L796' name='L796'></a>   796 
+<a id='L797' name='L797'></a>   797 
+<a id='L798' name='L798'></a>   798 <em class='comment'>/* Choose device-dependent format for device SD from sound file S.  */</em>
+<a id='L799' name='L799'></a>   799 
+<a id='L800' name='L800'></a>   800 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L801' name='L801'></a>   801 <a href='../S/2311.html#L858' title='Referred from 858 in src/sound.c.'>vox_choose_format</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd, <strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *s)
+<a id='L802' name='L802'></a>   802 <em class='brace'>{</em>
+<a id='L803' name='L803'></a>   803   <strong class='reserved'>if</strong> (s-&gt;type == <a href='../S/2311.html#L234' title='Defined at 234 in src/sound.c.'>RIFF</a>)
+<a id='L804' name='L804'></a>   804     <em class='brace'>{</em>
+<a id='L805' name='L805'></a>   805       <strong class='reserved'>struct</strong> <a href='../S/2311.html#L122' title='Defined at 122 in src/sound.c.'>wav_header</a> *h = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L122' title='Defined at 122 in src/sound.c.'>wav_header</a> *) s-&gt;header;
+<a id='L806' name='L806'></a>   806       <strong class='reserved'>if</strong> (h-&gt;precision == 8)
+<a id='L807' name='L807'></a>   807         sd-&gt;format = AFMT_U8;
+<a id='L808' name='L808'></a>   808       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (h-&gt;precision == 16)
+<a id='L809' name='L809'></a>   809         sd-&gt;format = AFMT_S16_LE;
+<a id='L810' name='L810'></a>   810       <strong class='reserved'>else</strong>
+<a id='L811' name='L811'></a>   811         <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Unsupported WAV file format");
+<a id='L812' name='L812'></a>   812     <em class='brace'>}</em>
+<a id='L813' name='L813'></a>   813   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (s-&gt;type == <a href='../S/2311.html#L235' title='Defined at 235 in src/sound.c.'>SUN_AUDIO</a>)
+<a id='L814' name='L814'></a>   814     <em class='brace'>{</em>
+<a id='L815' name='L815'></a>   815       <strong class='reserved'>struct</strong> <a href='../S/2311.html#L142' title='Defined at 142 in src/sound.c.'>au_header</a> *header = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L142' title='Defined at 142 in src/sound.c.'>au_header</a> *) s-&gt;header;
+<a id='L816' name='L816'></a>   816       <strong class='reserved'>switch</strong> (header-&gt;encoding)
+<a id='L817' name='L817'></a>   817         <em class='brace'>{</em>
+<a id='L818' name='L818'></a>   818         <strong class='reserved'>case</strong> <a href='../S/2311.html#L597' title='Defined at 597 in src/sound.c.'>AU_ENCODING_ULAW_8</a>:
+<a id='L819' name='L819'></a>   819         <strong class='reserved'>case</strong> <a href='../S/2311.html#L602' title='Defined at 602 in src/sound.c.'>AU_ENCODING_IEEE32</a>:
+<a id='L820' name='L820'></a>   820         <strong class='reserved'>case</strong> <a href='../S/2311.html#L603' title='Defined at 603 in src/sound.c.'>AU_ENCODING_IEEE64</a>:
+<a id='L821' name='L821'></a>   821           sd-&gt;format = AFMT_MU_LAW;
+<a id='L822' name='L822'></a>   822           <strong class='reserved'>break</strong>;
+<a id='L823' name='L823'></a>   823 
+<a id='L824' name='L824'></a>   824         <strong class='reserved'>case</strong> <a href='../S/2311.html#L598' title='Defined at 598 in src/sound.c.'>AU_ENCODING_8</a>:
+<a id='L825' name='L825'></a>   825         <strong class='reserved'>case</strong> <a href='../S/2311.html#L599' title='Defined at 599 in src/sound.c.'>AU_ENCODING_16</a>:
+<a id='L826' name='L826'></a>   826         <strong class='reserved'>case</strong> <a href='../S/2311.html#L600' title='Defined at 600 in src/sound.c.'>AU_ENCODING_24</a>:
+<a id='L827' name='L827'></a>   827         <strong class='reserved'>case</strong> <a href='../S/2311.html#L601' title='Defined at 601 in src/sound.c.'>AU_ENCODING_32</a>:
+<a id='L828' name='L828'></a>   828           sd-&gt;format = AFMT_S16_LE;
+<a id='L829' name='L829'></a>   829           <strong class='reserved'>break</strong>;
+<a id='L830' name='L830'></a>   830 
+<a id='L831' name='L831'></a>   831         <strong class='reserved'>default</strong>:
+<a id='L832' name='L832'></a>   832           <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Unsupported AU file format");
+<a id='L833' name='L833'></a>   833         <em class='brace'>}</em>
+<a id='L834' name='L834'></a>   834     <em class='brace'>}</em>
+<a id='L835' name='L835'></a>   835   <strong class='reserved'>else</strong>
+<a id='L836' name='L836'></a>   836     <a href='../D/10886.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L837' name='L837'></a>   837 <em class='brace'>}</em>
+<a id='L838' name='L838'></a>   838 
+<a id='L839' name='L839'></a>   839 
+<a id='L840' name='L840'></a>   840 <em class='comment'>/* Initialize device SD.  Set up the interface functions in the device</em>
+<a id='L841' name='L841'></a>   841 <em class='comment'>   structure.  */</em>
+<a id='L842' name='L842'></a>   842 
+<a id='L843' name='L843'></a>   843 <strong class='reserved'>static</strong> <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L844' name='L844'></a>   844 <a href='../S/2311.html#L1422' title='Referred from 1422 in src/sound.c.'>vox_init</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L845' name='L845'></a>   845 <em class='brace'>{</em>
+<a id='L846' name='L846'></a>   846   <em class='comment'>/* Open the sound device (eg /dev/dsp).  */</em>
+<a id='L847' name='L847'></a>   847   <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file = <a href='../S/2311.html#L425' title='Defined at 425 in src/sound.c.'>string_default</a> (sd-&gt;file, DEFAULT_SOUND_DEVICE);
+<a id='L848' name='L848'></a>   848   <strong class='reserved'>int</strong> fd = <a href='../S/2286.html#L2484' title='Defined at 2484 in src/sysdep.c.'>emacs_open</a> (file, O_WRONLY, 0);
+<a id='L849' name='L849'></a>   849   <strong class='reserved'>if</strong> (fd &gt;= 0)
+<a id='L850' name='L850'></a>   850     <a href='../S/2286.html#L2607' title='Defined at 2607 in src/sysdep.c.'>emacs_close</a> (fd);
+<a id='L851' name='L851'></a>   851   <strong class='reserved'>else</strong>
+<a id='L852' name='L852'></a>   852     <strong class='reserved'>return</strong> 0;
+<a id='L853' name='L853'></a>   853 
+<a id='L854' name='L854'></a>   854   sd-&gt;fd = -1;
+<a id='L855' name='L855'></a>   855   sd-&gt;<a href='../D/15122.html' title='Multiple defined in 11 places.'>open</a> = <a href='../S/2311.html#L689' title='Defined at 689 in src/sound.c.'>vox_open</a>;
+<a id='L856' name='L856'></a>   856   sd-&gt;<a href='../D/9795.html' title='Multiple defined in 18 places.'>close</a> = <a href='../S/2311.html#L764' title='Defined at 764 in src/sound.c.'>vox_close</a>;
+<a id='L857' name='L857'></a>   857   sd-&gt;configure = <a href='../S/2311.html#L702' title='Defined at 702 in src/sound.c.'>vox_configure</a>;
+<a id='L858' name='L858'></a>   858   sd-&gt;choose_format = <a href='../S/2311.html#L801' title='Defined at 801 in src/sound.c.'>vox_choose_format</a>;
+<a id='L859' name='L859'></a>   859   sd-&gt;<a href='../D/19349.html' title='Multiple defined in 14 places.'>write</a> = <a href='../S/2311.html#L868' title='Defined at 868 in src/sound.c.'>vox_write</a>;
+<a id='L860' name='L860'></a>   860   sd-&gt;period_size = <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L861' name='L861'></a>   861 
+<a id='L862' name='L862'></a>   862   <strong class='reserved'>return</strong> 1;
+<a id='L863' name='L863'></a>   863 <em class='brace'>}</em>
+<a id='L864' name='L864'></a>   864 
+<a id='L865' name='L865'></a>   865 <em class='comment'>/* Write NBYTES bytes from BUFFER to device SD.  */</em>
+<a id='L866' name='L866'></a>   866 
+<a id='L867' name='L867'></a>   867 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L868' name='L868'></a>   868 <a href='../R/17511.html' title='Multiple referred from 2 places.'>vox_write</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, ptrdiff_t nbytes)
+<a id='L869' name='L869'></a>   869 <em class='brace'>{</em>
+<a id='L870' name='L870'></a>   870   <strong class='reserved'>if</strong> (<a href='../S/2286.html#L2764' title='Defined at 2764 in src/sysdep.c.'>emacs_write_sig</a> (sd-&gt;fd, <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, nbytes) != nbytes)
+<a id='L871' name='L871'></a>   871     <a href='../S/2311.html#L297' title='Defined at 297 in src/sound.c.'>sound_perror</a> ("Error writing to sound device");
+<a id='L872' name='L872'></a>   872 <em class='brace'>}</em>
+<a id='L873' name='L873'></a>   873 
+<a id='L874' name='L874'></a>   874 <em class='sharp'>#ifdef</em> HAVE_ALSA
+<a id='L875' name='L875'></a>   875 <em class='comment'>/***********************************************************************</em>
+<a id='L876' name='L876'></a>   876 <em class='comment'>                       ALSA Driver Interface</em>
+<a id='L877' name='L877'></a>   877 <em class='comment'> ***********************************************************************/</em>
+<a id='L878' name='L878'></a>   878 
+<a id='L879' name='L879'></a>   879 <em class='comment'>/* This driver is available on GNU/Linux. */</em>
+<a id='L880' name='L880'></a>   880 
+<a id='L881' name='L881'></a>   881 <em class='sharp'>#ifndef</em> <a href='../S/2311.html#L882' title='Defined at 882 in src/sound.c.'>DEFAULT_ALSA_SOUND_DEVICE</a>
+<a id='L882' name='L882'></a>   882 <em class='sharp'>#define</em> <a href='../R/1328.html' title='Multiple referred from 4 places.'>DEFAULT_ALSA_SOUND_DEVICE</a> "default"
+<a id='L883' name='L883'></a>   883 <em class='sharp'>#endif</em>
+<a id='L884' name='L884'></a>   884 
+<a id='L885' name='L885'></a>   885 <strong class='reserved'>static</strong> <a href='../S/2267.html#L151' title='Defined at 151 in src/lisp.h.'>AVOID</a>
+<a id='L886' name='L886'></a>   886 <a href='../R/7581.html' title='Multiple referred from 19 places.'>alsa_sound_perror</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *msg, <strong class='reserved'>int</strong> err)
+<a id='L887' name='L887'></a>   887 <em class='brace'>{</em>
+<a id='L888' name='L888'></a>   888   <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("%s: %s", msg, snd_strerror (err));
+<a id='L889' name='L889'></a>   889 <em class='brace'>}</em>
+<a id='L890' name='L890'></a>   890 
+<a id='L891' name='L891'></a>   891 <strong class='reserved'>struct</strong> <a href='../R/7579.html' title='Multiple referred from 5 places.'>alsa_params</a>
+<a id='L892' name='L892'></a>   892 <em class='brace'>{</em>
+<a id='L893' name='L893'></a>   893   snd_pcm_t *handle;
+<a id='L894' name='L894'></a>   894   snd_pcm_hw_params_t *hwparams;
+<a id='L895' name='L895'></a>   895   snd_pcm_sw_params_t *swparams;
+<a id='L896' name='L896'></a>   896   snd_pcm_uframes_t period_size;
+<a id='L897' name='L897'></a>   897 <em class='brace'>}</em>;
+<a id='L898' name='L898'></a>   898 
+<a id='L899' name='L899'></a>   899 <em class='comment'>/* Open device SD.  If SD-&gt;file is a string, open that device,</em>
+<a id='L900' name='L900'></a>   900 <em class='comment'>   otherwise use a default device name.  */</em>
+<a id='L901' name='L901'></a>   901 
+<a id='L902' name='L902'></a>   902 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L903' name='L903'></a>   903 <a href='../S/2311.html#L1197' title='Referred from 1197 in src/sound.c.'>alsa_open</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L904' name='L904'></a>   904 <em class='brace'>{</em>
+<a id='L905' name='L905'></a>   905   <em class='comment'>/* Open the sound device.  Default is "default".  */</em>
+<a id='L906' name='L906'></a>   906   <strong class='reserved'>struct</strong> <a href='../S/2311.html#L891' title='Defined at 891 in src/sound.c.'>alsa_params</a> *p = <a href='../D/20059.html' title='Multiple defined in 10 places.'>xmalloc</a> (<strong class='reserved'>sizeof</strong> *p);
+<a id='L907' name='L907'></a>   907   <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file = <a href='../S/2311.html#L425' title='Defined at 425 in src/sound.c.'>string_default</a> (sd-&gt;file, <a href='../S/2311.html#L882' title='Defined at 882 in src/sound.c.'>DEFAULT_ALSA_SOUND_DEVICE</a>);
+<a id='L908' name='L908'></a>   908   <strong class='reserved'>int</strong> err;
+<a id='L909' name='L909'></a>   909 
+<a id='L910' name='L910'></a>   910   p-&gt;handle = <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L911' name='L911'></a>   911   p-&gt;hwparams = <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L912' name='L912'></a>   912   p-&gt;swparams = <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L913' name='L913'></a>   913 
+<a id='L914' name='L914'></a>   914   sd-&gt;fd = -1;
+<a id='L915' name='L915'></a>   915   sd-&gt;data = p;
+<a id='L916' name='L916'></a>   916 
+<a id='L917' name='L917'></a>   917 
+<a id='L918' name='L918'></a>   918   err = snd_pcm_open (&amp;p-&gt;handle, file, SND_PCM_STREAM_PLAYBACK, 0);
+<a id='L919' name='L919'></a>   919   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L920' name='L920'></a>   920     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> (file, err);
+<a id='L921' name='L921'></a>   921 <em class='brace'>}</em>
+<a id='L922' name='L922'></a>   922 
+<a id='L923' name='L923'></a>   923 <strong class='reserved'>static</strong> ptrdiff_t
+<a id='L924' name='L924'></a>   924 <a href='../S/2311.html#L1202' title='Referred from 1202 in src/sound.c.'>alsa_period_size</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L925' name='L925'></a>   925 <em class='brace'>{</em>
+<a id='L926' name='L926'></a>   926   <strong class='reserved'>struct</strong> <a href='../S/2311.html#L891' title='Defined at 891 in src/sound.c.'>alsa_params</a> *p = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L891' title='Defined at 891 in src/sound.c.'>alsa_params</a> *) sd-&gt;data;
+<a id='L927' name='L927'></a>   927   <strong class='reserved'>int</strong> fact = snd_pcm_format_size (sd-&gt;format, 1) * sd-&gt;channels;
+<a id='L928' name='L928'></a>   928   <strong class='reserved'>return</strong> p-&gt;period_size * (fact &gt; 0 ? fact : 1);
+<a id='L929' name='L929'></a>   929 <em class='brace'>}</em>
+<a id='L930' name='L930'></a>   930 
+<a id='L931' name='L931'></a>   931 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L932' name='L932'></a>   932 <a href='../S/2311.html#L1199' title='Referred from 1199 in src/sound.c.'>alsa_configure</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L933' name='L933'></a>   933 <em class='brace'>{</em>
+<a id='L934' name='L934'></a>   934   <strong class='reserved'>int</strong> val, err, dir;
+<a id='L935' name='L935'></a>   935   <strong class='reserved'>unsigned</strong> uval;
+<a id='L936' name='L936'></a>   936   <strong class='reserved'>struct</strong> <a href='../S/2311.html#L891' title='Defined at 891 in src/sound.c.'>alsa_params</a> *p = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L891' title='Defined at 891 in src/sound.c.'>alsa_params</a> *) sd-&gt;data;
+<a id='L937' name='L937'></a>   937   snd_pcm_uframes_t buffer_size;
+<a id='L938' name='L938'></a>   938 
+<a id='L939' name='L939'></a>   939   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (p-&gt;handle != 0);
+<a id='L940' name='L940'></a>   940 
+<a id='L941' name='L941'></a>   941   err = snd_pcm_hw_params_malloc (&amp;p-&gt;hwparams);
+<a id='L942' name='L942'></a>   942   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L943' name='L943'></a>   943     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Could not allocate hardware parameter structure", err);
+<a id='L944' name='L944'></a>   944 
+<a id='L945' name='L945'></a>   945   err = snd_pcm_sw_params_malloc (&amp;p-&gt;swparams);
+<a id='L946' name='L946'></a>   946   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L947' name='L947'></a>   947     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Could not allocate software parameter structure", err);
+<a id='L948' name='L948'></a>   948 
+<a id='L949' name='L949'></a>   949   err = snd_pcm_hw_params_any (p-&gt;handle, p-&gt;hwparams);
+<a id='L950' name='L950'></a>   950   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L951' name='L951'></a>   951     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Could not initialize hardware parameter structure", err);
+<a id='L952' name='L952'></a>   952 
+<a id='L953' name='L953'></a>   953   err = snd_pcm_hw_params_set_access (p-&gt;handle, p-&gt;hwparams,
+<a id='L954' name='L954'></a>   954                                       SND_PCM_ACCESS_RW_INTERLEAVED);
+<a id='L955' name='L955'></a>   955   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L956' name='L956'></a>   956     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Could not set access type", err);
+<a id='L957' name='L957'></a>   957 
+<a id='L958' name='L958'></a>   958   val = sd-&gt;format;
+<a id='L959' name='L959'></a>   959   err = snd_pcm_hw_params_set_format (p-&gt;handle, p-&gt;hwparams, val);
+<a id='L960' name='L960'></a>   960   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L961' name='L961'></a>   961     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Could not set sound format", err);
+<a id='L962' name='L962'></a>   962 
+<a id='L963' name='L963'></a>   963   uval = sd-&gt;sample_rate;
+<a id='L964' name='L964'></a>   964   err = snd_pcm_hw_params_set_rate_near (p-&gt;handle, p-&gt;hwparams, &amp;uval, 0);
+<a id='L965' name='L965'></a>   965   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L966' name='L966'></a>   966     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Could not set sample rate", err);
+<a id='L967' name='L967'></a>   967 
+<a id='L968' name='L968'></a>   968   val = sd-&gt;channels;
+<a id='L969' name='L969'></a>   969   err = snd_pcm_hw_params_set_channels (p-&gt;handle, p-&gt;hwparams, val);
+<a id='L970' name='L970'></a>   970   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L971' name='L971'></a>   971     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Could not set channel count", err);
+<a id='L972' name='L972'></a>   972 
+<a id='L973' name='L973'></a>   973   err = snd_pcm_hw_params (p-&gt;handle, p-&gt;hwparams);
+<a id='L974' name='L974'></a>   974   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L975' name='L975'></a>   975     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Could not set parameters", err);
+<a id='L976' name='L976'></a>   976 
+<a id='L977' name='L977'></a>   977 
+<a id='L978' name='L978'></a>   978   err = snd_pcm_hw_params_get_period_size (p-&gt;hwparams, &amp;p-&gt;period_size, &amp;dir);
+<a id='L979' name='L979'></a>   979   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L980' name='L980'></a>   980     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Unable to get period size for playback", err);
+<a id='L981' name='L981'></a>   981 
+<a id='L982' name='L982'></a>   982   err = snd_pcm_hw_params_get_buffer_size (p-&gt;hwparams, &amp;buffer_size);
+<a id='L983' name='L983'></a>   983   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L984' name='L984'></a>   984     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Unable to get buffer size for playback", err);
+<a id='L985' name='L985'></a>   985 
+<a id='L986' name='L986'></a>   986   err = snd_pcm_sw_params_current (p-&gt;handle, p-&gt;swparams);
+<a id='L987' name='L987'></a>   987   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L988' name='L988'></a>   988     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Unable to determine current swparams for playback",
+<a id='L989' name='L989'></a>   989                        err);
+<a id='L990' name='L990'></a>   990 
+<a id='L991' name='L991'></a>   991   <em class='comment'>/* Start the transfer when the buffer is almost full */</em>
+<a id='L992' name='L992'></a>   992   err = snd_pcm_sw_params_set_start_threshold (p-&gt;handle, p-&gt;swparams,
+<a id='L993' name='L993'></a>   993                                                (buffer_size / p-&gt;period_size)
+<a id='L994' name='L994'></a>   994                                                * p-&gt;period_size);
+<a id='L995' name='L995'></a>   995   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L996' name='L996'></a>   996     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Unable to set start threshold mode for playback", err);
+<a id='L997' name='L997'></a>   997 
+<a id='L998' name='L998'></a>   998   <em class='comment'>/* Allow the transfer when at least period_size samples can be processed */</em>
+<a id='L999' name='L999'></a>   999   err = snd_pcm_sw_params_set_avail_min (p-&gt;handle, p-&gt;swparams, p-&gt;period_size);
+<a id='L1000' name='L1000'></a>  1000   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L1001' name='L1001'></a>  1001     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Unable to set avail min for playback", err);
+<a id='L1002' name='L1002'></a>  1002 
+<a id='L1003' name='L1003'></a>  1003   err = snd_pcm_sw_params (p-&gt;handle, p-&gt;swparams);
+<a id='L1004' name='L1004'></a>  1004   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L1005' name='L1005'></a>  1005     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Unable to set sw params for playback\n", err);
+<a id='L1006' name='L1006'></a>  1006 
+<a id='L1007' name='L1007'></a>  1007   snd_pcm_hw_params_free (p-&gt;hwparams);
+<a id='L1008' name='L1008'></a>  1008   p-&gt;hwparams = <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1009' name='L1009'></a>  1009   snd_pcm_sw_params_free (p-&gt;swparams);
+<a id='L1010' name='L1010'></a>  1010   p-&gt;swparams = <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1011' name='L1011'></a>  1011 
+<a id='L1012' name='L1012'></a>  1012   err = snd_pcm_prepare (p-&gt;handle);
+<a id='L1013' name='L1013'></a>  1013   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L1014' name='L1014'></a>  1014     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Could not prepare audio interface for use", err);
+<a id='L1015' name='L1015'></a>  1015 
+<a id='L1016' name='L1016'></a>  1016   <strong class='reserved'>if</strong> (sd-&gt;volume &gt; 0)
+<a id='L1017' name='L1017'></a>  1017     <em class='brace'>{</em>
+<a id='L1018' name='L1018'></a>  1018       <strong class='reserved'>int</strong> chn;
+<a id='L1019' name='L1019'></a>  1019       snd_mixer_t *handle;
+<a id='L1020' name='L1020'></a>  1020       snd_mixer_elem_t *<a href='../S/3352.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a>;
+<a id='L1021' name='L1021'></a>  1021       <strong class='reserved'>if</strong> (snd_mixer_open (&amp;handle, 0) &gt;= 0)
+<a id='L1022' name='L1022'></a>  1022         <em class='brace'>{</em>
+<a id='L1023' name='L1023'></a>  1023           <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file = <a href='../S/2311.html#L425' title='Defined at 425 in src/sound.c.'>string_default</a> (sd-&gt;file,
+<a id='L1024' name='L1024'></a>  1024                                              <a href='../S/2311.html#L882' title='Defined at 882 in src/sound.c.'>DEFAULT_ALSA_SOUND_DEVICE</a>);
+<a id='L1025' name='L1025'></a>  1025           <strong class='reserved'>if</strong> (snd_mixer_attach (handle, file) &gt;= 0
+<a id='L1026' name='L1026'></a>  1026               &amp;&amp; snd_mixer_load (handle) &gt;= 0
+<a id='L1027' name='L1027'></a>  1027               &amp;&amp; snd_mixer_selem_register (handle, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>) &gt;= 0)
+<a id='L1028' name='L1028'></a>  1028             <strong class='reserved'>for</strong> (<a href='../S/3352.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a> = snd_mixer_first_elem (handle);
+<a id='L1029' name='L1029'></a>  1029                  <a href='../S/3352.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a>;
+<a id='L1030' name='L1030'></a>  1030                  <a href='../S/3352.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a> = snd_mixer_elem_next (<a href='../S/3352.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a>))
+<a id='L1031' name='L1031'></a>  1031               <em class='brace'>{</em>
+<a id='L1032' name='L1032'></a>  1032                 <strong class='reserved'>if</strong> (snd_mixer_selem_has_playback_volume (<a href='../S/3352.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a>))
+<a id='L1033' name='L1033'></a>  1033                   <em class='brace'>{</em>
+<a id='L1034' name='L1034'></a>  1034                     <strong class='reserved'>long</strong> pmin, pmax, vol;
+<a id='L1035' name='L1035'></a>  1035                     snd_mixer_selem_get_playback_volume_range (<a href='../S/3352.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a>, &amp;pmin, &amp;pmax);
+<a id='L1036' name='L1036'></a>  1036                     vol = pmin + (sd-&gt;volume * (pmax - pmin)) / 100;
+<a id='L1037' name='L1037'></a>  1037 
+<a id='L1038' name='L1038'></a>  1038                     <strong class='reserved'>for</strong> (chn = 0; chn &lt;= SND_MIXER_SCHN_LAST; chn++)
+<a id='L1039' name='L1039'></a>  1039                       snd_mixer_selem_set_playback_volume (<a href='../S/3352.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a>, chn, vol);
+<a id='L1040' name='L1040'></a>  1040                   <em class='brace'>}</em>
+<a id='L1041' name='L1041'></a>  1041               <em class='brace'>}</em>
+<a id='L1042' name='L1042'></a>  1042           snd_mixer_close (handle);
+<a id='L1043' name='L1043'></a>  1043         <em class='brace'>}</em>
+<a id='L1044' name='L1044'></a>  1044     <em class='brace'>}</em>
+<a id='L1045' name='L1045'></a>  1045 <em class='brace'>}</em>
+<a id='L1046' name='L1046'></a>  1046 
+<a id='L1047' name='L1047'></a>  1047 
+<a id='L1048' name='L1048'></a>  1048 <em class='comment'>/* Close device SD if it is open.  */</em>
+<a id='L1049' name='L1049'></a>  1049 
+<a id='L1050' name='L1050'></a>  1050 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1051' name='L1051'></a>  1051 <a href='../S/2311.html#L1198' title='Referred from 1198 in src/sound.c.'>alsa_close</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L1052' name='L1052'></a>  1052 <em class='brace'>{</em>
+<a id='L1053' name='L1053'></a>  1053   <strong class='reserved'>struct</strong> <a href='../S/2311.html#L891' title='Defined at 891 in src/sound.c.'>alsa_params</a> *p = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L891' title='Defined at 891 in src/sound.c.'>alsa_params</a> *) sd-&gt;data;
+<a id='L1054' name='L1054'></a>  1054   <strong class='reserved'>if</strong> (p)
+<a id='L1055' name='L1055'></a>  1055     <em class='brace'>{</em>
+<a id='L1056' name='L1056'></a>  1056       <strong class='reserved'>if</strong> (p-&gt;hwparams)
+<a id='L1057' name='L1057'></a>  1057         snd_pcm_hw_params_free (p-&gt;hwparams);
+<a id='L1058' name='L1058'></a>  1058       <strong class='reserved'>if</strong> (p-&gt;swparams)
+<a id='L1059' name='L1059'></a>  1059         snd_pcm_sw_params_free (p-&gt;swparams);
+<a id='L1060' name='L1060'></a>  1060       <strong class='reserved'>if</strong> (p-&gt;handle)
+<a id='L1061' name='L1061'></a>  1061         <em class='brace'>{</em>
+<a id='L1062' name='L1062'></a>  1062           snd_pcm_drain (p-&gt;handle);
+<a id='L1063' name='L1063'></a>  1063           snd_pcm_close (p-&gt;handle);
+<a id='L1064' name='L1064'></a>  1064         <em class='brace'>}</em>
+<a id='L1065' name='L1065'></a>  1065       <a href='../D/19805.html' title='Multiple defined in 3 places.'>xfree</a> (p);
+<a id='L1066' name='L1066'></a>  1066     <em class='brace'>}</em>
+<a id='L1067' name='L1067'></a>  1067 <em class='brace'>}</em>
+<a id='L1068' name='L1068'></a>  1068 
+<a id='L1069' name='L1069'></a>  1069 <em class='comment'>/* Choose device-dependent format for device SD from sound file S.  */</em>
+<a id='L1070' name='L1070'></a>  1070 
+<a id='L1071' name='L1071'></a>  1071 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1072' name='L1072'></a>  1072 <a href='../S/2311.html#L1200' title='Referred from 1200 in src/sound.c.'>alsa_choose_format</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd, <strong class='reserved'>struct</strong> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a> *s)
+<a id='L1073' name='L1073'></a>  1073 <em class='brace'>{</em>
+<a id='L1074' name='L1074'></a>  1074   <strong class='reserved'>if</strong> (s-&gt;type == <a href='../S/2311.html#L234' title='Defined at 234 in src/sound.c.'>RIFF</a>)
+<a id='L1075' name='L1075'></a>  1075     <em class='brace'>{</em>
+<a id='L1076' name='L1076'></a>  1076       <strong class='reserved'>struct</strong> <a href='../S/2311.html#L122' title='Defined at 122 in src/sound.c.'>wav_header</a> *h = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L122' title='Defined at 122 in src/sound.c.'>wav_header</a> *) s-&gt;header;
+<a id='L1077' name='L1077'></a>  1077       <strong class='reserved'>if</strong> (h-&gt;precision == 8)
+<a id='L1078' name='L1078'></a>  1078         sd-&gt;format = SND_PCM_FORMAT_U8;
+<a id='L1079' name='L1079'></a>  1079       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (h-&gt;precision == 16)
+<a id='L1080' name='L1080'></a>  1080           sd-&gt;format = SND_PCM_FORMAT_S16_LE;
+<a id='L1081' name='L1081'></a>  1081       <strong class='reserved'>else</strong>
+<a id='L1082' name='L1082'></a>  1082         <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Unsupported WAV file format");
+<a id='L1083' name='L1083'></a>  1083     <em class='brace'>}</em>
+<a id='L1084' name='L1084'></a>  1084   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (s-&gt;type == <a href='../S/2311.html#L235' title='Defined at 235 in src/sound.c.'>SUN_AUDIO</a>)
+<a id='L1085' name='L1085'></a>  1085     <em class='brace'>{</em>
+<a id='L1086' name='L1086'></a>  1086       <strong class='reserved'>struct</strong> <a href='../S/2311.html#L142' title='Defined at 142 in src/sound.c.'>au_header</a> *header = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L142' title='Defined at 142 in src/sound.c.'>au_header</a> *) s-&gt;header;
+<a id='L1087' name='L1087'></a>  1087       <strong class='reserved'>switch</strong> (header-&gt;encoding)
+<a id='L1088' name='L1088'></a>  1088         <em class='brace'>{</em>
+<a id='L1089' name='L1089'></a>  1089         <strong class='reserved'>case</strong> <a href='../S/2311.html#L597' title='Defined at 597 in src/sound.c.'>AU_ENCODING_ULAW_8</a>:
+<a id='L1090' name='L1090'></a>  1090           sd-&gt;format = SND_PCM_FORMAT_MU_LAW;
+<a id='L1091' name='L1091'></a>  1091           <strong class='reserved'>break</strong>;
+<a id='L1092' name='L1092'></a>  1092         <strong class='reserved'>case</strong> <a href='../S/2311.html#L605' title='Defined at 605 in src/sound.c.'>AU_ENCODING_ALAW_8</a>:
+<a id='L1093' name='L1093'></a>  1093           sd-&gt;format = SND_PCM_FORMAT_A_LAW;
+<a id='L1094' name='L1094'></a>  1094           <strong class='reserved'>break</strong>;
+<a id='L1095' name='L1095'></a>  1095         <strong class='reserved'>case</strong> <a href='../S/2311.html#L602' title='Defined at 602 in src/sound.c.'>AU_ENCODING_IEEE32</a>:
+<a id='L1096' name='L1096'></a>  1096           sd-&gt;format = SND_PCM_FORMAT_FLOAT_BE;
+<a id='L1097' name='L1097'></a>  1097           <strong class='reserved'>break</strong>;
+<a id='L1098' name='L1098'></a>  1098         <strong class='reserved'>case</strong> <a href='../S/2311.html#L603' title='Defined at 603 in src/sound.c.'>AU_ENCODING_IEEE64</a>:
+<a id='L1099' name='L1099'></a>  1099           sd-&gt;format = SND_PCM_FORMAT_FLOAT64_BE;
+<a id='L1100' name='L1100'></a>  1100           <strong class='reserved'>break</strong>;
+<a id='L1101' name='L1101'></a>  1101         <strong class='reserved'>case</strong> <a href='../S/2311.html#L598' title='Defined at 598 in src/sound.c.'>AU_ENCODING_8</a>:
+<a id='L1102' name='L1102'></a>  1102           sd-&gt;format = SND_PCM_FORMAT_S8;
+<a id='L1103' name='L1103'></a>  1103           <strong class='reserved'>break</strong>;
+<a id='L1104' name='L1104'></a>  1104         <strong class='reserved'>case</strong> <a href='../S/2311.html#L599' title='Defined at 599 in src/sound.c.'>AU_ENCODING_16</a>:
+<a id='L1105' name='L1105'></a>  1105           sd-&gt;format = SND_PCM_FORMAT_S16_BE;
+<a id='L1106' name='L1106'></a>  1106           <strong class='reserved'>break</strong>;
+<a id='L1107' name='L1107'></a>  1107         <strong class='reserved'>case</strong> <a href='../S/2311.html#L600' title='Defined at 600 in src/sound.c.'>AU_ENCODING_24</a>:
+<a id='L1108' name='L1108'></a>  1108           sd-&gt;format = SND_PCM_FORMAT_S24_BE;
+<a id='L1109' name='L1109'></a>  1109           <strong class='reserved'>break</strong>;
+<a id='L1110' name='L1110'></a>  1110         <strong class='reserved'>case</strong> <a href='../S/2311.html#L601' title='Defined at 601 in src/sound.c.'>AU_ENCODING_32</a>:
+<a id='L1111' name='L1111'></a>  1111           sd-&gt;format = SND_PCM_FORMAT_S32_BE;
+<a id='L1112' name='L1112'></a>  1112           <strong class='reserved'>break</strong>;
+<a id='L1113' name='L1113'></a>  1113 
+<a id='L1114' name='L1114'></a>  1114         <strong class='reserved'>default</strong>:
+<a id='L1115' name='L1115'></a>  1115           <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Unsupported AU file format");
+<a id='L1116' name='L1116'></a>  1116         <em class='brace'>}</em>
+<a id='L1117' name='L1117'></a>  1117     <em class='brace'>}</em>
+<a id='L1118' name='L1118'></a>  1118   <strong class='reserved'>else</strong>
+<a id='L1119' name='L1119'></a>  1119     <a href='../D/10886.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L1120' name='L1120'></a>  1120 <em class='brace'>}</em>
+<a id='L1121' name='L1121'></a>  1121 
+<a id='L1122' name='L1122'></a>  1122 
+<a id='L1123' name='L1123'></a>  1123 <em class='comment'>/* Write NBYTES bytes from BUFFER to device SD.  */</em>
+<a id='L1124' name='L1124'></a>  1124 
+<a id='L1125' name='L1125'></a>  1125 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1126' name='L1126'></a>  1126 <a href='../S/2311.html#L1201' title='Referred from 1201 in src/sound.c.'>alsa_write</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, ptrdiff_t nbytes)
+<a id='L1127' name='L1127'></a>  1127 <em class='brace'>{</em>
+<a id='L1128' name='L1128'></a>  1128   <strong class='reserved'>struct</strong> <a href='../S/2311.html#L891' title='Defined at 891 in src/sound.c.'>alsa_params</a> *p = (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L891' title='Defined at 891 in src/sound.c.'>alsa_params</a> *) sd-&gt;data;
+<a id='L1129' name='L1129'></a>  1129 
+<a id='L1130' name='L1130'></a>  1130   <em class='comment'>/* The third parameter to snd_pcm_writei is frames, not bytes. */</em>
+<a id='L1131' name='L1131'></a>  1131   <strong class='reserved'>int</strong> fact = snd_pcm_format_size (sd-&gt;format, 1) * sd-&gt;channels;
+<a id='L1132' name='L1132'></a>  1132   ptrdiff_t nwritten = 0;
+<a id='L1133' name='L1133'></a>  1133   <strong class='reserved'>int</strong> err;
+<a id='L1134' name='L1134'></a>  1134 
+<a id='L1135' name='L1135'></a>  1135   <strong class='reserved'>while</strong> (nwritten &lt; nbytes)
+<a id='L1136' name='L1136'></a>  1136     <em class='brace'>{</em>
+<a id='L1137' name='L1137'></a>  1137       snd_pcm_uframes_t frames = (nbytes - nwritten)/fact;
+<a id='L1138' name='L1138'></a>  1138       <strong class='reserved'>if</strong> (frames == 0) <strong class='reserved'>break</strong>;
+<a id='L1139' name='L1139'></a>  1139 
+<a id='L1140' name='L1140'></a>  1140       err = snd_pcm_writei (p-&gt;handle, <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> + nwritten, frames);
+<a id='L1141' name='L1141'></a>  1141       <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L1142' name='L1142'></a>  1142         <em class='brace'>{</em>
+<a id='L1143' name='L1143'></a>  1143           <strong class='reserved'>if</strong> (err == -EPIPE)
+<a id='L1144' name='L1144'></a>  1144             <em class='brace'>{</em>   <em class='comment'>/* under-run */</em>
+<a id='L1145' name='L1145'></a>  1145               err = snd_pcm_prepare (p-&gt;handle);
+<a id='L1146' name='L1146'></a>  1146               <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L1147' name='L1147'></a>  1147                 <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Can't recover from underrun, prepare failed",
+<a id='L1148' name='L1148'></a>  1148                                    err);
+<a id='L1149' name='L1149'></a>  1149             <em class='brace'>}</em>
+<a id='L1150' name='L1150'></a>  1150           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (err == -ESTRPIPE)
+<a id='L1151' name='L1151'></a>  1151             <em class='brace'>{</em>
+<a id='L1152' name='L1152'></a>  1152               <strong class='reserved'>while</strong> ((err = snd_pcm_resume (p-&gt;handle)) == -EAGAIN)
+<a id='L1153' name='L1153'></a>  1153                 <a href='../D/17500.html' title='Multiple defined in 6 places.'>sleep</a> (1);      <em class='comment'>/* wait until the suspend flag is released */</em>
+<a id='L1154' name='L1154'></a>  1154               <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L1155' name='L1155'></a>  1155                 <em class='brace'>{</em>
+<a id='L1156' name='L1156'></a>  1156                   err = snd_pcm_prepare (p-&gt;handle);
+<a id='L1157' name='L1157'></a>  1157                   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L1158' name='L1158'></a>  1158                     <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Can't recover from suspend, "
+<a id='L1159' name='L1159'></a>  1159                                        "prepare failed",
+<a id='L1160' name='L1160'></a>  1160                                        err);
+<a id='L1161' name='L1161'></a>  1161                 <em class='brace'>}</em>
+<a id='L1162' name='L1162'></a>  1162             <em class='brace'>}</em>
+<a id='L1163' name='L1163'></a>  1163           <strong class='reserved'>else</strong>
+<a id='L1164' name='L1164'></a>  1164             <a href='../S/2311.html#L886' title='Defined at 886 in src/sound.c.'>alsa_sound_perror</a> ("Error writing to sound device", err);
+<a id='L1165' name='L1165'></a>  1165 
+<a id='L1166' name='L1166'></a>  1166         <em class='brace'>}</em>
+<a id='L1167' name='L1167'></a>  1167       <strong class='reserved'>else</strong>
+<a id='L1168' name='L1168'></a>  1168         nwritten += err * fact;
+<a id='L1169' name='L1169'></a>  1169     <em class='brace'>}</em>
+<a id='L1170' name='L1170'></a>  1170 <em class='brace'>}</em>
+<a id='L1171' name='L1171'></a>  1171 
+<a id='L1172' name='L1172'></a>  1172 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1173' name='L1173'></a>  1173 <a href='../S/2311.html#L1189' title='Referred from 1189 in src/sound.c.'>snd_error_quiet</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *file, <strong class='reserved'>int</strong> line, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *function, <strong class='reserved'>int</strong> err,
+<a id='L1174' name='L1174'></a>  1174                  <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *fmt)
+<a id='L1175' name='L1175'></a>  1175 <em class='brace'>{</em>
+<a id='L1176' name='L1176'></a>  1176 <em class='brace'>}</em>
+<a id='L1177' name='L1177'></a>  1177 
+<a id='L1178' name='L1178'></a>  1178 <em class='comment'>/* Initialize device SD.  Set up the interface functions in the device</em>
+<a id='L1179' name='L1179'></a>  1179 <em class='comment'>   structure.  */</em>
+<a id='L1180' name='L1180'></a>  1180 
+<a id='L1181' name='L1181'></a>  1181 <strong class='reserved'>static</strong> <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L1182' name='L1182'></a>  1182 <a href='../S/2311.html#L1420' title='Referred from 1420 in src/sound.c.'>alsa_init</a> (<strong class='reserved'>struct</strong> <a href='../S/2311.html#L179' title='Defined at 179 in src/sound.c.'>sound_device</a> *sd)
+<a id='L1183' name='L1183'></a>  1183 <em class='brace'>{</em>
+<a id='L1184' name='L1184'></a>  1184   <em class='comment'>/* Open the sound device.  Default is "default".  */</em>
+<a id='L1185' name='L1185'></a>  1185   <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file = <a href='../S/2311.html#L425' title='Defined at 425 in src/sound.c.'>string_default</a> (sd-&gt;file, <a href='../S/2311.html#L882' title='Defined at 882 in src/sound.c.'>DEFAULT_ALSA_SOUND_DEVICE</a>);
+<a id='L1186' name='L1186'></a>  1186   snd_pcm_t *handle;
+<a id='L1187' name='L1187'></a>  1187   <strong class='reserved'>int</strong> err;
+<a id='L1188' name='L1188'></a>  1188 
+<a id='L1189' name='L1189'></a>  1189   snd_lib_error_set_handler ((snd_lib_error_handler_t) <a href='../S/2311.html#L1173' title='Defined at 1173 in src/sound.c.'>snd_error_quiet</a>);
+<a id='L1190' name='L1190'></a>  1190   err = snd_pcm_open (&amp;handle, file, SND_PCM_STREAM_PLAYBACK, 0);
+<a id='L1191' name='L1191'></a>  1191   snd_lib_error_set_handler (<a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1192' name='L1192'></a>  1192   <strong class='reserved'>if</strong> (err &lt; 0)
+<a id='L1193' name='L1193'></a>  1193       <strong class='reserved'>return</strong> 0;
+<a id='L1194' name='L1194'></a>  1194   snd_pcm_close (handle);
+<a id='L1195' name='L1195'></a>  1195 
+<a id='L1196' name='L1196'></a>  1196   sd-&gt;fd = -1;
+<a id='L1197' name='L1197'></a>  1197   sd-&gt;<a href='../D/15122.html' title='Multiple defined in 11 places.'>open</a> = <a href='../S/2311.html#L903' title='Defined at 903 in src/sound.c.'>alsa_open</a>;
+<a id='L1198' name='L1198'></a>  1198   sd-&gt;<a href='../D/9795.html' title='Multiple defined in 18 places.'>close</a> = <a href='../S/2311.html#L1051' title='Defined at 1051 in src/sound.c.'>alsa_close</a>;
+<a id='L1199' name='L1199'></a>  1199   sd-&gt;configure = <a href='../S/2311.html#L932' title='Defined at 932 in src/sound.c.'>alsa_configure</a>;
+<a id='L1200' name='L1200'></a>  1200   sd-&gt;choose_format = <a href='../S/2311.html#L1072' title='Defined at 1072 in src/sound.c.'>alsa_choose_format</a>;
+<a id='L1201' name='L1201'></a>  1201   sd-&gt;<a href='../D/19349.html' title='Multiple defined in 14 places.'>write</a> = <a href='../S/2311.html#L1126' title='Defined at 1126 in src/sound.c.'>alsa_write</a>;
+<a id='L1202' name='L1202'></a>  1202   sd-&gt;period_size = <a href='../S/2311.html#L924' title='Defined at 924 in src/sound.c.'>alsa_period_size</a>;
+<a id='L1203' name='L1203'></a>  1203 
+<a id='L1204' name='L1204'></a>  1204   <strong class='reserved'>return</strong> 1;
+<a id='L1205' name='L1205'></a>  1205 <em class='brace'>}</em>
+<a id='L1206' name='L1206'></a>  1206 
+<a id='L1207' name='L1207'></a>  1207 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_ALSA */</em>
+<a id='L1208' name='L1208'></a>  1208 
+<a id='L1209' name='L1209'></a>  1209 
+<a id='L1210' name='L1210'></a>  1210 <em class='comment'>/* END: Non Windows functions */</em>
+<a id='L1211' name='L1211'></a>  1211 <em class='sharp'>#else</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L1212' name='L1212'></a>  1212 
+<a id='L1213' name='L1213'></a>  1213 <em class='comment'>/* BEGIN: Windows specific functions */</em>
+<a id='L1214' name='L1214'></a>  1214 
+<a id='L1215' name='L1215'></a>  1215 <em class='sharp'>#define</em> <a href='../R/5286.html' title='Multiple referred from 5 places.'>SOUND_WARNING</a>(<a href='../D/11895.html' title='Multiple defined in 3 places.'>func</a>, <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a>, text)                \
+<a id='L1216' name='L1216'></a>  1216   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                  \
+<a id='L1217' name='L1217'></a>  1217     <strong class='reserved'>char</strong> buf[1024];                                     \
+<a id='L1218' name='L1218'></a>  1218     <strong class='reserved'>char</strong> err_string[MAXERRORLENGTH];                    \
+<a id='L1219' name='L1219'></a>  1219     <a href='../D/11895.html' title='Multiple defined in 3 places.'>func</a> (<a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a>, err_string, <strong class='reserved'>sizeof</strong> (err_string));      \
+<a id='L1220' name='L1220'></a>  1220     _snprintf (buf, <strong class='reserved'>sizeof</strong> (buf), "%s\nMCI Error: %s",  \
+<a id='L1221' name='L1221'></a>  1221                text, err_string);                       \
+<a id='L1222' name='L1222'></a>  1222     <a href='../S/2224.html#L12140' title='Defined at 12140 in src/xdisp.c.'>message_with_string</a> ("%s", <a href='../D/9419.html' title='Multiple defined in 2 places.'>build_string</a> (buf), 1);  \
+<a id='L1223' name='L1223'></a>  1223   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L1224' name='L1224'></a>  1224 
+<a id='L1225' name='L1225'></a>  1225 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L1226' name='L1226'></a>  1226 <a href='../R/9595.html' title='Multiple referred from 2 places.'>do_play_sound</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *psz_file, <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> ui_volume)
+<a id='L1227' name='L1227'></a>  1227 <em class='brace'>{</em>
+<a id='L1228' name='L1228'></a>  1228   <strong class='reserved'>int</strong> i_result = 0;
+<a id='L1229' name='L1229'></a>  1229   MCIERROR mci_error = 0;
+<a id='L1230' name='L1230'></a>  1230   <strong class='reserved'>char</strong> sz_cmd_buf_a[520];
+<a id='L1231' name='L1231'></a>  1231   <strong class='reserved'>char</strong> sz_ret_buf_a[520];
+<a id='L1232' name='L1232'></a>  1232   MMRESULT mm_result = MMSYSERR_NOERROR;
+<a id='L1233' name='L1233'></a>  1233   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> ui_volume_org = 0;
+<a id='L1234' name='L1234'></a>  1234   <a href='../D/452.html' title='Multiple defined in 3 places.'>BOOL</a> b_reset_volume = <a href='../D/2029.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L1235' name='L1235'></a>  1235   <strong class='reserved'>char</strong> warn_text[560];
+<a id='L1236' name='L1236'></a>  1236 
+<a id='L1237' name='L1237'></a>  1237   <em class='comment'>/* Since UNICOWS.DLL includes only a stub for mciSendStringW, we</em>
+<a id='L1238' name='L1238'></a>  1238 <em class='comment'>     need to encode the file in the ANSI codepage on Windows 9X even</em>
+<a id='L1239' name='L1239'></a>  1239 <em class='comment'>     if w32_unicode_filenames is non-zero.  */</em>
+<a id='L1240' name='L1240'></a>  1240   <strong class='reserved'>if</strong> (w32_major_version &lt;= 4 || !w32_unicode_filenames)
+<a id='L1241' name='L1241'></a>  1241     <em class='brace'>{</em>
+<a id='L1242' name='L1242'></a>  1242       <strong class='reserved'>char</strong> fname_a[MAX_PATH], shortname[MAX_PATH], *fname_to_use;
+<a id='L1243' name='L1243'></a>  1243 
+<a id='L1244' name='L1244'></a>  1244       <a href='../S/2300.html#L1806' title='Defined at 1806 in src/w32.c.'>filename_to_ansi</a> (psz_file, fname_a);
+<a id='L1245' name='L1245'></a>  1245       fname_to_use = fname_a;
+<a id='L1246' name='L1246'></a>  1246       <em class='comment'>/* If the file name is not encodable in ANSI, try its short 8+3</em>
+<a id='L1247' name='L1247'></a>  1247 <em class='comment'>         alias.  This will only work if w32_unicode_filenames is</em>
+<a id='L1248' name='L1248'></a>  1248 <em class='comment'>         non-zero.  */</em>
+<a id='L1249' name='L1249'></a>  1249       <strong class='reserved'>if</strong> (_mbspbrk ((<strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *)fname_a,
+<a id='L1250' name='L1250'></a>  1250                     (<strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *)"?"))
+<a id='L1251' name='L1251'></a>  1251         <em class='brace'>{</em>
+<a id='L1252' name='L1252'></a>  1252           <strong class='reserved'>if</strong> (<a href='../S/2300.html#L2707' title='Defined at 2707 in src/w32.c.'>w32_get_short_filename</a> (psz_file, shortname, MAX_PATH))
+<a id='L1253' name='L1253'></a>  1253             fname_to_use = shortname;
+<a id='L1254' name='L1254'></a>  1254           <strong class='reserved'>else</strong>
+<a id='L1255' name='L1255'></a>  1255             mci_error = MCIERR_FILE_NOT_FOUND;
+<a id='L1256' name='L1256'></a>  1256         <em class='brace'>}</em>
+<a id='L1257' name='L1257'></a>  1257 
+<a id='L1258' name='L1258'></a>  1258       <strong class='reserved'>if</strong> (!mci_error)
+<a id='L1259' name='L1259'></a>  1259         <em class='brace'>{</em>
+<a id='L1260' name='L1260'></a>  1260           memset (sz_cmd_buf_a, 0, <strong class='reserved'>sizeof</strong> (sz_cmd_buf_a));
+<a id='L1261' name='L1261'></a>  1261           memset (sz_ret_buf_a, 0, <strong class='reserved'>sizeof</strong> (sz_ret_buf_a));
+<a id='L1262' name='L1262'></a>  1262           <a href='../D/17574.html' title='Multiple defined in 3 places.'>sprintf</a> (sz_cmd_buf_a,
+<a id='L1263' name='L1263'></a>  1263                    "open \"%s\" alias GNUEmacs_PlaySound_Device wait",
+<a id='L1264' name='L1264'></a>  1264                    fname_to_use);
+<a id='L1265' name='L1265'></a>  1265           mci_error = mciSendStringA (sz_cmd_buf_a,
+<a id='L1266' name='L1266'></a>  1266                                       sz_ret_buf_a, <strong class='reserved'>sizeof</strong> (sz_ret_buf_a), <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1267' name='L1267'></a>  1267         <em class='brace'>}</em>
+<a id='L1268' name='L1268'></a>  1268     <em class='brace'>}</em>
+<a id='L1269' name='L1269'></a>  1269   <strong class='reserved'>else</strong>
+<a id='L1270' name='L1270'></a>  1270     <em class='brace'>{</em>
+<a id='L1271' name='L1271'></a>  1271       <a href='../S/2827.html#L111' title='Defined at 111 in lib/stddef.in.h.'>wchar_t</a> sz_cmd_buf_w[520];
+<a id='L1272' name='L1272'></a>  1272       <a href='../S/2827.html#L111' title='Defined at 111 in lib/stddef.in.h.'>wchar_t</a> sz_ret_buf_w[520];
+<a id='L1273' name='L1273'></a>  1273       <a href='../S/2827.html#L111' title='Defined at 111 in lib/stddef.in.h.'>wchar_t</a> fname_w[MAX_PATH];
+<a id='L1274' name='L1274'></a>  1274 
+<a id='L1275' name='L1275'></a>  1275       <a href='../S/2300.html#L1752' title='Defined at 1752 in src/w32.c.'>filename_to_utf16</a> (psz_file, fname_w);
+<a id='L1276' name='L1276'></a>  1276       memset (sz_cmd_buf_w, 0, <strong class='reserved'>sizeof</strong> (sz_cmd_buf_w));
+<a id='L1277' name='L1277'></a>  1277       memset (sz_ret_buf_w, 0, <strong class='reserved'>sizeof</strong> (sz_ret_buf_w));
+<a id='L1278' name='L1278'></a>  1278       <em class='comment'>/* _swprintf is not available on Windows 9X, so we construct the</em>
+<a id='L1279' name='L1279'></a>  1279 <em class='comment'>         UTF-16 command string by hand.  */</em>
+<a id='L1280' name='L1280'></a>  1280       wcscpy (sz_cmd_buf_w, L"open \"");
+<a id='L1281' name='L1281'></a>  1281       wcscat (sz_cmd_buf_w, fname_w);
+<a id='L1282' name='L1282'></a>  1282       wcscat (sz_cmd_buf_w, L"\" alias GNUEmacs_PlaySound_Device wait");
+<a id='L1283' name='L1283'></a>  1283       mci_error = mciSendStringW (sz_cmd_buf_w,
+<a id='L1284' name='L1284'></a>  1284                                   sz_ret_buf_w, <a href='../D/185.html' title='Multiple defined in 3 places.'>ARRAYELTS</a> (sz_ret_buf_w) , <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1285' name='L1285'></a>  1285     <em class='brace'>}</em>
+<a id='L1286' name='L1286'></a>  1286   <strong class='reserved'>if</strong> (mci_error != 0)
+<a id='L1287' name='L1287'></a>  1287     <em class='brace'>{</em>
+<a id='L1288' name='L1288'></a>  1288       strcpy (warn_text,
+<a id='L1289' name='L1289'></a>  1289               "mciSendString: 'open' command failed to open sound file ");
+<a id='L1290' name='L1290'></a>  1290       strcat (warn_text, psz_file);
+<a id='L1291' name='L1291'></a>  1291       <a href='../S/2311.html#L1215' title='Defined at 1215 in src/sound.c.'>SOUND_WARNING</a> (mciGetErrorString, mci_error, warn_text);
+<a id='L1292' name='L1292'></a>  1292       i_result = (<strong class='reserved'>int</strong>) mci_error;
+<a id='L1293' name='L1293'></a>  1293       <strong class='reserved'>return</strong> i_result;
+<a id='L1294' name='L1294'></a>  1294     <em class='brace'>}</em>
+<a id='L1295' name='L1295'></a>  1295   <strong class='reserved'>if</strong> ((ui_volume &gt; 0) &amp;&amp; (ui_volume != UINT_MAX))
+<a id='L1296' name='L1296'></a>  1296     <em class='brace'>{</em>
+<a id='L1297' name='L1297'></a>  1297       mm_result = waveOutGetVolume ((HWAVEOUT) WAVE_MAPPER, &amp;ui_volume_org);
+<a id='L1298' name='L1298'></a>  1298       <strong class='reserved'>if</strong> (mm_result == MMSYSERR_NOERROR)
+<a id='L1299' name='L1299'></a>  1299         <em class='brace'>{</em>
+<a id='L1300' name='L1300'></a>  1300           b_reset_volume = <a href='../D/6376.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L1301' name='L1301'></a>  1301           mm_result = waveOutSetVolume ((HWAVEOUT) WAVE_MAPPER, ui_volume);
+<a id='L1302' name='L1302'></a>  1302           <strong class='reserved'>if</strong> (mm_result != MMSYSERR_NOERROR)
+<a id='L1303' name='L1303'></a>  1303             <em class='brace'>{</em>
+<a id='L1304' name='L1304'></a>  1304               <a href='../S/2311.html#L1215' title='Defined at 1215 in src/sound.c.'>SOUND_WARNING</a> (waveOutGetErrorText, mm_result,
+<a id='L1305' name='L1305'></a>  1305                              "waveOutSetVolume: failed to set the volume level"
+<a id='L1306' name='L1306'></a>  1306                              " of the WAVE_MAPPER device.\n"
+<a id='L1307' name='L1307'></a>  1307                              "As a result, the user selected volume level will"
+<a id='L1308' name='L1308'></a>  1308                              " not be used.");
+<a id='L1309' name='L1309'></a>  1309             <em class='brace'>}</em>
+<a id='L1310' name='L1310'></a>  1310         <em class='brace'>}</em>
+<a id='L1311' name='L1311'></a>  1311       <strong class='reserved'>else</strong>
+<a id='L1312' name='L1312'></a>  1312         <em class='brace'>{</em>
+<a id='L1313' name='L1313'></a>  1313           <a href='../S/2311.html#L1215' title='Defined at 1215 in src/sound.c.'>SOUND_WARNING</a> (waveOutGetErrorText, mm_result,
+<a id='L1314' name='L1314'></a>  1314                          "waveOutGetVolume: failed to obtain the original"
+<a id='L1315' name='L1315'></a>  1315                          " volume level of the WAVE_MAPPER device.\n"
+<a id='L1316' name='L1316'></a>  1316                          "As a result, the user selected volume level will"
+<a id='L1317' name='L1317'></a>  1317                          " not be used.");
+<a id='L1318' name='L1318'></a>  1318         <em class='brace'>}</em>
+<a id='L1319' name='L1319'></a>  1319     <em class='brace'>}</em>
+<a id='L1320' name='L1320'></a>  1320   memset (sz_cmd_buf_a, 0, <strong class='reserved'>sizeof</strong> (sz_cmd_buf_a));
+<a id='L1321' name='L1321'></a>  1321   memset (sz_ret_buf_a, 0, <strong class='reserved'>sizeof</strong> (sz_ret_buf_a));
+<a id='L1322' name='L1322'></a>  1322   strcpy (sz_cmd_buf_a, "play GNUEmacs_PlaySound_Device wait");
+<a id='L1323' name='L1323'></a>  1323   mci_error = mciSendStringA (sz_cmd_buf_a, sz_ret_buf_a, <strong class='reserved'>sizeof</strong> (sz_ret_buf_a),
+<a id='L1324' name='L1324'></a>  1324                               <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1325' name='L1325'></a>  1325   <strong class='reserved'>if</strong> (mci_error != 0)
+<a id='L1326' name='L1326'></a>  1326     <em class='brace'>{</em>
+<a id='L1327' name='L1327'></a>  1327       strcpy (warn_text,
+<a id='L1328' name='L1328'></a>  1328               "mciSendString: 'play' command failed to play sound file ");
+<a id='L1329' name='L1329'></a>  1329       strcat (warn_text, psz_file);
+<a id='L1330' name='L1330'></a>  1330       <a href='../S/2311.html#L1215' title='Defined at 1215 in src/sound.c.'>SOUND_WARNING</a> (mciGetErrorString, mci_error, warn_text);
+<a id='L1331' name='L1331'></a>  1331       i_result = (<strong class='reserved'>int</strong>) mci_error;
+<a id='L1332' name='L1332'></a>  1332     <em class='brace'>}</em>
+<a id='L1333' name='L1333'></a>  1333   memset (sz_cmd_buf_a, 0, <strong class='reserved'>sizeof</strong> (sz_cmd_buf_a));
+<a id='L1334' name='L1334'></a>  1334   memset (sz_ret_buf_a, 0, <strong class='reserved'>sizeof</strong> (sz_ret_buf_a));
+<a id='L1335' name='L1335'></a>  1335   strcpy (sz_cmd_buf_a, "close GNUEmacs_PlaySound_Device wait");
+<a id='L1336' name='L1336'></a>  1336   mci_error = mciSendStringA (sz_cmd_buf_a, sz_ret_buf_a, <strong class='reserved'>sizeof</strong> (sz_ret_buf_a),
+<a id='L1337' name='L1337'></a>  1337                               <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1338' name='L1338'></a>  1338   <strong class='reserved'>if</strong> (b_reset_volume == <a href='../D/6376.html' title='Multiple defined in 3 places.'>TRUE</a>)
+<a id='L1339' name='L1339'></a>  1339     <em class='brace'>{</em>
+<a id='L1340' name='L1340'></a>  1340       mm_result = waveOutSetVolume ((HWAVEOUT) WAVE_MAPPER, ui_volume_org);
+<a id='L1341' name='L1341'></a>  1341       <strong class='reserved'>if</strong> (mm_result != MMSYSERR_NOERROR)
+<a id='L1342' name='L1342'></a>  1342         <em class='brace'>{</em>
+<a id='L1343' name='L1343'></a>  1343           <a href='../S/2311.html#L1215' title='Defined at 1215 in src/sound.c.'>SOUND_WARNING</a> (waveOutGetErrorText, mm_result,
+<a id='L1344' name='L1344'></a>  1344                          "waveOutSetVolume: failed to reset the original"
+<a id='L1345' name='L1345'></a>  1345                          " volume level of the WAVE_MAPPER device.");
+<a id='L1346' name='L1346'></a>  1346         <em class='brace'>}</em>
+<a id='L1347' name='L1347'></a>  1347     <em class='brace'>}</em>
+<a id='L1348' name='L1348'></a>  1348   <strong class='reserved'>return</strong> i_result;
+<a id='L1349' name='L1349'></a>  1349 <em class='brace'>}</em>
+<a id='L1350' name='L1350'></a>  1350 
+<a id='L1351' name='L1351'></a>  1351 <em class='comment'>/* END: Windows specific functions */</em>
+<a id='L1352' name='L1352'></a>  1352 
+<a id='L1353' name='L1353'></a>  1353 <em class='sharp'>#endif</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L1354' name='L1354'></a>  1354 
+<a id='L1355' name='L1355'></a>  1355 <a href='../R/1363.html' title='Multiple referred from 830 places.'>DEFUN</a> ("play-sound-internal", Fplay_sound_internal, Splay_sound_internal, 1, 1, 0,
+<a id='L1356' name='L1356'></a>  1356        doc: <em class='comment'>/* Play sound SOUND.</em>
+<a id='L1357' name='L1357'></a>  1357 <em class='comment'></em>
+<a id='L1358' name='L1358'></a>  1358 <em class='comment'>Internal use only, use `play-sound' instead.  */</em>)
+<a id='L1359' name='L1359'></a>  1359   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>)
+<a id='L1360' name='L1360'></a>  1360 <em class='brace'>{</em>
+<a id='L1361' name='L1361'></a>  1361   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> attrs[<a href='../S/2311.html#L106' title='Defined at 106 in src/sound.c.'>SOUND_ATTR_SENTINEL</a>];
+<a id='L1362' name='L1362'></a>  1362   <a href='../D/17561.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count = <a href='../D/5887.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L1363' name='L1363'></a>  1363 
+<a id='L1364' name='L1364'></a>  1364 <em class='sharp'>#ifdef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L1365' name='L1365'></a>  1365   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> ui_volume_tmp = UINT_MAX;
+<a id='L1366' name='L1366'></a>  1366   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> ui_volume = UINT_MAX;
+<a id='L1367' name='L1367'></a>  1367 <em class='sharp'>#endif</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L1368' name='L1368'></a>  1368 
+<a id='L1369' name='L1369'></a>  1369   <em class='comment'>/* Parse the sound specification.  Give up if it is invalid.  */</em>
+<a id='L1370' name='L1370'></a>  1370   <strong class='reserved'>if</strong> (!<a href='../S/2311.html#L357' title='Defined at 357 in src/sound.c.'>parse_sound</a> (<a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>, attrs))
+<a id='L1371' name='L1371'></a>  1371     <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Invalid sound specification");
+<a id='L1372' name='L1372'></a>  1372 
+<a id='L1373' name='L1373'></a>  1373   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file = Qnil;
+<a id='L1374' name='L1374'></a>  1374 
+<a id='L1375' name='L1375'></a>  1375 <em class='sharp'>#ifndef</em> <a href='../D/6790.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L1376' name='L1376'></a>  1376   current_sound_device = <a href='../S/2350.html#L802' title='Defined at 802 in src/alloc.c.'>xzalloc</a> (<strong class='reserved'>sizeof</strong> *current_sound_device);
+<a id='L1377' name='L1377'></a>  1377   current_sound = <a href='../S/2350.html#L802' title='Defined at 802 in src/alloc.c.'>xzalloc</a> (<strong class='reserved'>sizeof</strong> *current_sound);
+<a id='L1378' name='L1378'></a>  1378   <a href='../S/2188.html#L3608' title='Defined at 3608 in src/eval.c.'>record_unwind_protect_void</a> (<a href='../S/2311.html#L445' title='Defined at 445 in src/sound.c.'>sound_cleanup</a>);
+<a id='L1379' name='L1379'></a>  1379   <strong class='reserved'>char</strong> headerbuf[<a href='../S/2311.html#L174' title='Defined at 174 in src/sound.c.'>MAX_SOUND_HEADER_BYTES</a>];
+<a id='L1380' name='L1380'></a>  1380   current_sound-&gt;header = headerbuf;
+<a id='L1381' name='L1381'></a>  1381 
+<a id='L1382' name='L1382'></a>  1382   <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (attrs[<a href='../S/2311.html#L102' title='Defined at 102 in src/sound.c.'>SOUND_FILE</a>]))
+<a id='L1383' name='L1383'></a>  1383     <em class='brace'>{</em>
+<a id='L1384' name='L1384'></a>  1384       <em class='comment'>/* Open the sound file.  */</em>
+<a id='L1385' name='L1385'></a>  1385       current_sound-&gt;fd =
+<a id='L1386' name='L1386'></a>  1386         <a href='../S/2253.html#L2017' title='Defined at 2017 in src/lread.c.'>openp</a> (<a href='../S/2350.html#L2919' title='Defined at 2919 in src/alloc.c.'>list1</a> (Vdata_directory), attrs[<a href='../S/2311.html#L102' title='Defined at 102 in src/sound.c.'>SOUND_FILE</a>], Qnil, &amp;file, Qnil,
+<a id='L1387' name='L1387'></a>  1387                <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1388' name='L1388'></a>  1388       <strong class='reserved'>if</strong> (current_sound-&gt;fd &lt; 0)
+<a id='L1389' name='L1389'></a>  1389         <a href='../S/2311.html#L297' title='Defined at 297 in src/sound.c.'>sound_perror</a> ("Could not open sound file");
+<a id='L1390' name='L1390'></a>  1390 
+<a id='L1391' name='L1391'></a>  1391       <em class='comment'>/* Read the first bytes from the file.  */</em>
+<a id='L1392' name='L1392'></a>  1392       current_sound-&gt;<a href='../D/13010.html' title='Multiple defined in 2 places.'>header_size</a>
+<a id='L1393' name='L1393'></a>  1393         = <a href='../S/2286.html#L2700' title='Defined at 2700 in src/sysdep.c.'>emacs_read</a> (current_sound-&gt;fd, current_sound-&gt;header,
+<a id='L1394' name='L1394'></a>  1394                       <a href='../S/2311.html#L174' title='Defined at 174 in src/sound.c.'>MAX_SOUND_HEADER_BYTES</a>);
+<a id='L1395' name='L1395'></a>  1395       <strong class='reserved'>if</strong> (current_sound-&gt;<a href='../D/13010.html' title='Multiple defined in 2 places.'>header_size</a> &lt; 0)
+<a id='L1396' name='L1396'></a>  1396         <a href='../S/2311.html#L297' title='Defined at 297 in src/sound.c.'>sound_perror</a> ("Invalid sound file header");
+<a id='L1397' name='L1397'></a>  1397     <em class='brace'>}</em>
+<a id='L1398' name='L1398'></a>  1398   <strong class='reserved'>else</strong>
+<a id='L1399' name='L1399'></a>  1399     <em class='brace'>{</em>
+<a id='L1400' name='L1400'></a>  1400       current_sound-&gt;data = attrs[<a href='../S/2311.html#L103' title='Defined at 103 in src/sound.c.'>SOUND_DATA</a>];
+<a id='L1401' name='L1401'></a>  1401       current_sound-&gt;<a href='../D/13010.html' title='Multiple defined in 2 places.'>header_size</a> = <a href='../D/14467.html' title='Multiple defined in 11 places.'>min</a> (<a href='../S/2311.html#L174' title='Defined at 174 in src/sound.c.'>MAX_SOUND_HEADER_BYTES</a>, <a href='../D/5430.html' title='Multiple defined in 2 places.'>SBYTES</a> (current_sound-&gt;data));
+<a id='L1402' name='L1402'></a>  1402       memcpy (current_sound-&gt;header, <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (current_sound-&gt;data),
+<a id='L1403' name='L1403'></a>  1403               current_sound-&gt;<a href='../D/13010.html' title='Multiple defined in 2 places.'>header_size</a>);
+<a id='L1404' name='L1404'></a>  1404     <em class='brace'>}</em>
+<a id='L1405' name='L1405'></a>  1405 
+<a id='L1406' name='L1406'></a>  1406   <em class='comment'>/* Find out the type of sound.  Give up if we can't tell.  */</em>
+<a id='L1407' name='L1407'></a>  1407   <a href='../S/2311.html#L435' title='Defined at 435 in src/sound.c.'>find_sound_type</a> (current_sound);
+<a id='L1408' name='L1408'></a>  1408 
+<a id='L1409' name='L1409'></a>  1409   <em class='comment'>/* Set up a device.  */</em>
+<a id='L1410' name='L1410'></a>  1410   current_sound_device-&gt;file = attrs[<a href='../S/2311.html#L104' title='Defined at 104 in src/sound.c.'>SOUND_DEVICE</a>];
+<a id='L1411' name='L1411'></a>  1411 
+<a id='L1412' name='L1412'></a>  1412   <strong class='reserved'>if</strong> (<a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]))
+<a id='L1413' name='L1413'></a>  1413     current_sound_device-&gt;volume = <a href='../S/2267.html#L3015' title='Defined at 3015 in src/lisp.h.'>XFIXNAT</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]);
+<a id='L1414' name='L1414'></a>  1414   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/2123.html' title='Multiple defined in 2 places.'>FLOATP</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]))
+<a id='L1415' name='L1415'></a>  1415     current_sound_device-&gt;volume = <a href='../D/7089.html' title='Multiple defined in 2 places.'>XFLOAT_DATA</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]) * 100;
+<a id='L1416' name='L1416'></a>  1416 
+<a id='L1417' name='L1417'></a>  1417   <a href='../D/652.html' title='Multiple defined in 2 places.'>CALLN</a> (Frun_hook_with_args, Qplay_sound_functions, <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>);
+<a id='L1418' name='L1418'></a>  1418 
+<a id='L1419' name='L1419'></a>  1419 <em class='sharp'>#ifdef</em> HAVE_ALSA
+<a id='L1420' name='L1420'></a>  1420   <strong class='reserved'>if</strong> (!<a href='../S/2311.html#L1182' title='Defined at 1182 in src/sound.c.'>alsa_init</a> (current_sound_device))
+<a id='L1421' name='L1421'></a>  1421 <em class='sharp'>#endif</em>
+<a id='L1422' name='L1422'></a>  1422     <strong class='reserved'>if</strong> (!<a href='../S/2311.html#L844' title='Defined at 844 in src/sound.c.'>vox_init</a> (current_sound_device))
+<a id='L1423' name='L1423'></a>  1423       <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("No usable sound device driver found");
+<a id='L1424' name='L1424'></a>  1424 
+<a id='L1425' name='L1425'></a>  1425   <em class='comment'>/* Open the device.  */</em>
+<a id='L1426' name='L1426'></a>  1426   current_sound_device-&gt;<a href='../D/15122.html' title='Multiple defined in 11 places.'>open</a> (current_sound_device);
+<a id='L1427' name='L1427'></a>  1427 
+<a id='L1428' name='L1428'></a>  1428   <em class='comment'>/* Play the sound.  */</em>
+<a id='L1429' name='L1429'></a>  1429   current_sound-&gt;play (current_sound, current_sound_device);
+<a id='L1430' name='L1430'></a>  1430 
+<a id='L1431' name='L1431'></a>  1431 <em class='sharp'>#else</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L1432' name='L1432'></a>  1432 
+<a id='L1433' name='L1433'></a>  1433   file = Fexpand_file_name (attrs[<a href='../S/2311.html#L102' title='Defined at 102 in src/sound.c.'>SOUND_FILE</a>], Vdata_directory);
+<a id='L1434' name='L1434'></a>  1434   file = <a href='../S/2154.html#L643' title='Defined at 643 in src/coding.h.'>ENCODE_FILE</a> (file);
+<a id='L1435' name='L1435'></a>  1435   <strong class='reserved'>if</strong> (<a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]))
+<a id='L1436' name='L1436'></a>  1436     <em class='brace'>{</em>
+<a id='L1437' name='L1437'></a>  1437       ui_volume_tmp = <a href='../S/2267.html#L3015' title='Defined at 3015 in src/lisp.h.'>XFIXNAT</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]);
+<a id='L1438' name='L1438'></a>  1438     <em class='brace'>}</em>
+<a id='L1439' name='L1439'></a>  1439   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/2123.html' title='Multiple defined in 2 places.'>FLOATP</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]))
+<a id='L1440' name='L1440'></a>  1440     <em class='brace'>{</em>
+<a id='L1441' name='L1441'></a>  1441       ui_volume_tmp = <a href='../D/7089.html' title='Multiple defined in 2 places.'>XFLOAT_DATA</a> (attrs[<a href='../S/2311.html#L105' title='Defined at 105 in src/sound.c.'>SOUND_VOLUME</a>]) * 100;
+<a id='L1442' name='L1442'></a>  1442     <em class='brace'>}</em>
+<a id='L1443' name='L1443'></a>  1443 
+<a id='L1444' name='L1444'></a>  1444   <a href='../D/652.html' title='Multiple defined in 2 places.'>CALLN</a> (Frun_hook_with_args, Qplay_sound_functions, <a href='../S/2311.html#L240' title='Defined at 240 in src/sound.c.'>sound</a>);
+<a id='L1445' name='L1445'></a>  1445 
+<a id='L1446' name='L1446'></a>  1446   <em class='comment'>/*</em>
+<a id='L1447' name='L1447'></a>  1447 <em class='comment'>    Based on some experiments I have conducted, a value of 100 or less</em>
+<a id='L1448' name='L1448'></a>  1448 <em class='comment'>    for the sound volume is much too low.  You cannot even hear it.</em>
+<a id='L1449' name='L1449'></a>  1449 <em class='comment'>    A value of UINT_MAX indicates that you wish for the sound to played</em>
+<a id='L1450' name='L1450'></a>  1450 <em class='comment'>    at the maximum possible volume.  A value of UINT_MAX/2 plays the</em>
+<a id='L1451' name='L1451'></a>  1451 <em class='comment'>    sound at 50% maximum volume.  Therefore the value passed to do_play_sound</em>
+<a id='L1452' name='L1452'></a>  1452 <em class='comment'>    (and thus to waveOutSetVolume) must be some fraction of UINT_MAX.</em>
+<a id='L1453' name='L1453'></a>  1453 <em class='comment'>    The following code adjusts the user specified volume level appropriately.</em>
+<a id='L1454' name='L1454'></a>  1454 <em class='comment'>  */</em>
+<a id='L1455' name='L1455'></a>  1455   <strong class='reserved'>if</strong> ((ui_volume_tmp &gt; 0) &amp;&amp; (ui_volume_tmp &lt;= 100))
+<a id='L1456' name='L1456'></a>  1456     <em class='brace'>{</em>
+<a id='L1457' name='L1457'></a>  1457       ui_volume = ui_volume_tmp * (UINT_MAX / 100);
+<a id='L1458' name='L1458'></a>  1458     <em class='brace'>}</em>
+<a id='L1459' name='L1459'></a>  1459   (<strong class='reserved'>void</strong>)<a href='../S/2311.html#L1226' title='Defined at 1226 in src/sound.c.'>do_play_sound</a> (<a href='../D/5916.html' title='Multiple defined in 2 places.'>SSDATA</a> (file), ui_volume);
+<a id='L1460' name='L1460'></a>  1460 
+<a id='L1461' name='L1461'></a>  1461 <em class='sharp'>#endif</em> <em class='comment'>/* WINDOWSNT */</em>
+<a id='L1462' name='L1462'></a>  1462 
+<a id='L1463' name='L1463'></a>  1463   <strong class='reserved'>return</strong> <a href='../S/2188.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (count, Qnil);
+<a id='L1464' name='L1464'></a>  1464 <em class='brace'>}</em>
+<a id='L1465' name='L1465'></a>  1465 
+<a id='L1466' name='L1466'></a>  1466 <em class='comment'>/***********************************************************************</em>
+<a id='L1467' name='L1467'></a>  1467 <em class='comment'>                            Initialization</em>
+<a id='L1468' name='L1468'></a>  1468 <em class='comment'> ***********************************************************************/</em>
+<a id='L1469' name='L1469'></a>  1469 
+<a id='L1470' name='L1470'></a>  1470 <strong class='reserved'>void</strong>
+<a id='L1471' name='L1471'></a>  1471 <a href='../R/16664.html' title='Multiple referred from 3 places.'>syms_of_sound</a> (<strong class='reserved'>void</strong>)
+<a id='L1472' name='L1472'></a>  1472 <em class='brace'>{</em>
+<a id='L1473' name='L1473'></a>  1473   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (QCdevice, ":device");
+<a id='L1474' name='L1474'></a>  1474   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (QCvolume, ":volume");
+<a id='L1475' name='L1475'></a>  1475   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qsound, "sound");
+<a id='L1476' name='L1476'></a>  1476   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qplay_sound_functions, "play-sound-functions");
+<a id='L1477' name='L1477'></a>  1477 
+<a id='L1478' name='L1478'></a>  1478   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Splay_sound_internal);
+<a id='L1479' name='L1479'></a>  1479 <em class='brace'>}</em>
+<a id='L1480' name='L1480'></a>  1480 
+<a id='L1481' name='L1481'></a>  1481 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_SOUND */</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L297'>[^]</a><a href='#L1471'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

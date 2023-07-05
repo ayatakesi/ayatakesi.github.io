@@ -1,0 +1,426 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>lib/md5.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4493.html'>lib</a>/md5.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L66'>[^]</a><a href='#L229'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L66' title='Defined at 66.'>md5_init_ctx</a></li>
+<li><a href='#L81' title='Defined at 81.'>set_uint32</a></li>
+<li><a href='#L89' title='Defined at 89.'>md5_read_ctx</a></li>
+<li><a href='#L103' title='Defined at 103.'>md5_finish_ctx</a></li>
+<li><a href='#L131' title='Defined at 131.'>md5_buffer</a></li>
+<li><a href='#L147' title='Defined at 147.'>md5_process_bytes</a></li>
+<li><a href='#L229' title='Defined at 229.'>md5_process_block</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Functions to compute MD5 message digest of files or memory blocks.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   according to the definition of MD5 in RFC 1321 from April 1992.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright (C) 1995-1997, 1999-2001, 2005-2006, 2008-2023 Free</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>   Software Foundation, Inc.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>   This file is part of the GNU C Library.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>   This file is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>   it under the terms of the GNU Lesser General Public License as</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>   published by the Free Software Foundation; either version 2.1 of the</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>   License, or (at your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>   This file is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>   GNU Lesser General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>   You should have received a copy of the GNU Lesser General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='comment'>/* Written by Ulrich Drepper &lt;drepper@gnu.ai.mit.edu&gt;, 1995.  */</em>
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='comment'>/* Specification.  */</em>
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#if</em> HAVE_OPENSSL_MD5
+<a id='L26' name='L26'></a>    26 <em class='sharp'># define</em> GL_OPENSSL_INLINE _GL_EXTERN_INLINE
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#endif</em>
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> "<a href='2613.html'>md5.h</a>"
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;<a href='25.html'>stdint.h</a>&gt;
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;string.h&gt;
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;sys/types.h&gt;
+<a id='L33' name='L33'></a>    33 
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#ifdef</em> _LIBC
+<a id='L35' name='L35'></a>    35 <em class='sharp'># include</em> &lt;endian.h&gt;
+<a id='L36' name='L36'></a>    36 <em class='sharp'># if</em> <a href='../D/7270.html' title='Multiple defined in 2 places.'>__BYTE_ORDER</a> == <a href='../S/2683.html#L39' title='Defined at 39 in lib/ieee754.in.h.'>__BIG_ENDIAN</a>
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#  define</em> <a href='../R/5648.html' title='Multiple referred from 14 places.'>WORDS_BIGENDIAN</a> 1
+<a id='L38' name='L38'></a>    38 <em class='sharp'># endif</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>/* We need to keep the namespace clean so define the MD5 function</em>
+<a id='L40' name='L40'></a>    40 <em class='comment'>   protected using leading __ .  */</em>
+<a id='L41' name='L41'></a>    41 <em class='sharp'># define</em> <a href='../R/11855.html' title='Multiple referred from 4 places.'>md5_init_ctx</a> <a href='../S/2613.html#L56' title='Defined at 56 in lib/md5.h.'>__md5_init_ctx</a>
+<a id='L42' name='L42'></a>    42 <em class='sharp'># define</em> <a href='../R/11856.html' title='Multiple referred from 8 places.'>md5_process_block</a> <a href='../S/2613.html#L57' title='Defined at 57 in lib/md5.h.'>__md5_process_block</a>
+<a id='L43' name='L43'></a>    43 <em class='sharp'># define</em> <a href='../R/11857.html' title='Multiple referred from 4 places.'>md5_process_bytes</a> <a href='../S/2613.html#L58' title='Defined at 58 in lib/md5.h.'>__md5_process_bytes</a>
+<a id='L44' name='L44'></a>    44 <em class='sharp'># define</em> <a href='../R/11853.html' title='Multiple referred from 4 places.'>md5_finish_ctx</a> <a href='../S/2613.html#L55' title='Defined at 55 in lib/md5.h.'>__md5_finish_ctx</a>
+<a id='L45' name='L45'></a>    45 <em class='sharp'># define</em> <a href='../R/11858.html' title='Multiple referred from 2 places.'>md5_read_ctx</a> <a href='../S/2613.html#L59' title='Defined at 59 in lib/md5.h.'>__md5_read_ctx</a>
+<a id='L46' name='L46'></a>    46 <em class='sharp'># define</em> <a href='../R/11851.html' title='Multiple referred from 3 places.'>md5_buffer</a> <a href='../S/2613.html#L54' title='Defined at 54 in lib/md5.h.'>__md5_buffer</a>
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#endif</em>
+<a id='L48' name='L48'></a>    48 
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#include</em> &lt;byteswap.h&gt;
+<a id='L50' name='L50'></a>    50 <em class='sharp'>#ifdef</em> <a href='../D/6268.html' title='Multiple defined in 2 places.'>WORDS_BIGENDIAN</a>
+<a id='L51' name='L51'></a>    51 <em class='sharp'># define</em> <a href='../R/4924.html' title='Multiple referred from 25 places.'>SWAP</a>(n) <a href='../D/8208.html' title='Multiple defined in 2 places.'>bswap_32</a> (n)
+<a id='L52' name='L52'></a>    52 <em class='sharp'>#else</em>
+<a id='L53' name='L53'></a>    53 <em class='sharp'># define</em> <a href='../R/4924.html' title='Multiple referred from 25 places.'>SWAP</a>(n) (n)
+<a id='L54' name='L54'></a>    54 <em class='sharp'>#endif</em>
+<a id='L55' name='L55'></a>    55 
+<a id='L56' name='L56'></a>    56 <em class='sharp'>#if</em> ! HAVE_OPENSSL_MD5
+<a id='L57' name='L57'></a>    57 
+<a id='L58' name='L58'></a>    58 <em class='comment'>/* This array contains the bytes used to pad the buffer to the next</em>
+<a id='L59' name='L59'></a>    59 <em class='comment'>   64-byte boundary.  (RFC 1321, 3.1: Step 1)  */</em>
+<a id='L60' name='L60'></a>    60 <strong class='reserved'>static</strong> <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> fillbuf[64] = <em class='brace'>{</em> 0x80, 0 <em class='comment'>/* , 0, 0, ...  */</em> <em class='brace'>}</em>;
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62 
+<a id='L63' name='L63'></a>    63 <em class='comment'>/* Initialize structure containing state of computation.</em>
+<a id='L64' name='L64'></a>    64 <em class='comment'>   (RFC 1321, 3.3: Step 3)  */</em>
+<a id='L65' name='L65'></a>    65 <strong class='reserved'>void</strong>
+<a id='L66' name='L66'></a>    66 <a href='../R/11855.html' title='Multiple referred from 4 places.'>md5_init_ctx</a> (<strong class='reserved'>struct</strong> <a href='../S/2613.html#L72' title='Defined at 72 in lib/md5.h.'>md5_ctx</a> *ctx)
+<a id='L67' name='L67'></a>    67 <em class='brace'>{</em>
+<a id='L68' name='L68'></a>    68   ctx-&gt;<a href='../D/1.html' title='Multiple defined in 14 places.'>A</a> = 0x67452301;
+<a id='L69' name='L69'></a>    69   ctx-&gt;<a href='../D/194.html' title='Multiple defined in 9 places.'>B</a> = 0xefcdab89;
+<a id='L70' name='L70'></a>    70   ctx-&gt;<a href='../D/499.html' title='Multiple defined in 2 places.'>C</a> = 0x98badcfe;
+<a id='L71' name='L71'></a>    71   ctx-&gt;<a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a> = 0x10325476;
+<a id='L72' name='L72'></a>    72 
+<a id='L73' name='L73'></a>    73   ctx-&gt;total[0] = ctx-&gt;total[1] = 0;
+<a id='L74' name='L74'></a>    74   ctx-&gt;buflen = 0;
+<a id='L75' name='L75'></a>    75 <em class='brace'>}</em>
+<a id='L76' name='L76'></a>    76 
+<a id='L77' name='L77'></a>    77 <em class='comment'>/* Copy the 4 byte value from v into the memory location pointed to by *cp,</em>
+<a id='L78' name='L78'></a>    78 <em class='comment'>   If your architecture allows unaligned access this is equivalent to</em>
+<a id='L79' name='L79'></a>    79 <em class='comment'>   * (uint32_t *) cp = v  */</em>
+<a id='L80' name='L80'></a>    80 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L81' name='L81'></a>    81 <a href='../R/14115.html' title='Multiple referred from 13 places.'>set_uint32</a> (<strong class='reserved'>char</strong> *cp, <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> v)
+<a id='L82' name='L82'></a>    82 <em class='brace'>{</em>
+<a id='L83' name='L83'></a>    83   memcpy (cp, &amp;v, <strong class='reserved'>sizeof</strong> v);
+<a id='L84' name='L84'></a>    84 <em class='brace'>}</em>
+<a id='L85' name='L85'></a>    85 
+<a id='L86' name='L86'></a>    86 <em class='comment'>/* Put result from CTX in first 16 bytes following RESBUF.  The result</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'>   must be in little endian byte order.  */</em>
+<a id='L88' name='L88'></a>    88 <strong class='reserved'>void</strong> *
+<a id='L89' name='L89'></a>    89 <a href='../R/11858.html' title='Multiple referred from 2 places.'>md5_read_ctx</a> (<strong class='reserved'>const</strong> <strong class='reserved'>struct</strong> <a href='../S/2613.html#L72' title='Defined at 72 in lib/md5.h.'>md5_ctx</a> *ctx, <strong class='reserved'>void</strong> *resbuf)
+<a id='L90' name='L90'></a>    90 <em class='brace'>{</em>
+<a id='L91' name='L91'></a>    91   <strong class='reserved'>char</strong> *r = resbuf;
+<a id='L92' name='L92'></a>    92   <a href='../D/15247.html' title='Multiple defined in 3 places.'>set_uint32</a> (r + 0 * <strong class='reserved'>sizeof</strong> ctx-&gt;<a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/5466.html' title='Multiple defined in 8 places.'>SWAP</a> (ctx-&gt;<a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>));
+<a id='L93' name='L93'></a>    93   <a href='../D/15247.html' title='Multiple defined in 3 places.'>set_uint32</a> (r + 1 * <strong class='reserved'>sizeof</strong> ctx-&gt;<a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/5466.html' title='Multiple defined in 8 places.'>SWAP</a> (ctx-&gt;<a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>));
+<a id='L94' name='L94'></a>    94   <a href='../D/15247.html' title='Multiple defined in 3 places.'>set_uint32</a> (r + 2 * <strong class='reserved'>sizeof</strong> ctx-&gt;<a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../D/5466.html' title='Multiple defined in 8 places.'>SWAP</a> (ctx-&gt;<a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>));
+<a id='L95' name='L95'></a>    95   <a href='../D/15247.html' title='Multiple defined in 3 places.'>set_uint32</a> (r + 3 * <strong class='reserved'>sizeof</strong> ctx-&gt;<a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/5466.html' title='Multiple defined in 8 places.'>SWAP</a> (ctx-&gt;<a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>));
+<a id='L96' name='L96'></a>    96 
+<a id='L97' name='L97'></a>    97   <strong class='reserved'>return</strong> resbuf;
+<a id='L98' name='L98'></a>    98 <em class='brace'>}</em>
+<a id='L99' name='L99'></a>    99 
+<a id='L100' name='L100'></a>   100 <em class='comment'>/* Process the remaining bytes in the internal buffer and the usual</em>
+<a id='L101' name='L101'></a>   101 <em class='comment'>   prolog according to the standard and write the result to RESBUF.  */</em>
+<a id='L102' name='L102'></a>   102 <strong class='reserved'>void</strong> *
+<a id='L103' name='L103'></a>   103 <a href='../R/11853.html' title='Multiple referred from 4 places.'>md5_finish_ctx</a> (<strong class='reserved'>struct</strong> <a href='../S/2613.html#L72' title='Defined at 72 in lib/md5.h.'>md5_ctx</a> *ctx, <strong class='reserved'>void</strong> *resbuf)
+<a id='L104' name='L104'></a>   104 <em class='brace'>{</em>
+<a id='L105' name='L105'></a>   105   <em class='comment'>/* Take yet unprocessed bytes into account.  */</em>
+<a id='L106' name='L106'></a>   106   <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> bytes = ctx-&gt;buflen;
+<a id='L107' name='L107'></a>   107   size_t <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> = (bytes &lt; 56) ? 64 / 4 : 64 * 2 / 4;
+<a id='L108' name='L108'></a>   108 
+<a id='L109' name='L109'></a>   109   <em class='comment'>/* Now count remaining bytes.  */</em>
+<a id='L110' name='L110'></a>   110   ctx-&gt;total[0] += bytes;
+<a id='L111' name='L111'></a>   111   <strong class='reserved'>if</strong> (ctx-&gt;total[0] &lt; bytes)
+<a id='L112' name='L112'></a>   112     ++ctx-&gt;total[1];
+<a id='L113' name='L113'></a>   113 
+<a id='L114' name='L114'></a>   114   <em class='comment'>/* Put the 64-bit file length in *bits* at the end of the buffer.  */</em>
+<a id='L115' name='L115'></a>   115   ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>[<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> - 2] = <a href='../D/5466.html' title='Multiple defined in 8 places.'>SWAP</a> (ctx-&gt;total[0] &lt;&lt; 3);
+<a id='L116' name='L116'></a>   116   ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>[<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> - 1] = <a href='../D/5466.html' title='Multiple defined in 8 places.'>SWAP</a> ((ctx-&gt;total[1] &lt;&lt; 3) | (ctx-&gt;total[0] &gt;&gt; 29));
+<a id='L117' name='L117'></a>   117 
+<a id='L118' name='L118'></a>   118   memcpy (&amp;((<strong class='reserved'>char</strong> *) ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)[bytes], fillbuf, (<a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> - 2) * 4 - bytes);
+<a id='L119' name='L119'></a>   119 
+<a id='L120' name='L120'></a>   120   <em class='comment'>/* Process last bytes.  */</em>
+<a id='L121' name='L121'></a>   121   <a href='../D/12883.html' title='Multiple defined in 3 places.'>md5_process_block</a> (ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, <a href='../D/15397.html' title='Multiple defined in 5 places.'>size</a> * 4, ctx);
+<a id='L122' name='L122'></a>   122 
+<a id='L123' name='L123'></a>   123   <strong class='reserved'>return</strong> <a href='../D/12885.html' title='Multiple defined in 2 places.'>md5_read_ctx</a> (ctx, resbuf);
+<a id='L124' name='L124'></a>   124 <em class='brace'>}</em>
+<a id='L125' name='L125'></a>   125 
+<a id='L126' name='L126'></a>   126 <em class='comment'>/* Compute MD5 message digest for LEN bytes beginning at BUFFER.  The</em>
+<a id='L127' name='L127'></a>   127 <em class='comment'>   result is always in little endian byte order, so that a byte-wise</em>
+<a id='L128' name='L128'></a>   128 <em class='comment'>   output yields to the wanted ASCII representation of the message</em>
+<a id='L129' name='L129'></a>   129 <em class='comment'>   digest.  */</em>
+<a id='L130' name='L130'></a>   130 <strong class='reserved'>void</strong> *
+<a id='L131' name='L131'></a>   131 <a href='../R/11851.html' title='Multiple referred from 3 places.'>md5_buffer</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, size_t len, <strong class='reserved'>void</strong> *resblock)
+<a id='L132' name='L132'></a>   132 <em class='brace'>{</em>
+<a id='L133' name='L133'></a>   133   <strong class='reserved'>struct</strong> <a href='../S/2613.html#L72' title='Defined at 72 in lib/md5.h.'>md5_ctx</a> ctx;
+<a id='L134' name='L134'></a>   134 
+<a id='L135' name='L135'></a>   135   <em class='comment'>/* Initialize the computation context.  */</em>
+<a id='L136' name='L136'></a>   136   <a href='../D/12882.html' title='Multiple defined in 3 places.'>md5_init_ctx</a> (&amp;ctx);
+<a id='L137' name='L137'></a>   137 
+<a id='L138' name='L138'></a>   138   <em class='comment'>/* Process whole buffer but last len % 64 bytes.  */</em>
+<a id='L139' name='L139'></a>   139   <a href='../D/12884.html' title='Multiple defined in 3 places.'>md5_process_bytes</a> (<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, len, &amp;ctx);
+<a id='L140' name='L140'></a>   140 
+<a id='L141' name='L141'></a>   141   <em class='comment'>/* Put result in desired memory area.  */</em>
+<a id='L142' name='L142'></a>   142   <strong class='reserved'>return</strong> <a href='../D/12880.html' title='Multiple defined in 3 places.'>md5_finish_ctx</a> (&amp;ctx, resblock);
+<a id='L143' name='L143'></a>   143 <em class='brace'>}</em>
+<a id='L144' name='L144'></a>   144 
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146 <strong class='reserved'>void</strong>
+<a id='L147' name='L147'></a>   147 <a href='../R/11857.html' title='Multiple referred from 4 places.'>md5_process_bytes</a> (<strong class='reserved'>const</strong> <strong class='reserved'>void</strong> *<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, size_t len, <strong class='reserved'>struct</strong> <a href='../S/2613.html#L72' title='Defined at 72 in lib/md5.h.'>md5_ctx</a> *ctx)
+<a id='L148' name='L148'></a>   148 <em class='brace'>{</em>
+<a id='L149' name='L149'></a>   149   <em class='comment'>/* When we already have some bits in our internal buffer concatenate</em>
+<a id='L150' name='L150'></a>   150 <em class='comment'>     both inputs first.  */</em>
+<a id='L151' name='L151'></a>   151   <strong class='reserved'>if</strong> (ctx-&gt;buflen != 0)
+<a id='L152' name='L152'></a>   152     <em class='brace'>{</em>
+<a id='L153' name='L153'></a>   153       size_t left_over = ctx-&gt;buflen;
+<a id='L154' name='L154'></a>   154       size_t <a href='../S/2575.html#L156' title='Defined at 156 in lib/nstrftime.c.'>add</a> = 128 - left_over &gt; len ? len : 128 - left_over;
+<a id='L155' name='L155'></a>   155 
+<a id='L156' name='L156'></a>   156       memcpy (&amp;((<strong class='reserved'>char</strong> *) ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)[left_over], <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, <a href='../S/2575.html#L156' title='Defined at 156 in lib/nstrftime.c.'>add</a>);
+<a id='L157' name='L157'></a>   157       ctx-&gt;buflen += <a href='../S/2575.html#L156' title='Defined at 156 in lib/nstrftime.c.'>add</a>;
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159       <strong class='reserved'>if</strong> (ctx-&gt;buflen &gt; 64)
+<a id='L160' name='L160'></a>   160         <em class='brace'>{</em>
+<a id='L161' name='L161'></a>   161           <a href='../D/12883.html' title='Multiple defined in 3 places.'>md5_process_block</a> (ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, ctx-&gt;buflen &amp; ~63, ctx);
+<a id='L162' name='L162'></a>   162 
+<a id='L163' name='L163'></a>   163           ctx-&gt;buflen &amp;= 63;
+<a id='L164' name='L164'></a>   164           <em class='comment'>/* The regions in the following copy operation cannot overlap,</em>
+<a id='L165' name='L165'></a>   165 <em class='comment'>             because ctx-&gt;buflen &lt; 64 ≤ (left_over + add) &amp; ~63.  */</em>
+<a id='L166' name='L166'></a>   166           memcpy (ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>,
+<a id='L167' name='L167'></a>   167                   &amp;((<strong class='reserved'>char</strong> *) ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)[(left_over + <a href='../S/2575.html#L156' title='Defined at 156 in lib/nstrftime.c.'>add</a>) &amp; ~63],
+<a id='L168' name='L168'></a>   168                   ctx-&gt;buflen);
+<a id='L169' name='L169'></a>   169         <em class='brace'>}</em>
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171       <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *) <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> + <a href='../S/2575.html#L156' title='Defined at 156 in lib/nstrftime.c.'>add</a>;
+<a id='L172' name='L172'></a>   172       len -= <a href='../S/2575.html#L156' title='Defined at 156 in lib/nstrftime.c.'>add</a>;
+<a id='L173' name='L173'></a>   173     <em class='brace'>}</em>
+<a id='L174' name='L174'></a>   174 
+<a id='L175' name='L175'></a>   175   <em class='comment'>/* Process available complete blocks.  */</em>
+<a id='L176' name='L176'></a>   176   <strong class='reserved'>if</strong> (len &gt;= 64)
+<a id='L177' name='L177'></a>   177     <em class='brace'>{</em>
+<a id='L178' name='L178'></a>   178 <em class='sharp'>#if</em> !(_STRING_ARCH_unaligned || _STRING_INLINE_unaligned)
+<a id='L179' name='L179'></a>   179 <em class='sharp'># define</em> <a href='../R/5286.html' title='Multiple referred from 4 places.'>UNALIGNED_P</a>(p) ((<a href='../D/16451.html' title='Multiple defined in 2 places.'>uintptr_t</a>) (p) % <a href='../D/7709.html' title='Multiple defined in 2 places.'>alignof</a> (<a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a>) != 0)
+<a id='L180' name='L180'></a>   180       <strong class='reserved'>if</strong> (<a href='../D/5864.html' title='Multiple defined in 4 places.'>UNALIGNED_P</a> (<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>))
+<a id='L181' name='L181'></a>   181         <strong class='reserved'>while</strong> (len &gt; 64)
+<a id='L182' name='L182'></a>   182           <em class='brace'>{</em>
+<a id='L183' name='L183'></a>   183             <a href='../D/12883.html' title='Multiple defined in 3 places.'>md5_process_block</a> (memcpy (ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, 64), 64, ctx);
+<a id='L184' name='L184'></a>   184             <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *) <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> + 64;
+<a id='L185' name='L185'></a>   185             len -= 64;
+<a id='L186' name='L186'></a>   186           <em class='brace'>}</em>
+<a id='L187' name='L187'></a>   187       <strong class='reserved'>else</strong>
+<a id='L188' name='L188'></a>   188 <em class='sharp'>#endif</em>
+<a id='L189' name='L189'></a>   189         <em class='brace'>{</em>
+<a id='L190' name='L190'></a>   190           <a href='../D/12883.html' title='Multiple defined in 3 places.'>md5_process_block</a> (<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, len &amp; ~63, ctx);
+<a id='L191' name='L191'></a>   191           <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *) <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> + (len &amp; ~63);
+<a id='L192' name='L192'></a>   192           len &amp;= 63;
+<a id='L193' name='L193'></a>   193         <em class='brace'>}</em>
+<a id='L194' name='L194'></a>   194     <em class='brace'>}</em>
+<a id='L195' name='L195'></a>   195 
+<a id='L196' name='L196'></a>   196   <em class='comment'>/* Move remaining bytes in internal buffer.  */</em>
+<a id='L197' name='L197'></a>   197   <strong class='reserved'>if</strong> (len &gt; 0)
+<a id='L198' name='L198'></a>   198     <em class='brace'>{</em>
+<a id='L199' name='L199'></a>   199       size_t left_over = ctx-&gt;buflen;
+<a id='L200' name='L200'></a>   200 
+<a id='L201' name='L201'></a>   201       memcpy (&amp;((<strong class='reserved'>char</strong> *) ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>)[left_over], <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, len);
+<a id='L202' name='L202'></a>   202       left_over += len;
+<a id='L203' name='L203'></a>   203       <strong class='reserved'>if</strong> (left_over &gt;= 64)
+<a id='L204' name='L204'></a>   204         <em class='brace'>{</em>
+<a id='L205' name='L205'></a>   205           <a href='../D/12883.html' title='Multiple defined in 3 places.'>md5_process_block</a> (ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, 64, ctx);
+<a id='L206' name='L206'></a>   206           left_over -= 64;
+<a id='L207' name='L207'></a>   207           <em class='comment'>/* The regions in the following copy operation cannot overlap,</em>
+<a id='L208' name='L208'></a>   208 <em class='comment'>             because left_over ≤ 64.  */</em>
+<a id='L209' name='L209'></a>   209           memcpy (ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, &amp;ctx-&gt;<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>[16], left_over);
+<a id='L210' name='L210'></a>   210         <em class='brace'>}</em>
+<a id='L211' name='L211'></a>   211       ctx-&gt;buflen = left_over;
+<a id='L212' name='L212'></a>   212     <em class='brace'>}</em>
+<a id='L213' name='L213'></a>   213 <em class='brace'>}</em>
+<a id='L214' name='L214'></a>   214 
+<a id='L215' name='L215'></a>   215 
+<a id='L216' name='L216'></a>   216 <em class='comment'>/* These are the four functions used in the four steps of the MD5 algorithm</em>
+<a id='L217' name='L217'></a>   217 <em class='comment'>   and defined in the RFC 1321.  The first function is a little bit optimized</em>
+<a id='L218' name='L218'></a>   218 <em class='comment'>   (as found in Colin Plumbs public domain implementation).  */</em>
+<a id='L219' name='L219'></a>   219 <em class='comment'>/* #define FF(b, c, d) ((b &amp; c) | (~b &amp; d)) */</em>
+<a id='L220' name='L220'></a>   220 <em class='sharp'>#define</em> <a href='../R/1681.html' title='Multiple referred from 2 places.'>FF</a>(<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>) (<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a> ^ (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> &amp; (<a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a> ^ <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>)))
+<a id='L221' name='L221'></a>   221 <em class='sharp'>#define</em> <a href='../R/1682.html' title='Multiple referred from 16 places.'>FG</a>(<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>) <a href='../S/2680.html#L220' title='Defined at 220 in lib/md5.c.'>FF</a> (<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L222' name='L222'></a>   222 <em class='sharp'>#define</em> <a href='../R/1683.html' title='Multiple referred from 16 places.'>FH</a>(<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>) (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> ^ <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a> ^ <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>)
+<a id='L223' name='L223'></a>   223 <em class='sharp'>#define</em> <a href='../R/1684.html' title='Multiple referred from 16 places.'>FI</a>(<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>) (<a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a> ^ (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a> | ~<a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>))
+<a id='L224' name='L224'></a>   224 
+<a id='L225' name='L225'></a>   225 <em class='comment'>/* Process LEN bytes of BUFFER, accumulating context into CTX.</em>
+<a id='L226' name='L226'></a>   226 <em class='comment'>   It is assumed that LEN % 64 == 0.  */</em>
+<a id='L227' name='L227'></a>   227 
+<a id='L228' name='L228'></a>   228 <strong class='reserved'>void</strong>
+<a id='L229' name='L229'></a>   229 <a href='../R/11856.html' title='Multiple referred from 8 places.'>md5_process_block</a> (<strong class='reserved'>const</strong> <strong class='reserved'>void</strong> *<a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>, size_t len, <strong class='reserved'>struct</strong> <a href='../S/2613.html#L72' title='Defined at 72 in lib/md5.h.'>md5_ctx</a> *ctx)
+<a id='L230' name='L230'></a>   230 <em class='brace'>{</em>
+<a id='L231' name='L231'></a>   231   <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> correct_words[16];
+<a id='L232' name='L232'></a>   232   <strong class='reserved'>const</strong> <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> *words = <a href='../S/2026.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>;
+<a id='L233' name='L233'></a>   233   size_t nwords = len / <strong class='reserved'>sizeof</strong> (<a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a>);
+<a id='L234' name='L234'></a>   234   <strong class='reserved'>const</strong> <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> *endp = words + nwords;
+<a id='L235' name='L235'></a>   235   <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a> = ctx-&gt;<a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>;
+<a id='L236' name='L236'></a>   236   <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a> = ctx-&gt;<a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>;
+<a id='L237' name='L237'></a>   237   <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a> = ctx-&gt;<a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>;
+<a id='L238' name='L238'></a>   238   <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a> = ctx-&gt;<a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>;
+<a id='L239' name='L239'></a>   239   <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> lolen = len;
+<a id='L240' name='L240'></a>   240 
+<a id='L241' name='L241'></a>   241   <em class='comment'>/* First increment the byte count.  RFC 1321 specifies the possible</em>
+<a id='L242' name='L242'></a>   242 <em class='comment'>     length of the file up to 2^64 bits.  Here we only compute the</em>
+<a id='L243' name='L243'></a>   243 <em class='comment'>     number of bytes.  Do a double word increment.  */</em>
+<a id='L244' name='L244'></a>   244   ctx-&gt;total[0] += lolen;
+<a id='L245' name='L245'></a>   245   ctx-&gt;total[1] += (len &gt;&gt; 31 &gt;&gt; 1) + (ctx-&gt;total[0] &lt; lolen);
+<a id='L246' name='L246'></a>   246 
+<a id='L247' name='L247'></a>   247   <em class='comment'>/* Process all bytes in the buffer with 64 bytes in each round of</em>
+<a id='L248' name='L248'></a>   248 <em class='comment'>     the loop.  */</em>
+<a id='L249' name='L249'></a>   249   <strong class='reserved'>while</strong> (words &lt; endp)
+<a id='L250' name='L250'></a>   250     <em class='brace'>{</em>
+<a id='L251' name='L251'></a>   251       <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> *cwp = correct_words;
+<a id='L252' name='L252'></a>   252       <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> A_save = <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>;
+<a id='L253' name='L253'></a>   253       <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> B_save = <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>;
+<a id='L254' name='L254'></a>   254       <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> C_save = <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>;
+<a id='L255' name='L255'></a>   255       <a href='../D/16439.html' title='Multiple defined in 4 places.'>uint32_t</a> D_save = <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>;
+<a id='L256' name='L256'></a>   256 
+<a id='L257' name='L257'></a>   257       <em class='comment'>/* First round: using the given function, the context and a constant</em>
+<a id='L258' name='L258'></a>   258 <em class='comment'>         the next context is computed.  Because the algorithms processing</em>
+<a id='L259' name='L259'></a>   259 <em class='comment'>         unit is a 32-bit word and it is determined to work on words in</em>
+<a id='L260' name='L260'></a>   260 <em class='comment'>         little endian byte order we perhaps have to change the byte order</em>
+<a id='L261' name='L261'></a>   261 <em class='comment'>         before the computation.  To reduce the work for the next steps</em>
+<a id='L262' name='L262'></a>   262 <em class='comment'>         we store the swapped words in the array CORRECT_WORDS.  */</em>
+<a id='L263' name='L263'></a>   263 
+<a id='L264' name='L264'></a>   264 <em class='sharp'>#define</em> <a href='../R/3779.html' title='Multiple referred from 66 places.'>OP</a>(<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>, s, <a href='../S/3847.html#L14' title='Defined at 14 in test/manual/etags/cp-src/fail.C.'>T</a>)                                            \
+<a id='L265' name='L265'></a>   265       <strong class='reserved'>do</strong>                                                                \
+<a id='L266' name='L266'></a>   266         <em class='brace'>{</em>                                                               \
+<a id='L267' name='L267'></a>   267           <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> += <a href='../S/2680.html#L220' title='Defined at 220 in lib/md5.c.'>FF</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>) + (*cwp++ = <a href='../D/5466.html' title='Multiple defined in 8 places.'>SWAP</a> (*words)) + <a href='../S/3847.html#L14' title='Defined at 14 in test/manual/etags/cp-src/fail.C.'>T</a>;             \
+<a id='L268' name='L268'></a>   268           ++words;                                                      \
+<a id='L269' name='L269'></a>   269           <a href='../S/2680.html#L276' title='Defined at 276 in lib/md5.c.'>CYCLIC</a> (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, s);                                                \
+<a id='L270' name='L270'></a>   270           <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> += <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>;                                                       \
+<a id='L271' name='L271'></a>   271         <em class='brace'>}</em>                                                               \
+<a id='L272' name='L272'></a>   272       <strong class='reserved'>while</strong> (0)
+<a id='L273' name='L273'></a>   273 
+<a id='L274' name='L274'></a>   274       <em class='comment'>/* It is unfortunate that C does not provide an operator for</em>
+<a id='L275' name='L275'></a>   275 <em class='comment'>         cyclic rotation.  Hope the C compiler is smart enough.  */</em>
+<a id='L276' name='L276'></a>   276 <em class='sharp'>#define</em> <a href='../R/1082.html' title='Multiple referred from 2 places.'>CYCLIC</a>(w, s) (w = (w &lt;&lt; s) | (w &gt;&gt; (32 - s)))
+<a id='L277' name='L277'></a>   277 
+<a id='L278' name='L278'></a>   278       <em class='comment'>/* Before we start, one word to the strange constants.</em>
+<a id='L279' name='L279'></a>   279 <em class='comment'>         They are defined in RFC 1321 as</em>
+<a id='L280' name='L280'></a>   280 <em class='comment'></em>
+<a id='L281' name='L281'></a>   281 <em class='comment'>         T[i] = (int) (4294967296.0 * fabs (sin (i))), i=1..64</em>
+<a id='L282' name='L282'></a>   282 <em class='comment'></em>
+<a id='L283' name='L283'></a>   283 <em class='comment'>         Here is an equivalent invocation using Perl:</em>
+<a id='L284' name='L284'></a>   284 <em class='comment'></em>
+<a id='L285' name='L285'></a>   285 <em class='comment'>         perl -e 'foreach(1..64){printf "0x%08x\n", int (4294967296 * abs (sin $_))}'</em>
+<a id='L286' name='L286'></a>   286 <em class='comment'>       */</em>
+<a id='L287' name='L287'></a>   287 
+<a id='L288' name='L288'></a>   288       <em class='comment'>/* Round 1.  */</em>
+<a id='L289' name='L289'></a>   289       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 7, 0xd76aa478);
+<a id='L290' name='L290'></a>   290       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 12, 0xe8c7b756);
+<a id='L291' name='L291'></a>   291       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 17, 0x242070db);
+<a id='L292' name='L292'></a>   292       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 22, 0xc1bdceee);
+<a id='L293' name='L293'></a>   293       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 7, 0xf57c0faf);
+<a id='L294' name='L294'></a>   294       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 12, 0x4787c62a);
+<a id='L295' name='L295'></a>   295       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 17, 0xa8304613);
+<a id='L296' name='L296'></a>   296       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 22, 0xfd469501);
+<a id='L297' name='L297'></a>   297       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 7, 0x698098d8);
+<a id='L298' name='L298'></a>   298       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 12, 0x8b44f7af);
+<a id='L299' name='L299'></a>   299       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 17, 0xffff5bb1);
+<a id='L300' name='L300'></a>   300       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 22, 0x895cd7be);
+<a id='L301' name='L301'></a>   301       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 7, 0x6b901122);
+<a id='L302' name='L302'></a>   302       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 12, 0xfd987193);
+<a id='L303' name='L303'></a>   303       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 17, 0xa679438e);
+<a id='L304' name='L304'></a>   304       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 22, 0x49b40821);
+<a id='L305' name='L305'></a>   305 
+<a id='L306' name='L306'></a>   306       <em class='comment'>/* For the second to fourth round we have the possibly swapped words</em>
+<a id='L307' name='L307'></a>   307 <em class='comment'>         in CORRECT_WORDS.  Redefine the macro to take an additional first</em>
+<a id='L308' name='L308'></a>   308 <em class='comment'>         argument specifying the function to use.  */</em>
+<a id='L309' name='L309'></a>   309 <em class='sharp'>#undef</em> <a href='../R/3779.html' title='Multiple referred from 66 places.'>OP</a>
+<a id='L310' name='L310'></a>   310 <em class='sharp'>#define</em> <a href='../R/3779.html' title='Multiple referred from 66 places.'>OP</a>(<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>, k, s, <a href='../S/3847.html#L14' title='Defined at 14 in test/manual/etags/cp-src/fail.C.'>T</a>)                                      \
+<a id='L311' name='L311'></a>   311       <strong class='reserved'>do</strong>                                                                \
+<a id='L312' name='L312'></a>   312         <em class='brace'>{</em>                                                               \
+<a id='L313' name='L313'></a>   313           <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> += <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> (<a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/9019.html' title='Multiple defined in 2 places.'>d</a>) + correct_words[k] + <a href='../S/3847.html#L14' title='Defined at 14 in test/manual/etags/cp-src/fail.C.'>T</a>;                      \
+<a id='L314' name='L314'></a>   314           <a href='../S/2680.html#L276' title='Defined at 276 in lib/md5.c.'>CYCLIC</a> (<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>, s);                                                \
+<a id='L315' name='L315'></a>   315           <a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a> += <a href='../D/7856.html' title='Multiple defined in 8 places.'>b</a>;                                                       \
+<a id='L316' name='L316'></a>   316         <em class='brace'>}</em>                                                               \
+<a id='L317' name='L317'></a>   317       <strong class='reserved'>while</strong> (0)
+<a id='L318' name='L318'></a>   318 
+<a id='L319' name='L319'></a>   319       <em class='comment'>/* Round 2.  */</em>
+<a id='L320' name='L320'></a>   320       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 1, 5, 0xf61e2562);
+<a id='L321' name='L321'></a>   321       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 6, 9, 0xc040b340);
+<a id='L322' name='L322'></a>   322       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 11, 14, 0x265e5a51);
+<a id='L323' name='L323'></a>   323       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 0, 20, 0xe9b6c7aa);
+<a id='L324' name='L324'></a>   324       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 5, 5, 0xd62f105d);
+<a id='L325' name='L325'></a>   325       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 10, 9, 0x02441453);
+<a id='L326' name='L326'></a>   326       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 15, 14, 0xd8a1e681);
+<a id='L327' name='L327'></a>   327       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 4, 20, 0xe7d3fbc8);
+<a id='L328' name='L328'></a>   328       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 9, 5, 0x21e1cde6);
+<a id='L329' name='L329'></a>   329       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 14, 9, 0xc33707d6);
+<a id='L330' name='L330'></a>   330       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 3, 14, 0xf4d50d87);
+<a id='L331' name='L331'></a>   331       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 8, 20, 0x455a14ed);
+<a id='L332' name='L332'></a>   332       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 13, 5, 0xa9e3e905);
+<a id='L333' name='L333'></a>   333       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 2, 9, 0xfcefa3f8);
+<a id='L334' name='L334'></a>   334       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 7, 14, 0x676f02d9);
+<a id='L335' name='L335'></a>   335       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L221' title='Defined at 221 in lib/md5.c.'>FG</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 12, 20, 0x8d2a4c8a);
+<a id='L336' name='L336'></a>   336 
+<a id='L337' name='L337'></a>   337       <em class='comment'>/* Round 3.  */</em>
+<a id='L338' name='L338'></a>   338       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 5, 4, 0xfffa3942);
+<a id='L339' name='L339'></a>   339       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 8, 11, 0x8771f681);
+<a id='L340' name='L340'></a>   340       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 11, 16, 0x6d9d6122);
+<a id='L341' name='L341'></a>   341       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 14, 23, 0xfde5380c);
+<a id='L342' name='L342'></a>   342       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 1, 4, 0xa4beea44);
+<a id='L343' name='L343'></a>   343       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 4, 11, 0x4bdecfa9);
+<a id='L344' name='L344'></a>   344       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 7, 16, 0xf6bb4b60);
+<a id='L345' name='L345'></a>   345       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 10, 23, 0xbebfbc70);
+<a id='L346' name='L346'></a>   346       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 13, 4, 0x289b7ec6);
+<a id='L347' name='L347'></a>   347       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 0, 11, 0xeaa127fa);
+<a id='L348' name='L348'></a>   348       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 3, 16, 0xd4ef3085);
+<a id='L349' name='L349'></a>   349       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 6, 23, 0x04881d05);
+<a id='L350' name='L350'></a>   350       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 9, 4, 0xd9d4d039);
+<a id='L351' name='L351'></a>   351       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 12, 11, 0xe6db99e5);
+<a id='L352' name='L352'></a>   352       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 15, 16, 0x1fa27cf8);
+<a id='L353' name='L353'></a>   353       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L222' title='Defined at 222 in lib/md5.c.'>FH</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 2, 23, 0xc4ac5665);
+<a id='L354' name='L354'></a>   354 
+<a id='L355' name='L355'></a>   355       <em class='comment'>/* Round 4.  */</em>
+<a id='L356' name='L356'></a>   356       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 0, 6, 0xf4292244);
+<a id='L357' name='L357'></a>   357       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 7, 10, 0x432aff97);
+<a id='L358' name='L358'></a>   358       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 14, 15, 0xab9423a7);
+<a id='L359' name='L359'></a>   359       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 5, 21, 0xfc93a039);
+<a id='L360' name='L360'></a>   360       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 12, 6, 0x655b59c3);
+<a id='L361' name='L361'></a>   361       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 3, 10, 0x8f0ccc92);
+<a id='L362' name='L362'></a>   362       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 10, 15, 0xffeff47d);
+<a id='L363' name='L363'></a>   363       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 1, 21, 0x85845dd1);
+<a id='L364' name='L364'></a>   364       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 8, 6, 0x6fa87e4f);
+<a id='L365' name='L365'></a>   365       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 15, 10, 0xfe2ce6e0);
+<a id='L366' name='L366'></a>   366       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 6, 15, 0xa3014314);
+<a id='L367' name='L367'></a>   367       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 13, 21, 0x4e0811a1);
+<a id='L368' name='L368'></a>   368       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, 4, 6, 0xf7537e82);
+<a id='L369' name='L369'></a>   369       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, 11, 10, 0xbd3af235);
+<a id='L370' name='L370'></a>   370       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, 2, 15, 0x2ad7d2bb);
+<a id='L371' name='L371'></a>   371       <a href='../D/4229.html' title='Multiple defined in 3 places.'>OP</a> (<a href='../S/2680.html#L223' title='Defined at 223 in lib/md5.c.'>FI</a>, <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>, <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>, <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>, <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>, 9, 21, 0xeb86d391);
+<a id='L372' name='L372'></a>   372 
+<a id='L373' name='L373'></a>   373       <em class='comment'>/* Add the starting values of the context.  */</em>
+<a id='L374' name='L374'></a>   374       <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a> += A_save;
+<a id='L375' name='L375'></a>   375       <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a> += B_save;
+<a id='L376' name='L376'></a>   376       <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a> += C_save;
+<a id='L377' name='L377'></a>   377       <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a> += D_save;
+<a id='L378' name='L378'></a>   378     <em class='brace'>}</em>
+<a id='L379' name='L379'></a>   379 
+<a id='L380' name='L380'></a>   380   <em class='comment'>/* Put checksum in context given as argument.  */</em>
+<a id='L381' name='L381'></a>   381   ctx-&gt;<a href='../D/1.html' title='Multiple defined in 14 places.'>A</a> = <a href='../D/1.html' title='Multiple defined in 14 places.'>A</a>;
+<a id='L382' name='L382'></a>   382   ctx-&gt;<a href='../D/194.html' title='Multiple defined in 9 places.'>B</a> = <a href='../D/194.html' title='Multiple defined in 9 places.'>B</a>;
+<a id='L383' name='L383'></a>   383   ctx-&gt;<a href='../D/499.html' title='Multiple defined in 2 places.'>C</a> = <a href='../D/499.html' title='Multiple defined in 2 places.'>C</a>;
+<a id='L384' name='L384'></a>   384   ctx-&gt;<a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a> = <a href='../S/3847.html#L41' title='Defined at 41 in test/manual/etags/cp-src/fail.C.'>D</a>;
+<a id='L385' name='L385'></a>   385 <em class='brace'>}</em>
+<a id='L386' name='L386'></a>   386 
+<a id='L387' name='L387'></a>   387 <em class='sharp'>#endif</em>
+<a id='L388' name='L388'></a>   388 
+<a id='L389' name='L389'></a>   389 <em class='comment'>/*</em>
+<a id='L390' name='L390'></a>   390 <em class='comment'> * Hey Emacs!</em>
+<a id='L391' name='L391'></a>   391 <em class='comment'> * Local Variables:</em>
+<a id='L392' name='L392'></a>   392 <em class='comment'> * coding: utf-8</em>
+<a id='L393' name='L393'></a>   393 <em class='comment'> * End:</em>
+<a id='L394' name='L394'></a>   394 <em class='comment'> */</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L66'>[^]</a><a href='#L229'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

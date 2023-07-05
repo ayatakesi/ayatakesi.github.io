@@ -1,0 +1,969 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>lib/getloadavg.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4586.html'>lib</a>/getloadavg.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L407'>[^]</a>[v][top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L407' title='Defined at 407.'>getloadavg</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Get the system load averages.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright (C) 1985-1989, 1991-1995, 1997, 1999-2000, 2003-2023 Free Software</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>   Foundation, Inc.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>   NOTE: The canonical source of this file is maintained with gnulib.</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>   Bugs can be reported to bug-gnulib@gnu.org.</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'></em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>   This program is free software: you can redistribute it and/or modify</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>   it under the terms of the GNU General Public License as published by</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>   the Free Software Foundation, either version 3 of the License, or</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>   (at your option) any later version.</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'></em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>   This program is distributed in the hope that it will be useful,</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>   GNU General Public License for more details.</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'></em>
+<a id='L19' name='L19'></a>    19 <em class='comment'>   You should have received a copy of the GNU General Public License</em>
+<a id='L20' name='L20'></a>    20 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='comment'>/* Compile-time symbols that this file uses:</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'></em>
+<a id='L24' name='L24'></a>    24 <em class='comment'>   HAVE_PSTAT_GETDYNAMIC        Define this if your system has the</em>
+<a id='L25' name='L25'></a>    25 <em class='comment'>                                pstat_getdynamic function.  I think it</em>
+<a id='L26' name='L26'></a>    26 <em class='comment'>                                is unique to HPUX9.  The best way to get the</em>
+<a id='L27' name='L27'></a>    27 <em class='comment'>                                definition is through the AC_FUNC_GETLOADAVG</em>
+<a id='L28' name='L28'></a>    28 <em class='comment'>                                macro that comes with autoconf 2.13 or newer.</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'>                                If that isn't an option, then just put</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'>                                AC_CHECK_FUNCS(pstat_getdynamic) in your</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>                                configure.ac file.</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'>   HAVE_LIBPERFSTAT Define this if your system has the</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'>                                perfstat_cpu_total function in libperfstat (AIX).</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>   FIXUP_KERNEL_SYMBOL_ADDR()   Adjust address in returned struct nlist.</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'>   KERNEL_FILE                  Name of the kernel file to nlist.</em>
+<a id='L36' name='L36'></a>    36 <em class='comment'>   LDAV_CVT()                   Scale the load average from the kernel.</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'>                                Returns a double.</em>
+<a id='L38' name='L38'></a>    38 <em class='comment'>   LDAV_SYMBOL                  Name of kernel symbol giving load average.</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>   LOAD_AVE_TYPE                Type of the load average array in the kernel.</em>
+<a id='L40' name='L40'></a>    40 <em class='comment'>                                Must be defined unless one of</em>
+<a id='L41' name='L41'></a>    41 <em class='comment'>                                apollo, DGUX, NeXT, or UMAX is defined;</em>
+<a id='L42' name='L42'></a>    42 <em class='comment'>                                or we have libkstat;</em>
+<a id='L43' name='L43'></a>    43 <em class='comment'>                                otherwise, no load average is available.</em>
+<a id='L44' name='L44'></a>    44 <em class='comment'>   HAVE_NLIST_H                 nlist.h is available.  NLIST_STRUCT defaults</em>
+<a id='L45' name='L45'></a>    45 <em class='comment'>                                to this.</em>
+<a id='L46' name='L46'></a>    46 <em class='comment'>   NLIST_STRUCT                 Include nlist.h, not a.out.h.</em>
+<a id='L47' name='L47'></a>    47 <em class='comment'>   N_NAME_POINTER               The nlist n_name element is a pointer,</em>
+<a id='L48' name='L48'></a>    48 <em class='comment'>                                not an array.</em>
+<a id='L49' name='L49'></a>    49 <em class='comment'>   HAVE_STRUCT_NLIST_N_UN_N_NAME 'n_un.n_name' is member of 'struct nlist'.</em>
+<a id='L50' name='L50'></a>    50 <em class='comment'>   LINUX_LDAV_FILE              [__linux__, __ANDROID__, __CYGWIN__]: File</em>
+<a id='L51' name='L51'></a>    51 <em class='comment'>                                containing load averages.</em>
+<a id='L52' name='L52'></a>    52 <em class='comment'></em>
+<a id='L53' name='L53'></a>    53 <em class='comment'>   Specific system predefines this file uses, aside from setting</em>
+<a id='L54' name='L54'></a>    54 <em class='comment'>   default values if not emacs:</em>
+<a id='L55' name='L55'></a>    55 <em class='comment'></em>
+<a id='L56' name='L56'></a>    56 <em class='comment'>   apollo</em>
+<a id='L57' name='L57'></a>    57 <em class='comment'>   BSD                          Real BSD, not just BSD-like.</em>
+<a id='L58' name='L58'></a>    58 <em class='comment'>   DGUX</em>
+<a id='L59' name='L59'></a>    59 <em class='comment'>   eunice                       UNIX emulator under VMS.</em>
+<a id='L60' name='L60'></a>    60 <em class='comment'>   hpux</em>
+<a id='L61' name='L61'></a>    61 <em class='comment'>   __MSDOS__                    No-op for MSDOS.</em>
+<a id='L62' name='L62'></a>    62 <em class='comment'>   NeXT</em>
+<a id='L63' name='L63'></a>    63 <em class='comment'>   sgi</em>
+<a id='L64' name='L64'></a>    64 <em class='comment'>   UMAX</em>
+<a id='L65' name='L65'></a>    65 <em class='comment'>   UMAX4_3</em>
+<a id='L66' name='L66'></a>    66 <em class='comment'>   VMS</em>
+<a id='L67' name='L67'></a>    67 <em class='comment'>   _WIN32                       Native Windows (possibly also defined on Cygwin)</em>
+<a id='L68' name='L68'></a>    68 <em class='comment'>   __linux__, __ANDROID__       Linux: assumes /proc file system mounted.</em>
+<a id='L69' name='L69'></a>    69 <em class='comment'>                                Support from Michael K. Johnson.</em>
+<a id='L70' name='L70'></a>    70 <em class='comment'>   __CYGWIN__                   Cygwin emulates linux /proc/loadavg.</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>   __NetBSD__                   NetBSD: assumes /kern file system mounted.</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'></em>
+<a id='L73' name='L73'></a>    73 <em class='comment'>   In addition, to avoid nesting many #ifdefs, we internally set</em>
+<a id='L74' name='L74'></a>    74 <em class='comment'>   LDAV_DONE to indicate that the load average has been computed.</em>
+<a id='L75' name='L75'></a>    75 <em class='comment'></em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>   We also #define LDAV_PRIVILEGED if a program will require</em>
+<a id='L77' name='L77'></a>    77 <em class='comment'>   special installation to be able to call getloadavg.  */</em>
+<a id='L78' name='L78'></a>    78 
+<a id='L79' name='L79'></a>    79 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L80' name='L80'></a>    80 
+<a id='L81' name='L81'></a>    81 <em class='comment'>/* Specification.  */</em>
+<a id='L82' name='L82'></a>    82 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L83' name='L83'></a>    83 
+<a id='L84' name='L84'></a>    84 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L85' name='L85'></a>    85 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87 <em class='sharp'># include</em> &lt;sys/types.h&gt;
+<a id='L88' name='L88'></a>    88 
+<a id='L89' name='L89'></a>    89 <em class='sharp'># if</em> HAVE_SYS_PARAM_H
+<a id='L90' name='L90'></a>    90 <em class='sharp'>#  include</em> &lt;<a href='27.html'>sys/param.h</a>&gt;
+<a id='L91' name='L91'></a>    91 <em class='sharp'># endif</em>
+<a id='L92' name='L92'></a>    92 
+<a id='L93' name='L93'></a>    93 <em class='sharp'># include</em> "<a href='2560.html'>intprops.h</a>"
+<a id='L94' name='L94'></a>    94 
+<a id='L95' name='L95'></a>    95 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> _WIN32 &amp;&amp; ! <strong class='reserved'>defined</strong> __CYGWIN__ &amp;&amp; ! <strong class='reserved'>defined</strong> <a href='../S/2639.html#L96' title='Defined at 96 in lib/getloadavg.c.'>WINDOWS32</a>
+<a id='L96' name='L96'></a>    96 <em class='sharp'>#  define</em> <a href='../R/5573.html' title='Multiple referred from 2 places.'>WINDOWS32</a>
+<a id='L97' name='L97'></a>    97 <em class='sharp'># endif</em>
+<a id='L98' name='L98'></a>    98 
+<a id='L99' name='L99'></a>    99 <em class='sharp'># ifdef</em> <a href='../S/2639.html#L319' title='Defined at 319 in lib/getloadavg.c.'>NeXT</a>
+<a id='L100' name='L100'></a>   100 <em class='comment'>/* NeXT in the 2.{0,1,2} releases defines BSD in &lt;sys/param.h&gt;, which</em>
+<a id='L101' name='L101'></a>   101 <em class='comment'>   conflicts with the definition understood in this file, that this</em>
+<a id='L102' name='L102'></a>   102 <em class='comment'>   really is BSD. */</em>
+<a id='L103' name='L103'></a>   103 <em class='sharp'>#  undef</em> <a href='../R/331.html' title='Multiple referred from 2 places.'>BSD</a>
+<a id='L104' name='L104'></a>   104 
+<a id='L105' name='L105'></a>   105 <em class='comment'>/* NeXT defines FSCALE in &lt;sys/param.h&gt;.  However, we take FSCALE being</em>
+<a id='L106' name='L106'></a>   106 <em class='comment'>   defined to mean that the nlist method should be used, which is not true.  */</em>
+<a id='L107' name='L107'></a>   107 <em class='sharp'>#  undef</em> <a href='../R/2097.html' title='Multiple referred from 6 places.'>FSCALE</a>
+<a id='L108' name='L108'></a>   108 <em class='sharp'># endif</em>
+<a id='L109' name='L109'></a>   109 
+<a id='L110' name='L110'></a>   110 <em class='comment'>/* Same issues as for NeXT apply to the HURD-based GNU system.  */</em>
+<a id='L111' name='L111'></a>   111 <em class='sharp'># ifdef</em> __GNU__
+<a id='L112' name='L112'></a>   112 <em class='sharp'>#  undef</em> <a href='../R/331.html' title='Multiple referred from 2 places.'>BSD</a>
+<a id='L113' name='L113'></a>   113 <em class='sharp'>#  undef</em> <a href='../R/2097.html' title='Multiple referred from 6 places.'>FSCALE</a>
+<a id='L114' name='L114'></a>   114 <em class='sharp'># endif</em> <em class='comment'>/* __GNU__ */</em>
+<a id='L115' name='L115'></a>   115 
+<a id='L116' name='L116'></a>   116 <em class='comment'>/* Set values that are different from the defaults, which are</em>
+<a id='L117' name='L117'></a>   117 <em class='comment'>   set a little farther down with #ifndef.  */</em>
+<a id='L118' name='L118'></a>   118 
+<a id='L119' name='L119'></a>   119 
+<a id='L120' name='L120'></a>   120 <em class='comment'>/* Some shorthands.  */</em>
+<a id='L121' name='L121'></a>   121 
+<a id='L122' name='L122'></a>   122 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> (HPUX) &amp;&amp; !<strong class='reserved'>defined</strong> (<a href='../D/11723.html' title='Multiple defined in 2 places.'>hpux</a>)
+<a id='L123' name='L123'></a>   123 <em class='sharp'>#  define</em> <a href='../R/10741.html' title='Multiple referred from 7 places.'>hpux</a>
+<a id='L124' name='L124'></a>   124 <em class='sharp'># endif</em>
+<a id='L125' name='L125'></a>   125 
+<a id='L126' name='L126'></a>   126 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> (__hpux) &amp;&amp; !<strong class='reserved'>defined</strong> (<a href='../D/11723.html' title='Multiple defined in 2 places.'>hpux</a>)
+<a id='L127' name='L127'></a>   127 <em class='sharp'>#  define</em> <a href='../R/10741.html' title='Multiple referred from 7 places.'>hpux</a>
+<a id='L128' name='L128'></a>   128 <em class='sharp'># endif</em>
+<a id='L129' name='L129'></a>   129 
+<a id='L130' name='L130'></a>   130 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> (__sun) &amp;&amp; !<strong class='reserved'>defined</strong> (<a href='../S/2639.html#L131' title='Defined at 131 in lib/getloadavg.c.'>sun</a>)
+<a id='L131' name='L131'></a>   131 <em class='sharp'>#  define</em> <a href='../R/14664.html' title='Multiple referred from 3 places.'>sun</a>
+<a id='L132' name='L132'></a>   132 <em class='sharp'># endif</em>
+<a id='L133' name='L133'></a>   133 
+<a id='L134' name='L134'></a>   134 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> (hp300) &amp;&amp; !<strong class='reserved'>defined</strong> (<a href='../D/11723.html' title='Multiple defined in 2 places.'>hpux</a>)
+<a id='L135' name='L135'></a>   135 <em class='sharp'>#  define</em> <a href='../R/3491.html' title='Multiple referred from 2 places.'>MORE_BSD</a>
+<a id='L136' name='L136'></a>   136 <em class='sharp'># endif</em>
+<a id='L137' name='L137'></a>   137 
+<a id='L138' name='L138'></a>   138 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> (__SVR4) &amp;&amp; !<strong class='reserved'>defined</strong> (<a href='../S/2639.html#L139' title='Defined at 139 in lib/getloadavg.c.'>SVR4</a>)
+<a id='L139' name='L139'></a>   139 <em class='sharp'>#  define</em> <a href='../R/4974.html' title='Multiple referred from 6 places.'>SVR4</a>
+<a id='L140' name='L140'></a>   140 <em class='sharp'># endif</em>
+<a id='L141' name='L141'></a>   141 
+<a id='L142' name='L142'></a>   142 <em class='sharp'># if</em> (<strong class='reserved'>defined</strong> (<a href='../S/2639.html#L131' title='Defined at 131 in lib/getloadavg.c.'>sun</a>) &amp;&amp; <strong class='reserved'>defined</strong> (<a href='../S/2639.html#L139' title='Defined at 139 in lib/getloadavg.c.'>SVR4</a>)) || <strong class='reserved'>defined</strong> (SOLARIS2)
+<a id='L143' name='L143'></a>   143 <em class='sharp'>#  define</em> <a href='../R/4966.html' title='Multiple referred from 6 places.'>SUNOS_5</a>
+<a id='L144' name='L144'></a>   144 <em class='sharp'># endif</em>
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> (__osf__) &amp;&amp; (<strong class='reserved'>defined</strong> (__alpha) || <strong class='reserved'>defined</strong> (__alpha__))
+<a id='L147' name='L147'></a>   147 <em class='sharp'>#  define</em> <a href='../R/3862.html' title='Multiple referred from 3 places.'>OSF_ALPHA</a>
+<a id='L148' name='L148'></a>   148 <em class='sharp'>#  include</em> &lt;sys/mbuf.h&gt;
+<a id='L149' name='L149'></a>   149 <em class='sharp'>#  include</em> &lt;<a href='28.html'>sys/socket.h</a>&gt;
+<a id='L150' name='L150'></a>   150 <em class='sharp'>#  include</em> &lt;net/route.h&gt;
+<a id='L151' name='L151'></a>   151 <em class='sharp'>#  include</em> &lt;sys/table.h&gt;
+<a id='L152' name='L152'></a>   152 <em class='comment'>/* Tru64 4.0D's table.h redefines sys */</em>
+<a id='L153' name='L153'></a>   153 <em class='sharp'>#  undef</em> <a href='../R/14860.html' title='Multiple referred from 7 places.'>sys</a>
+<a id='L154' name='L154'></a>   154 <em class='sharp'># endif</em>
+<a id='L155' name='L155'></a>   155 
+<a id='L156' name='L156'></a>   156 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> (__osf__) &amp;&amp; (<strong class='reserved'>defined</strong> (mips) || <strong class='reserved'>defined</strong> (__mips__))
+<a id='L157' name='L157'></a>   157 <em class='sharp'>#  define</em> <a href='../S/2639.html#L748' title='Referred from 748 in lib/getloadavg.c.'>OSF_MIPS</a>
+<a id='L158' name='L158'></a>   158 <em class='sharp'>#  include</em> &lt;sys/table.h&gt;
+<a id='L159' name='L159'></a>   159 <em class='sharp'># endif</em>
+<a id='L160' name='L160'></a>   160 
+<a id='L161' name='L161'></a>   161 
+<a id='L162' name='L162'></a>   162 <em class='comment'>/* VAX C can't handle multi-line #ifs, or lines longer than 256 chars.  */</em>
+<a id='L163' name='L163'></a>   163 <em class='sharp'># ifndef</em> <a href='../D/3415.html' title='Multiple defined in 11 places.'>LOAD_AVE_TYPE</a>
+<a id='L164' name='L164'></a>   164 
+<a id='L165' name='L165'></a>   165 <em class='sharp'>#  ifdef</em> <a href='../S/2639.html#L135' title='Defined at 135 in lib/getloadavg.c.'>MORE_BSD</a>
+<a id='L166' name='L166'></a>   166 <em class='sharp'>#   define</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a> <strong class='reserved'>long</strong>
+<a id='L167' name='L167'></a>   167 <em class='sharp'>#  endif</em>
+<a id='L168' name='L168'></a>   168 
+<a id='L169' name='L169'></a>   169 <em class='sharp'>#  ifdef</em> <a href='../S/2639.html#L131' title='Defined at 131 in lib/getloadavg.c.'>sun</a>
+<a id='L170' name='L170'></a>   170 <em class='sharp'>#   define</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a> <strong class='reserved'>long</strong>
+<a id='L171' name='L171'></a>   171 <em class='sharp'>#  endif</em>
+<a id='L172' name='L172'></a>   172 
+<a id='L173' name='L173'></a>   173 <em class='sharp'>#  ifdef</em> sgi
+<a id='L174' name='L174'></a>   174 <em class='sharp'>#   define</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a> <strong class='reserved'>long</strong>
+<a id='L175' name='L175'></a>   175 <em class='sharp'>#  endif</em>
+<a id='L176' name='L176'></a>   176 
+<a id='L177' name='L177'></a>   177 <em class='sharp'>#  ifdef</em> <a href='../S/2639.html#L139' title='Defined at 139 in lib/getloadavg.c.'>SVR4</a>
+<a id='L178' name='L178'></a>   178 <em class='sharp'>#   define</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a> <strong class='reserved'>long</strong>
+<a id='L179' name='L179'></a>   179 <em class='sharp'>#  endif</em>
+<a id='L180' name='L180'></a>   180 
+<a id='L181' name='L181'></a>   181 <em class='sharp'>#  ifdef</em> <a href='../S/2639.html#L147' title='Defined at 147 in lib/getloadavg.c.'>OSF_ALPHA</a>
+<a id='L182' name='L182'></a>   182 <em class='sharp'>#   define</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a> <strong class='reserved'>long</strong>
+<a id='L183' name='L183'></a>   183 <em class='sharp'>#  endif</em>
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185 <em class='sharp'>#  if</em> <strong class='reserved'>defined</strong> _AIX &amp;&amp; ! <strong class='reserved'>defined</strong> HAVE_LIBPERFSTAT
+<a id='L186' name='L186'></a>   186 <em class='sharp'>#   define</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a> <strong class='reserved'>long</strong>
+<a id='L187' name='L187'></a>   187 <em class='sharp'>#  endif</em>
+<a id='L188' name='L188'></a>   188 
+<a id='L189' name='L189'></a>   189 <em class='sharp'># endif</em> <em class='comment'>/* No LOAD_AVE_TYPE.  */</em>
+<a id='L190' name='L190'></a>   190 
+<a id='L191' name='L191'></a>   191 <em class='sharp'># ifdef</em> <a href='../S/2639.html#L147' title='Defined at 147 in lib/getloadavg.c.'>OSF_ALPHA</a>
+<a id='L192' name='L192'></a>   192 <em class='comment'>/* &lt;sys/param.h&gt; defines an incorrect value for FSCALE on Alpha OSF/1,</em>
+<a id='L193' name='L193'></a>   193 <em class='comment'>   according to ghazi@noc.rutgers.edu.  */</em>
+<a id='L194' name='L194'></a>   194 <em class='sharp'>#  undef</em> <a href='../R/2097.html' title='Multiple referred from 6 places.'>FSCALE</a>
+<a id='L195' name='L195'></a>   195 <em class='sharp'>#  define</em> <a href='../R/2097.html' title='Multiple referred from 6 places.'>FSCALE</a> 1024.0
+<a id='L196' name='L196'></a>   196 <em class='sharp'># endif</em>
+<a id='L197' name='L197'></a>   197 
+<a id='L198' name='L198'></a>   198 
+<a id='L199' name='L199'></a>   199 <em class='sharp'># ifndef</em> <a href='../D/2256.html' title='Multiple defined in 9 places.'>FSCALE</a>
+<a id='L200' name='L200'></a>   200 
+<a id='L201' name='L201'></a>   201 <em class='comment'>/* SunOS and some others define FSCALE in sys/param.h.  */</em>
+<a id='L202' name='L202'></a>   202 
+<a id='L203' name='L203'></a>   203 <em class='sharp'>#  ifdef</em> <a href='../S/2639.html#L135' title='Defined at 135 in lib/getloadavg.c.'>MORE_BSD</a>
+<a id='L204' name='L204'></a>   204 <em class='sharp'>#   define</em> <a href='../R/2097.html' title='Multiple referred from 6 places.'>FSCALE</a> 2048.0
+<a id='L205' name='L205'></a>   205 <em class='sharp'>#  endif</em>
+<a id='L206' name='L206'></a>   206 
+<a id='L207' name='L207'></a>   207 <em class='sharp'>#  if</em> <strong class='reserved'>defined</strong> (MIPS) || <strong class='reserved'>defined</strong> (<a href='../S/2639.html#L139' title='Defined at 139 in lib/getloadavg.c.'>SVR4</a>)
+<a id='L208' name='L208'></a>   208 <em class='sharp'>#   define</em> <a href='../R/2097.html' title='Multiple referred from 6 places.'>FSCALE</a> 256
+<a id='L209' name='L209'></a>   209 <em class='sharp'>#  endif</em>
+<a id='L210' name='L210'></a>   210 
+<a id='L211' name='L211'></a>   211 <em class='sharp'>#  if</em> <strong class='reserved'>defined</strong> (sgi)
+<a id='L212' name='L212'></a>   212 <em class='comment'>/* Sometimes both MIPS and sgi are defined, so FSCALE was just defined</em>
+<a id='L213' name='L213'></a>   213 <em class='comment'>   above under #ifdef MIPS.  But we want the sgi value.  */</em>
+<a id='L214' name='L214'></a>   214 <em class='sharp'>#   undef</em> <a href='../R/2097.html' title='Multiple referred from 6 places.'>FSCALE</a>
+<a id='L215' name='L215'></a>   215 <em class='sharp'>#   define</em> <a href='../R/2097.html' title='Multiple referred from 6 places.'>FSCALE</a> 1000.0
+<a id='L216' name='L216'></a>   216 <em class='sharp'>#  endif</em>
+<a id='L217' name='L217'></a>   217 
+<a id='L218' name='L218'></a>   218 <em class='sharp'>#  if</em> <strong class='reserved'>defined</strong> _AIX &amp;&amp; !<strong class='reserved'>defined</strong> HAVE_LIBPERFSTAT
+<a id='L219' name='L219'></a>   219 <em class='sharp'>#   define</em> <a href='../R/2097.html' title='Multiple referred from 6 places.'>FSCALE</a> 65536.0
+<a id='L220' name='L220'></a>   220 <em class='sharp'>#  endif</em>
+<a id='L221' name='L221'></a>   221 
+<a id='L222' name='L222'></a>   222 <em class='sharp'># endif</em> <em class='comment'>/* Not FSCALE.  */</em>
+<a id='L223' name='L223'></a>   223 
+<a id='L224' name='L224'></a>   224 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3274.html' title='Multiple defined in 2 places.'>LDAV_CVT</a>) &amp;&amp; <strong class='reserved'>defined</strong> (<a href='../D/2256.html' title='Multiple defined in 9 places.'>FSCALE</a>)
+<a id='L225' name='L225'></a>   225 <em class='sharp'>#  define</em> <a href='../R/2958.html' title='Multiple referred from 6 places.'>LDAV_CVT</a>(n) (((<strong class='reserved'>double</strong>) (n)) / <a href='../D/2256.html' title='Multiple defined in 9 places.'>FSCALE</a>)
+<a id='L226' name='L226'></a>   226 <em class='sharp'># endif</em>
+<a id='L227' name='L227'></a>   227 
+<a id='L228' name='L228'></a>   228 <em class='sharp'># ifndef</em> <a href='../S/2639.html#L230' title='Defined at 230 in lib/getloadavg.c.'>NLIST_STRUCT</a>
+<a id='L229' name='L229'></a>   229 <em class='sharp'>#  if</em> HAVE_NLIST_H
+<a id='L230' name='L230'></a>   230 <em class='sharp'>#   define</em> <a href='../R/3658.html' title='Multiple referred from 3 places.'>NLIST_STRUCT</a>
+<a id='L231' name='L231'></a>   231 <em class='sharp'>#  endif</em>
+<a id='L232' name='L232'></a>   232 <em class='sharp'># endif</em>
+<a id='L233' name='L233'></a>   233 
+<a id='L234' name='L234'></a>   234 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> (sgi) || (<strong class='reserved'>defined</strong> (mips) &amp;&amp; !<strong class='reserved'>defined</strong> (<a href='../D/364.html' title='Multiple defined in 2 places.'>BSD</a>))
+<a id='L235' name='L235'></a>   235 <em class='sharp'>#  define</em> <a href='../R/1755.html' title='Multiple referred from 2 places.'>FIXUP_KERNEL_SYMBOL_ADDR</a>(nl) ((nl)[0].n_value &amp;= ~(1 &lt;&lt; 31))
+<a id='L236' name='L236'></a>   236 <em class='sharp'># endif</em>
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238 
+<a id='L239' name='L239'></a>   239 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3200.html' title='Multiple defined in 3 places.'>KERNEL_FILE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (<a href='../D/11723.html' title='Multiple defined in 2 places.'>hpux</a>)
+<a id='L240' name='L240'></a>   240 <em class='sharp'>#  define</em> <a href='../R/2895.html' title='Multiple referred from 5 places.'>KERNEL_FILE</a> "/hp-ux"
+<a id='L241' name='L241'></a>   241 <em class='sharp'># endif</em>
+<a id='L242' name='L242'></a>   242 
+<a id='L243' name='L243'></a>   243 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3200.html' title='Multiple defined in 3 places.'>KERNEL_FILE</a>) &amp;&amp; (<strong class='reserved'>defined</strong> (MIPS) || <strong class='reserved'>defined</strong> (<a href='../S/2639.html#L139' title='Defined at 139 in lib/getloadavg.c.'>SVR4</a>) || <strong class='reserved'>defined</strong> (ISC) || <strong class='reserved'>defined</strong> (sgi))
+<a id='L244' name='L244'></a>   244 <em class='sharp'>#  define</em> <a href='../R/2895.html' title='Multiple referred from 5 places.'>KERNEL_FILE</a> "/unix"
+<a id='L245' name='L245'></a>   245 <em class='sharp'># endif</em>
+<a id='L246' name='L246'></a>   246 
+<a id='L247' name='L247'></a>   247 
+<a id='L248' name='L248'></a>   248 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3277.html' title='Multiple defined in 2 places.'>LDAV_SYMBOL</a>) &amp;&amp; (<strong class='reserved'>defined</strong> (<a href='../D/11723.html' title='Multiple defined in 2 places.'>hpux</a>) || <strong class='reserved'>defined</strong> (<a href='../S/2639.html#L139' title='Defined at 139 in lib/getloadavg.c.'>SVR4</a>) || <strong class='reserved'>defined</strong> (ISC) || <strong class='reserved'>defined</strong> (sgi) || (<strong class='reserved'>defined</strong> (_AIX) &amp;&amp; !<strong class='reserved'>defined</strong>(HAVE_LIBPERFSTAT)))
+<a id='L249' name='L249'></a>   249 <em class='sharp'>#  define</em> <a href='../R/2960.html' title='Multiple referred from 6 places.'>LDAV_SYMBOL</a> "avenrun"
+<a id='L250' name='L250'></a>   250 <em class='sharp'># endif</em>
+<a id='L251' name='L251'></a>   251 
+<a id='L252' name='L252'></a>   252 <em class='sharp'># ifdef</em> HAVE_UNISTD_H
+<a id='L253' name='L253'></a>   253 <em class='sharp'>#  include</em> &lt;<a href='23.html'>unistd.h</a>&gt;
+<a id='L254' name='L254'></a>   254 <em class='sharp'># endif</em>
+<a id='L255' name='L255'></a>   255 
+<a id='L256' name='L256'></a>   256 <em class='comment'>/* LOAD_AVE_TYPE should only get defined if we're going to use the</em>
+<a id='L257' name='L257'></a>   257 <em class='comment'>   nlist method.  */</em>
+<a id='L258' name='L258'></a>   258 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3415.html' title='Multiple defined in 11 places.'>LOAD_AVE_TYPE</a>) &amp;&amp; (<strong class='reserved'>defined</strong> (<a href='../D/364.html' title='Multiple defined in 2 places.'>BSD</a>) || <strong class='reserved'>defined</strong> (<a href='../D/3274.html' title='Multiple defined in 2 places.'>LDAV_CVT</a>) || <strong class='reserved'>defined</strong> (<a href='../D/3200.html' title='Multiple defined in 3 places.'>KERNEL_FILE</a>) || <strong class='reserved'>defined</strong> (<a href='../D/3277.html' title='Multiple defined in 2 places.'>LDAV_SYMBOL</a>))
+<a id='L259' name='L259'></a>   259 <em class='sharp'>#  define</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a> <strong class='reserved'>double</strong>
+<a id='L260' name='L260'></a>   260 <em class='sharp'># endif</em>
+<a id='L261' name='L261'></a>   261 
+<a id='L262' name='L262'></a>   262 <em class='sharp'># ifdef</em> <a href='../D/3415.html' title='Multiple defined in 11 places.'>LOAD_AVE_TYPE</a>
+<a id='L263' name='L263'></a>   263 
+<a id='L264' name='L264'></a>   264 <em class='sharp'>#  ifndef</em> __VMS
+<a id='L265' name='L265'></a>   265 <em class='sharp'>#   if</em> !(<strong class='reserved'>defined</strong> __linux__ || <strong class='reserved'>defined</strong> __ANDROID__)
+<a id='L266' name='L266'></a>   266 <em class='sharp'>#    ifndef</em> <a href='../S/2639.html#L230' title='Defined at 230 in lib/getloadavg.c.'>NLIST_STRUCT</a>
+<a id='L267' name='L267'></a>   267 <em class='sharp'>#     include</em> &lt;a.out.h&gt;
+<a id='L268' name='L268'></a>   268 <em class='sharp'>#    else</em> <em class='comment'>/* NLIST_STRUCT */</em>
+<a id='L269' name='L269'></a>   269 <em class='sharp'>#     include</em> &lt;nlist.h&gt;
+<a id='L270' name='L270'></a>   270 <em class='sharp'>#    endif</em> <em class='comment'>/* NLIST_STRUCT */</em>
+<a id='L271' name='L271'></a>   271 
+<a id='L272' name='L272'></a>   272 <em class='sharp'>#    ifdef</em> <a href='../S/2639.html#L143' title='Defined at 143 in lib/getloadavg.c.'>SUNOS_5</a>
+<a id='L273' name='L273'></a>   273 <em class='sharp'>#     include</em> &lt;kvm.h&gt;
+<a id='L274' name='L274'></a>   274 <em class='sharp'>#     include</em> &lt;kstat.h&gt;
+<a id='L275' name='L275'></a>   275 <em class='sharp'>#    endif</em>
+<a id='L276' name='L276'></a>   276 
+<a id='L277' name='L277'></a>   277 <em class='sharp'>#    if</em> <strong class='reserved'>defined</strong> (<a href='../D/11723.html' title='Multiple defined in 2 places.'>hpux</a>) &amp;&amp; <strong class='reserved'>defined</strong> (HAVE_PSTAT_GETDYNAMIC)
+<a id='L278' name='L278'></a>   278 <em class='sharp'>#     include</em> &lt;sys/pstat.h&gt;
+<a id='L279' name='L279'></a>   279 <em class='sharp'>#    endif</em>
+<a id='L280' name='L280'></a>   280 
+<a id='L281' name='L281'></a>   281 <em class='sharp'>#    ifndef</em> <a href='../D/3200.html' title='Multiple defined in 3 places.'>KERNEL_FILE</a>
+<a id='L282' name='L282'></a>   282 <em class='sharp'>#     define</em> <a href='../R/2895.html' title='Multiple referred from 5 places.'>KERNEL_FILE</a> "/vmunix"
+<a id='L283' name='L283'></a>   283 <em class='sharp'>#    endif</em> <em class='comment'>/* KERNEL_FILE */</em>
+<a id='L284' name='L284'></a>   284 
+<a id='L285' name='L285'></a>   285 <em class='sharp'>#    ifndef</em> <a href='../D/3277.html' title='Multiple defined in 2 places.'>LDAV_SYMBOL</a>
+<a id='L286' name='L286'></a>   286 <em class='sharp'>#     define</em> <a href='../R/2960.html' title='Multiple referred from 6 places.'>LDAV_SYMBOL</a> "_avenrun"
+<a id='L287' name='L287'></a>   287 <em class='sharp'>#    endif</em> <em class='comment'>/* LDAV_SYMBOL */</em>
+<a id='L288' name='L288'></a>   288 <em class='sharp'>#   endif</em> <em class='comment'>/* __linux__ || __ANDROID__ */</em>
+<a id='L289' name='L289'></a>   289 
+<a id='L290' name='L290'></a>   290 <em class='sharp'>#  else</em> <em class='comment'>/* __VMS */</em>
+<a id='L291' name='L291'></a>   291 
+<a id='L292' name='L292'></a>   292 <em class='sharp'>#   ifndef</em> eunice
+<a id='L293' name='L293'></a>   293 <em class='sharp'>#    include</em> &lt;iodef.h&gt;
+<a id='L294' name='L294'></a>   294 <em class='sharp'>#    include</em> &lt;descrip.h&gt;
+<a id='L295' name='L295'></a>   295 <em class='sharp'>#   else</em> <em class='comment'>/* eunice */</em>
+<a id='L296' name='L296'></a>   296 <em class='sharp'>#    include</em> &lt;vms/iodef.h&gt;
+<a id='L297' name='L297'></a>   297 <em class='sharp'>#   endif</em> <em class='comment'>/* eunice */</em>
+<a id='L298' name='L298'></a>   298 <em class='sharp'>#  endif</em> <em class='comment'>/* __VMS */</em>
+<a id='L299' name='L299'></a>   299 
+<a id='L300' name='L300'></a>   300 <em class='sharp'>#  ifndef</em> <a href='../D/3274.html' title='Multiple defined in 2 places.'>LDAV_CVT</a>
+<a id='L301' name='L301'></a>   301 <em class='sharp'>#   define</em> <a href='../R/2958.html' title='Multiple referred from 6 places.'>LDAV_CVT</a>(n) ((<strong class='reserved'>double</strong>) (n))
+<a id='L302' name='L302'></a>   302 <em class='sharp'>#  endif</em> <em class='comment'>/* !LDAV_CVT */</em>
+<a id='L303' name='L303'></a>   303 
+<a id='L304' name='L304'></a>   304 <em class='sharp'># endif</em> <em class='comment'>/* LOAD_AVE_TYPE */</em>
+<a id='L305' name='L305'></a>   305 
+<a id='L306' name='L306'></a>   306 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> HAVE_LIBPERFSTAT
+<a id='L307' name='L307'></a>   307 <em class='sharp'>#  include</em> &lt;sys/protosw.h&gt;
+<a id='L308' name='L308'></a>   308 <em class='sharp'>#  include</em> &lt;libperfstat.h&gt;
+<a id='L309' name='L309'></a>   309 <em class='sharp'>#  include</em> &lt;sys/proc.h&gt;
+<a id='L310' name='L310'></a>   310 <em class='sharp'>#  ifndef</em> <a href='../S/2639.html#L311' title='Defined at 311 in lib/getloadavg.c.'>SBITS</a>
+<a id='L311' name='L311'></a>   311 <em class='sharp'>#   define</em> <a href='../R/4545.html' title='Multiple referred from 4 places.'>SBITS</a> 16
+<a id='L312' name='L312'></a>   312 <em class='sharp'>#  endif</em>
+<a id='L313' name='L313'></a>   313 <em class='sharp'># endif</em>
+<a id='L314' name='L314'></a>   314 
+<a id='L315' name='L315'></a>   315 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> (__GNU__) &amp;&amp; !<strong class='reserved'>defined</strong> (<a href='../S/2639.html#L319' title='Defined at 319 in lib/getloadavg.c.'>NeXT</a>)
+<a id='L316' name='L316'></a>   316 <em class='comment'>/* Note that NeXT Openstep defines __GNU__ even though it should not.  */</em>
+<a id='L317' name='L317'></a>   317 <em class='comment'>/* GNU system acts much like NeXT, for load average purposes,</em>
+<a id='L318' name='L318'></a>   318 <em class='comment'>   but not exactly.  */</em>
+<a id='L319' name='L319'></a>   319 <em class='sharp'>#  define</em> <a href='../R/3784.html' title='Multiple referred from 5 places.'>NeXT</a>
+<a id='L320' name='L320'></a>   320 <em class='sharp'>#  define</em> <a href='../S/2639.html#L611' title='Referred from 611 in lib/getloadavg.c.'>host_self</a> mach_host_self
+<a id='L321' name='L321'></a>   321 <em class='sharp'># endif</em>
+<a id='L322' name='L322'></a>   322 
+<a id='L323' name='L323'></a>   323 <em class='sharp'># ifdef</em> <a href='../S/2639.html#L319' title='Defined at 319 in lib/getloadavg.c.'>NeXT</a>
+<a id='L324' name='L324'></a>   324 <em class='sharp'>#  ifdef</em> HAVE_MACH_MACH_H
+<a id='L325' name='L325'></a>   325 <em class='sharp'>#   include</em> &lt;mach/mach.h&gt;
+<a id='L326' name='L326'></a>   326 <em class='sharp'>#  else</em>
+<a id='L327' name='L327'></a>   327 <em class='sharp'>#   include</em> &lt;mach.h&gt;
+<a id='L328' name='L328'></a>   328 <em class='sharp'>#  endif</em>
+<a id='L329' name='L329'></a>   329 <em class='sharp'># endif</em> <em class='comment'>/* NeXT */</em>
+<a id='L330' name='L330'></a>   330 
+<a id='L331' name='L331'></a>   331 <em class='sharp'># ifdef</em> sgi
+<a id='L332' name='L332'></a>   332 <em class='sharp'>#  include</em> &lt;sys/sysmp.h&gt;
+<a id='L333' name='L333'></a>   333 <em class='sharp'># endif</em> <em class='comment'>/* sgi */</em>
+<a id='L334' name='L334'></a>   334 
+<a id='L335' name='L335'></a>   335 <em class='sharp'># ifdef</em> UMAX
+<a id='L336' name='L336'></a>   336 <em class='sharp'>#  include</em> &lt;signal.h&gt;
+<a id='L337' name='L337'></a>   337 <em class='sharp'>#  include</em> &lt;<a href='30.html'>sys/time.h</a>&gt;
+<a id='L338' name='L338'></a>   338 <em class='sharp'>#  include</em> &lt;<a href='26.html'>sys/wait.h</a>&gt;
+<a id='L339' name='L339'></a>   339 <em class='sharp'>#  include</em> &lt;sys/syscall.h&gt;
+<a id='L340' name='L340'></a>   340 
+<a id='L341' name='L341'></a>   341 <em class='sharp'>#  ifdef</em> UMAX_43
+<a id='L342' name='L342'></a>   342 <em class='sharp'>#   include</em> &lt;machine/cpu.h&gt;
+<a id='L343' name='L343'></a>   343 <em class='sharp'>#   include</em> &lt;inq_stats/statistics.h&gt;
+<a id='L344' name='L344'></a>   344 <em class='sharp'>#   include</em> &lt;inq_stats/sysstats.h&gt;
+<a id='L345' name='L345'></a>   345 <em class='sharp'>#   include</em> &lt;inq_stats/cpustats.h&gt;
+<a id='L346' name='L346'></a>   346 <em class='sharp'>#   include</em> &lt;inq_stats/procstats.h&gt;
+<a id='L347' name='L347'></a>   347 <em class='sharp'>#  else</em> <em class='comment'>/* Not UMAX_43.  */</em>
+<a id='L348' name='L348'></a>   348 <em class='sharp'>#   include</em> &lt;sys/sysdefs.h&gt;
+<a id='L349' name='L349'></a>   349 <em class='sharp'>#   include</em> &lt;sys/statistics.h&gt;
+<a id='L350' name='L350'></a>   350 <em class='sharp'>#   include</em> &lt;sys/sysstats.h&gt;
+<a id='L351' name='L351'></a>   351 <em class='sharp'>#   include</em> &lt;sys/cpudefs.h&gt;
+<a id='L352' name='L352'></a>   352 <em class='sharp'>#   include</em> &lt;sys/cpustats.h&gt;
+<a id='L353' name='L353'></a>   353 <em class='sharp'>#   include</em> &lt;sys/procstats.h&gt;
+<a id='L354' name='L354'></a>   354 <em class='sharp'>#  endif</em> <em class='comment'>/* Not UMAX_43.  */</em>
+<a id='L355' name='L355'></a>   355 <em class='sharp'># endif</em> <em class='comment'>/* UMAX */</em>
+<a id='L356' name='L356'></a>   356 
+<a id='L357' name='L357'></a>   357 <em class='sharp'># ifdef</em> DGUX
+<a id='L358' name='L358'></a>   358 <em class='sharp'>#  include</em> &lt;sys/dg_sys_info.h&gt;
+<a id='L359' name='L359'></a>   359 <em class='sharp'># endif</em>
+<a id='L360' name='L360'></a>   360 
+<a id='L361' name='L361'></a>   361 <em class='sharp'># if</em> (<strong class='reserved'>defined</strong> __linux__ || <strong class='reserved'>defined</strong> __ANDROID__ \
+<a id='L362' name='L362'></a>   362       || <strong class='reserved'>defined</strong> __CYGWIN__ || <strong class='reserved'>defined</strong> <a href='../S/2639.html#L143' title='Defined at 143 in lib/getloadavg.c.'>SUNOS_5</a> \
+<a id='L363' name='L363'></a>   363       || (<strong class='reserved'>defined</strong> <a href='../D/3415.html' title='Multiple defined in 11 places.'>LOAD_AVE_TYPE</a> &amp;&amp; ! <strong class='reserved'>defined</strong> __VMS))
+<a id='L364' name='L364'></a>   364 <em class='sharp'>#  include</em> &lt;fcntl.h&gt;
+<a id='L365' name='L365'></a>   365 <em class='sharp'># endif</em>
+<a id='L366' name='L366'></a>   366 
+<a id='L367' name='L367'></a>   367 <em class='comment'>/* Avoid static vars inside a function since in HPUX they dump as pure.  */</em>
+<a id='L368' name='L368'></a>   368 
+<a id='L369' name='L369'></a>   369 <em class='sharp'># ifdef</em> <a href='../S/2639.html#L319' title='Defined at 319 in lib/getloadavg.c.'>NeXT</a>
+<a id='L370' name='L370'></a>   370 <strong class='reserved'>static</strong> processor_set_t default_set;
+<a id='L371' name='L371'></a>   371 <strong class='reserved'>static</strong> <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> getloadavg_initialized;
+<a id='L372' name='L372'></a>   372 <em class='sharp'># endif</em> <em class='comment'>/* NeXT */</em>
+<a id='L373' name='L373'></a>   373 
+<a id='L374' name='L374'></a>   374 <em class='sharp'># ifdef</em> UMAX
+<a id='L375' name='L375'></a>   375 <strong class='reserved'>static</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> cpus = 0;
+<a id='L376' name='L376'></a>   376 <strong class='reserved'>static</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> samples;
+<a id='L377' name='L377'></a>   377 <em class='sharp'># endif</em> <em class='comment'>/* UMAX */</em>
+<a id='L378' name='L378'></a>   378 
+<a id='L379' name='L379'></a>   379 <em class='sharp'># ifdef</em> DGUX
+<a id='L380' name='L380'></a>   380 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> dg_sys_info_load_info load_info;  <em class='comment'>/* what-a-mouthful! */</em>
+<a id='L381' name='L381'></a>   381 <em class='sharp'># endif</em> <em class='comment'>/* DGUX */</em>
+<a id='L382' name='L382'></a>   382 
+<a id='L383' name='L383'></a>   383 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (HAVE_LIBKSTAT) &amp;&amp; <strong class='reserved'>defined</strong> (<a href='../D/3415.html' title='Multiple defined in 11 places.'>LOAD_AVE_TYPE</a>)
+<a id='L384' name='L384'></a>   384 <em class='comment'>/* File descriptor open to /dev/kmem or VMS load ave driver.  */</em>
+<a id='L385' name='L385'></a>   385 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> channel;
+<a id='L386' name='L386'></a>   386 <em class='comment'>/* True if channel is valid.  */</em>
+<a id='L387' name='L387'></a>   387 <strong class='reserved'>static</strong> <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> getloadavg_initialized;
+<a id='L388' name='L388'></a>   388 <em class='comment'>/* Offset in kmem to seek to read load average, or 0 means invalid.  */</em>
+<a id='L389' name='L389'></a>   389 <strong class='reserved'>static</strong> <strong class='reserved'>long</strong> <a href='../D/13656.html' title='Multiple defined in 4 places.'>offset</a>;
+<a id='L390' name='L390'></a>   390 
+<a id='L391' name='L391'></a>   391 <em class='sharp'>#  if</em> ! <strong class='reserved'>defined</strong> __VMS &amp;&amp; ! <strong class='reserved'>defined</strong> sgi &amp;&amp; ! (<strong class='reserved'>defined</strong> __linux__ || <strong class='reserved'>defined</strong> __ANDROID__)
+<a id='L392' name='L392'></a>   392 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> nlist name_list[2];
+<a id='L393' name='L393'></a>   393 <em class='sharp'>#  endif</em>
+<a id='L394' name='L394'></a>   394 
+<a id='L395' name='L395'></a>   395 <em class='sharp'>#  ifdef</em> <a href='../S/2639.html#L143' title='Defined at 143 in lib/getloadavg.c.'>SUNOS_5</a>
+<a id='L396' name='L396'></a>   396 <strong class='reserved'>static</strong> kvm_t *kd;
+<a id='L397' name='L397'></a>   397 <em class='sharp'>#  endif</em> <em class='comment'>/* SUNOS_5 */</em>
+<a id='L398' name='L398'></a>   398 
+<a id='L399' name='L399'></a>   399 <em class='sharp'># endif</em> <em class='comment'>/* LOAD_AVE_TYPE &amp;&amp; !HAVE_LIBKSTAT */</em>
+<a id='L400' name='L400'></a>   400 
+<a id='L401' name='L401'></a>   401 <em class='comment'>/* Put the 1 minute, 5 minute and 15 minute load averages</em>
+<a id='L402' name='L402'></a>   402 <em class='comment'>   into the first NELEM elements of LOADAVG.</em>
+<a id='L403' name='L403'></a>   403 <em class='comment'>   Return the number written (never more than 3, but may be less than NELEM),</em>
+<a id='L404' name='L404'></a>   404 <em class='comment'>   or -1 (setting errno) if an error occurred.  */</em>
+<a id='L405' name='L405'></a>   405 
+<a id='L406' name='L406'></a>   406 <strong class='reserved'>int</strong>
+<a id='L407' name='L407'></a>   407 <a href='../R/10026.html' title='Multiple referred from 8 places.'>getloadavg</a> (<strong class='reserved'>double</strong> loadavg[], <strong class='reserved'>int</strong> nelem)
+<a id='L408' name='L408'></a>   408 <em class='brace'>{</em>
+<a id='L409' name='L409'></a>   409   <strong class='reserved'>int</strong> elem = 0;                 <em class='comment'>/* Return value.  */</em>
+<a id='L410' name='L410'></a>   410 
+<a id='L411' name='L411'></a>   411 <em class='sharp'># ifdef</em> NO_GET_LOAD_AVG
+<a id='L412' name='L412'></a>   412 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L413' name='L413'></a>   413   errno = ENOSYS;
+<a id='L414' name='L414'></a>   414   elem = -1;
+<a id='L415' name='L415'></a>   415 <em class='sharp'># endif</em>
+<a id='L416' name='L416'></a>   416 
+<a id='L417' name='L417'></a>   417 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (HAVE_LIBKSTAT)       <em class='comment'>/* Solaris &lt;= 2.6 */</em>
+<a id='L418' name='L418'></a>   418 <em class='comment'>/* Use libkstat because we don't have to be root.  */</em>
+<a id='L419' name='L419'></a>   419 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L420' name='L420'></a>   420   kstat_ctl_t *kc;
+<a id='L421' name='L421'></a>   421   kstat_t *ksp;
+<a id='L422' name='L422'></a>   422   kstat_named_t *kn;
+<a id='L423' name='L423'></a>   423   <strong class='reserved'>int</strong> saved_errno;
+<a id='L424' name='L424'></a>   424 
+<a id='L425' name='L425'></a>   425   kc = kstat_open ();
+<a id='L426' name='L426'></a>   426   <strong class='reserved'>if</strong> (kc == <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L427' name='L427'></a>   427     <strong class='reserved'>return</strong> -1;
+<a id='L428' name='L428'></a>   428   ksp = kstat_lookup (kc, "unix", 0, "system_misc");
+<a id='L429' name='L429'></a>   429   <strong class='reserved'>if</strong> (ksp == <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L430' name='L430'></a>   430     <strong class='reserved'>return</strong> -1;
+<a id='L431' name='L431'></a>   431   <strong class='reserved'>if</strong> (kstat_read (kc, ksp, 0) == -1)
+<a id='L432' name='L432'></a>   432     <strong class='reserved'>return</strong> -1;
+<a id='L433' name='L433'></a>   433 
+<a id='L434' name='L434'></a>   434 
+<a id='L435' name='L435'></a>   435   kn = kstat_data_lookup (ksp, "avenrun_1min");
+<a id='L436' name='L436'></a>   436   <strong class='reserved'>if</strong> (kn == <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L437' name='L437'></a>   437     <em class='brace'>{</em>
+<a id='L438' name='L438'></a>   438       <em class='comment'>/* Return -1 if no load average information is available.  */</em>
+<a id='L439' name='L439'></a>   439       nelem = 0;
+<a id='L440' name='L440'></a>   440       elem = -1;
+<a id='L441' name='L441'></a>   441     <em class='brace'>}</em>
+<a id='L442' name='L442'></a>   442 
+<a id='L443' name='L443'></a>   443   <strong class='reserved'>if</strong> (nelem &gt;= 1)
+<a id='L444' name='L444'></a>   444     loadavg[elem++] = (<strong class='reserved'>double</strong>) kn-&gt;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>.ul / <a href='../D/2256.html' title='Multiple defined in 9 places.'>FSCALE</a>;
+<a id='L445' name='L445'></a>   445 
+<a id='L446' name='L446'></a>   446   <strong class='reserved'>if</strong> (nelem &gt;= 2)
+<a id='L447' name='L447'></a>   447     <em class='brace'>{</em>
+<a id='L448' name='L448'></a>   448       kn = kstat_data_lookup (ksp, "avenrun_5min");
+<a id='L449' name='L449'></a>   449       <strong class='reserved'>if</strong> (kn != <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L450' name='L450'></a>   450         <em class='brace'>{</em>
+<a id='L451' name='L451'></a>   451           loadavg[elem++] = (<strong class='reserved'>double</strong>) kn-&gt;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>.ul / <a href='../D/2256.html' title='Multiple defined in 9 places.'>FSCALE</a>;
+<a id='L452' name='L452'></a>   452 
+<a id='L453' name='L453'></a>   453           <strong class='reserved'>if</strong> (nelem &gt;= 3)
+<a id='L454' name='L454'></a>   454             <em class='brace'>{</em>
+<a id='L455' name='L455'></a>   455               kn = kstat_data_lookup (ksp, "avenrun_15min");
+<a id='L456' name='L456'></a>   456               <strong class='reserved'>if</strong> (kn != <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L457' name='L457'></a>   457                 loadavg[elem++] = (<strong class='reserved'>double</strong>) kn-&gt;<a href='../S/2219.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>.ul / <a href='../D/2256.html' title='Multiple defined in 9 places.'>FSCALE</a>;
+<a id='L458' name='L458'></a>   458             <em class='brace'>}</em>
+<a id='L459' name='L459'></a>   459         <em class='brace'>}</em>
+<a id='L460' name='L460'></a>   460     <em class='brace'>}</em>
+<a id='L461' name='L461'></a>   461 
+<a id='L462' name='L462'></a>   462   saved_errno = errno;
+<a id='L463' name='L463'></a>   463   kstat_close (kc);
+<a id='L464' name='L464'></a>   464   errno = saved_errno;
+<a id='L465' name='L465'></a>   465 <em class='sharp'># endif</em> <em class='comment'>/* HAVE_LIBKSTAT */</em>
+<a id='L466' name='L466'></a>   466 
+<a id='L467' name='L467'></a>   467 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (<a href='../D/11723.html' title='Multiple defined in 2 places.'>hpux</a>) &amp;&amp; <strong class='reserved'>defined</strong> (HAVE_PSTAT_GETDYNAMIC)
+<a id='L468' name='L468'></a>   468                                                            <em class='comment'>/* HP-UX */</em>
+<a id='L469' name='L469'></a>   469 <em class='comment'>/* Use pstat_getdynamic() because we don't have to be root.  */</em>
+<a id='L470' name='L470'></a>   470 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L471' name='L471'></a>   471 <em class='sharp'>#  undef</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a>
+<a id='L472' name='L472'></a>   472 
+<a id='L473' name='L473'></a>   473   <strong class='reserved'>struct</strong> pst_dynamic dyn_info;
+<a id='L474' name='L474'></a>   474   <strong class='reserved'>if</strong> (pstat_getdynamic (&amp;dyn_info, <strong class='reserved'>sizeof</strong> (dyn_info), 0, 0) &lt; 0)
+<a id='L475' name='L475'></a>   475     <strong class='reserved'>return</strong> -1;
+<a id='L476' name='L476'></a>   476   <strong class='reserved'>if</strong> (nelem &gt; 0)
+<a id='L477' name='L477'></a>   477     loadavg[elem++] = dyn_info.psd_avg_1_min;
+<a id='L478' name='L478'></a>   478   <strong class='reserved'>if</strong> (nelem &gt; 1)
+<a id='L479' name='L479'></a>   479     loadavg[elem++] = dyn_info.psd_avg_5_min;
+<a id='L480' name='L480'></a>   480   <strong class='reserved'>if</strong> (nelem &gt; 2)
+<a id='L481' name='L481'></a>   481     loadavg[elem++] = dyn_info.psd_avg_15_min;
+<a id='L482' name='L482'></a>   482 
+<a id='L483' name='L483'></a>   483 <em class='sharp'># endif</em> <em class='comment'>/* hpux &amp;&amp; HAVE_PSTAT_GETDYNAMIC */</em>
+<a id='L484' name='L484'></a>   484 
+<a id='L485' name='L485'></a>   485 <em class='sharp'># if</em> ! <strong class='reserved'>defined</strong> <a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a> &amp;&amp; <strong class='reserved'>defined</strong> HAVE_LIBPERFSTAT       <em class='comment'>/* AIX */</em>
+<a id='L486' name='L486'></a>   486 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L487' name='L487'></a>   487 <em class='sharp'>#  undef</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a>
+<a id='L488' name='L488'></a>   488 <em class='comment'>/* Use perfstat_cpu_total because we don't have to be root. */</em>
+<a id='L489' name='L489'></a>   489   <em class='brace'>{</em>
+<a id='L490' name='L490'></a>   490     perfstat_cpu_total_t cpu_stats;
+<a id='L491' name='L491'></a>   491     <strong class='reserved'>int</strong> result = perfstat_cpu_total (<a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>, &amp;cpu_stats, <strong class='reserved'>sizeof</strong> cpu_stats, 1);
+<a id='L492' name='L492'></a>   492     <strong class='reserved'>if</strong> (result == -1)
+<a id='L493' name='L493'></a>   493       <strong class='reserved'>return</strong> result;
+<a id='L494' name='L494'></a>   494     loadavg[0] = cpu_stats.loadavg[0] / (<strong class='reserved'>double</strong>)(1 &lt;&lt; <a href='../S/2639.html#L311' title='Defined at 311 in lib/getloadavg.c.'>SBITS</a>);
+<a id='L495' name='L495'></a>   495     loadavg[1] = cpu_stats.loadavg[1] / (<strong class='reserved'>double</strong>)(1 &lt;&lt; <a href='../S/2639.html#L311' title='Defined at 311 in lib/getloadavg.c.'>SBITS</a>);
+<a id='L496' name='L496'></a>   496     loadavg[2] = cpu_stats.loadavg[2] / (<strong class='reserved'>double</strong>)(1 &lt;&lt; <a href='../S/2639.html#L311' title='Defined at 311 in lib/getloadavg.c.'>SBITS</a>);
+<a id='L497' name='L497'></a>   497     elem = 3;
+<a id='L498' name='L498'></a>   498   <em class='brace'>}</em>
+<a id='L499' name='L499'></a>   499 <em class='sharp'># endif</em>
+<a id='L500' name='L500'></a>   500 
+<a id='L501' name='L501'></a>   501 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; (<strong class='reserved'>defined</strong> __linux__ || <strong class='reserved'>defined</strong> __ANDROID__ || <strong class='reserved'>defined</strong> __CYGWIN__)
+<a id='L502' name='L502'></a>   502                                       <em class='comment'>/* Linux without glibc, Android, Cygwin */</em>
+<a id='L503' name='L503'></a>   503 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L504' name='L504'></a>   504 <em class='sharp'>#  undef</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a>
+<a id='L505' name='L505'></a>   505 
+<a id='L506' name='L506'></a>   506 <em class='sharp'>#  ifndef</em> <a href='../S/2639.html#L507' title='Defined at 507 in lib/getloadavg.c.'>LINUX_LDAV_FILE</a>
+<a id='L507' name='L507'></a>   507 <em class='sharp'>#   define</em> <a href='../R/3076.html' title='Multiple referred from 2 places.'>LINUX_LDAV_FILE</a> "/proc/loadavg"
+<a id='L508' name='L508'></a>   508 <em class='sharp'>#  endif</em>
+<a id='L509' name='L509'></a>   509 
+<a id='L510' name='L510'></a>   510   <strong class='reserved'>char</strong> ldavgbuf[3 * (<a href='../S/2560.html#L66' title='Defined at 66 in lib/intprops.h.'>INT_STRLEN_BOUND</a> (<strong class='reserved'>int</strong>) + <strong class='reserved'>sizeof</strong> ".00 ")];
+<a id='L511' name='L511'></a>   511   <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *ptr = ldavgbuf;
+<a id='L512' name='L512'></a>   512   <strong class='reserved'>int</strong> fd, count, saved_errno;
+<a id='L513' name='L513'></a>   513 
+<a id='L514' name='L514'></a>   514   fd = <a href='../D/13674.html' title='Multiple defined in 11 places.'>open</a> (<a href='../S/2639.html#L507' title='Defined at 507 in lib/getloadavg.c.'>LINUX_LDAV_FILE</a>, O_RDONLY | <a href='../D/4356.html' title='Multiple defined in 7 places.'>O_CLOEXEC</a>);
+<a id='L515' name='L515'></a>   515   <strong class='reserved'>if</strong> (fd == -1)
+<a id='L516' name='L516'></a>   516     <strong class='reserved'>return</strong> -1;
+<a id='L517' name='L517'></a>   517   count = <a href='../D/14573.html' title='Multiple defined in 14 places.'>read</a> (fd, ldavgbuf, <strong class='reserved'>sizeof</strong> ldavgbuf - 1);
+<a id='L518' name='L518'></a>   518   saved_errno = errno;
+<a id='L519' name='L519'></a>   519   (<strong class='reserved'>void</strong>) <a href='../D/8678.html' title='Multiple defined in 18 places.'>close</a> (fd);
+<a id='L520' name='L520'></a>   520   errno = saved_errno;
+<a id='L521' name='L521'></a>   521   <strong class='reserved'>if</strong> (count &lt;= 0)
+<a id='L522' name='L522'></a>   522     <strong class='reserved'>return</strong> -1;
+<a id='L523' name='L523'></a>   523   ldavgbuf[count] = '\0';
+<a id='L524' name='L524'></a>   524 
+<a id='L525' name='L525'></a>   525   <strong class='reserved'>for</strong> (elem = 0; elem &lt; nelem; elem++)
+<a id='L526' name='L526'></a>   526     <em class='brace'>{</em>
+<a id='L527' name='L527'></a>   527       <strong class='reserved'>double</strong> numerator = 0;
+<a id='L528' name='L528'></a>   528       <strong class='reserved'>double</strong> denominator = 1;
+<a id='L529' name='L529'></a>   529 
+<a id='L530' name='L530'></a>   530       <strong class='reserved'>while</strong> (*ptr == ' ')
+<a id='L531' name='L531'></a>   531         ptr++;
+<a id='L532' name='L532'></a>   532 
+<a id='L533' name='L533'></a>   533       <em class='comment'>/* Finish if this number is missing, and report an error if all</em>
+<a id='L534' name='L534'></a>   534 <em class='comment'>         were missing.  */</em>
+<a id='L535' name='L535'></a>   535       <strong class='reserved'>if</strong> (! ('0' &lt;= *ptr &amp;&amp; *ptr &lt;= '9'))
+<a id='L536' name='L536'></a>   536         <em class='brace'>{</em>
+<a id='L537' name='L537'></a>   537           <strong class='reserved'>if</strong> (elem == 0)
+<a id='L538' name='L538'></a>   538             <em class='brace'>{</em>
+<a id='L539' name='L539'></a>   539               errno = <a href='../D/1653.html' title='Multiple defined in 5 places.'>ENOTSUP</a>;
+<a id='L540' name='L540'></a>   540               <strong class='reserved'>return</strong> -1;
+<a id='L541' name='L541'></a>   541             <em class='brace'>}</em>
+<a id='L542' name='L542'></a>   542           <strong class='reserved'>break</strong>;
+<a id='L543' name='L543'></a>   543         <em class='brace'>}</em>
+<a id='L544' name='L544'></a>   544 
+<a id='L545' name='L545'></a>   545       <strong class='reserved'>while</strong> ('0' &lt;= *ptr &amp;&amp; *ptr &lt;= '9')
+<a id='L546' name='L546'></a>   546         numerator = 10 * numerator + (*ptr++ - '0');
+<a id='L547' name='L547'></a>   547 
+<a id='L548' name='L548'></a>   548       <strong class='reserved'>if</strong> (*ptr == '.')
+<a id='L549' name='L549'></a>   549         <strong class='reserved'>for</strong> (ptr++; '0' &lt;= *ptr &amp;&amp; *ptr &lt;= '9'; ptr++)
+<a id='L550' name='L550'></a>   550           numerator = 10 * numerator + (*ptr - '0'), denominator *= 10;
+<a id='L551' name='L551'></a>   551 
+<a id='L552' name='L552'></a>   552       loadavg[elem] = numerator / denominator;
+<a id='L553' name='L553'></a>   553     <em class='brace'>}</em>
+<a id='L554' name='L554'></a>   554 
+<a id='L555' name='L555'></a>   555   <strong class='reserved'>return</strong> elem;
+<a id='L556' name='L556'></a>   556 
+<a id='L557' name='L557'></a>   557 <em class='sharp'># endif</em> <em class='comment'>/* __linux__ || __ANDROID__ || __CYGWIN__ */</em>
+<a id='L558' name='L558'></a>   558 
+<a id='L559' name='L559'></a>   559 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (__NetBSD__)          <em class='comment'>/* NetBSD &lt; 0.9 */</em>
+<a id='L560' name='L560'></a>   560 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L561' name='L561'></a>   561 <em class='sharp'>#  undef</em> <a href='../R/3090.html' title='Multiple referred from 9 places.'>LOAD_AVE_TYPE</a>
+<a id='L562' name='L562'></a>   562 
+<a id='L563' name='L563'></a>   563 <em class='sharp'>#  ifndef</em> <a href='../S/2639.html#L564' title='Defined at 564 in lib/getloadavg.c.'>NETBSD_LDAV_FILE</a>
+<a id='L564' name='L564'></a>   564 <em class='sharp'>#   define</em> <a href='../R/3605.html' title='Multiple referred from 2 places.'>NETBSD_LDAV_FILE</a> "/kern/loadavg"
+<a id='L565' name='L565'></a>   565 <em class='sharp'>#  endif</em>
+<a id='L566' name='L566'></a>   566 
+<a id='L567' name='L567'></a>   567   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> <strong class='reserved'>int</strong> load_ave[3], scale;
+<a id='L568' name='L568'></a>   568   <strong class='reserved'>int</strong> count;
+<a id='L569' name='L569'></a>   569   <strong class='reserved'>char</strong> readbuf[4 * <a href='../S/2560.html#L72' title='Defined at 72 in lib/intprops.h.'>INT_BUFSIZE_BOUND</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> <strong class='reserved'>int</strong>) + 1];
+<a id='L570' name='L570'></a>   570   <strong class='reserved'>int</strong> fd = <a href='../D/13674.html' title='Multiple defined in 11 places.'>open</a> (<a href='../S/2639.html#L564' title='Defined at 564 in lib/getloadavg.c.'>NETBSD_LDAV_FILE</a>, O_RDONLY | <a href='../D/4356.html' title='Multiple defined in 7 places.'>O_CLOEXEC</a>);
+<a id='L571' name='L571'></a>   571   <strong class='reserved'>if</strong> (fd &lt; 0)
+<a id='L572' name='L572'></a>   572     <strong class='reserved'>return</strong> fd;
+<a id='L573' name='L573'></a>   573   <strong class='reserved'>int</strong> nread = <a href='../D/14573.html' title='Multiple defined in 14 places.'>read</a> (fd, readbuf, <strong class='reserved'>sizeof</strong> readbuf - 1);
+<a id='L574' name='L574'></a>   574   <strong class='reserved'>int</strong> err = errno;
+<a id='L575' name='L575'></a>   575   <a href='../D/8678.html' title='Multiple defined in 18 places.'>close</a> (fd);
+<a id='L576' name='L576'></a>   576   <strong class='reserved'>if</strong> (nread &lt; 0)
+<a id='L577' name='L577'></a>   577     <em class='brace'>{</em>
+<a id='L578' name='L578'></a>   578       errno = err;
+<a id='L579' name='L579'></a>   579       <strong class='reserved'>return</strong> -1;
+<a id='L580' name='L580'></a>   580     <em class='brace'>}</em>
+<a id='L581' name='L581'></a>   581   readbuf[nread] = '\0';
+<a id='L582' name='L582'></a>   582   count = sscanf (readbuf, "%lu %lu %lu %lu\n",
+<a id='L583' name='L583'></a>   583                   &amp;load_ave[0], &amp;load_ave[1], &amp;load_ave[2],
+<a id='L584' name='L584'></a>   584                   &amp;scale);
+<a id='L585' name='L585'></a>   585   <strong class='reserved'>if</strong> (count != 4)
+<a id='L586' name='L586'></a>   586     <em class='brace'>{</em>
+<a id='L587' name='L587'></a>   587       errno = <a href='../D/1653.html' title='Multiple defined in 5 places.'>ENOTSUP</a>;
+<a id='L588' name='L588'></a>   588       <strong class='reserved'>return</strong> -1;
+<a id='L589' name='L589'></a>   589     <em class='brace'>}</em>
+<a id='L590' name='L590'></a>   590 
+<a id='L591' name='L591'></a>   591   <strong class='reserved'>for</strong> (elem = 0; elem &lt; nelem; elem++)
+<a id='L592' name='L592'></a>   592     loadavg[elem] = (<strong class='reserved'>double</strong>) load_ave[elem] / (<strong class='reserved'>double</strong>) scale;
+<a id='L593' name='L593'></a>   593 
+<a id='L594' name='L594'></a>   594   <strong class='reserved'>return</strong> elem;
+<a id='L595' name='L595'></a>   595 
+<a id='L596' name='L596'></a>   596 <em class='sharp'># endif</em> <em class='comment'>/* __NetBSD__ */</em>
+<a id='L597' name='L597'></a>   597 
+<a id='L598' name='L598'></a>   598 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (<a href='../S/2639.html#L319' title='Defined at 319 in lib/getloadavg.c.'>NeXT</a>)                <em class='comment'>/* NeXTStep */</em>
+<a id='L599' name='L599'></a>   599 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L600' name='L600'></a>   600   <em class='comment'>/* The NeXT code was adapted from iscreen 3.2.  */</em>
+<a id='L601' name='L601'></a>   601 
+<a id='L602' name='L602'></a>   602   host_t host;
+<a id='L603' name='L603'></a>   603   <strong class='reserved'>struct</strong> processor_set_basic_info <a href='../D/11850.html' title='Multiple defined in 2 places.'>info</a>;
+<a id='L604' name='L604'></a>   604   <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> info_count;
+<a id='L605' name='L605'></a>   605 
+<a id='L606' name='L606'></a>   606   <em class='comment'>/* We only know how to get the 1-minute average for this system,</em>
+<a id='L607' name='L607'></a>   607 <em class='comment'>     so even if the caller asks for more than 1, we only return 1.  */</em>
+<a id='L608' name='L608'></a>   608 
+<a id='L609' name='L609'></a>   609   <strong class='reserved'>if</strong> (!getloadavg_initialized)
+<a id='L610' name='L610'></a>   610     <em class='brace'>{</em>
+<a id='L611' name='L611'></a>   611       <strong class='reserved'>if</strong> (processor_set_default (<a href='../S/2639.html#L320' title='Defined at 320 in lib/getloadavg.c.'>host_self</a> (), &amp;default_set) == KERN_SUCCESS)
+<a id='L612' name='L612'></a>   612         getloadavg_initialized = <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L613' name='L613'></a>   613     <em class='brace'>}</em>
+<a id='L614' name='L614'></a>   614 
+<a id='L615' name='L615'></a>   615   <strong class='reserved'>if</strong> (getloadavg_initialized)
+<a id='L616' name='L616'></a>   616     <em class='brace'>{</em>
+<a id='L617' name='L617'></a>   617       info_count = PROCESSOR_SET_BASIC_INFO_COUNT;
+<a id='L618' name='L618'></a>   618       <strong class='reserved'>if</strong> (processor_set_info (default_set, PROCESSOR_SET_BASIC_INFO, &amp;host,
+<a id='L619' name='L619'></a>   619                               (processor_set_info_t) &amp;<a href='../D/11850.html' title='Multiple defined in 2 places.'>info</a>, &amp;info_count)
+<a id='L620' name='L620'></a>   620           != KERN_SUCCESS)
+<a id='L621' name='L621'></a>   621         getloadavg_initialized = <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L622' name='L622'></a>   622       <strong class='reserved'>else</strong>
+<a id='L623' name='L623'></a>   623         <em class='brace'>{</em>
+<a id='L624' name='L624'></a>   624           <strong class='reserved'>if</strong> (nelem &gt; 0)
+<a id='L625' name='L625'></a>   625             loadavg[elem++] = (<strong class='reserved'>double</strong>) <a href='../D/11850.html' title='Multiple defined in 2 places.'>info</a>.load_average / LOAD_SCALE;
+<a id='L626' name='L626'></a>   626         <em class='brace'>}</em>
+<a id='L627' name='L627'></a>   627     <em class='brace'>}</em>
+<a id='L628' name='L628'></a>   628 
+<a id='L629' name='L629'></a>   629   <strong class='reserved'>if</strong> (!getloadavg_initialized)
+<a id='L630' name='L630'></a>   630     <em class='brace'>{</em>
+<a id='L631' name='L631'></a>   631       errno = <a href='../D/1653.html' title='Multiple defined in 5 places.'>ENOTSUP</a>;
+<a id='L632' name='L632'></a>   632       <strong class='reserved'>return</strong> -1;
+<a id='L633' name='L633'></a>   633     <em class='brace'>}</em>
+<a id='L634' name='L634'></a>   634 <em class='sharp'># endif</em> <em class='comment'>/* NeXT */</em>
+<a id='L635' name='L635'></a>   635 
+<a id='L636' name='L636'></a>   636 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (UMAX)
+<a id='L637' name='L637'></a>   637 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L638' name='L638'></a>   638 <em class='comment'>/* UMAX 4.2, which runs on the Encore Multimax multiprocessor, does not</em>
+<a id='L639' name='L639'></a>   639 <em class='comment'>   have a /dev/kmem.  Information about the workings of the running kernel</em>
+<a id='L640' name='L640'></a>   640 <em class='comment'>   can be gathered with inq_stats system calls.</em>
+<a id='L641' name='L641'></a>   641 <em class='comment'>   We only know how to get the 1-minute average for this system.  */</em>
+<a id='L642' name='L642'></a>   642 
+<a id='L643' name='L643'></a>   643   <strong class='reserved'>struct</strong> proc_summary proc_sum_data;
+<a id='L644' name='L644'></a>   644   <strong class='reserved'>struct</strong> stat_descr proc_info;
+<a id='L645' name='L645'></a>   645   <strong class='reserved'>double</strong> load;
+<a id='L646' name='L646'></a>   646   <strong class='reserved'>register</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> i, j;
+<a id='L647' name='L647'></a>   647 
+<a id='L648' name='L648'></a>   648   <strong class='reserved'>if</strong> (cpus == 0)
+<a id='L649' name='L649'></a>   649     <em class='brace'>{</em>
+<a id='L650' name='L650'></a>   650       <strong class='reserved'>register</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>, i;
+<a id='L651' name='L651'></a>   651       <strong class='reserved'>struct</strong> cpu_config conf;
+<a id='L652' name='L652'></a>   652       <strong class='reserved'>struct</strong> stat_descr desc;
+<a id='L653' name='L653'></a>   653 
+<a id='L654' name='L654'></a>   654       desc.sd_next = 0;
+<a id='L655' name='L655'></a>   655       desc.sd_subsys = SUBSYS_CPU;
+<a id='L656' name='L656'></a>   656       desc.sd_type = CPUTYPE_CONFIG;
+<a id='L657' name='L657'></a>   657       desc.sd_addr = (<strong class='reserved'>char</strong> *) &amp;conf;
+<a id='L658' name='L658'></a>   658       desc.sd_size = <strong class='reserved'>sizeof</strong> conf;
+<a id='L659' name='L659'></a>   659 
+<a id='L660' name='L660'></a>   660       <strong class='reserved'>if</strong> (inq_stats (1, &amp;desc))
+<a id='L661' name='L661'></a>   661         <strong class='reserved'>return</strong> -1;
+<a id='L662' name='L662'></a>   662 
+<a id='L663' name='L663'></a>   663       <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a> = 0;
+<a id='L664' name='L664'></a>   664       <strong class='reserved'>for</strong> (i = 0; i &lt; conf.config_maxclass; ++i)
+<a id='L665' name='L665'></a>   665         <em class='brace'>{</em>
+<a id='L666' name='L666'></a>   666           <strong class='reserved'>struct</strong> class_stats stats;
+<a id='L667' name='L667'></a>   667           memset (&amp;stats, 0, <strong class='reserved'>sizeof</strong> stats);
+<a id='L668' name='L668'></a>   668 
+<a id='L669' name='L669'></a>   669           desc.sd_type = CPUTYPE_CLASS;
+<a id='L670' name='L670'></a>   670           desc.sd_objid = i;
+<a id='L671' name='L671'></a>   671           desc.sd_addr = (<strong class='reserved'>char</strong> *) &amp;stats;
+<a id='L672' name='L672'></a>   672           desc.sd_size = <strong class='reserved'>sizeof</strong> stats;
+<a id='L673' name='L673'></a>   673 
+<a id='L674' name='L674'></a>   674           <strong class='reserved'>if</strong> (inq_stats (1, &amp;desc))
+<a id='L675' name='L675'></a>   675             <strong class='reserved'>return</strong> -1;
+<a id='L676' name='L676'></a>   676 
+<a id='L677' name='L677'></a>   677           <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a> += stats.class_numcpus;
+<a id='L678' name='L678'></a>   678         <em class='brace'>}</em>
+<a id='L679' name='L679'></a>   679       cpus = <a href='../D/8345.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L680' name='L680'></a>   680       samples = cpus &lt; 2 ? 3 : (2 * cpus / 3);
+<a id='L681' name='L681'></a>   681     <em class='brace'>}</em>
+<a id='L682' name='L682'></a>   682 
+<a id='L683' name='L683'></a>   683   proc_info.sd_next = 0;
+<a id='L684' name='L684'></a>   684   proc_info.sd_subsys = SUBSYS_PROC;
+<a id='L685' name='L685'></a>   685   proc_info.sd_type = PROCTYPE_SUMMARY;
+<a id='L686' name='L686'></a>   686   proc_info.sd_addr = (<strong class='reserved'>char</strong> *) &amp;proc_sum_data;
+<a id='L687' name='L687'></a>   687   proc_info.sd_size = <strong class='reserved'>sizeof</strong> (<strong class='reserved'>struct</strong> proc_summary);
+<a id='L688' name='L688'></a>   688   proc_info.sd_sizeused = 0;
+<a id='L689' name='L689'></a>   689 
+<a id='L690' name='L690'></a>   690   <strong class='reserved'>if</strong> (inq_stats (1, &amp;proc_info) != 0)
+<a id='L691' name='L691'></a>   691     <strong class='reserved'>return</strong> -1;
+<a id='L692' name='L692'></a>   692 
+<a id='L693' name='L693'></a>   693   load = proc_sum_data.ps_nrunnable;
+<a id='L694' name='L694'></a>   694   j = 0;
+<a id='L695' name='L695'></a>   695   <strong class='reserved'>for</strong> (i = samples - 1; i &gt; 0; --i)
+<a id='L696' name='L696'></a>   696     <em class='brace'>{</em>
+<a id='L697' name='L697'></a>   697       load += proc_sum_data.ps_nrun[j];
+<a id='L698' name='L698'></a>   698       <strong class='reserved'>if</strong> (j++ == PS_NRUNSIZE)
+<a id='L699' name='L699'></a>   699         j = 0;
+<a id='L700' name='L700'></a>   700     <em class='brace'>}</em>
+<a id='L701' name='L701'></a>   701 
+<a id='L702' name='L702'></a>   702   <strong class='reserved'>if</strong> (nelem &gt; 0)
+<a id='L703' name='L703'></a>   703     loadavg[elem++] = load / samples / cpus;
+<a id='L704' name='L704'></a>   704 <em class='sharp'># endif</em> <em class='comment'>/* UMAX */</em>
+<a id='L705' name='L705'></a>   705 
+<a id='L706' name='L706'></a>   706 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (DGUX)
+<a id='L707' name='L707'></a>   707 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L708' name='L708'></a>   708   <em class='comment'>/* This call can return -1 for an error, but with good args</em>
+<a id='L709' name='L709'></a>   709 <em class='comment'>     it's not supposed to fail.  The first argument is for no</em>
+<a id='L710' name='L710'></a>   710 <em class='comment'>     apparent reason of type 'long int *'.  */</em>
+<a id='L711' name='L711'></a>   711   dg_sys_info ((<strong class='reserved'>long</strong> <strong class='reserved'>int</strong> *) &amp;load_info,
+<a id='L712' name='L712'></a>   712                DG_SYS_INFO_LOAD_INFO_TYPE,
+<a id='L713' name='L713'></a>   713                DG_SYS_INFO_LOAD_VERSION_0);
+<a id='L714' name='L714'></a>   714 
+<a id='L715' name='L715'></a>   715   <strong class='reserved'>if</strong> (nelem &gt; 0)
+<a id='L716' name='L716'></a>   716     loadavg[elem++] = load_info.one_minute;
+<a id='L717' name='L717'></a>   717   <strong class='reserved'>if</strong> (nelem &gt; 1)
+<a id='L718' name='L718'></a>   718     loadavg[elem++] = load_info.five_minute;
+<a id='L719' name='L719'></a>   719   <strong class='reserved'>if</strong> (nelem &gt; 2)
+<a id='L720' name='L720'></a>   720     loadavg[elem++] = load_info.fifteen_minute;
+<a id='L721' name='L721'></a>   721 <em class='sharp'># endif</em> <em class='comment'>/* DGUX */</em>
+<a id='L722' name='L722'></a>   722 
+<a id='L723' name='L723'></a>   723 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (apollo)
+<a id='L724' name='L724'></a>   724 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L725' name='L725'></a>   725 <em class='comment'>/* Apollo code from lisch@mentorg.com (Ray Lischner).</em>
+<a id='L726' name='L726'></a>   726 <em class='comment'></em>
+<a id='L727' name='L727'></a>   727 <em class='comment'>   This system call is not documented.  The load average is obtained as</em>
+<a id='L728' name='L728'></a>   728 <em class='comment'>   three long integers, for the load average over the past minute,</em>
+<a id='L729' name='L729'></a>   729 <em class='comment'>   five minutes, and fifteen minutes.  Each value is a scaled integer,</em>
+<a id='L730' name='L730'></a>   730 <em class='comment'>   with 16 bits of integer part and 16 bits of fraction part.</em>
+<a id='L731' name='L731'></a>   731 <em class='comment'></em>
+<a id='L732' name='L732'></a>   732 <em class='comment'>   I'm not sure which operating system first supported this system call,</em>
+<a id='L733' name='L733'></a>   733 <em class='comment'>   but I know that SR10.2 supports it.  */</em>
+<a id='L734' name='L734'></a>   734 
+<a id='L735' name='L735'></a>   735   <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> proc1_$get_loadav ();
+<a id='L736' name='L736'></a>   736   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> load_ave[3];
+<a id='L737' name='L737'></a>   737 
+<a id='L738' name='L738'></a>   738   proc1_$get_loadav (load_ave);
+<a id='L739' name='L739'></a>   739 
+<a id='L740' name='L740'></a>   740   <strong class='reserved'>if</strong> (nelem &gt; 0)
+<a id='L741' name='L741'></a>   741     loadavg[elem++] = load_ave[0] / 65536.0;
+<a id='L742' name='L742'></a>   742   <strong class='reserved'>if</strong> (nelem &gt; 1)
+<a id='L743' name='L743'></a>   743     loadavg[elem++] = load_ave[1] / 65536.0;
+<a id='L744' name='L744'></a>   744   <strong class='reserved'>if</strong> (nelem &gt; 2)
+<a id='L745' name='L745'></a>   745     loadavg[elem++] = load_ave[2] / 65536.0;
+<a id='L746' name='L746'></a>   746 <em class='sharp'># endif</em> <em class='comment'>/* apollo */</em>
+<a id='L747' name='L747'></a>   747 
+<a id='L748' name='L748'></a>   748 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (<a href='../S/2639.html#L157' title='Defined at 157 in lib/getloadavg.c.'>OSF_MIPS</a>)
+<a id='L749' name='L749'></a>   749 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L750' name='L750'></a>   750 
+<a id='L751' name='L751'></a>   751   <strong class='reserved'>struct</strong> tbl_loadavg load_ave;
+<a id='L752' name='L752'></a>   752   table (TBL_LOADAVG, 0, &amp;load_ave, 1, <strong class='reserved'>sizeof</strong> (load_ave));
+<a id='L753' name='L753'></a>   753   loadavg[elem++]
+<a id='L754' name='L754'></a>   754     = (load_ave.tl_lscale == 0
+<a id='L755' name='L755'></a>   755        ? load_ave.tl_avenrun.<a href='../D/9092.html' title='Multiple defined in 2 places.'>d</a>[0]
+<a id='L756' name='L756'></a>   756        : (load_ave.tl_avenrun.l[0] / (<strong class='reserved'>double</strong>) load_ave.tl_lscale));
+<a id='L757' name='L757'></a>   757 <em class='sharp'># endif</em> <em class='comment'>/* OSF_MIPS */</em>
+<a id='L758' name='L758'></a>   758 
+<a id='L759' name='L759'></a>   759 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; (<strong class='reserved'>defined</strong> (__MSDOS__) || <strong class='reserved'>defined</strong> (<a href='../S/2639.html#L96' title='Defined at 96 in lib/getloadavg.c.'>WINDOWS32</a>))
+<a id='L760' name='L760'></a>   760                                                            <em class='comment'>/* DJGPP */</em>
+<a id='L761' name='L761'></a>   761 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L762' name='L762'></a>   762 
+<a id='L763' name='L763'></a>   763   <em class='comment'>/* A faithful emulation is going to have to be saved for a rainy day.  */</em>
+<a id='L764' name='L764'></a>   764   <strong class='reserved'>for</strong> ( ; elem &lt; nelem; elem++)
+<a id='L765' name='L765'></a>   765     <em class='brace'>{</em>
+<a id='L766' name='L766'></a>   766       loadavg[elem] = 0.0;
+<a id='L767' name='L767'></a>   767     <em class='brace'>}</em>
+<a id='L768' name='L768'></a>   768 <em class='sharp'># endif</em>  <em class='comment'>/* __MSDOS__ || WINDOWS32 */</em>
+<a id='L769' name='L769'></a>   769 
+<a id='L770' name='L770'></a>   770 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (<a href='../S/2639.html#L147' title='Defined at 147 in lib/getloadavg.c.'>OSF_ALPHA</a>)           <em class='comment'>/* OSF/1 */</em>
+<a id='L771' name='L771'></a>   771 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L772' name='L772'></a>   772 
+<a id='L773' name='L773'></a>   773   <strong class='reserved'>struct</strong> tbl_loadavg load_ave;
+<a id='L774' name='L774'></a>   774   table (TBL_LOADAVG, 0, &amp;load_ave, 1, <strong class='reserved'>sizeof</strong> (load_ave));
+<a id='L775' name='L775'></a>   775   <strong class='reserved'>for</strong> (elem = 0; elem &lt; nelem; elem++)
+<a id='L776' name='L776'></a>   776     loadavg[elem]
+<a id='L777' name='L777'></a>   777       = (load_ave.tl_lscale == 0
+<a id='L778' name='L778'></a>   778          ? load_ave.tl_avenrun.<a href='../D/9092.html' title='Multiple defined in 2 places.'>d</a>[elem]
+<a id='L779' name='L779'></a>   779          : (load_ave.tl_avenrun.l[elem] / (<strong class='reserved'>double</strong>) load_ave.tl_lscale));
+<a id='L780' name='L780'></a>   780 <em class='sharp'># endif</em> <em class='comment'>/* OSF_ALPHA */</em>
+<a id='L781' name='L781'></a>   781 
+<a id='L782' name='L782'></a>   782 <em class='sharp'># if</em> ! <strong class='reserved'>defined</strong> <a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a> &amp;&amp; <strong class='reserved'>defined</strong> __VMS                  <em class='comment'>/* VMS */</em>
+<a id='L783' name='L783'></a>   783   <em class='comment'>/* VMS specific code -- read from the Load Ave driver.  */</em>
+<a id='L784' name='L784'></a>   784 
+<a id='L785' name='L785'></a>   785   <a href='../D/3415.html' title='Multiple defined in 11 places.'>LOAD_AVE_TYPE</a> load_ave[3];
+<a id='L786' name='L786'></a>   786   <strong class='reserved'>static</strong> <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> getloadavg_initialized;
+<a id='L787' name='L787'></a>   787 <em class='sharp'>#  ifdef</em> eunice
+<a id='L788' name='L788'></a>   788   <strong class='reserved'>struct</strong>
+<a id='L789' name='L789'></a>   789   <em class='brace'>{</em>
+<a id='L790' name='L790'></a>   790     <strong class='reserved'>int</strong> dsc$w_length;
+<a id='L791' name='L791'></a>   791     <strong class='reserved'>char</strong> *dsc$a_pointer;
+<a id='L792' name='L792'></a>   792   <em class='brace'>}</em> descriptor;
+<a id='L793' name='L793'></a>   793 <em class='sharp'>#  endif</em>
+<a id='L794' name='L794'></a>   794 
+<a id='L795' name='L795'></a>   795   <em class='comment'>/* Ensure that there is a channel open to the load ave device.  */</em>
+<a id='L796' name='L796'></a>   796   <strong class='reserved'>if</strong> (!getloadavg_initialized)
+<a id='L797' name='L797'></a>   797     <em class='brace'>{</em>
+<a id='L798' name='L798'></a>   798       <em class='comment'>/* Attempt to open the channel.  */</em>
+<a id='L799' name='L799'></a>   799 <em class='sharp'>#  ifdef</em> eunice
+<a id='L800' name='L800'></a>   800       descriptor.dsc$w_length = 18;
+<a id='L801' name='L801'></a>   801       descriptor.dsc$a_pointer = "$$VMS_LOAD_AVERAGE";
+<a id='L802' name='L802'></a>   802 <em class='sharp'>#  else</em>
+<a id='L803' name='L803'></a>   803       $DESCRIPTOR (descriptor, "LAV0:");
+<a id='L804' name='L804'></a>   804 <em class='sharp'>#  endif</em>
+<a id='L805' name='L805'></a>   805       <strong class='reserved'>if</strong> (<a href='../S/2639.html#L153' title='Defined at 153 in lib/getloadavg.c.'>sys</a>$assign (&amp;descriptor, &amp;channel, 0, 0) &amp; 1)
+<a id='L806' name='L806'></a>   806         getloadavg_initialized = <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L807' name='L807'></a>   807     <em class='brace'>}</em>
+<a id='L808' name='L808'></a>   808 
+<a id='L809' name='L809'></a>   809   <em class='comment'>/* Read the load average vector.  */</em>
+<a id='L810' name='L810'></a>   810   <strong class='reserved'>if</strong> (getloadavg_initialized
+<a id='L811' name='L811'></a>   811       &amp;&amp; !(<a href='../S/2639.html#L153' title='Defined at 153 in lib/getloadavg.c.'>sys</a>$qiow (0, channel, IO$_READVBLK, 0, 0, 0,
+<a id='L812' name='L812'></a>   812                      load_ave, 12, 0, 0, 0, 0) &amp; 1))
+<a id='L813' name='L813'></a>   813     <em class='brace'>{</em>
+<a id='L814' name='L814'></a>   814       <a href='../S/2639.html#L153' title='Defined at 153 in lib/getloadavg.c.'>sys</a>$dassgn (channel);
+<a id='L815' name='L815'></a>   815       getloadavg_initialized = <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L816' name='L816'></a>   816     <em class='brace'>}</em>
+<a id='L817' name='L817'></a>   817 
+<a id='L818' name='L818'></a>   818   <strong class='reserved'>if</strong> (!getloadavg_initialized)
+<a id='L819' name='L819'></a>   819     <em class='brace'>{</em>
+<a id='L820' name='L820'></a>   820       errno = <a href='../D/1653.html' title='Multiple defined in 5 places.'>ENOTSUP</a>;
+<a id='L821' name='L821'></a>   821       <strong class='reserved'>return</strong> -1;
+<a id='L822' name='L822'></a>   822     <em class='brace'>}</em>
+<a id='L823' name='L823'></a>   823 <em class='sharp'># endif</em> <em class='comment'>/* ! defined LDAV_DONE &amp;&amp; defined __VMS */</em>
+<a id='L824' name='L824'></a>   824 
+<a id='L825' name='L825'></a>   825 <em class='sharp'># if</em> ! <strong class='reserved'>defined</strong> <a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a> &amp;&amp; <strong class='reserved'>defined</strong> <a href='../D/3415.html' title='Multiple defined in 11 places.'>LOAD_AVE_TYPE</a> &amp;&amp; ! <strong class='reserved'>defined</strong> __VMS
+<a id='L826' name='L826'></a>   826                                                   <em class='comment'>/* IRIX, other old systems */</em>
+<a id='L827' name='L827'></a>   827 
+<a id='L828' name='L828'></a>   828   <em class='comment'>/* UNIX-specific code -- read the average from /dev/kmem.  */</em>
+<a id='L829' name='L829'></a>   829 
+<a id='L830' name='L830'></a>   830 <em class='sharp'>#  define</em> LDAV_PRIVILEGED               <em class='comment'>/* This code requires special installation.  */</em>
+<a id='L831' name='L831'></a>   831 
+<a id='L832' name='L832'></a>   832   <a href='../D/3415.html' title='Multiple defined in 11 places.'>LOAD_AVE_TYPE</a> load_ave[3];
+<a id='L833' name='L833'></a>   833 
+<a id='L834' name='L834'></a>   834   <em class='comment'>/* Get the address of LDAV_SYMBOL.  */</em>
+<a id='L835' name='L835'></a>   835   <strong class='reserved'>if</strong> (<a href='../D/13656.html' title='Multiple defined in 4 places.'>offset</a> == 0)
+<a id='L836' name='L836'></a>   836     <em class='brace'>{</em>
+<a id='L837' name='L837'></a>   837 <em class='sharp'>#  ifndef</em> sgi
+<a id='L838' name='L838'></a>   838 <em class='sharp'>#   if</em> ! <strong class='reserved'>defined</strong> <a href='../S/2639.html#L230' title='Defined at 230 in lib/getloadavg.c.'>NLIST_STRUCT</a> || ! <strong class='reserved'>defined</strong> N_NAME_POINTER
+<a id='L839' name='L839'></a>   839       strcpy (name_list[0].n_name, <a href='../D/3277.html' title='Multiple defined in 2 places.'>LDAV_SYMBOL</a>);
+<a id='L840' name='L840'></a>   840       strcpy (name_list[1].n_name, "");
+<a id='L841' name='L841'></a>   841 <em class='sharp'>#   else</em> <em class='comment'>/* NLIST_STRUCT */</em>
+<a id='L842' name='L842'></a>   842 <em class='sharp'>#    ifdef</em> HAVE_STRUCT_NLIST_N_UN_N_NAME
+<a id='L843' name='L843'></a>   843       name_list[0].n_un.n_name = <a href='../D/3277.html' title='Multiple defined in 2 places.'>LDAV_SYMBOL</a>;
+<a id='L844' name='L844'></a>   844       name_list[1].n_un.n_name = 0;
+<a id='L845' name='L845'></a>   845 <em class='sharp'>#    else</em> <em class='comment'>/* not HAVE_STRUCT_NLIST_N_UN_N_NAME */</em>
+<a id='L846' name='L846'></a>   846       name_list[0].n_name = <a href='../D/3277.html' title='Multiple defined in 2 places.'>LDAV_SYMBOL</a>;
+<a id='L847' name='L847'></a>   847       name_list[1].n_name = 0;
+<a id='L848' name='L848'></a>   848 <em class='sharp'>#    endif</em> <em class='comment'>/* not HAVE_STRUCT_NLIST_N_UN_N_NAME */</em>
+<a id='L849' name='L849'></a>   849 <em class='sharp'>#   endif</em> <em class='comment'>/* NLIST_STRUCT */</em>
+<a id='L850' name='L850'></a>   850 
+<a id='L851' name='L851'></a>   851 <em class='sharp'>#   ifndef</em> <a href='../S/2639.html#L143' title='Defined at 143 in lib/getloadavg.c.'>SUNOS_5</a>
+<a id='L852' name='L852'></a>   852       <strong class='reserved'>if</strong> (
+<a id='L853' name='L853'></a>   853 <em class='sharp'>#    if</em> !<strong class='reserved'>defined</strong> (_AIX)
+<a id='L854' name='L854'></a>   854           nlist (<a href='../D/3200.html' title='Multiple defined in 3 places.'>KERNEL_FILE</a>, name_list)
+<a id='L855' name='L855'></a>   855 <em class='sharp'>#    else</em>  <em class='comment'>/* _AIX */</em>
+<a id='L856' name='L856'></a>   856           knlist (name_list, 1, <strong class='reserved'>sizeof</strong> (name_list[0]))
+<a id='L857' name='L857'></a>   857 <em class='sharp'>#    endif</em>
+<a id='L858' name='L858'></a>   858           &gt;= 0)
+<a id='L859' name='L859'></a>   859           <em class='comment'>/* Omit "&amp;&amp; name_list[0].n_type != 0 " -- it breaks on Sun386i.  */</em>
+<a id='L860' name='L860'></a>   860           <em class='brace'>{</em>
+<a id='L861' name='L861'></a>   861 <em class='sharp'>#    ifdef</em> <a href='../S/2639.html#L235' title='Defined at 235 in lib/getloadavg.c.'>FIXUP_KERNEL_SYMBOL_ADDR</a>
+<a id='L862' name='L862'></a>   862             <a href='../S/2639.html#L235' title='Defined at 235 in lib/getloadavg.c.'>FIXUP_KERNEL_SYMBOL_ADDR</a> (name_list);
+<a id='L863' name='L863'></a>   863 <em class='sharp'>#    endif</em>
+<a id='L864' name='L864'></a>   864             <a href='../D/13656.html' title='Multiple defined in 4 places.'>offset</a> = name_list[0].n_value;
+<a id='L865' name='L865'></a>   865           <em class='brace'>}</em>
+<a id='L866' name='L866'></a>   866 <em class='sharp'>#   endif</em> <em class='comment'>/* !SUNOS_5 */</em>
+<a id='L867' name='L867'></a>   867 <em class='sharp'>#  else</em>  <em class='comment'>/* sgi */</em>
+<a id='L868' name='L868'></a>   868       ptrdiff_t ldav_off = sysmp (MP_KERNADDR, MPKA_AVENRUN);
+<a id='L869' name='L869'></a>   869       <strong class='reserved'>if</strong> (ldav_off != -1)
+<a id='L870' name='L870'></a>   870         <a href='../D/13656.html' title='Multiple defined in 4 places.'>offset</a> = (<strong class='reserved'>long</strong> <strong class='reserved'>int</strong>) ldav_off &amp; 0x7fffffff;
+<a id='L871' name='L871'></a>   871 <em class='sharp'>#  endif</em> <em class='comment'>/* sgi */</em>
+<a id='L872' name='L872'></a>   872     <em class='brace'>}</em>
+<a id='L873' name='L873'></a>   873 
+<a id='L874' name='L874'></a>   874   <em class='comment'>/* Make sure we have /dev/kmem open.  */</em>
+<a id='L875' name='L875'></a>   875   <strong class='reserved'>if</strong> (!getloadavg_initialized)
+<a id='L876' name='L876'></a>   876     <em class='brace'>{</em>
+<a id='L877' name='L877'></a>   877 <em class='sharp'>#  ifndef</em> <a href='../S/2639.html#L143' title='Defined at 143 in lib/getloadavg.c.'>SUNOS_5</a>
+<a id='L878' name='L878'></a>   878       <strong class='reserved'>int</strong> fd = <a href='../D/13674.html' title='Multiple defined in 11 places.'>open</a> ("/dev/kmem", O_RDONLY | <a href='../D/4356.html' title='Multiple defined in 7 places.'>O_CLOEXEC</a>);
+<a id='L879' name='L879'></a>   879       <strong class='reserved'>if</strong> (0 &lt;= fd)
+<a id='L880' name='L880'></a>   880         <em class='brace'>{</em>
+<a id='L881' name='L881'></a>   881           channel = fd;
+<a id='L882' name='L882'></a>   882           getloadavg_initialized = <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L883' name='L883'></a>   883         <em class='brace'>}</em>
+<a id='L884' name='L884'></a>   884 <em class='sharp'>#  else</em> <em class='comment'>/* SUNOS_5 */</em>
+<a id='L885' name='L885'></a>   885       <em class='comment'>/* We pass 0 for the kernel, corefile, and swapfile names</em>
+<a id='L886' name='L886'></a>   886 <em class='comment'>         to use the currently running kernel.  */</em>
+<a id='L887' name='L887'></a>   887       kd = kvm_open (0, 0, 0, O_RDONLY, 0);
+<a id='L888' name='L888'></a>   888       <strong class='reserved'>if</strong> (kd != <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L889' name='L889'></a>   889         <em class='brace'>{</em>
+<a id='L890' name='L890'></a>   890           <em class='comment'>/* nlist the currently running kernel.  */</em>
+<a id='L891' name='L891'></a>   891           kvm_nlist (kd, name_list);
+<a id='L892' name='L892'></a>   892           <a href='../D/13656.html' title='Multiple defined in 4 places.'>offset</a> = name_list[0].n_value;
+<a id='L893' name='L893'></a>   893           getloadavg_initialized = <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L894' name='L894'></a>   894         <em class='brace'>}</em>
+<a id='L895' name='L895'></a>   895 <em class='sharp'>#  endif</em> <em class='comment'>/* SUNOS_5 */</em>
+<a id='L896' name='L896'></a>   896     <em class='brace'>}</em>
+<a id='L897' name='L897'></a>   897 
+<a id='L898' name='L898'></a>   898   <em class='comment'>/* If we can, get the load average values.  */</em>
+<a id='L899' name='L899'></a>   899   <strong class='reserved'>if</strong> (<a href='../D/13656.html' title='Multiple defined in 4 places.'>offset</a> &amp;&amp; getloadavg_initialized)
+<a id='L900' name='L900'></a>   900     <em class='brace'>{</em>
+<a id='L901' name='L901'></a>   901       <em class='comment'>/* Try to read the load.  */</em>
+<a id='L902' name='L902'></a>   902 <em class='sharp'>#  ifndef</em> <a href='../S/2639.html#L143' title='Defined at 143 in lib/getloadavg.c.'>SUNOS_5</a>
+<a id='L903' name='L903'></a>   903       <strong class='reserved'>if</strong> (<a href='../D/12614.html' title='Multiple defined in 7 places.'>lseek</a> (channel, <a href='../D/13656.html' title='Multiple defined in 4 places.'>offset</a>, 0) == -1L
+<a id='L904' name='L904'></a>   904           || <a href='../D/14573.html' title='Multiple defined in 14 places.'>read</a> (channel, (<strong class='reserved'>char</strong> *) load_ave, <strong class='reserved'>sizeof</strong> (load_ave))
+<a id='L905' name='L905'></a>   905           != <strong class='reserved'>sizeof</strong> (load_ave))
+<a id='L906' name='L906'></a>   906         <em class='brace'>{</em>
+<a id='L907' name='L907'></a>   907           <a href='../D/8678.html' title='Multiple defined in 18 places.'>close</a> (channel);
+<a id='L908' name='L908'></a>   908           getloadavg_initialized = <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L909' name='L909'></a>   909         <em class='brace'>}</em>
+<a id='L910' name='L910'></a>   910 <em class='sharp'>#  else</em>  <em class='comment'>/* SUNOS_5 */</em>
+<a id='L911' name='L911'></a>   911       <strong class='reserved'>if</strong> (kvm_read (kd, <a href='../D/13656.html' title='Multiple defined in 4 places.'>offset</a>, (<strong class='reserved'>char</strong> *) load_ave, <strong class='reserved'>sizeof</strong> (load_ave))
+<a id='L912' name='L912'></a>   912           != <strong class='reserved'>sizeof</strong> (load_ave))
+<a id='L913' name='L913'></a>   913         <em class='brace'>{</em>
+<a id='L914' name='L914'></a>   914           kvm_close (kd);
+<a id='L915' name='L915'></a>   915           getloadavg_initialized = <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L916' name='L916'></a>   916         <em class='brace'>}</em>
+<a id='L917' name='L917'></a>   917 <em class='sharp'>#  endif</em> <em class='comment'>/* SUNOS_5 */</em>
+<a id='L918' name='L918'></a>   918     <em class='brace'>}</em>
+<a id='L919' name='L919'></a>   919 
+<a id='L920' name='L920'></a>   920   <strong class='reserved'>if</strong> (<a href='../D/13656.html' title='Multiple defined in 4 places.'>offset</a> == 0 || !getloadavg_initialized)
+<a id='L921' name='L921'></a>   921     <em class='brace'>{</em>
+<a id='L922' name='L922'></a>   922       errno = <a href='../D/1653.html' title='Multiple defined in 5 places.'>ENOTSUP</a>;
+<a id='L923' name='L923'></a>   923       <strong class='reserved'>return</strong> -1;
+<a id='L924' name='L924'></a>   924     <em class='brace'>}</em>
+<a id='L925' name='L925'></a>   925 <em class='sharp'># endif</em> <em class='comment'>/* ! defined LDAV_DONE &amp;&amp; defined LOAD_AVE_TYPE &amp;&amp; ! defined __VMS */</em>
+<a id='L926' name='L926'></a>   926 
+<a id='L927' name='L927'></a>   927 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> (<a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>) &amp;&amp; <strong class='reserved'>defined</strong> (<a href='../D/3415.html' title='Multiple defined in 11 places.'>LOAD_AVE_TYPE</a>) <em class='comment'>/* Including VMS.  */</em>
+<a id='L928' name='L928'></a>   928   <strong class='reserved'>if</strong> (nelem &gt; 0)
+<a id='L929' name='L929'></a>   929     loadavg[elem++] = <a href='../D/3274.html' title='Multiple defined in 2 places.'>LDAV_CVT</a> (load_ave[0]);
+<a id='L930' name='L930'></a>   930   <strong class='reserved'>if</strong> (nelem &gt; 1)
+<a id='L931' name='L931'></a>   931     loadavg[elem++] = <a href='../D/3274.html' title='Multiple defined in 2 places.'>LDAV_CVT</a> (load_ave[1]);
+<a id='L932' name='L932'></a>   932   <strong class='reserved'>if</strong> (nelem &gt; 2)
+<a id='L933' name='L933'></a>   933     loadavg[elem++] = <a href='../D/3274.html' title='Multiple defined in 2 places.'>LDAV_CVT</a> (load_ave[2]);
+<a id='L934' name='L934'></a>   934 
+<a id='L935' name='L935'></a>   935 <em class='sharp'>#  define</em> <a href='../R/2959.html' title='Multiple referred from 16 places.'>LDAV_DONE</a>
+<a id='L936' name='L936'></a>   936 <em class='sharp'># endif</em> <em class='comment'>/* !LDAV_DONE &amp;&amp; LOAD_AVE_TYPE */</em>
+<a id='L937' name='L937'></a>   937 
+<a id='L938' name='L938'></a>   938 <em class='sharp'># if</em> !<strong class='reserved'>defined</strong> <a href='../D/3275.html' title='Multiple defined in 14 places.'>LDAV_DONE</a>
+<a id='L939' name='L939'></a>   939   errno = ENOSYS;
+<a id='L940' name='L940'></a>   940   elem = -1;
+<a id='L941' name='L941'></a>   941 <em class='sharp'># endif</em>
+<a id='L942' name='L942'></a>   942   <strong class='reserved'>return</strong> elem;
+<a id='L943' name='L943'></a>   943 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;][^]<a href='#L407'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

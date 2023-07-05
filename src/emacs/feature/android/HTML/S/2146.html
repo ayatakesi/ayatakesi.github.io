@@ -1,0 +1,1198 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/character.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4791.html'>src</a>/character.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L52'>[^]</a><a href='#L1068'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L52' title='Defined at 52.'>char_resolve_modifier_mask</a></li>
+<li><a href='#L101' title='Defined at 101.'>char_string</a></li>
+<li><a href='#L151' title='Defined at 151.'>translate_char</a></li>
+<li><a href='#L181' title='Defined at 181.'>DEFUN</a></li>
+<li><a href='#L193' title='Defined at 193.'>DEFUN</a></li>
+<li><a href='#L207' title='Defined at 207.'>DEFUN</a></li>
+<li><a href='#L232' title='Defined at 232.'>char_width</a></li>
+<li><a href='#L262' title='Defined at 262.'>DEFUN</a></li>
+<li><a href='#L286' title='Defined at 286.'>c_string_width</a></li>
+<li><a href='#L324' title='Defined at 324.'>strwidth</a></li>
+<li><a href='#L340' title='Defined at 340.'>lisp_string_width</a></li>
+<li><a href='#L493' title='Defined at 493.'>chars_in_text</a></li>
+<li><a href='#L509' title='Defined at 509.'>multibyte_chars_in_text</a></li>
+<li><a href='#L534' title='Defined at 534.'>parse_str_as_multibyte</a></li>
+<li><a href='#L577' title='Defined at 577.'>str_as_multibyte</a></li>
+<li><a href='#L659' title='Defined at 659.'>count_size_as_multibyte</a></li>
+<li><a href='#L677' title='Defined at 677.'>str_to_multibyte</a></li>
+<li><a href='#L700' title='Defined at 700.'>str_as_unibyte</a></li>
+<li><a href='#L733' title='Defined at 733.'>string_count_byte8</a></li>
+<li><a href='#L763' title='Defined at 763.'>string_escape_byte8</a></li>
+<li><a href='#L870' title='Defined at 870.'>DEFUN</a></li>
+<li><a href='#L946' title='Defined at 946.'>alphabeticp</a></li>
+<li><a href='#L969' title='Defined at 969.'>alphanumericp</a></li>
+<li><a href='#L991' title='Defined at 991.'>graphicp</a></li>
+<li><a href='#L1009' title='Defined at 1009.'>printablep</a></li>
+<li><a href='#L1024' title='Defined at 1024.'>graphic_base_p</a></li>
+<li><a href='#L1046' title='Defined at 1046.'>blankp</a></li>
+<li><a href='#L1068' title='Defined at 1068.'>syms_of_character</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Basic character support.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>Copyright (C) 1995, 1997, 1998, 2001 Electrotechnical Laboratory, JAPAN.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>  Licensed to the Free Software Foundation.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>  National Institute of Advanced Industrial Science and Technology (AIST)</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>  Registration Number H13PRO009</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'></em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>your option) any later version.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L19' name='L19'></a>    19 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L20' name='L20'></a>    20 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L21' name='L21'></a>    21 <em class='comment'></em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 <em class='comment'>/* At first, see the document in `character.h' to understand the code</em>
+<a id='L26' name='L26'></a>    26 <em class='comment'>   in this file.  */</em>
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L31' name='L31'></a>    31 
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;sys/types.h&gt;
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#include</em> &lt;<a href='2708.html'>intprops.h</a>&gt;
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#include</em> "<a href='2218.html'>character.h</a>"
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#include</em> "<a href='2130.html'>buffer.h</a>"
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#include</em> "<a href='2183.html'>frame.h</a>"
+<a id='L38' name='L38'></a>    38 <em class='sharp'>#include</em> "<a href='2315.html'>dispextern.h</a>"
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> "<a href='2177.html'>composite.h</a>"
+<a id='L40' name='L40'></a>    40 <em class='sharp'>#include</em> "<a href='2174.html'>disptab.h</a>"
+<a id='L41' name='L41'></a>    41 
+<a id='L42' name='L42'></a>    42 <em class='comment'>/* Char-table of information about which character to unify to which</em>
+<a id='L43' name='L43'></a>    43 <em class='comment'>   Unicode character.  Mainly used by the macro MAYBE_UNIFY_CHAR.  */</em>
+<a id='L44' name='L44'></a>    44 <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> Vchar_unify_table;
+<a id='L45' name='L45'></a>    45 
+<a id='L46' name='L46'></a>    46 
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48 <em class='comment'>/* If character code C has modifier masks, reflect them to the</em>
+<a id='L49' name='L49'></a>    49 <em class='comment'>   character code if possible.  Return the resulting code.  */</em>
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51 <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a>
+<a id='L52' name='L52'></a>    52 <a href='../R/8641.html' title='Multiple referred from 4 places.'>char_resolve_modifier_mask</a> (<a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L53' name='L53'></a>    53 <em class='brace'>{</em>
+<a id='L54' name='L54'></a>    54   <em class='comment'>/* A non-ASCII character can't reflect modifier bits to the code.  */</em>
+<a id='L55' name='L55'></a>    55   <strong class='reserved'>if</strong> (! <a href='../D/220.html' title='Multiple defined in 2 places.'>ASCII_CHAR_P</a> ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; ~<a href='../D/908.html' title='Multiple defined in 2 places.'>CHAR_MODIFIER_MASK</a>)))
+<a id='L56' name='L56'></a>    56     <strong class='reserved'>return</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L57' name='L57'></a>    57 
+<a id='L58' name='L58'></a>    58   <em class='comment'>/* For Meta, Shift, and Control modifiers, we need special care.  */</em>
+<a id='L59' name='L59'></a>    59   <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; <a href='../D/911.html' title='Multiple defined in 2 places.'>CHAR_SHIFT</a>)
+<a id='L60' name='L60'></a>    60     <em class='brace'>{</em>
+<a id='L61' name='L61'></a>    61       <em class='comment'>/* Shift modifier is valid only with [A-Za-z].  */</em>
+<a id='L62' name='L62'></a>    62       <strong class='reserved'>if</strong> ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0377) &gt;= 'A' &amp;&amp; (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0377) &lt;= 'Z')
+<a id='L63' name='L63'></a>    63         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp;= ~<a href='../D/911.html' title='Multiple defined in 2 places.'>CHAR_SHIFT</a>;
+<a id='L64' name='L64'></a>    64       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0377) &gt;= 'a' &amp;&amp; (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0377) &lt;= 'z')
+<a id='L65' name='L65'></a>    65         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; ~<a href='../D/911.html' title='Multiple defined in 2 places.'>CHAR_SHIFT</a>) - ('a' - 'A');
+<a id='L66' name='L66'></a>    66       <em class='comment'>/* Shift modifier for control characters and SPC is ignored.  */</em>
+<a id='L67' name='L67'></a>    67       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; ~<a href='../D/908.html' title='Multiple defined in 2 places.'>CHAR_MODIFIER_MASK</a>) &lt;= 0x20)
+<a id='L68' name='L68'></a>    68         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp;= ~<a href='../D/911.html' title='Multiple defined in 2 places.'>CHAR_SHIFT</a>;
+<a id='L69' name='L69'></a>    69     <em class='brace'>}</em>
+<a id='L70' name='L70'></a>    70   <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; <a href='../D/899.html' title='Multiple defined in 2 places.'>CHAR_CTL</a>)
+<a id='L71' name='L71'></a>    71     <em class='brace'>{</em>
+<a id='L72' name='L72'></a>    72       <em class='comment'>/* Simulate the code in lread.c.  */</em>
+<a id='L73' name='L73'></a>    73       <em class='comment'>/* Allow `\C- ' and `\C-?'.  */</em>
+<a id='L74' name='L74'></a>    74       <strong class='reserved'>if</strong> ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0377) == ' ')
+<a id='L75' name='L75'></a>    75         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp;= ~0177 &amp; ~ <a href='../D/899.html' title='Multiple defined in 2 places.'>CHAR_CTL</a>;
+<a id='L76' name='L76'></a>    76       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0377) == '?')
+<a id='L77' name='L77'></a>    77         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = 0177 | (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; ~0177 &amp; ~<a href='../D/899.html' title='Multiple defined in 2 places.'>CHAR_CTL</a>);
+<a id='L78' name='L78'></a>    78       <em class='comment'>/* ASCII control chars are made from letters (both cases),</em>
+<a id='L79' name='L79'></a>    79 <em class='comment'>         as well as the non-letters within 0100...0137.  */</em>
+<a id='L80' name='L80'></a>    80       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0137) &gt;= 0101 &amp;&amp; (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0137) &lt;= 0132)
+<a id='L81' name='L81'></a>    81         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp;= (037 | (~0177 &amp; ~<a href='../D/899.html' title='Multiple defined in 2 places.'>CHAR_CTL</a>));
+<a id='L82' name='L82'></a>    82       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0177) &gt;= 0100 &amp;&amp; (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0177) &lt;= 0137)
+<a id='L83' name='L83'></a>    83         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp;= (037 | (~0177 &amp; ~<a href='../D/899.html' title='Multiple defined in 2 places.'>CHAR_CTL</a>));
+<a id='L84' name='L84'></a>    84     <em class='brace'>}</em>
+<a id='L85' name='L85'></a>    85 <em class='sharp'>#if</em> 0   <em class='comment'>/* This is outside the scope of this function.  (bug#4751)  */</em>
+<a id='L86' name='L86'></a>    86   <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; <a href='../D/907.html' title='Multiple defined in 2 places.'>CHAR_META</a>)
+<a id='L87' name='L87'></a>    87     <em class='brace'>{</em>
+<a id='L88' name='L88'></a>    88       <em class='comment'>/* Move the meta bit to the right place for a string.  */</em>
+<a id='L89' name='L89'></a>    89       <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; ~<a href='../D/907.html' title='Multiple defined in 2 places.'>CHAR_META</a>) | 0x80;
+<a id='L90' name='L90'></a>    90     <em class='brace'>}</em>
+<a id='L91' name='L91'></a>    91 <em class='sharp'>#endif</em>
+<a id='L92' name='L92'></a>    92 
+<a id='L93' name='L93'></a>    93   <strong class='reserved'>return</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L94' name='L94'></a>    94 <em class='brace'>}</em>
+<a id='L95' name='L95'></a>    95 
+<a id='L96' name='L96'></a>    96 
+<a id='L97' name='L97'></a>    97 <em class='comment'>/* Store multibyte form of character C at P.  If C has modifier bits,</em>
+<a id='L98' name='L98'></a>    98 <em class='comment'>   handle them appropriately.  */</em>
+<a id='L99' name='L99'></a>    99 
+<a id='L100' name='L100'></a>   100 <strong class='reserved'>int</strong>
+<a id='L101' name='L101'></a>   101 <a href='../R/8642.html' title='Multiple referred from 2 places.'>char_string</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *p)
+<a id='L102' name='L102'></a>   102 <em class='brace'>{</em>
+<a id='L103' name='L103'></a>   103   <strong class='reserved'>int</strong> bytes;
+<a id='L104' name='L104'></a>   104 
+<a id='L105' name='L105'></a>   105   <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; <a href='../D/908.html' title='Multiple defined in 2 places.'>CHAR_MODIFIER_MASK</a>)
+<a id='L106' name='L106'></a>   106     <em class='brace'>{</em>
+<a id='L107' name='L107'></a>   107       <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../D/9564.html' title='Multiple defined in 2 places.'>char_resolve_modifier_mask</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L108' name='L108'></a>   108       <em class='comment'>/* If C still has any modifier bits, just ignore it.  */</em>
+<a id='L109' name='L109'></a>   109       <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp;= ~<a href='../D/908.html' title='Multiple defined in 2 places.'>CHAR_MODIFIER_MASK</a>;
+<a id='L110' name='L110'></a>   110     <em class='brace'>}</em>
+<a id='L111' name='L111'></a>   111 
+<a id='L112' name='L112'></a>   112   <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &lt;= <a href='../S/2218.html#L58' title='Defined at 58 in src/character.h.'>MAX_3_BYTE_CHAR</a>)
+<a id='L113' name='L113'></a>   113     <em class='brace'>{</em>
+<a id='L114' name='L114'></a>   114       bytes = <a href='../S/2218.html#L228' title='Defined at 228 in src/character.h.'>CHAR_STRING</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, p);
+<a id='L115' name='L115'></a>   115     <em class='brace'>}</em>
+<a id='L116' name='L116'></a>   116   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &lt;= <a href='../S/2218.html#L59' title='Defined at 59 in src/character.h.'>MAX_4_BYTE_CHAR</a>)
+<a id='L117' name='L117'></a>   117     <em class='brace'>{</em>
+<a id='L118' name='L118'></a>   118       p[0] = (0xF0 | (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;&gt; 18));
+<a id='L119' name='L119'></a>   119       p[1] = (0x80 | ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;&gt; 12) &amp; 0x3F));
+<a id='L120' name='L120'></a>   120       p[2] = (0x80 | ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;&gt; 6) &amp; 0x3F));
+<a id='L121' name='L121'></a>   121       p[3] = (0x80 | (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0x3F));
+<a id='L122' name='L122'></a>   122       bytes = 4;
+<a id='L123' name='L123'></a>   123     <em class='brace'>}</em>
+<a id='L124' name='L124'></a>   124   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &lt;= <a href='../S/2218.html#L60' title='Defined at 60 in src/character.h.'>MAX_5_BYTE_CHAR</a>)
+<a id='L125' name='L125'></a>   125     <em class='brace'>{</em>
+<a id='L126' name='L126'></a>   126       p[0] = 0xF8;
+<a id='L127' name='L127'></a>   127       p[1] = (0x80 | ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;&gt; 18) &amp; 0x0F));
+<a id='L128' name='L128'></a>   128       p[2] = (0x80 | ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;&gt; 12) &amp; 0x3F));
+<a id='L129' name='L129'></a>   129       p[3] = (0x80 | ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;&gt; 6) &amp; 0x3F));
+<a id='L130' name='L130'></a>   130       p[4] = (0x80 | (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0x3F));
+<a id='L131' name='L131'></a>   131       bytes = 5;
+<a id='L132' name='L132'></a>   132     <em class='brace'>}</em>
+<a id='L133' name='L133'></a>   133   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &lt;= <a href='../S/2218.html#L50' title='Defined at 50 in src/character.h.'>MAX_CHAR</a>)
+<a id='L134' name='L134'></a>   134     <em class='brace'>{</em>
+<a id='L135' name='L135'></a>   135       <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L126' title='Defined at 126 in src/character.h.'>CHAR_TO_BYTE8</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L136' name='L136'></a>   136       bytes = <a href='../S/2218.html#L259' title='Defined at 259 in src/character.h.'>BYTE8_STRING</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, p);
+<a id='L137' name='L137'></a>   137     <em class='brace'>}</em>
+<a id='L138' name='L138'></a>   138   <strong class='reserved'>else</strong>
+<a id='L139' name='L139'></a>   139     <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Invalid character: %x", <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L140' name='L140'></a>   140 
+<a id='L141' name='L141'></a>   141   <strong class='reserved'>return</strong> bytes;
+<a id='L142' name='L142'></a>   142 <em class='brace'>}</em>
+<a id='L143' name='L143'></a>   143 
+<a id='L144' name='L144'></a>   144 
+<a id='L145' name='L145'></a>   145 <em class='comment'>/* Translate character C by translation table TABLE.  If no translation is</em>
+<a id='L146' name='L146'></a>   146 <em class='comment'>   found in TABLE, return the untranslated character.  If TABLE is a list,</em>
+<a id='L147' name='L147'></a>   147 <em class='comment'>   elements are char tables.  In that case, recursively translate C by all the</em>
+<a id='L148' name='L148'></a>   148 <em class='comment'>   tables in the list.  */</em>
+<a id='L149' name='L149'></a>   149 
+<a id='L150' name='L150'></a>   150 <strong class='reserved'>int</strong>
+<a id='L151' name='L151'></a>   151 <a href='../R/17001.html' title='Multiple referred from 9 places.'>translate_char</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> table, <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L152' name='L152'></a>   152 <em class='brace'>{</em>
+<a id='L153' name='L153'></a>   153   <strong class='reserved'>if</strong> (<a href='../D/917.html' title='Multiple defined in 2 places.'>CHAR_TABLE_P</a> (table))
+<a id='L154' name='L154'></a>   154     <em class='brace'>{</em>
+<a id='L155' name='L155'></a>   155       <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> ch;
+<a id='L156' name='L156'></a>   156 
+<a id='L157' name='L157'></a>   157       ch = <a href='../D/918.html' title='Multiple defined in 2 places.'>CHAR_TABLE_REF</a> (table, <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L158' name='L158'></a>   158       <strong class='reserved'>if</strong> (<a href='../S/2218.html#L167' title='Defined at 167 in src/character.h.'>CHARACTERP</a> (ch))
+<a id='L159' name='L159'></a>   159         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (ch);
+<a id='L160' name='L160'></a>   160     <em class='brace'>}</em>
+<a id='L161' name='L161'></a>   161   <strong class='reserved'>else</strong>
+<a id='L162' name='L162'></a>   162     <em class='brace'>{</em>
+<a id='L163' name='L163'></a>   163       <strong class='reserved'>for</strong> (; <a href='../D/1228.html' title='Multiple defined in 2 places.'>CONSP</a> (table); table = <a href='../D/7021.html' title='Multiple defined in 2 places.'>XCDR</a> (table))
+<a id='L164' name='L164'></a>   164         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2146.html#L151' title='Defined at 151 in src/character.c.'>translate_char</a> (<a href='../D/7020.html' title='Multiple defined in 2 places.'>XCAR</a> (table), <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L165' name='L165'></a>   165     <em class='brace'>}</em>
+<a id='L166' name='L166'></a>   166   <strong class='reserved'>return</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L167' name='L167'></a>   167 <em class='brace'>}</em>
+<a id='L168' name='L168'></a>   168 
+<a id='L169' name='L169'></a>   169 <a href='../D/1456.html' title='Multiple defined in 1013 places.'>DEFUN</a> ("characterp", Fcharacterp, Scharacterp, 1, 2, 0,
+<a id='L170' name='L170'></a>   170        doc: <em class='comment'>/* Return non-nil if OBJECT is a character.</em>
+<a id='L171' name='L171'></a>   171 <em class='comment'>In Emacs Lisp, characters are represented by character codes, which</em>
+<a id='L172' name='L172'></a>   172 <em class='comment'>are non-negative integers.  The function `max-char' returns the</em>
+<a id='L173' name='L173'></a>   173 <em class='comment'>maximum character code.</em>
+<a id='L174' name='L174'></a>   174 <em class='comment'>usage: (characterp OBJECT)  */</em>
+<a id='L175' name='L175'></a>   175        attributes: <strong class='reserved'>const</strong>)
+<a id='L176' name='L176'></a>   176   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> object, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> ignore)
+<a id='L177' name='L177'></a>   177 <em class='brace'>{</em>
+<a id='L178' name='L178'></a>   178   <strong class='reserved'>return</strong> (<a href='../S/2218.html#L167' title='Defined at 167 in src/character.h.'>CHARACTERP</a> (object) ? Qt : Qnil);
+<a id='L179' name='L179'></a>   179 <em class='brace'>}</em>
+<a id='L180' name='L180'></a>   180 
+<a id='L181' name='L181'></a>   181 <a href='../R/1363.html' title='Multiple referred from 830 places.'>DEFUN</a> ("max-char", Fmax_char, Smax_char, 0, 1, 0,
+<a id='L182' name='L182'></a>   182        doc: <em class='comment'>/* Return the maximum character code.</em>
+<a id='L183' name='L183'></a>   183 <em class='comment'>If UNICODE is non-nil, return the maximum character code defined</em>
+<a id='L184' name='L184'></a>   184 <em class='comment'>by the Unicode Standard.  */</em>
+<a id='L185' name='L185'></a>   185        attributes: <strong class='reserved'>const</strong>)
+<a id='L186' name='L186'></a>   186   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> unicode)
+<a id='L187' name='L187'></a>   187 <em class='brace'>{</em>
+<a id='L188' name='L188'></a>   188   <strong class='reserved'>return</strong> (!<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (unicode)
+<a id='L189' name='L189'></a>   189           ? <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../S/2218.html#L53' title='Defined at 53 in src/character.h.'>MAX_UNICODE_CHAR</a>)
+<a id='L190' name='L190'></a>   190           : <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../S/2218.html#L50' title='Defined at 50 in src/character.h.'>MAX_CHAR</a>));
+<a id='L191' name='L191'></a>   191 <em class='brace'>}</em>
+<a id='L192' name='L192'></a>   192 
+<a id='L193' name='L193'></a>   193 <a href='../R/1363.html' title='Multiple referred from 830 places.'>DEFUN</a> ("unibyte-char-to-multibyte", Funibyte_char_to_multibyte,
+<a id='L194' name='L194'></a>   194        Sunibyte_char_to_multibyte, 1, 1, 0,
+<a id='L195' name='L195'></a>   195        doc: <em class='comment'>/* Convert the byte CH to multibyte character.  */</em>)
+<a id='L196' name='L196'></a>   196   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> ch)
+<a id='L197' name='L197'></a>   197 <em class='brace'>{</em>
+<a id='L198' name='L198'></a>   198   <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L199' name='L199'></a>   199 
+<a id='L200' name='L200'></a>   200   <a href='../S/2218.html#L174' title='Defined at 174 in src/character.h.'>CHECK_CHARACTER</a> (ch);
+<a id='L201' name='L201'></a>   201   <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2267.html#L3015' title='Defined at 3015 in src/lisp.h.'>XFIXNAT</a> (ch);
+<a id='L202' name='L202'></a>   202   <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;= 0x100)
+<a id='L203' name='L203'></a>   203     <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Not a unibyte character: %d", <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L204' name='L204'></a>   204   <strong class='reserved'>return</strong> <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../S/2218.html#L149' title='Defined at 149 in src/character.h.'>make_char_multibyte</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>));
+<a id='L205' name='L205'></a>   205 <em class='brace'>}</em>
+<a id='L206' name='L206'></a>   206 
+<a id='L207' name='L207'></a>   207 <a href='../R/1363.html' title='Multiple referred from 830 places.'>DEFUN</a> ("multibyte-char-to-unibyte", Fmultibyte_char_to_unibyte,
+<a id='L208' name='L208'></a>   208        Smultibyte_char_to_unibyte, 1, 1, 0,
+<a id='L209' name='L209'></a>   209        doc: <em class='comment'>/* Convert the multibyte character CH to a byte.</em>
+<a id='L210' name='L210'></a>   210 <em class='comment'>If the multibyte character does not represent a byte, return -1.  */</em>)
+<a id='L211' name='L211'></a>   211   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> ch)
+<a id='L212' name='L212'></a>   212 <em class='brace'>{</em>
+<a id='L213' name='L213'></a>   213   <strong class='reserved'>int</strong> <a href='../S/2223.html#L32' title='Defined at 32 in src/cm.h.'>cm</a>;
+<a id='L214' name='L214'></a>   214 
+<a id='L215' name='L215'></a>   215   <a href='../S/2218.html#L174' title='Defined at 174 in src/character.h.'>CHECK_CHARACTER</a> (ch);
+<a id='L216' name='L216'></a>   216   <a href='../S/2223.html#L32' title='Defined at 32 in src/cm.h.'>cm</a> = <a href='../S/2267.html#L3015' title='Defined at 3015 in src/lisp.h.'>XFIXNAT</a> (ch);
+<a id='L217' name='L217'></a>   217   <strong class='reserved'>if</strong> (<a href='../S/2223.html#L32' title='Defined at 32 in src/cm.h.'>cm</a> &lt; 256)
+<a id='L218' name='L218'></a>   218     <em class='comment'>/* Can't distinguish a byte read from a unibyte buffer from</em>
+<a id='L219' name='L219'></a>   219 <em class='comment'>       a latin1 char, so let's let it slide.  */</em>
+<a id='L220' name='L220'></a>   220     <strong class='reserved'>return</strong> ch;
+<a id='L221' name='L221'></a>   221   <strong class='reserved'>else</strong>
+<a id='L222' name='L222'></a>   222     <em class='brace'>{</em>
+<a id='L223' name='L223'></a>   223       <strong class='reserved'>int</strong> cu = <a href='../S/2218.html#L134' title='Defined at 134 in src/character.h.'>CHAR_TO_BYTE_SAFE</a> (<a href='../S/2223.html#L32' title='Defined at 32 in src/cm.h.'>cm</a>);
+<a id='L224' name='L224'></a>   224       <strong class='reserved'>return</strong> <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (cu);
+<a id='L225' name='L225'></a>   225     <em class='brace'>}</em>
+<a id='L226' name='L226'></a>   226 <em class='brace'>}</em>
+<a id='L227' name='L227'></a>   227 
+<a id='L228' name='L228'></a>   228 
+<a id='L229' name='L229'></a>   229 <em class='comment'>/* Return width (columns) of C considering the buffer display table DP. */</em>
+<a id='L230' name='L230'></a>   230 
+<a id='L231' name='L231'></a>   231 <strong class='reserved'>static</strong> ptrdiff_t
+<a id='L232' name='L232'></a>   232 <a href='../R/8653.html' title='Multiple referred from 22 places.'>char_width</a> (<strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, <strong class='reserved'>struct</strong> <a href='../D/3799.html' title='Multiple defined in 2 places.'>Lisp_Char_Table</a> *dp)
+<a id='L233' name='L233'></a>   233 <em class='brace'>{</em>
+<a id='L234' name='L234'></a>   234   ptrdiff_t width = <a href='../S/2130.html#L1631' title='Defined at 1631 in src/buffer.h.'>CHARACTER_WIDTH</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L235' name='L235'></a>   235 
+<a id='L236' name='L236'></a>   236   <strong class='reserved'>if</strong> (dp)
+<a id='L237' name='L237'></a>   237     <em class='brace'>{</em>
+<a id='L238' name='L238'></a>   238       <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> disp = <a href='../S/2174.html#L41' title='Defined at 41 in src/disptab.h.'>DISP_CHAR_VECTOR</a> (dp, <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>), ch;
+<a id='L239' name='L239'></a>   239       <strong class='reserved'>int</strong> i;
+<a id='L240' name='L240'></a>   240 
+<a id='L241' name='L241'></a>   241       <strong class='reserved'>if</strong> (<a href='../D/6667.html' title='Multiple defined in 2 places.'>VECTORP</a> (disp))
+<a id='L242' name='L242'></a>   242         <strong class='reserved'>for</strong> (i = 0, width = 0; i &lt; <a href='../D/223.html' title='Multiple defined in 2 places.'>ASIZE</a> (disp); i++)
+<a id='L243' name='L243'></a>   243           <em class='brace'>{</em>
+<a id='L244' name='L244'></a>   244             <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = -1;
+<a id='L245' name='L245'></a>   245             ch = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (disp, i);
+<a id='L246' name='L246'></a>   246             <strong class='reserved'>if</strong> (<a href='../S/2315.html#L1969' title='Defined at 1969 in src/dispextern.h.'>GLYPH_CODE_P</a> (ch))
+<a id='L247' name='L247'></a>   247               <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2315.html#L383' title='Defined at 383 in src/dispextern.h.'>GLYPH_CODE_CHAR</a> (ch);
+<a id='L248' name='L248'></a>   248             <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../S/2218.html#L167' title='Defined at 167 in src/character.h.'>CHARACTERP</a> (ch))
+<a id='L249' name='L249'></a>   249               <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (ch);
+<a id='L250' name='L250'></a>   250             <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;= 0)
+<a id='L251' name='L251'></a>   251               <em class='brace'>{</em>
+<a id='L252' name='L252'></a>   252                 <strong class='reserved'>int</strong> w = <a href='../S/2130.html#L1631' title='Defined at 1631 in src/buffer.h.'>CHARACTER_WIDTH</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L253' name='L253'></a>   253                 <strong class='reserved'>if</strong> (<a href='../S/2700.html#L31' title='Defined at 31 in lib/stdckdint.in.h.'>ckd_add</a> (&amp;width, width, w))
+<a id='L254' name='L254'></a>   254                   <a href='../S/2350.html#L2341' title='Defined at 2341 in src/alloc.c.'>string_overflow</a> ();
+<a id='L255' name='L255'></a>   255               <em class='brace'>}</em>
+<a id='L256' name='L256'></a>   256           <em class='brace'>}</em>
+<a id='L257' name='L257'></a>   257     <em class='brace'>}</em>
+<a id='L258' name='L258'></a>   258   <strong class='reserved'>return</strong> width;
+<a id='L259' name='L259'></a>   259 <em class='brace'>}</em>
+<a id='L260' name='L260'></a>   260 
+<a id='L261' name='L261'></a>   261 
+<a id='L262' name='L262'></a>   262 <a href='../R/1363.html' title='Multiple referred from 830 places.'>DEFUN</a> ("char-width", Fchar_width, Schar_width, 1, 1, 0,
+<a id='L263' name='L263'></a>   263        doc: <em class='comment'>/* Return width of CHAR when displayed in the current buffer.</em>
+<a id='L264' name='L264'></a>   264 <em class='comment'>The width is measured by how many columns it occupies on the screen.</em>
+<a id='L265' name='L265'></a>   265 <em class='comment'>Tab is taken to occupy `tab-width' columns.</em>
+<a id='L266' name='L266'></a>   266 <em class='comment'>usage: (char-width CHAR)  */</em>)
+<a id='L267' name='L267'></a>   267   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> ch)
+<a id='L268' name='L268'></a>   268 <em class='brace'>{</em>
+<a id='L269' name='L269'></a>   269   <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L270' name='L270'></a>   270   ptrdiff_t width;
+<a id='L271' name='L271'></a>   271 
+<a id='L272' name='L272'></a>   272   <a href='../S/2218.html#L174' title='Defined at 174 in src/character.h.'>CHECK_CHARACTER</a> (ch);
+<a id='L273' name='L273'></a>   273   <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (ch);
+<a id='L274' name='L274'></a>   274   width = <a href='../S/2146.html#L232' title='Defined at 232 in src/character.c.'>char_width</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, <a href='../S/2318.html#L59' title='Defined at 59 in src/indent.c.'>buffer_display_table</a> ());
+<a id='L275' name='L275'></a>   275   <strong class='reserved'>return</strong> <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (width);
+<a id='L276' name='L276'></a>   276 <em class='brace'>}</em>
+<a id='L277' name='L277'></a>   277 
+<a id='L278' name='L278'></a>   278 <em class='comment'>/* Return width of string STR of length LEN when displayed in the</em>
+<a id='L279' name='L279'></a>   279 <em class='comment'>   current buffer.  The width is measured by how many columns it</em>
+<a id='L280' name='L280'></a>   280 <em class='comment'>   occupies on the screen.  If PRECISION &gt; 0, return the width of</em>
+<a id='L281' name='L281'></a>   281 <em class='comment'>   longest substring that doesn't exceed PRECISION, and set number of</em>
+<a id='L282' name='L282'></a>   282 <em class='comment'>   characters and bytes of the substring in *NCHARS and *NBYTES</em>
+<a id='L283' name='L283'></a>   283 <em class='comment'>   respectively.  */</em>
+<a id='L284' name='L284'></a>   284 
+<a id='L285' name='L285'></a>   285 ptrdiff_t
+<a id='L286' name='L286'></a>   286 <a href='../R/8539.html' title='Multiple referred from 4 places.'>c_string_width</a> (<strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *str, ptrdiff_t len, <strong class='reserved'>int</strong> precision,
+<a id='L287' name='L287'></a>   287                 ptrdiff_t *nchars, ptrdiff_t *nbytes)
+<a id='L288' name='L288'></a>   288 <em class='brace'>{</em>
+<a id='L289' name='L289'></a>   289   ptrdiff_t i = 0, i_byte = 0;
+<a id='L290' name='L290'></a>   290   ptrdiff_t width = 0;
+<a id='L291' name='L291'></a>   291   <strong class='reserved'>struct</strong> <a href='../D/3799.html' title='Multiple defined in 2 places.'>Lisp_Char_Table</a> *dp = <a href='../S/2318.html#L59' title='Defined at 59 in src/indent.c.'>buffer_display_table</a> ();
+<a id='L292' name='L292'></a>   292 
+<a id='L293' name='L293'></a>   293   <strong class='reserved'>while</strong> (i_byte &lt; len)
+<a id='L294' name='L294'></a>   294     <em class='brace'>{</em>
+<a id='L295' name='L295'></a>   295       <strong class='reserved'>int</strong> bytes, <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L373' title='Defined at 373 in src/character.h.'>string_char_and_length</a> (str + i_byte, &amp;bytes);
+<a id='L296' name='L296'></a>   296       ptrdiff_t thiswidth = <a href='../S/2146.html#L232' title='Defined at 232 in src/character.c.'>char_width</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, dp);
+<a id='L297' name='L297'></a>   297 
+<a id='L298' name='L298'></a>   298       <strong class='reserved'>if</strong> (0 &lt; precision &amp;&amp; precision - width &lt; thiswidth)
+<a id='L299' name='L299'></a>   299         <em class='brace'>{</em>
+<a id='L300' name='L300'></a>   300           *nchars = i;
+<a id='L301' name='L301'></a>   301           *nbytes = i_byte;
+<a id='L302' name='L302'></a>   302           <strong class='reserved'>return</strong> width;
+<a id='L303' name='L303'></a>   303         <em class='brace'>}</em>
+<a id='L304' name='L304'></a>   304       <strong class='reserved'>if</strong> (<a href='../S/2700.html#L31' title='Defined at 31 in lib/stdckdint.in.h.'>ckd_add</a> (&amp;width, width, thiswidth))
+<a id='L305' name='L305'></a>   305         <a href='../S/2350.html#L2341' title='Defined at 2341 in src/alloc.c.'>string_overflow</a> ();
+<a id='L306' name='L306'></a>   306       i++;
+<a id='L307' name='L307'></a>   307       i_byte += bytes;
+<a id='L308' name='L308'></a>   308   <em class='brace'>}</em>
+<a id='L309' name='L309'></a>   309 
+<a id='L310' name='L310'></a>   310   <strong class='reserved'>if</strong> (precision &gt; 0)
+<a id='L311' name='L311'></a>   311     <em class='brace'>{</em>
+<a id='L312' name='L312'></a>   312       *nchars = i;
+<a id='L313' name='L313'></a>   313       *nbytes = i_byte;
+<a id='L314' name='L314'></a>   314     <em class='brace'>}</em>
+<a id='L315' name='L315'></a>   315 
+<a id='L316' name='L316'></a>   316   <strong class='reserved'>return</strong> width;
+<a id='L317' name='L317'></a>   317 <em class='brace'>}</em>
+<a id='L318' name='L318'></a>   318 
+<a id='L319' name='L319'></a>   319 <em class='comment'>/* Return width of string STR of length LEN when displayed in the</em>
+<a id='L320' name='L320'></a>   320 <em class='comment'>   current buffer.  The width is measured by how many columns it</em>
+<a id='L321' name='L321'></a>   321 <em class='comment'>   occupies on the screen.  */</em>
+<a id='L322' name='L322'></a>   322 
+<a id='L323' name='L323'></a>   323 ptrdiff_t
+<a id='L324' name='L324'></a>   324 <a href='../R/16488.html' title='Multiple referred from 4 places.'>strwidth</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *str, ptrdiff_t len)
+<a id='L325' name='L325'></a>   325 <em class='brace'>{</em>
+<a id='L326' name='L326'></a>   326   <strong class='reserved'>return</strong> <a href='../S/2146.html#L286' title='Defined at 286 in src/character.c.'>c_string_width</a> ((<strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) str, len, -1, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L327' name='L327'></a>   327 <em class='brace'>}</em>
+<a id='L328' name='L328'></a>   328 
+<a id='L329' name='L329'></a>   329 <em class='comment'>/* Return width of a (substring of a) Lisp string STRING when</em>
+<a id='L330' name='L330'></a>   330 <em class='comment'>   displayed in the current buffer.  The width is measured by how many</em>
+<a id='L331' name='L331'></a>   331 <em class='comment'>   columns it occupies on the screen while paying attention to</em>
+<a id='L332' name='L332'></a>   332 <em class='comment'>   compositions.  If PRECISION &gt; 0, return the width of longest</em>
+<a id='L333' name='L333'></a>   333 <em class='comment'>   substring that doesn't exceed PRECISION, and set number of</em>
+<a id='L334' name='L334'></a>   334 <em class='comment'>   characters and bytes of the substring in *NCHARS and *NBYTES</em>
+<a id='L335' name='L335'></a>   335 <em class='comment'>   respectively.  FROM and TO are zero-based character indices that</em>
+<a id='L336' name='L336'></a>   336 <em class='comment'>   define the substring of STRING to consider.  If AUTO_COMP is</em>
+<a id='L337' name='L337'></a>   337 <em class='comment'>   non-zero, account for automatic compositions in STRING.  */</em>
+<a id='L338' name='L338'></a>   338 
+<a id='L339' name='L339'></a>   339 ptrdiff_t
+<a id='L340' name='L340'></a>   340 <a href='../R/12716.html' title='Multiple referred from 3 places.'>lisp_string_width</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> string, ptrdiff_t from, ptrdiff_t to,
+<a id='L341' name='L341'></a>   341                    ptrdiff_t precision, ptrdiff_t *nchars, ptrdiff_t *nbytes,
+<a id='L342' name='L342'></a>   342                    <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> auto_comp)
+<a id='L343' name='L343'></a>   343 <em class='brace'>{</em>
+<a id='L344' name='L344'></a>   344   <em class='comment'>/* This set multibyte to 0 even if STRING is multibyte when it</em>
+<a id='L345' name='L345'></a>   345 <em class='comment'>     contains only ascii and eight-bit-graphic, but that's</em>
+<a id='L346' name='L346'></a>   346 <em class='comment'>     intentional.  */</em>
+<a id='L347' name='L347'></a>   347   <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> multibyte = <a href='../D/5435.html' title='Multiple defined in 2 places.'>SCHARS</a> (string) &lt; <a href='../D/5430.html' title='Multiple defined in 2 places.'>SBYTES</a> (string);
+<a id='L348' name='L348'></a>   348   ptrdiff_t i = from, i_byte = from ? <a href='../S/2320.html#L1186' title='Defined at 1186 in src/fns.c.'>string_char_to_byte</a> (string, from) : 0;
+<a id='L349' name='L349'></a>   349   ptrdiff_t from_byte = i_byte;
+<a id='L350' name='L350'></a>   350   ptrdiff_t width = 0;
+<a id='L351' name='L351'></a>   351   <strong class='reserved'>struct</strong> <a href='../D/3799.html' title='Multiple defined in 2 places.'>Lisp_Char_Table</a> *dp = <a href='../S/2318.html#L59' title='Defined at 59 in src/indent.c.'>buffer_display_table</a> ();
+<a id='L352' name='L352'></a>   352 <em class='sharp'>#ifdef</em> <a href='../S/54.html#L198' title='Defined at 198 in nt/inc/ms-w32.h.'>HAVE_WINDOW_SYSTEM</a>
+<a id='L353' name='L353'></a>   353   <strong class='reserved'>struct</strong> <a href='../D/11675.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a> =
+<a id='L354' name='L354'></a>   354     (<a href='../D/2249.html' title='Multiple defined in 2 places.'>FRAMEP</a> (selected_frame) &amp;&amp; <a href='../S/2183.html#L1014' title='Defined at 1014 in src/frame.h.'>FRAME_LIVE_P</a> (<a href='../S/2183.html#L909' title='Defined at 909 in src/frame.h.'>XFRAME</a> (selected_frame)))
+<a id='L355' name='L355'></a>   355     ? <a href='../S/2183.html#L909' title='Defined at 909 in src/frame.h.'>XFRAME</a> (selected_frame)
+<a id='L356' name='L356'></a>   356     : <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L357' name='L357'></a>   357   <strong class='reserved'>int</strong> font_width = -1;
+<a id='L358' name='L358'></a>   358   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> default_font, frame_font;
+<a id='L359' name='L359'></a>   359 <em class='sharp'>#endif</em>
+<a id='L360' name='L360'></a>   360 
+<a id='L361' name='L361'></a>   361   <a href='../D/10864.html' title='Multiple defined in 5 places.'>eassert</a> (precision &lt;= 0 || (nchars &amp;&amp; nbytes));
+<a id='L362' name='L362'></a>   362 
+<a id='L363' name='L363'></a>   363   <strong class='reserved'>while</strong> (i &lt; to)
+<a id='L364' name='L364'></a>   364     <em class='brace'>{</em>
+<a id='L365' name='L365'></a>   365       ptrdiff_t chars, bytes, thiswidth;
+<a id='L366' name='L366'></a>   366       <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> val;
+<a id='L367' name='L367'></a>   367       ptrdiff_t cmp_id;
+<a id='L368' name='L368'></a>   368       ptrdiff_t ignore, end;
+<a id='L369' name='L369'></a>   369 
+<a id='L370' name='L370'></a>   370       <strong class='reserved'>if</strong> (<a href='../S/2165.html#L420' title='Defined at 420 in src/composite.c.'>find_composition</a> (i, -1, &amp;ignore, &amp;end, &amp;val, string)
+<a id='L371' name='L371'></a>   371           &amp;&amp; ((cmp_id = <a href='../S/2165.html#L166' title='Defined at 166 in src/composite.c.'>get_composition_id</a> (i, i_byte, end - i, val, string))
+<a id='L372' name='L372'></a>   372               &gt;= 0))
+<a id='L373' name='L373'></a>   373         <em class='brace'>{</em>
+<a id='L374' name='L374'></a>   374           thiswidth = composition_table[cmp_id]-&gt;width;
+<a id='L375' name='L375'></a>   375           chars = end - i;
+<a id='L376' name='L376'></a>   376           bytes = <a href='../S/2320.html#L1186' title='Defined at 1186 in src/fns.c.'>string_char_to_byte</a> (string, end) - i_byte;
+<a id='L377' name='L377'></a>   377         <em class='brace'>}</em>
+<a id='L378' name='L378'></a>   378 <em class='sharp'>#ifdef</em> <a href='../S/54.html#L198' title='Defined at 198 in nt/inc/ms-w32.h.'>HAVE_WINDOW_SYSTEM</a>
+<a id='L379' name='L379'></a>   379       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (auto_comp
+<a id='L380' name='L380'></a>   380                &amp;&amp; <a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a> &amp;&amp; <a href='../D/2449.html' title='Multiple defined in 7 places.'>FRAME_WINDOW_P</a> (<a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L381' name='L381'></a>   381                &amp;&amp; multibyte
+<a id='L382' name='L382'></a>   382                &amp;&amp; <a href='../S/2165.html#L1630' title='Defined at 1630 in src/composite.c.'>find_automatic_composition</a> (i, -1, i, &amp;ignore,
+<a id='L383' name='L383'></a>   383                                               &amp;end, &amp;val, string)
+<a id='L384' name='L384'></a>   384                &amp;&amp; end &gt; i)
+<a id='L385' name='L385'></a>   385         <em class='brace'>{</em>
+<a id='L386' name='L386'></a>   386           <strong class='reserved'>int</strong> j;
+<a id='L387' name='L387'></a>   387           <strong class='reserved'>for</strong> (j = 0; j &lt; <a href='../S/2177.html#L275' title='Defined at 275 in src/composite.h.'>LGSTRING_GLYPH_LEN</a> (val); j++)
+<a id='L388' name='L388'></a>   388             <strong class='reserved'>if</strong> (<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2177.html#L276' title='Defined at 276 in src/composite.h.'>LGSTRING_GLYPH</a> (val, j)))
+<a id='L389' name='L389'></a>   389               <strong class='reserved'>break</strong>;
+<a id='L390' name='L390'></a>   390 
+<a id='L391' name='L391'></a>   391           <strong class='reserved'>int</strong> pixelwidth = <a href='../S/2165.html#L749' title='Defined at 749 in src/composite.c.'>composition_gstring_width</a> (val, 0, j, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L392' name='L392'></a>   392 
+<a id='L393' name='L393'></a>   393           <em class='comment'>/* The below is somewhat expensive, so compute it only once</em>
+<a id='L394' name='L394'></a>   394 <em class='comment'>             for the entire loop, and only if needed.  */</em>
+<a id='L395' name='L395'></a>   395           <strong class='reserved'>if</strong> (font_width &lt; 0)
+<a id='L396' name='L396'></a>   396             <em class='brace'>{</em>
+<a id='L397' name='L397'></a>   397               font_width = <a href='../S/2183.html#L1533' title='Defined at 1533 in src/frame.h.'>FRAME_COLUMN_WIDTH</a> (<a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L398' name='L398'></a>   398               default_font = Fface_font (Qdefault, Qnil, Qnil);
+<a id='L399' name='L399'></a>   399               frame_font = Fframe_parameter (Qnil, Qfont);
+<a id='L400' name='L400'></a>   400 
+<a id='L401' name='L401'></a>   401               <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (default_font) &amp;&amp; <a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (frame_font)
+<a id='L402' name='L402'></a>   402                   &amp;&amp; (<a href='../D/5435.html' title='Multiple defined in 2 places.'>SCHARS</a> (default_font) != <a href='../D/5435.html' title='Multiple defined in 2 places.'>SCHARS</a> (frame_font)
+<a id='L403' name='L403'></a>   403                       || <a href='../D/5430.html' title='Multiple defined in 2 places.'>SBYTES</a> (default_font) != <a href='../D/5430.html' title='Multiple defined in 2 places.'>SBYTES</a> (frame_font)
+<a id='L404' name='L404'></a>   404                       || memcmp (<a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (default_font), <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (frame_font),
+<a id='L405' name='L405'></a>   405                                  <a href='../D/5430.html' title='Multiple defined in 2 places.'>SBYTES</a> (default_font))))
+<a id='L406' name='L406'></a>   406                 <em class='brace'>{</em>
+<a id='L407' name='L407'></a>   407                   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2114.html#L56' title='Defined at 56 in src/ftfont.h.'>font_info</a> = Ffont_info (default_font, Qnil);
+<a id='L408' name='L408'></a>   408                   <strong class='reserved'>if</strong> (<a href='../D/6667.html' title='Multiple defined in 2 places.'>VECTORP</a> (<a href='../S/2114.html#L56' title='Defined at 56 in src/ftfont.h.'>font_info</a>))
+<a id='L409' name='L409'></a>   409                     <em class='brace'>{</em>
+<a id='L410' name='L410'></a>   410                       font_width = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/2114.html#L56' title='Defined at 56 in src/ftfont.h.'>font_info</a>, 11));
+<a id='L411' name='L411'></a>   411                       <strong class='reserved'>if</strong> (font_width &lt;= 0)
+<a id='L412' name='L412'></a>   412                         font_width = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/2114.html#L56' title='Defined at 56 in src/ftfont.h.'>font_info</a>, 10));
+<a id='L413' name='L413'></a>   413                     <em class='brace'>}</em>
+<a id='L414' name='L414'></a>   414                 <em class='brace'>}</em>
+<a id='L415' name='L415'></a>   415             <em class='brace'>}</em>
+<a id='L416' name='L416'></a>   416           thiswidth = (<strong class='reserved'>double</strong>) pixelwidth / font_width + 0.5;
+<a id='L417' name='L417'></a>   417           chars = end - i;
+<a id='L418' name='L418'></a>   418           bytes = <a href='../S/2320.html#L1186' title='Defined at 1186 in src/fns.c.'>string_char_to_byte</a> (string, end) - i_byte;
+<a id='L419' name='L419'></a>   419         <em class='brace'>}</em>
+<a id='L420' name='L420'></a>   420 <em class='sharp'>#endif</em>  <em class='comment'>/* HAVE_WINDOW_SYSTEM */</em>
+<a id='L421' name='L421'></a>   421       <strong class='reserved'>else</strong>
+<a id='L422' name='L422'></a>   422         <em class='brace'>{</em>
+<a id='L423' name='L423'></a>   423           <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L424' name='L424'></a>   424           <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *str = <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (string);
+<a id='L425' name='L425'></a>   425 
+<a id='L426' name='L426'></a>   426           <strong class='reserved'>if</strong> (multibyte)
+<a id='L427' name='L427'></a>   427             <em class='brace'>{</em>
+<a id='L428' name='L428'></a>   428               <strong class='reserved'>int</strong> cbytes;
+<a id='L429' name='L429'></a>   429               <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L373' title='Defined at 373 in src/character.h.'>string_char_and_length</a> (str + i_byte, &amp;cbytes);
+<a id='L430' name='L430'></a>   430               bytes = cbytes;
+<a id='L431' name='L431'></a>   431             <em class='brace'>}</em>
+<a id='L432' name='L432'></a>   432           <strong class='reserved'>else</strong>
+<a id='L433' name='L433'></a>   433             <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = str[i_byte], bytes = 1;
+<a id='L434' name='L434'></a>   434           chars = 1;
+<a id='L435' name='L435'></a>   435           thiswidth = <a href='../S/2146.html#L232' title='Defined at 232 in src/character.c.'>char_width</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, dp);
+<a id='L436' name='L436'></a>   436         <em class='brace'>}</em>
+<a id='L437' name='L437'></a>   437 
+<a id='L438' name='L438'></a>   438       <strong class='reserved'>if</strong> (0 &lt; precision &amp;&amp; precision - width &lt; thiswidth)
+<a id='L439' name='L439'></a>   439         <em class='brace'>{</em>
+<a id='L440' name='L440'></a>   440           *nchars = i - from;
+<a id='L441' name='L441'></a>   441           *nbytes = i_byte - from_byte;
+<a id='L442' name='L442'></a>   442           <strong class='reserved'>return</strong> width;
+<a id='L443' name='L443'></a>   443         <em class='brace'>}</em>
+<a id='L444' name='L444'></a>   444       <strong class='reserved'>if</strong> (<a href='../S/2700.html#L31' title='Defined at 31 in lib/stdckdint.in.h.'>ckd_add</a> (&amp;width, width, thiswidth))
+<a id='L445' name='L445'></a>   445         <a href='../S/2350.html#L2341' title='Defined at 2341 in src/alloc.c.'>string_overflow</a> ();
+<a id='L446' name='L446'></a>   446       i += chars;
+<a id='L447' name='L447'></a>   447       i_byte += bytes;
+<a id='L448' name='L448'></a>   448     <em class='brace'>}</em>
+<a id='L449' name='L449'></a>   449 
+<a id='L450' name='L450'></a>   450   <strong class='reserved'>if</strong> (precision &gt; 0)
+<a id='L451' name='L451'></a>   451     <em class='brace'>{</em>
+<a id='L452' name='L452'></a>   452       *nchars = i - from;
+<a id='L453' name='L453'></a>   453       *nbytes = i_byte - from_byte;
+<a id='L454' name='L454'></a>   454     <em class='brace'>}</em>
+<a id='L455' name='L455'></a>   455 
+<a id='L456' name='L456'></a>   456   <strong class='reserved'>return</strong> width;
+<a id='L457' name='L457'></a>   457 <em class='brace'>}</em>
+<a id='L458' name='L458'></a>   458 
+<a id='L459' name='L459'></a>   459 <a href='../D/1456.html' title='Multiple defined in 1013 places.'>DEFUN</a> ("string-width", Fstring_width, Sstring_width, 1, 3, 0,
+<a id='L460' name='L460'></a>   460        doc: <em class='comment'>/* Return width of STRING when displayed in the current buffer.</em>
+<a id='L461' name='L461'></a>   461 <em class='comment'>Width is measured by how many columns it occupies on the screen.</em>
+<a id='L462' name='L462'></a>   462 <em class='comment'>Optional arguments FROM and TO specify the substring of STRING to</em>
+<a id='L463' name='L463'></a>   463 <em class='comment'>consider, and are interpreted as in `substring'.</em>
+<a id='L464' name='L464'></a>   464 <em class='comment'></em>
+<a id='L465' name='L465'></a>   465 <em class='comment'>When calculating width of a multibyte character in STRING,</em>
+<a id='L466' name='L466'></a>   466 <em class='comment'>only the base leading-code is considered; the validity of</em>
+<a id='L467' name='L467'></a>   467 <em class='comment'>the following bytes is not checked.  Tabs in STRING are always</em>
+<a id='L468' name='L468'></a>   468 <em class='comment'>taken to occupy `tab-width' columns.  The effect of faces and fonts</em>
+<a id='L469' name='L469'></a>   469 <em class='comment'>used for non-Latin and other unusual characters (such as emoji) is</em>
+<a id='L470' name='L470'></a>   470 <em class='comment'>ignored as well, as are display properties and invisible text.</em>
+<a id='L471' name='L471'></a>   471 <em class='comment'>For these reasons, the results are not generally reliable;</em>
+<a id='L472' name='L472'></a>   472 <em class='comment'>for accurate dimensions of text as it will be displayed,</em>
+<a id='L473' name='L473'></a>   473 <em class='comment'>use `window-text-pixel-size' instead.</em>
+<a id='L474' name='L474'></a>   474 <em class='comment'>usage: (string-width STRING &amp;optional FROM TO)  */</em>)
+<a id='L475' name='L475'></a>   475   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> str, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> from, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> to)
+<a id='L476' name='L476'></a>   476 <em class='brace'>{</em>
+<a id='L477' name='L477'></a>   477   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> val;
+<a id='L478' name='L478'></a>   478   ptrdiff_t ifrom, ito;
+<a id='L479' name='L479'></a>   479 
+<a id='L480' name='L480'></a>   480   <a href='../S/2267.html#L1603' title='Defined at 1603 in src/lisp.h.'>CHECK_STRING</a> (str);
+<a id='L481' name='L481'></a>   481   <a href='../S/2320.html#L1535' title='Defined at 1535 in src/fns.c.'>validate_subarray</a> (str, from, to, <a href='../D/5435.html' title='Multiple defined in 2 places.'>SCHARS</a> (str), &amp;ifrom, &amp;ito);
+<a id='L482' name='L482'></a>   482   <a href='../D/7337.html' title='Multiple defined in 2 places.'>XSETFASTINT</a> (val, <a href='../S/2146.html#L340' title='Defined at 340 in src/character.c.'>lisp_string_width</a> (str, ifrom, ito, -1, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>));
+<a id='L483' name='L483'></a>   483   <strong class='reserved'>return</strong> val;
+<a id='L484' name='L484'></a>   484 <em class='brace'>}</em>
+<a id='L485' name='L485'></a>   485 
+<a id='L486' name='L486'></a>   486 <em class='comment'>/* Return the number of characters in the NBYTES bytes at PTR.</em>
+<a id='L487' name='L487'></a>   487 <em class='comment'>   This works by looking at the contents and checking for multibyte</em>
+<a id='L488' name='L488'></a>   488 <em class='comment'>   sequences while assuming that there's no invalid sequence.</em>
+<a id='L489' name='L489'></a>   489 <em class='comment'>   However, if the current buffer has enable-multibyte-characters =</em>
+<a id='L490' name='L490'></a>   490 <em class='comment'>   nil, we treat each byte as a character.  */</em>
+<a id='L491' name='L491'></a>   491 
+<a id='L492' name='L492'></a>   492 ptrdiff_t
+<a id='L493' name='L493'></a>   493 <a href='../R/8656.html' title='Multiple referred from 15 places.'>chars_in_text</a> (<strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *ptr, ptrdiff_t nbytes)
+<a id='L494' name='L494'></a>   494 <em class='brace'>{</em>
+<a id='L495' name='L495'></a>   495   <em class='comment'>/* current_buffer is null at early stages of Emacs initialization.  */</em>
+<a id='L496' name='L496'></a>   496   <strong class='reserved'>if</strong> (<a href='../S/2352.html#L133' title='Defined at 133 in src/thread.h.'>current_buffer</a> == 0
+<a id='L497' name='L497'></a>   497       || <a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2130.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2352.html#L133' title='Defined at 133 in src/thread.h.'>current_buffer</a>, enable_multibyte_characters)))
+<a id='L498' name='L498'></a>   498     <strong class='reserved'>return</strong> nbytes;
+<a id='L499' name='L499'></a>   499 
+<a id='L500' name='L500'></a>   500   <strong class='reserved'>return</strong> <a href='../S/2146.html#L509' title='Defined at 509 in src/character.c.'>multibyte_chars_in_text</a> (ptr, nbytes);
+<a id='L501' name='L501'></a>   501 <em class='brace'>}</em>
+<a id='L502' name='L502'></a>   502 
+<a id='L503' name='L503'></a>   503 <em class='comment'>/* Return the number of characters in the NBYTES bytes at PTR.</em>
+<a id='L504' name='L504'></a>   504 <em class='comment'>   This works by looking at the contents and checking for multibyte</em>
+<a id='L505' name='L505'></a>   505 <em class='comment'>   sequences while assuming that there's no invalid sequence.  It</em>
+<a id='L506' name='L506'></a>   506 <em class='comment'>   ignores enable-multibyte-characters.  */</em>
+<a id='L507' name='L507'></a>   507 
+<a id='L508' name='L508'></a>   508 ptrdiff_t
+<a id='L509' name='L509'></a>   509 <a href='../R/13726.html' title='Multiple referred from 11 places.'>multibyte_chars_in_text</a> (<strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *ptr, ptrdiff_t nbytes)
+<a id='L510' name='L510'></a>   510 <em class='brace'>{</em>
+<a id='L511' name='L511'></a>   511   <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *endp = ptr + nbytes;
+<a id='L512' name='L512'></a>   512   ptrdiff_t chars = 0;
+<a id='L513' name='L513'></a>   513 
+<a id='L514' name='L514'></a>   514   <strong class='reserved'>while</strong> (ptr &lt; endp)
+<a id='L515' name='L515'></a>   515     <em class='brace'>{</em>
+<a id='L516' name='L516'></a>   516       <strong class='reserved'>int</strong> len = <a href='../S/2218.html#L312' title='Defined at 312 in src/character.h.'>multibyte_length</a> (ptr, endp, <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>, <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
+<a id='L517' name='L517'></a>   517 
+<a id='L518' name='L518'></a>   518       <strong class='reserved'>if</strong> (len == 0)
+<a id='L519' name='L519'></a>   519         <a href='../D/10886.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L520' name='L520'></a>   520       ptr += len;
+<a id='L521' name='L521'></a>   521       chars++;
+<a id='L522' name='L522'></a>   522     <em class='brace'>}</em>
+<a id='L523' name='L523'></a>   523 
+<a id='L524' name='L524'></a>   524   <strong class='reserved'>return</strong> chars;
+<a id='L525' name='L525'></a>   525 <em class='brace'>}</em>
+<a id='L526' name='L526'></a>   526 
+<a id='L527' name='L527'></a>   527 <em class='comment'>/* Parse unibyte text at STR of LEN bytes as a multibyte text, count</em>
+<a id='L528' name='L528'></a>   528 <em class='comment'>   characters and bytes in it, and store them in *NCHARS and *NBYTES</em>
+<a id='L529' name='L529'></a>   529 <em class='comment'>   respectively.  On counting bytes, pay attention to that 8-bit</em>
+<a id='L530' name='L530'></a>   530 <em class='comment'>   characters not constructing a valid multibyte sequence are</em>
+<a id='L531' name='L531'></a>   531 <em class='comment'>   represented by 2-byte in a multibyte text.  */</em>
+<a id='L532' name='L532'></a>   532 
+<a id='L533' name='L533'></a>   533 <strong class='reserved'>void</strong>
+<a id='L534' name='L534'></a>   534 <a href='../R/14069.html' title='Multiple referred from 7 places.'>parse_str_as_multibyte</a> (<strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *str, ptrdiff_t len,
+<a id='L535' name='L535'></a>   535                         ptrdiff_t *nchars, ptrdiff_t *nbytes)
+<a id='L536' name='L536'></a>   536 <em class='brace'>{</em>
+<a id='L537' name='L537'></a>   537   <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *endp = str + len;
+<a id='L538' name='L538'></a>   538   ptrdiff_t chars = 0, bytes = 0;
+<a id='L539' name='L539'></a>   539 
+<a id='L540' name='L540'></a>   540   <strong class='reserved'>if</strong> (len &gt;= <a href='../S/2218.html#L156' title='Defined at 156 in src/character.h.'>MAX_MULTIBYTE_LENGTH</a>)
+<a id='L541' name='L541'></a>   541     <em class='brace'>{</em>
+<a id='L542' name='L542'></a>   542       <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *adjusted_endp = endp - (<a href='../S/2218.html#L156' title='Defined at 156 in src/character.h.'>MAX_MULTIBYTE_LENGTH</a> - 1);
+<a id='L543' name='L543'></a>   543       <strong class='reserved'>while</strong> (str &lt; adjusted_endp)
+<a id='L544' name='L544'></a>   544         <em class='brace'>{</em>
+<a id='L545' name='L545'></a>   545           <strong class='reserved'>int</strong> n = <a href='../S/2218.html#L312' title='Defined at 312 in src/character.h.'>multibyte_length</a> (str, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L546' name='L546'></a>   546           <strong class='reserved'>if</strong> (0 &lt; n)
+<a id='L547' name='L547'></a>   547             str += n, bytes += n;
+<a id='L548' name='L548'></a>   548           <strong class='reserved'>else</strong>
+<a id='L549' name='L549'></a>   549             str++, bytes += 2;
+<a id='L550' name='L550'></a>   550           chars++;
+<a id='L551' name='L551'></a>   551         <em class='brace'>}</em>
+<a id='L552' name='L552'></a>   552     <em class='brace'>}</em>
+<a id='L553' name='L553'></a>   553   <strong class='reserved'>while</strong> (str &lt; endp)
+<a id='L554' name='L554'></a>   554     <em class='brace'>{</em>
+<a id='L555' name='L555'></a>   555       <strong class='reserved'>int</strong> n = <a href='../S/2218.html#L312' title='Defined at 312 in src/character.h.'>multibyte_length</a> (str, endp, <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L556' name='L556'></a>   556       <strong class='reserved'>if</strong> (0 &lt; n)
+<a id='L557' name='L557'></a>   557         str += n, bytes += n;
+<a id='L558' name='L558'></a>   558       <strong class='reserved'>else</strong>
+<a id='L559' name='L559'></a>   559         str++, bytes += 2;
+<a id='L560' name='L560'></a>   560       chars++;
+<a id='L561' name='L561'></a>   561     <em class='brace'>}</em>
+<a id='L562' name='L562'></a>   562 
+<a id='L563' name='L563'></a>   563   *nchars = chars;
+<a id='L564' name='L564'></a>   564   *nbytes = bytes;
+<a id='L565' name='L565'></a>   565   <strong class='reserved'>return</strong>;
+<a id='L566' name='L566'></a>   566 <em class='brace'>}</em>
+<a id='L567' name='L567'></a>   567 
+<a id='L568' name='L568'></a>   568 <em class='comment'>/* Arrange unibyte text at STR of NBYTES bytes as a multibyte text.</em>
+<a id='L569' name='L569'></a>   569 <em class='comment'>   It actually converts only such 8-bit characters that don't construct</em>
+<a id='L570' name='L570'></a>   570 <em class='comment'>   a multibyte sequence to multibyte forms of raw bytes.  If NCHARS</em>
+<a id='L571' name='L571'></a>   571 <em class='comment'>   is nonzero, set *NCHARS to the number of characters in the text.</em>
+<a id='L572' name='L572'></a>   572 <em class='comment'>   It is assured that we can use LEN bytes at STR as a work</em>
+<a id='L573' name='L573'></a>   573 <em class='comment'>   area and that is enough.  Return the number of bytes of the</em>
+<a id='L574' name='L574'></a>   574 <em class='comment'>   resulting text.  */</em>
+<a id='L575' name='L575'></a>   575 
+<a id='L576' name='L576'></a>   576 ptrdiff_t
+<a id='L577' name='L577'></a>   577 <a href='../R/16413.html' title='Multiple referred from 3 places.'>str_as_multibyte</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *str, ptrdiff_t len, ptrdiff_t nbytes,
+<a id='L578' name='L578'></a>   578                   ptrdiff_t *nchars)
+<a id='L579' name='L579'></a>   579 <em class='brace'>{</em>
+<a id='L580' name='L580'></a>   580   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *p = str, *endp = str + nbytes;
+<a id='L581' name='L581'></a>   581   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *to;
+<a id='L582' name='L582'></a>   582   ptrdiff_t chars = 0;
+<a id='L583' name='L583'></a>   583 
+<a id='L584' name='L584'></a>   584   <strong class='reserved'>if</strong> (nbytes &gt;= <a href='../S/2218.html#L156' title='Defined at 156 in src/character.h.'>MAX_MULTIBYTE_LENGTH</a>)
+<a id='L585' name='L585'></a>   585     <em class='brace'>{</em>
+<a id='L586' name='L586'></a>   586       <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *adjusted_endp = endp - (<a href='../S/2218.html#L156' title='Defined at 156 in src/character.h.'>MAX_MULTIBYTE_LENGTH</a> - 1);
+<a id='L587' name='L587'></a>   587       <strong class='reserved'>while</strong> (p &lt; adjusted_endp)
+<a id='L588' name='L588'></a>   588         <em class='brace'>{</em>
+<a id='L589' name='L589'></a>   589           <strong class='reserved'>int</strong> n = <a href='../S/2218.html#L312' title='Defined at 312 in src/character.h.'>multibyte_length</a> (p, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L590' name='L590'></a>   590           <strong class='reserved'>if</strong> (n &lt;= 0)
+<a id='L591' name='L591'></a>   591             <strong class='reserved'>break</strong>;
+<a id='L592' name='L592'></a>   592           p += n, chars++;
+<a id='L593' name='L593'></a>   593         <em class='brace'>}</em>
+<a id='L594' name='L594'></a>   594     <em class='brace'>}</em>
+<a id='L595' name='L595'></a>   595   <strong class='reserved'>while</strong> (<a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>)
+<a id='L596' name='L596'></a>   596     <em class='brace'>{</em>
+<a id='L597' name='L597'></a>   597       <strong class='reserved'>int</strong> n = <a href='../S/2218.html#L312' title='Defined at 312 in src/character.h.'>multibyte_length</a> (p, endp, <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L598' name='L598'></a>   598       <strong class='reserved'>if</strong> (n &lt;= 0)
+<a id='L599' name='L599'></a>   599         <strong class='reserved'>break</strong>;
+<a id='L600' name='L600'></a>   600       p += n, chars++;
+<a id='L601' name='L601'></a>   601     <em class='brace'>}</em>
+<a id='L602' name='L602'></a>   602   <strong class='reserved'>if</strong> (nchars)
+<a id='L603' name='L603'></a>   603     *nchars = chars;
+<a id='L604' name='L604'></a>   604   <strong class='reserved'>if</strong> (p == endp)
+<a id='L605' name='L605'></a>   605     <strong class='reserved'>return</strong> nbytes;
+<a id='L606' name='L606'></a>   606 
+<a id='L607' name='L607'></a>   607   to = p;
+<a id='L608' name='L608'></a>   608   nbytes = endp - p;
+<a id='L609' name='L609'></a>   609   endp = str + len;
+<a id='L610' name='L610'></a>   610   <a href='../S/2937.html#L81' title='Defined at 81 in lib/canonicalize-lgpl.c.'>memmove</a> (endp - nbytes, p, nbytes);
+<a id='L611' name='L611'></a>   611   p = endp - nbytes;
+<a id='L612' name='L612'></a>   612 
+<a id='L613' name='L613'></a>   613   <strong class='reserved'>if</strong> (nbytes &gt;= <a href='../S/2218.html#L156' title='Defined at 156 in src/character.h.'>MAX_MULTIBYTE_LENGTH</a>)
+<a id='L614' name='L614'></a>   614     <em class='brace'>{</em>
+<a id='L615' name='L615'></a>   615       <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *adjusted_endp = endp - (<a href='../S/2218.html#L156' title='Defined at 156 in src/character.h.'>MAX_MULTIBYTE_LENGTH</a> - 1);
+<a id='L616' name='L616'></a>   616       <strong class='reserved'>while</strong> (p &lt; adjusted_endp)
+<a id='L617' name='L617'></a>   617         <em class='brace'>{</em>
+<a id='L618' name='L618'></a>   618           <strong class='reserved'>int</strong> n = <a href='../S/2218.html#L312' title='Defined at 312 in src/character.h.'>multibyte_length</a> (p, <a href='../D/4536.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L619' name='L619'></a>   619           <strong class='reserved'>if</strong> (0 &lt; n)
+<a id='L620' name='L620'></a>   620             <em class='brace'>{</em>
+<a id='L621' name='L621'></a>   621               <strong class='reserved'>while</strong> (n--)
+<a id='L622' name='L622'></a>   622                 *to++ = *p++;
+<a id='L623' name='L623'></a>   623             <em class='brace'>}</em>
+<a id='L624' name='L624'></a>   624           <strong class='reserved'>else</strong>
+<a id='L625' name='L625'></a>   625             <em class='brace'>{</em>
+<a id='L626' name='L626'></a>   626               <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = *p++;
+<a id='L627' name='L627'></a>   627               <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L113' title='Defined at 113 in src/character.h.'>BYTE8_TO_CHAR</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L628' name='L628'></a>   628               to += <a href='../S/2218.html#L228' title='Defined at 228 in src/character.h.'>CHAR_STRING</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, to);
+<a id='L629' name='L629'></a>   629             <em class='brace'>}</em>
+<a id='L630' name='L630'></a>   630         <em class='brace'>}</em>
+<a id='L631' name='L631'></a>   631       chars++;
+<a id='L632' name='L632'></a>   632     <em class='brace'>}</em>
+<a id='L633' name='L633'></a>   633   <strong class='reserved'>while</strong> (p &lt; endp)
+<a id='L634' name='L634'></a>   634     <em class='brace'>{</em>
+<a id='L635' name='L635'></a>   635       <strong class='reserved'>int</strong> n = <a href='../S/2218.html#L312' title='Defined at 312 in src/character.h.'>multibyte_length</a> (p, endp, <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L636' name='L636'></a>   636       <strong class='reserved'>if</strong> (0 &lt; n)
+<a id='L637' name='L637'></a>   637         <em class='brace'>{</em>
+<a id='L638' name='L638'></a>   638           <strong class='reserved'>while</strong> (n--)
+<a id='L639' name='L639'></a>   639             *to++ = *p++;
+<a id='L640' name='L640'></a>   640         <em class='brace'>}</em>
+<a id='L641' name='L641'></a>   641       <strong class='reserved'>else</strong>
+<a id='L642' name='L642'></a>   642         <em class='brace'>{</em>
+<a id='L643' name='L643'></a>   643           <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = *p++;
+<a id='L644' name='L644'></a>   644           <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L113' title='Defined at 113 in src/character.h.'>BYTE8_TO_CHAR</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L645' name='L645'></a>   645           to += <a href='../S/2218.html#L228' title='Defined at 228 in src/character.h.'>CHAR_STRING</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, to);
+<a id='L646' name='L646'></a>   646         <em class='brace'>}</em>
+<a id='L647' name='L647'></a>   647       chars++;
+<a id='L648' name='L648'></a>   648     <em class='brace'>}</em>
+<a id='L649' name='L649'></a>   649   <strong class='reserved'>if</strong> (nchars)
+<a id='L650' name='L650'></a>   650     *nchars = chars;
+<a id='L651' name='L651'></a>   651   <strong class='reserved'>return</strong> (to - str);
+<a id='L652' name='L652'></a>   652 <em class='brace'>}</em>
+<a id='L653' name='L653'></a>   653 
+<a id='L654' name='L654'></a>   654 <em class='comment'>/* Parse unibyte string at STR of LEN bytes, and return the number of</em>
+<a id='L655' name='L655'></a>   655 <em class='comment'>   bytes it may occupy when converted to multibyte string by</em>
+<a id='L656' name='L656'></a>   656 <em class='comment'>   `str_to_multibyte'.  */</em>
+<a id='L657' name='L657'></a>   657 
+<a id='L658' name='L658'></a>   658 ptrdiff_t
+<a id='L659' name='L659'></a>   659 <a href='../R/9204.html' title='Multiple referred from 12 places.'>count_size_as_multibyte</a> (<strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *str, ptrdiff_t len)
+<a id='L660' name='L660'></a>   660 <em class='brace'>{</em>
+<a id='L661' name='L661'></a>   661   <em class='comment'>/* Count the number of non-ASCII (raw) bytes, since they will occupy</em>
+<a id='L662' name='L662'></a>   662 <em class='comment'>     two bytes in a multibyte string.  */</em>
+<a id='L663' name='L663'></a>   663   ptrdiff_t nonascii = 0;
+<a id='L664' name='L664'></a>   664   <strong class='reserved'>for</strong> (ptrdiff_t i = 0; i &lt; len; i++)
+<a id='L665' name='L665'></a>   665     nonascii += str[i] &gt;&gt; 7;
+<a id='L666' name='L666'></a>   666   ptrdiff_t bytes;
+<a id='L667' name='L667'></a>   667   <strong class='reserved'>if</strong> (<a href='../S/2700.html#L31' title='Defined at 31 in lib/stdckdint.in.h.'>ckd_add</a> (&amp;bytes, len, nonascii))
+<a id='L668' name='L668'></a>   668     <a href='../S/2350.html#L2341' title='Defined at 2341 in src/alloc.c.'>string_overflow</a> ();
+<a id='L669' name='L669'></a>   669   <strong class='reserved'>return</strong> bytes;
+<a id='L670' name='L670'></a>   670 <em class='brace'>}</em>
+<a id='L671' name='L671'></a>   671 
+<a id='L672' name='L672'></a>   672 
+<a id='L673' name='L673'></a>   673 <em class='comment'>/* Convert unibyte text at SRC of NCHARS chars to a multibyte text</em>
+<a id='L674' name='L674'></a>   674 <em class='comment'>   at DST, that contains the same single-byte characters.</em>
+<a id='L675' name='L675'></a>   675 <em class='comment'>   Return the number of bytes written at DST.  */</em>
+<a id='L676' name='L676'></a>   676 ptrdiff_t
+<a id='L677' name='L677'></a>   677 <a href='../R/16416.html' title='Multiple referred from 5 places.'>str_to_multibyte</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *dst, <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *src,
+<a id='L678' name='L678'></a>   678                   ptrdiff_t nchars)
+<a id='L679' name='L679'></a>   679 <em class='brace'>{</em>
+<a id='L680' name='L680'></a>   680   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *<a href='../D/10236.html' title='Multiple defined in 2 places.'>d</a> = dst;
+<a id='L681' name='L681'></a>   681   <strong class='reserved'>for</strong> (ptrdiff_t i = 0; i &lt; nchars; i++)
+<a id='L682' name='L682'></a>   682     <em class='brace'>{</em>
+<a id='L683' name='L683'></a>   683       <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = src[i];
+<a id='L684' name='L684'></a>   684       <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &lt;= 0x7f)
+<a id='L685' name='L685'></a>   685         *<a href='../D/10236.html' title='Multiple defined in 2 places.'>d</a>++ = <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L686' name='L686'></a>   686       <strong class='reserved'>else</strong>
+<a id='L687' name='L687'></a>   687         <em class='brace'>{</em>
+<a id='L688' name='L688'></a>   688           *<a href='../D/10236.html' title='Multiple defined in 2 places.'>d</a>++ = 0xc0 + ((<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;&gt; 6) &amp; 1);
+<a id='L689' name='L689'></a>   689           *<a href='../D/10236.html' title='Multiple defined in 2 places.'>d</a>++ = 0x80 + (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &amp; 0x3f);
+<a id='L690' name='L690'></a>   690         <em class='brace'>}</em>
+<a id='L691' name='L691'></a>   691     <em class='brace'>}</em>
+<a id='L692' name='L692'></a>   692   <strong class='reserved'>return</strong> <a href='../D/10236.html' title='Multiple defined in 2 places.'>d</a> - dst;
+<a id='L693' name='L693'></a>   693 <em class='brace'>}</em>
+<a id='L694' name='L694'></a>   694 
+<a id='L695' name='L695'></a>   695 <em class='comment'>/* Arrange multibyte text at STR of LEN bytes as a unibyte text.  It</em>
+<a id='L696' name='L696'></a>   696 <em class='comment'>   actually converts characters in the range 0x80..0xFF to</em>
+<a id='L697' name='L697'></a>   697 <em class='comment'>   unibyte.  */</em>
+<a id='L698' name='L698'></a>   698 
+<a id='L699' name='L699'></a>   699 ptrdiff_t
+<a id='L700' name='L700'></a>   700 <a href='../R/16414.html' title='Multiple referred from 3 places.'>str_as_unibyte</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *str, ptrdiff_t bytes)
+<a id='L701' name='L701'></a>   701 <em class='brace'>{</em>
+<a id='L702' name='L702'></a>   702   <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *p = str, *endp = str + bytes;
+<a id='L703' name='L703'></a>   703   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *to;
+<a id='L704' name='L704'></a>   704   <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, len;
+<a id='L705' name='L705'></a>   705 
+<a id='L706' name='L706'></a>   706   <strong class='reserved'>while</strong> (p &lt; endp)
+<a id='L707' name='L707'></a>   707     <em class='brace'>{</em>
+<a id='L708' name='L708'></a>   708       <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = *p;
+<a id='L709' name='L709'></a>   709       len = <a href='../S/2218.html#L295' title='Defined at 295 in src/character.h.'>BYTES_BY_CHAR_HEAD</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L710' name='L710'></a>   710       <strong class='reserved'>if</strong> (<a href='../S/2218.html#L142' title='Defined at 142 in src/character.h.'>CHAR_BYTE8_HEAD_P</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>))
+<a id='L711' name='L711'></a>   711         <strong class='reserved'>break</strong>;
+<a id='L712' name='L712'></a>   712       p += len;
+<a id='L713' name='L713'></a>   713     <em class='brace'>}</em>
+<a id='L714' name='L714'></a>   714   to = str + (p - str);
+<a id='L715' name='L715'></a>   715   <strong class='reserved'>while</strong> (p &lt; endp)
+<a id='L716' name='L716'></a>   716     <em class='brace'>{</em>
+<a id='L717' name='L717'></a>   717       <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = *p;
+<a id='L718' name='L718'></a>   718       len = <a href='../S/2218.html#L295' title='Defined at 295 in src/character.h.'>BYTES_BY_CHAR_HEAD</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L719' name='L719'></a>   719       <strong class='reserved'>if</strong> (<a href='../S/2218.html#L142' title='Defined at 142 in src/character.h.'>CHAR_BYTE8_HEAD_P</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>))
+<a id='L720' name='L720'></a>   720         <em class='brace'>{</em>
+<a id='L721' name='L721'></a>   721           <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L425' title='Defined at 425 in src/character.h.'>string_char_advance</a> (&amp;p);
+<a id='L722' name='L722'></a>   722           *to++ = <a href='../S/2218.html#L126' title='Defined at 126 in src/character.h.'>CHAR_TO_BYTE8</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L723' name='L723'></a>   723         <em class='brace'>}</em>
+<a id='L724' name='L724'></a>   724       <strong class='reserved'>else</strong>
+<a id='L725' name='L725'></a>   725         <em class='brace'>{</em>
+<a id='L726' name='L726'></a>   726           <strong class='reserved'>while</strong> (len--) *to++ = *p++;
+<a id='L727' name='L727'></a>   727         <em class='brace'>}</em>
+<a id='L728' name='L728'></a>   728     <em class='brace'>}</em>
+<a id='L729' name='L729'></a>   729   <strong class='reserved'>return</strong> (to - str);
+<a id='L730' name='L730'></a>   730 <em class='brace'>}</em>
+<a id='L731' name='L731'></a>   731 
+<a id='L732' name='L732'></a>   732 <strong class='reserved'>static</strong> ptrdiff_t
+<a id='L733' name='L733'></a>   733 <a href='../S/2146.html#L778' title='Referred from 778 in src/character.c.'>string_count_byte8</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> string)
+<a id='L734' name='L734'></a>   734 <em class='brace'>{</em>
+<a id='L735' name='L735'></a>   735   <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> multibyte = <a href='../D/5975.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (string);
+<a id='L736' name='L736'></a>   736   ptrdiff_t nbytes = <a href='../D/5430.html' title='Multiple defined in 2 places.'>SBYTES</a> (string);
+<a id='L737' name='L737'></a>   737   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *p = <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (string);
+<a id='L738' name='L738'></a>   738   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *pend = p + nbytes;
+<a id='L739' name='L739'></a>   739   ptrdiff_t count = 0;
+<a id='L740' name='L740'></a>   740   <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, len;
+<a id='L741' name='L741'></a>   741 
+<a id='L742' name='L742'></a>   742   <strong class='reserved'>if</strong> (multibyte)
+<a id='L743' name='L743'></a>   743     <strong class='reserved'>while</strong> (p &lt; pend)
+<a id='L744' name='L744'></a>   744       <em class='brace'>{</em>
+<a id='L745' name='L745'></a>   745         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = *p;
+<a id='L746' name='L746'></a>   746         len = <a href='../S/2218.html#L295' title='Defined at 295 in src/character.h.'>BYTES_BY_CHAR_HEAD</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L747' name='L747'></a>   747 
+<a id='L748' name='L748'></a>   748         <strong class='reserved'>if</strong> (<a href='../S/2218.html#L142' title='Defined at 142 in src/character.h.'>CHAR_BYTE8_HEAD_P</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>))
+<a id='L749' name='L749'></a>   749           count++;
+<a id='L750' name='L750'></a>   750         p += len;
+<a id='L751' name='L751'></a>   751       <em class='brace'>}</em>
+<a id='L752' name='L752'></a>   752   <strong class='reserved'>else</strong>
+<a id='L753' name='L753'></a>   753     <strong class='reserved'>while</strong> (p &lt; pend)
+<a id='L754' name='L754'></a>   754       <em class='brace'>{</em>
+<a id='L755' name='L755'></a>   755         <strong class='reserved'>if</strong> (*p++ &gt;= 0x80)
+<a id='L756' name='L756'></a>   756           count++;
+<a id='L757' name='L757'></a>   757       <em class='brace'>}</em>
+<a id='L758' name='L758'></a>   758   <strong class='reserved'>return</strong> count;
+<a id='L759' name='L759'></a>   759 <em class='brace'>}</em>
+<a id='L760' name='L760'></a>   760 
+<a id='L761' name='L761'></a>   761 
+<a id='L762' name='L762'></a>   762 <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L763' name='L763'></a>   763 <a href='../R/16444.html' title='Multiple referred from 2 places.'>string_escape_byte8</a> (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> string)
+<a id='L764' name='L764'></a>   764 <em class='brace'>{</em>
+<a id='L765' name='L765'></a>   765   ptrdiff_t nchars = <a href='../D/5435.html' title='Multiple defined in 2 places.'>SCHARS</a> (string);
+<a id='L766' name='L766'></a>   766   ptrdiff_t nbytes = <a href='../D/5430.html' title='Multiple defined in 2 places.'>SBYTES</a> (string);
+<a id='L767' name='L767'></a>   767   <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a> multibyte = <a href='../D/5975.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (string);
+<a id='L768' name='L768'></a>   768   ptrdiff_t byte8_count;
+<a id='L769' name='L769'></a>   769   ptrdiff_t thrice_byte8_count, uninit_nchars, uninit_nbytes;
+<a id='L770' name='L770'></a>   770   <strong class='reserved'>const</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *src, *src_end;
+<a id='L771' name='L771'></a>   771   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *dst;
+<a id='L772' name='L772'></a>   772   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> val;
+<a id='L773' name='L773'></a>   773   <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, len;
+<a id='L774' name='L774'></a>   774 
+<a id='L775' name='L775'></a>   775   <strong class='reserved'>if</strong> (multibyte &amp;&amp; nchars == nbytes)
+<a id='L776' name='L776'></a>   776     <strong class='reserved'>return</strong> string;
+<a id='L777' name='L777'></a>   777 
+<a id='L778' name='L778'></a>   778   byte8_count = <a href='../S/2146.html#L733' title='Defined at 733 in src/character.c.'>string_count_byte8</a> (string);
+<a id='L779' name='L779'></a>   779 
+<a id='L780' name='L780'></a>   780   <strong class='reserved'>if</strong> (byte8_count == 0)
+<a id='L781' name='L781'></a>   781     <strong class='reserved'>return</strong> string;
+<a id='L782' name='L782'></a>   782 
+<a id='L783' name='L783'></a>   783   <strong class='reserved'>if</strong> (<a href='../S/2700.html#L33' title='Defined at 33 in lib/stdckdint.in.h.'>ckd_mul</a> (&amp;thrice_byte8_count, byte8_count, 3))
+<a id='L784' name='L784'></a>   784     <a href='../S/2350.html#L2341' title='Defined at 2341 in src/alloc.c.'>string_overflow</a> ();
+<a id='L785' name='L785'></a>   785 
+<a id='L786' name='L786'></a>   786   <strong class='reserved'>if</strong> (multibyte)
+<a id='L787' name='L787'></a>   787     <em class='brace'>{</em>
+<a id='L788' name='L788'></a>   788       <em class='comment'>/* Convert 2-byte sequence of byte8 chars to 4-byte octal.  */</em>
+<a id='L789' name='L789'></a>   789       <strong class='reserved'>if</strong> (<a href='../S/2700.html#L31' title='Defined at 31 in lib/stdckdint.in.h.'>ckd_add</a> (&amp;uninit_nchars, nchars, thrice_byte8_count)
+<a id='L790' name='L790'></a>   790           || <a href='../S/2700.html#L31' title='Defined at 31 in lib/stdckdint.in.h.'>ckd_add</a> (&amp;uninit_nbytes, nbytes, 2 * byte8_count))
+<a id='L791' name='L791'></a>   791         <a href='../S/2350.html#L2341' title='Defined at 2341 in src/alloc.c.'>string_overflow</a> ();
+<a id='L792' name='L792'></a>   792       val = <a href='../S/2350.html#L2623' title='Defined at 2623 in src/alloc.c.'>make_uninit_multibyte_string</a> (uninit_nchars, uninit_nbytes);
+<a id='L793' name='L793'></a>   793     <em class='brace'>}</em>
+<a id='L794' name='L794'></a>   794   <strong class='reserved'>else</strong>
+<a id='L795' name='L795'></a>   795     <em class='brace'>{</em>
+<a id='L796' name='L796'></a>   796       <em class='comment'>/* Convert 1-byte sequence of byte8 chars to 4-byte octal.  */</em>
+<a id='L797' name='L797'></a>   797       <strong class='reserved'>if</strong> (<a href='../S/2700.html#L31' title='Defined at 31 in lib/stdckdint.in.h.'>ckd_add</a> (&amp;uninit_nbytes, thrice_byte8_count, nbytes))
+<a id='L798' name='L798'></a>   798         <a href='../S/2350.html#L2341' title='Defined at 2341 in src/alloc.c.'>string_overflow</a> ();
+<a id='L799' name='L799'></a>   799       val = <a href='../S/2350.html#L2590' title='Defined at 2590 in src/alloc.c.'>make_uninit_string</a> (uninit_nbytes);
+<a id='L800' name='L800'></a>   800     <em class='brace'>}</em>
+<a id='L801' name='L801'></a>   801 
+<a id='L802' name='L802'></a>   802   src = <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (string);
+<a id='L803' name='L803'></a>   803   src_end = src + nbytes;
+<a id='L804' name='L804'></a>   804   dst = <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (val);
+<a id='L805' name='L805'></a>   805   <strong class='reserved'>if</strong> (multibyte)
+<a id='L806' name='L806'></a>   806     <strong class='reserved'>while</strong> (src &lt; src_end)
+<a id='L807' name='L807'></a>   807       <em class='brace'>{</em>
+<a id='L808' name='L808'></a>   808         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = *src;
+<a id='L809' name='L809'></a>   809         len = <a href='../S/2218.html#L295' title='Defined at 295 in src/character.h.'>BYTES_BY_CHAR_HEAD</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L810' name='L810'></a>   810 
+<a id='L811' name='L811'></a>   811         <strong class='reserved'>if</strong> (<a href='../S/2218.html#L142' title='Defined at 142 in src/character.h.'>CHAR_BYTE8_HEAD_P</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>))
+<a id='L812' name='L812'></a>   812           <em class='brace'>{</em>
+<a id='L813' name='L813'></a>   813             <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L425' title='Defined at 425 in src/character.h.'>string_char_advance</a> (&amp;src);
+<a id='L814' name='L814'></a>   814             <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L126' title='Defined at 126 in src/character.h.'>CHAR_TO_BYTE8</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L815' name='L815'></a>   815             dst += <a href='../D/17574.html' title='Multiple defined in 3 places.'>sprintf</a> ((<strong class='reserved'>char</strong> *) dst, "\\%03o", <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> + 0u);
+<a id='L816' name='L816'></a>   816           <em class='brace'>}</em>
+<a id='L817' name='L817'></a>   817         <strong class='reserved'>else</strong>
+<a id='L818' name='L818'></a>   818           <strong class='reserved'>while</strong> (len--) *dst++ = *src++;
+<a id='L819' name='L819'></a>   819       <em class='brace'>}</em>
+<a id='L820' name='L820'></a>   820   <strong class='reserved'>else</strong>
+<a id='L821' name='L821'></a>   821     <strong class='reserved'>while</strong> (src &lt; src_end)
+<a id='L822' name='L822'></a>   822       <em class='brace'>{</em>
+<a id='L823' name='L823'></a>   823         <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = *src++;
+<a id='L824' name='L824'></a>   824         <strong class='reserved'>if</strong> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> &gt;= 0x80)
+<a id='L825' name='L825'></a>   825           dst += <a href='../D/17574.html' title='Multiple defined in 3 places.'>sprintf</a> ((<strong class='reserved'>char</strong> *) dst, "\\%03o", <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> + 0u);
+<a id='L826' name='L826'></a>   826         <strong class='reserved'>else</strong>
+<a id='L827' name='L827'></a>   827           *dst++ = <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L828' name='L828'></a>   828       <em class='brace'>}</em>
+<a id='L829' name='L829'></a>   829   <strong class='reserved'>return</strong> val;
+<a id='L830' name='L830'></a>   830 <em class='brace'>}</em>
+<a id='L831' name='L831'></a>   831 
+<a id='L832' name='L832'></a>   832 
+<a id='L833' name='L833'></a>   833 <a href='../D/1456.html' title='Multiple defined in 1013 places.'>DEFUN</a> ("string", Fstring, <a href='../S/2142.html#L51' title='Defined at 51 in src/syntax.h.'>Sstring</a>, 0, <a href='../D/3886.html' title='Multiple defined in 2 places.'>MANY</a>, 0,
+<a id='L834' name='L834'></a>   834        doc: <em class='comment'>/*</em>
+<a id='L835' name='L835'></a>   835 <em class='comment'>Concatenate all the argument characters and make the result a string.</em>
+<a id='L836' name='L836'></a>   836 <em class='comment'>usage: (string &amp;rest CHARACTERS)  */</em>)
+<a id='L837' name='L837'></a>   837   (ptrdiff_t n, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *<a href='../S/4039.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>)
+<a id='L838' name='L838'></a>   838 <em class='brace'>{</em>
+<a id='L839' name='L839'></a>   839   ptrdiff_t nbytes = 0;
+<a id='L840' name='L840'></a>   840   <strong class='reserved'>for</strong> (ptrdiff_t i = 0; i &lt; n; i++)
+<a id='L841' name='L841'></a>   841     <em class='brace'>{</em>
+<a id='L842' name='L842'></a>   842       <a href='../S/2218.html#L174' title='Defined at 174 in src/character.h.'>CHECK_CHARACTER</a> (<a href='../S/4039.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[i]);
+<a id='L843' name='L843'></a>   843       nbytes += <a href='../S/2218.html#L201' title='Defined at 201 in src/character.h.'>CHAR_BYTES</a> (<a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (<a href='../S/4039.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[i]));
+<a id='L844' name='L844'></a>   844     <em class='brace'>}</em>
+<a id='L845' name='L845'></a>   845   <strong class='reserved'>if</strong> (nbytes == n)
+<a id='L846' name='L846'></a>   846     <strong class='reserved'>return</strong> Funibyte_string (n, <a href='../S/4039.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>);
+<a id='L847' name='L847'></a>   847   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> str = <a href='../S/2350.html#L2623' title='Defined at 2623 in src/alloc.c.'>make_uninit_multibyte_string</a> (n, nbytes);
+<a id='L848' name='L848'></a>   848   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *p = <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (str);
+<a id='L849' name='L849'></a>   849   <strong class='reserved'>for</strong> (ptrdiff_t i = 0; i &lt; n; i++)
+<a id='L850' name='L850'></a>   850     <em class='brace'>{</em>
+<a id='L851' name='L851'></a>   851       <a href='../D/10865.html' title='Multiple defined in 5 places.'>eassume</a> (<a href='../S/2218.html#L167' title='Defined at 167 in src/character.h.'>CHARACTERP</a> (<a href='../S/4039.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[i]));
+<a id='L852' name='L852'></a>   852       <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (<a href='../S/4039.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[i]);
+<a id='L853' name='L853'></a>   853       p += <a href='../S/2218.html#L228' title='Defined at 228 in src/character.h.'>CHAR_STRING</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>, p);
+<a id='L854' name='L854'></a>   854     <em class='brace'>}</em>
+<a id='L855' name='L855'></a>   855   <strong class='reserved'>return</strong> str;
+<a id='L856' name='L856'></a>   856 <em class='brace'>}</em>
+<a id='L857' name='L857'></a>   857 
+<a id='L858' name='L858'></a>   858 <a href='../D/1456.html' title='Multiple defined in 1013 places.'>DEFUN</a> ("unibyte-string", Funibyte_string, Sunibyte_string, 0, <a href='../D/3886.html' title='Multiple defined in 2 places.'>MANY</a>, 0,
+<a id='L859' name='L859'></a>   859        doc: <em class='comment'>/* Concatenate all the argument bytes and make the result a unibyte string.</em>
+<a id='L860' name='L860'></a>   860 <em class='comment'>usage: (unibyte-string &amp;rest BYTES)  */</em>)
+<a id='L861' name='L861'></a>   861   (ptrdiff_t n, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *<a href='../S/4039.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>)
+<a id='L862' name='L862'></a>   862 <em class='brace'>{</em>
+<a id='L863' name='L863'></a>   863   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> str = <a href='../S/2350.html#L2590' title='Defined at 2590 in src/alloc.c.'>make_uninit_string</a> (n);
+<a id='L864' name='L864'></a>   864   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *p = <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (str);
+<a id='L865' name='L865'></a>   865   <strong class='reserved'>for</strong> (ptrdiff_t i = 0; i &lt; n; i++)
+<a id='L866' name='L866'></a>   866     *p++ = <a href='../S/2237.html#L448' title='Defined at 448 in src/bignum.c.'>check_integer_range</a> (<a href='../S/4039.html#L30' title='Defined at 30 in test/manual/etags/c-src/h.h.'>args</a>[i], 0, 255);
+<a id='L867' name='L867'></a>   867   <strong class='reserved'>return</strong> str;
+<a id='L868' name='L868'></a>   868 <em class='brace'>}</em>
+<a id='L869' name='L869'></a>   869 
+<a id='L870' name='L870'></a>   870 <a href='../R/1363.html' title='Multiple referred from 830 places.'>DEFUN</a> ("char-resolve-modifiers", Fchar_resolve_modifiers,
+<a id='L871' name='L871'></a>   871        Schar_resolve_modifiers, 1, 1, 0,
+<a id='L872' name='L872'></a>   872        doc: <em class='comment'>/* Resolve modifiers in the character CHAR.</em>
+<a id='L873' name='L873'></a>   873 <em class='comment'>The value is a character with modifiers resolved into the character</em>
+<a id='L874' name='L874'></a>   874 <em class='comment'>code.  Unresolved modifiers are kept in the value.</em>
+<a id='L875' name='L875'></a>   875 <em class='comment'>usage: (char-resolve-modifiers CHAR)  */</em>)
+<a id='L876' name='L876'></a>   876   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> character)
+<a id='L877' name='L877'></a>   877 <em class='brace'>{</em>
+<a id='L878' name='L878'></a>   878   <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L879' name='L879'></a>   879 
+<a id='L880' name='L880'></a>   880   <a href='../S/2267.html#L462' title='Defined at 462 in src/lisp.h.'>CHECK_FIXNUM</a> (character);
+<a id='L881' name='L881'></a>   881   <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (character);
+<a id='L882' name='L882'></a>   882   <strong class='reserved'>return</strong> <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../D/9564.html' title='Multiple defined in 2 places.'>char_resolve_modifier_mask</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>));
+<a id='L883' name='L883'></a>   883 <em class='brace'>}</em>
+<a id='L884' name='L884'></a>   884 
+<a id='L885' name='L885'></a>   885 <a href='../D/1456.html' title='Multiple defined in 1013 places.'>DEFUN</a> ("get-byte", Fget_byte, Sget_byte, 0, 2, 0,
+<a id='L886' name='L886'></a>   886        doc: <em class='comment'>/* Return a byte value of a character at point.</em>
+<a id='L887' name='L887'></a>   887 <em class='comment'>Optional 1st arg POSITION, if non-nil, is a position of a character to get</em>
+<a id='L888' name='L888'></a>   888 <em class='comment'>a byte value.</em>
+<a id='L889' name='L889'></a>   889 <em class='comment'>Optional 2nd arg STRING, if non-nil, is a string of which first</em>
+<a id='L890' name='L890'></a>   890 <em class='comment'>character is a target to get a byte value.  In this case, POSITION, if</em>
+<a id='L891' name='L891'></a>   891 <em class='comment'>non-nil, is an index of a target character in the string.</em>
+<a id='L892' name='L892'></a>   892 <em class='comment'></em>
+<a id='L893' name='L893'></a>   893 <em class='comment'>If the current buffer (or STRING) is multibyte, and the target</em>
+<a id='L894' name='L894'></a>   894 <em class='comment'>character is not ASCII nor 8-bit character, an error is signaled.  */</em>)
+<a id='L895' name='L895'></a>   895   (<a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>, <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> string)
+<a id='L896' name='L896'></a>   896 <em class='brace'>{</em>
+<a id='L897' name='L897'></a>   897   <strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L898' name='L898'></a>   898   ptrdiff_t pos;
+<a id='L899' name='L899'></a>   899   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *p;
+<a id='L900' name='L900'></a>   900 
+<a id='L901' name='L901'></a>   901   <strong class='reserved'>if</strong> (<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (string))
+<a id='L902' name='L902'></a>   902     <em class='brace'>{</em>
+<a id='L903' name='L903'></a>   903       <strong class='reserved'>if</strong> (<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>))
+<a id='L904' name='L904'></a>   904         <em class='brace'>{</em>
+<a id='L905' name='L905'></a>   905           p = <a href='../S/2130.html#L78' title='Defined at 78 in src/buffer.h.'>PT_ADDR</a>;
+<a id='L906' name='L906'></a>   906         <em class='brace'>}</em>
+<a id='L907' name='L907'></a>   907       <strong class='reserved'>else</strong>
+<a id='L908' name='L908'></a>   908         <em class='brace'>{</em>
+<a id='L909' name='L909'></a>   909           <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> fixed_pos = <a href='../S/2151.html#L145' title='Defined at 145 in src/buffer.c.'>fix_position</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>);
+<a id='L910' name='L910'></a>   910           <strong class='reserved'>if</strong> (! (<a href='../S/2130.html#L41' title='Defined at 41 in src/buffer.h.'>BEGV</a> &lt;= fixed_pos &amp;&amp; fixed_pos &lt; <a href='../S/2130.html#L54' title='Defined at 54 in src/buffer.h.'>ZV</a>))
+<a id='L911' name='L911'></a>   911             <a href='../S/2167.html#L159' title='Defined at 159 in src/data.c.'>args_out_of_range_3</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>, <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../S/2130.html#L41' title='Defined at 41 in src/buffer.h.'>BEGV</a>), <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../S/2130.html#L54' title='Defined at 54 in src/buffer.h.'>ZV</a>));
+<a id='L912' name='L912'></a>   912           pos = fixed_pos;
+<a id='L913' name='L913'></a>   913           p = <a href='../S/2130.html#L1047' title='Defined at 1047 in src/buffer.h.'>CHAR_POS_ADDR</a> (pos);
+<a id='L914' name='L914'></a>   914         <em class='brace'>}</em>
+<a id='L915' name='L915'></a>   915       <strong class='reserved'>if</strong> (<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2130.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2352.html#L133' title='Defined at 133 in src/thread.h.'>current_buffer</a>, enable_multibyte_characters)))
+<a id='L916' name='L916'></a>   916         <strong class='reserved'>return</strong> <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (*p);
+<a id='L917' name='L917'></a>   917     <em class='brace'>}</em>
+<a id='L918' name='L918'></a>   918   <strong class='reserved'>else</strong>
+<a id='L919' name='L919'></a>   919     <em class='brace'>{</em>
+<a id='L920' name='L920'></a>   920       <a href='../S/2267.html#L1603' title='Defined at 1603 in src/lisp.h.'>CHECK_STRING</a> (string);
+<a id='L921' name='L921'></a>   921       <strong class='reserved'>if</strong> (<a href='../D/4348.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>))
+<a id='L922' name='L922'></a>   922         <em class='brace'>{</em>
+<a id='L923' name='L923'></a>   923           p = <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (string);
+<a id='L924' name='L924'></a>   924         <em class='brace'>}</em>
+<a id='L925' name='L925'></a>   925       <strong class='reserved'>else</strong>
+<a id='L926' name='L926'></a>   926         <em class='brace'>{</em>
+<a id='L927' name='L927'></a>   927           <a href='../S/2267.html#L3133' title='Defined at 3133 in src/lisp.h.'>CHECK_FIXNAT</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>);
+<a id='L928' name='L928'></a>   928           <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>) &gt;= <a href='../D/5435.html' title='Multiple defined in 2 places.'>SCHARS</a> (string))
+<a id='L929' name='L929'></a>   929             <a href='../S/2167.html#L153' title='Defined at 153 in src/data.c.'>args_out_of_range</a> (string, <a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>);
+<a id='L930' name='L930'></a>   930           pos = <a href='../S/2267.html#L3015' title='Defined at 3015 in src/lisp.h.'>XFIXNAT</a> (<a href='../S/2361.html#L24' title='Defined at 24 in src/indent.h.'>position</a>);
+<a id='L931' name='L931'></a>   931           p = <a href='../D/5539.html' title='Multiple defined in 2 places.'>SDATA</a> (string) + <a href='../S/2320.html#L1186' title='Defined at 1186 in src/fns.c.'>string_char_to_byte</a> (string, pos);
+<a id='L932' name='L932'></a>   932         <em class='brace'>}</em>
+<a id='L933' name='L933'></a>   933       <strong class='reserved'>if</strong> (! <a href='../D/5975.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (string))
+<a id='L934' name='L934'></a>   934         <strong class='reserved'>return</strong> <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (*p);
+<a id='L935' name='L935'></a>   935     <em class='brace'>}</em>
+<a id='L936' name='L936'></a>   936   <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L415' title='Defined at 415 in src/character.h.'>STRING_CHAR</a> (p);
+<a id='L937' name='L937'></a>   937   <strong class='reserved'>if</strong> (<a href='../S/2218.html#L106' title='Defined at 106 in src/character.h.'>CHAR_BYTE8_P</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>))
+<a id='L938' name='L938'></a>   938     <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a> = <a href='../S/2218.html#L126' title='Defined at 126 in src/character.h.'>CHAR_TO_BYTE8</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L939' name='L939'></a>   939   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (! <a href='../D/220.html' title='Multiple defined in 2 places.'>ASCII_CHAR_P</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>))
+<a id='L940' name='L940'></a>   940     <a href='../D/11138.html' title='Multiple defined in 7 places.'>error</a> ("Not an ASCII nor an 8-bit character: %d", <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L941' name='L941'></a>   941   <strong class='reserved'>return</strong> <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L942' name='L942'></a>   942 <em class='brace'>}</em>
+<a id='L943' name='L943'></a>   943 
+<a id='L944' name='L944'></a>   944 <em class='comment'>/* Return true if C is an alphabetic character.  */</em>
+<a id='L945' name='L945'></a>   945 <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L946' name='L946'></a>   946 <a href='../R/7571.html' title='Multiple referred from 2 places.'>alphabeticp</a> (<strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L947' name='L947'></a>   947 <em class='brace'>{</em>
+<a id='L948' name='L948'></a>   948   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> category = <a href='../D/918.html' title='Multiple defined in 2 places.'>CHAR_TABLE_REF</a> (Vunicode_category_table, <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L949' name='L949'></a>   949   <strong class='reserved'>if</strong> (! <a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (category))
+<a id='L950' name='L950'></a>   950     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L951' name='L951'></a>   951   <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> gen_cat = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (category);
+<a id='L952' name='L952'></a>   952 
+<a id='L953' name='L953'></a>   953   <em class='comment'>/* See UTS #18.  There are additional characters that should be</em>
+<a id='L954' name='L954'></a>   954 <em class='comment'>     here, those designated as Other_uppercase, Other_lowercase,</em>
+<a id='L955' name='L955'></a>   955 <em class='comment'>     and Other_alphabetic; FIXME.  */</em>
+<a id='L956' name='L956'></a>   956   <strong class='reserved'>return</strong> (gen_cat == <a href='../S/2218.html#L532' title='Defined at 532 in src/character.h.'>UNICODE_CATEGORY_Lu</a>
+<a id='L957' name='L957'></a>   957           || gen_cat == <a href='../S/2218.html#L533' title='Defined at 533 in src/character.h.'>UNICODE_CATEGORY_Ll</a>
+<a id='L958' name='L958'></a>   958           || gen_cat == <a href='../S/2218.html#L534' title='Defined at 534 in src/character.h.'>UNICODE_CATEGORY_Lt</a>
+<a id='L959' name='L959'></a>   959           || gen_cat == <a href='../S/2218.html#L535' title='Defined at 535 in src/character.h.'>UNICODE_CATEGORY_Lm</a>
+<a id='L960' name='L960'></a>   960           || gen_cat == <a href='../S/2218.html#L536' title='Defined at 536 in src/character.h.'>UNICODE_CATEGORY_Lo</a>
+<a id='L961' name='L961'></a>   961           || gen_cat == <a href='../S/2218.html#L537' title='Defined at 537 in src/character.h.'>UNICODE_CATEGORY_Mn</a>
+<a id='L962' name='L962'></a>   962           || gen_cat == <a href='../S/2218.html#L538' title='Defined at 538 in src/character.h.'>UNICODE_CATEGORY_Mc</a>
+<a id='L963' name='L963'></a>   963           || gen_cat == <a href='../S/2218.html#L539' title='Defined at 539 in src/character.h.'>UNICODE_CATEGORY_Me</a>
+<a id='L964' name='L964'></a>   964           || gen_cat == <a href='../S/2218.html#L541' title='Defined at 541 in src/character.h.'>UNICODE_CATEGORY_Nl</a>);
+<a id='L965' name='L965'></a>   965 <em class='brace'>}</em>
+<a id='L966' name='L966'></a>   966 
+<a id='L967' name='L967'></a>   967 <em class='comment'>/* Return true if C is an alphabetic or decimal-number character.  */</em>
+<a id='L968' name='L968'></a>   968 <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L969' name='L969'></a>   969 <a href='../R/7572.html' title='Multiple referred from 2 places.'>alphanumericp</a> (<strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L970' name='L970'></a>   970 <em class='brace'>{</em>
+<a id='L971' name='L971'></a>   971   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> category = <a href='../D/918.html' title='Multiple defined in 2 places.'>CHAR_TABLE_REF</a> (Vunicode_category_table, <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L972' name='L972'></a>   972   <strong class='reserved'>if</strong> (! <a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (category))
+<a id='L973' name='L973'></a>   973     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L974' name='L974'></a>   974   <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> gen_cat = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (category);
+<a id='L975' name='L975'></a>   975 
+<a id='L976' name='L976'></a>   976   <em class='comment'>/* See UTS #18.  Same comment as for alphabeticp applies.  FIXME. */</em>
+<a id='L977' name='L977'></a>   977   <strong class='reserved'>return</strong> (gen_cat == <a href='../S/2218.html#L532' title='Defined at 532 in src/character.h.'>UNICODE_CATEGORY_Lu</a>
+<a id='L978' name='L978'></a>   978           || gen_cat == <a href='../S/2218.html#L533' title='Defined at 533 in src/character.h.'>UNICODE_CATEGORY_Ll</a>
+<a id='L979' name='L979'></a>   979           || gen_cat == <a href='../S/2218.html#L534' title='Defined at 534 in src/character.h.'>UNICODE_CATEGORY_Lt</a>
+<a id='L980' name='L980'></a>   980           || gen_cat == <a href='../S/2218.html#L535' title='Defined at 535 in src/character.h.'>UNICODE_CATEGORY_Lm</a>
+<a id='L981' name='L981'></a>   981           || gen_cat == <a href='../S/2218.html#L536' title='Defined at 536 in src/character.h.'>UNICODE_CATEGORY_Lo</a>
+<a id='L982' name='L982'></a>   982           || gen_cat == <a href='../S/2218.html#L537' title='Defined at 537 in src/character.h.'>UNICODE_CATEGORY_Mn</a>
+<a id='L983' name='L983'></a>   983           || gen_cat == <a href='../S/2218.html#L538' title='Defined at 538 in src/character.h.'>UNICODE_CATEGORY_Mc</a>
+<a id='L984' name='L984'></a>   984           || gen_cat == <a href='../S/2218.html#L539' title='Defined at 539 in src/character.h.'>UNICODE_CATEGORY_Me</a>
+<a id='L985' name='L985'></a>   985           || gen_cat == <a href='../S/2218.html#L541' title='Defined at 541 in src/character.h.'>UNICODE_CATEGORY_Nl</a>
+<a id='L986' name='L986'></a>   986           || gen_cat == <a href='../S/2218.html#L540' title='Defined at 540 in src/character.h.'>UNICODE_CATEGORY_Nd</a>);
+<a id='L987' name='L987'></a>   987 <em class='brace'>}</em>
+<a id='L988' name='L988'></a>   988 
+<a id='L989' name='L989'></a>   989 <em class='comment'>/* Return true if C is a graphic character.  */</em>
+<a id='L990' name='L990'></a>   990 <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L991' name='L991'></a>   991 <a href='../R/11475.html' title='Multiple referred from 2 places.'>graphicp</a> (<strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L992' name='L992'></a>   992 <em class='brace'>{</em>
+<a id='L993' name='L993'></a>   993   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> category = <a href='../D/918.html' title='Multiple defined in 2 places.'>CHAR_TABLE_REF</a> (Vunicode_category_table, <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L994' name='L994'></a>   994   <strong class='reserved'>if</strong> (! <a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (category))
+<a id='L995' name='L995'></a>   995     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L996' name='L996'></a>   996   <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> gen_cat = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (category);
+<a id='L997' name='L997'></a>   997 
+<a id='L998' name='L998'></a>   998   <em class='comment'>/* See UTS #18.  */</em>
+<a id='L999' name='L999'></a>   999   <strong class='reserved'>return</strong> (!(gen_cat == <a href='../S/2218.html#L554' title='Defined at 554 in src/character.h.'>UNICODE_CATEGORY_Zs</a> <em class='comment'>/* space separator */</em>
+<a id='L1000' name='L1000'></a>  1000             || gen_cat == <a href='../S/2218.html#L555' title='Defined at 555 in src/character.h.'>UNICODE_CATEGORY_Zl</a> <em class='comment'>/* line separator */</em>
+<a id='L1001' name='L1001'></a>  1001             || gen_cat == <a href='../S/2218.html#L556' title='Defined at 556 in src/character.h.'>UNICODE_CATEGORY_Zp</a> <em class='comment'>/* paragraph separator */</em>
+<a id='L1002' name='L1002'></a>  1002             || gen_cat == <a href='../S/2218.html#L557' title='Defined at 557 in src/character.h.'>UNICODE_CATEGORY_Cc</a> <em class='comment'>/* control */</em>
+<a id='L1003' name='L1003'></a>  1003             || gen_cat == <a href='../S/2218.html#L559' title='Defined at 559 in src/character.h.'>UNICODE_CATEGORY_Cs</a> <em class='comment'>/* surrogate */</em>
+<a id='L1004' name='L1004'></a>  1004             || gen_cat == <a href='../S/2218.html#L561' title='Defined at 561 in src/character.h.'>UNICODE_CATEGORY_Cn</a>)); <em class='comment'>/* unassigned */</em>
+<a id='L1005' name='L1005'></a>  1005 <em class='brace'>}</em>
+<a id='L1006' name='L1006'></a>  1006 
+<a id='L1007' name='L1007'></a>  1007 <em class='comment'>/* Return true if C is a printable character.  */</em>
+<a id='L1008' name='L1008'></a>  1008 <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L1009' name='L1009'></a>  1009 <a href='../R/14556.html' title='Multiple referred from 2 places.'>printablep</a> (<strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L1010' name='L1010'></a>  1010 <em class='brace'>{</em>
+<a id='L1011' name='L1011'></a>  1011   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> category = <a href='../D/918.html' title='Multiple defined in 2 places.'>CHAR_TABLE_REF</a> (Vunicode_category_table, <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L1012' name='L1012'></a>  1012   <strong class='reserved'>if</strong> (! <a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (category))
+<a id='L1013' name='L1013'></a>  1013     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L1014' name='L1014'></a>  1014   <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> gen_cat = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (category);
+<a id='L1015' name='L1015'></a>  1015 
+<a id='L1016' name='L1016'></a>  1016   <em class='comment'>/* See UTS #18.  */</em>
+<a id='L1017' name='L1017'></a>  1017   <strong class='reserved'>return</strong> (!(gen_cat == <a href='../S/2218.html#L557' title='Defined at 557 in src/character.h.'>UNICODE_CATEGORY_Cc</a> <em class='comment'>/* control */</em>
+<a id='L1018' name='L1018'></a>  1018             || gen_cat == <a href='../S/2218.html#L559' title='Defined at 559 in src/character.h.'>UNICODE_CATEGORY_Cs</a> <em class='comment'>/* surrogate */</em>
+<a id='L1019' name='L1019'></a>  1019             || gen_cat == <a href='../S/2218.html#L561' title='Defined at 561 in src/character.h.'>UNICODE_CATEGORY_Cn</a>)); <em class='comment'>/* unassigned */</em>
+<a id='L1020' name='L1020'></a>  1020 <em class='brace'>}</em>
+<a id='L1021' name='L1021'></a>  1021 
+<a id='L1022' name='L1022'></a>  1022 <em class='comment'>/* Return true if C is graphic character that can be printed independently.  */</em>
+<a id='L1023' name='L1023'></a>  1023 <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L1024' name='L1024'></a>  1024 <a href='../R/11474.html' title='Multiple referred from 2 places.'>graphic_base_p</a> (<strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L1025' name='L1025'></a>  1025 <em class='brace'>{</em>
+<a id='L1026' name='L1026'></a>  1026   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> category = <a href='../D/918.html' title='Multiple defined in 2 places.'>CHAR_TABLE_REF</a> (Vunicode_category_table, <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L1027' name='L1027'></a>  1027   <strong class='reserved'>if</strong> (! <a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (category))
+<a id='L1028' name='L1028'></a>  1028     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L1029' name='L1029'></a>  1029   <a href='../D/1718.html' title='Multiple defined in 11 places.'>EMACS_INT</a> gen_cat = <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (category);
+<a id='L1030' name='L1030'></a>  1030 
+<a id='L1031' name='L1031'></a>  1031   <strong class='reserved'>return</strong> (!(gen_cat == <a href='../S/2218.html#L537' title='Defined at 537 in src/character.h.'>UNICODE_CATEGORY_Mn</a>       <em class='comment'>/* mark, nonspacing */</em>
+<a id='L1032' name='L1032'></a>  1032             || gen_cat == <a href='../S/2218.html#L538' title='Defined at 538 in src/character.h.'>UNICODE_CATEGORY_Mc</a>    <em class='comment'>/* mark, combining */</em>
+<a id='L1033' name='L1033'></a>  1033             || gen_cat == <a href='../S/2218.html#L539' title='Defined at 539 in src/character.h.'>UNICODE_CATEGORY_Me</a>    <em class='comment'>/* mark, enclosing */</em>
+<a id='L1034' name='L1034'></a>  1034             || gen_cat == <a href='../S/2218.html#L554' title='Defined at 554 in src/character.h.'>UNICODE_CATEGORY_Zs</a>    <em class='comment'>/* separator, space */</em>
+<a id='L1035' name='L1035'></a>  1035             || gen_cat == <a href='../S/2218.html#L555' title='Defined at 555 in src/character.h.'>UNICODE_CATEGORY_Zl</a>    <em class='comment'>/* separator, line */</em>
+<a id='L1036' name='L1036'></a>  1036             || gen_cat == <a href='../S/2218.html#L556' title='Defined at 556 in src/character.h.'>UNICODE_CATEGORY_Zp</a>    <em class='comment'>/* separator, paragraph */</em>
+<a id='L1037' name='L1037'></a>  1037             || gen_cat == <a href='../S/2218.html#L557' title='Defined at 557 in src/character.h.'>UNICODE_CATEGORY_Cc</a>    <em class='comment'>/* other, control */</em>
+<a id='L1038' name='L1038'></a>  1038             || gen_cat == <a href='../S/2218.html#L559' title='Defined at 559 in src/character.h.'>UNICODE_CATEGORY_Cs</a>    <em class='comment'>/* other, surrogate */</em>
+<a id='L1039' name='L1039'></a>  1039             || gen_cat == <a href='../S/2218.html#L558' title='Defined at 558 in src/character.h.'>UNICODE_CATEGORY_Cf</a>    <em class='comment'>/* other, format */</em>
+<a id='L1040' name='L1040'></a>  1040             || gen_cat == <a href='../S/2218.html#L561' title='Defined at 561 in src/character.h.'>UNICODE_CATEGORY_Cn</a>)); <em class='comment'>/* other, unassigned */</em>
+<a id='L1041' name='L1041'></a>  1041 <em class='brace'>}</em>
+<a id='L1042' name='L1042'></a>  1042 
+<a id='L1043' name='L1043'></a>  1043 <em class='comment'>/* Return true if C is a horizontal whitespace character, as defined</em>
+<a id='L1044' name='L1044'></a>  1044 <em class='comment'>   by https://www.unicode.org/reports/tr18/tr18-19.html#blank.  */</em>
+<a id='L1045' name='L1045'></a>  1045 <a href='../D/9262.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L1046' name='L1046'></a>  1046 <a href='../R/8341.html' title='Multiple referred from 3 places.'>blankp</a> (<strong class='reserved'>int</strong> <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L1047' name='L1047'></a>  1047 <em class='brace'>{</em>
+<a id='L1048' name='L1048'></a>  1048   <a href='../D/3833.html' title='Multiple defined in 11 places.'>Lisp_Object</a> category = <a href='../D/918.html' title='Multiple defined in 2 places.'>CHAR_TABLE_REF</a> (Vunicode_category_table, <a href='../D/9438.html' title='Multiple defined in 2 places.'>c</a>);
+<a id='L1049' name='L1049'></a>  1049   <strong class='reserved'>if</strong> (! <a href='../S/2267.html#L469' title='Defined at 469 in src/lisp.h.'>FIXNUMP</a> (category))
+<a id='L1050' name='L1050'></a>  1050     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L1051' name='L1051'></a>  1051 
+<a id='L1052' name='L1052'></a>  1052   <strong class='reserved'>return</strong> <a href='../S/2267.html#L1285' title='Defined at 1285 in src/lisp.h.'>XFIXNUM</a> (category) == <a href='../S/2218.html#L554' title='Defined at 554 in src/character.h.'>UNICODE_CATEGORY_Zs</a>; <em class='comment'>/* separator, space */</em>
+<a id='L1053' name='L1053'></a>  1053 <em class='brace'>}</em>
+<a id='L1054' name='L1054'></a>  1054 
+<a id='L1055' name='L1055'></a>  1055 <em class='comment'>/* hexdigit[C] is one greater than C's numeric value if C is a</em>
+<a id='L1056' name='L1056'></a>  1056 <em class='comment'>   hexadecimal digit, zero otherwise.  */</em>
+<a id='L1057' name='L1057'></a>  1057 <strong class='reserved'>signed</strong> <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> hexdigit[UCHAR_MAX + 1] =
+<a id='L1058' name='L1058'></a>  1058   <em class='brace'>{</em>
+<a id='L1059' name='L1059'></a>  1059     ['0'] = 1 + 0, ['1'] = 1 + 1, ['2'] = 1 + 2, ['3'] = 1 + 3, ['4'] = 1 + 4,
+<a id='L1060' name='L1060'></a>  1060     ['5'] = 1 + 5, ['6'] = 1 + 6, ['7'] = 1 + 7, ['8'] = 1 + 8, ['9'] = 1 + 9,
+<a id='L1061' name='L1061'></a>  1061     ['A'] = 1 + 10, ['B'] = 1 + 11, ['C'] = 1 + 12,
+<a id='L1062' name='L1062'></a>  1062     ['D'] = 1 + 13, ['E'] = 1 + 14, ['F'] = 1 + 15,
+<a id='L1063' name='L1063'></a>  1063     ['a'] = 1 + 10, ['b'] = 1 + 11, ['c'] = 1 + 12,
+<a id='L1064' name='L1064'></a>  1064     ['d'] = 1 + 13, ['e'] = 1 + 14, ['f'] = 1 + 15
+<a id='L1065' name='L1065'></a>  1065   <em class='brace'>}</em>;
+<a id='L1066' name='L1066'></a>  1066 
+<a id='L1067' name='L1067'></a>  1067 <strong class='reserved'>void</strong>
+<a id='L1068' name='L1068'></a>  1068 <a href='../R/16588.html' title='Multiple referred from 3 places.'>syms_of_character</a> (<strong class='reserved'>void</strong>)
+<a id='L1069' name='L1069'></a>  1069 <em class='brace'>{</em>
+<a id='L1070' name='L1070'></a>  1070   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qcharacterp, "characterp");
+<a id='L1071' name='L1071'></a>  1071   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qauto_fill_chars, "auto-fill-chars");
+<a id='L1072' name='L1072'></a>  1072 
+<a id='L1073' name='L1073'></a>  1073   <a href='../S/2350.html#L5999' title='Defined at 5999 in src/alloc.c.'>staticpro</a> (&amp;Vchar_unify_table);
+<a id='L1074' name='L1074'></a>  1074   Vchar_unify_table = Qnil;
+<a id='L1075' name='L1075'></a>  1075 
+<a id='L1076' name='L1076'></a>  1076   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Smax_char);
+<a id='L1077' name='L1077'></a>  1077   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Scharacterp);
+<a id='L1078' name='L1078'></a>  1078   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Sunibyte_char_to_multibyte);
+<a id='L1079' name='L1079'></a>  1079   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Smultibyte_char_to_unibyte);
+<a id='L1080' name='L1080'></a>  1080   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Schar_width);
+<a id='L1081' name='L1081'></a>  1081   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Sstring_width);
+<a id='L1082' name='L1082'></a>  1082   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;<a href='../S/2142.html#L51' title='Defined at 51 in src/syntax.h.'>Sstring</a>);
+<a id='L1083' name='L1083'></a>  1083   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Sunibyte_string);
+<a id='L1084' name='L1084'></a>  1084   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Schar_resolve_modifiers);
+<a id='L1085' name='L1085'></a>  1085   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Sget_byte);
+<a id='L1086' name='L1086'></a>  1086 
+<a id='L1087' name='L1087'></a>  1087   <a href='../D/1476.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("translation-table-vector",  Vtranslation_table_vector,
+<a id='L1088' name='L1088'></a>  1088                doc: <em class='comment'>/*</em>
+<a id='L1089' name='L1089'></a>  1089 <em class='comment'>Vector recording all translation tables ever defined.</em>
+<a id='L1090' name='L1090'></a>  1090 <em class='comment'>Each element is a pair (SYMBOL . TABLE) relating the table to the</em>
+<a id='L1091' name='L1091'></a>  1091 <em class='comment'>symbol naming it.  The ID of a translation table is an index into this vector.  */</em>);
+<a id='L1092' name='L1092'></a>  1092   Vtranslation_table_vector = <a href='../S/2267.html#L4400' title='Defined at 4400 in src/lisp.h.'>make_nil_vector</a> (16);
+<a id='L1093' name='L1093'></a>  1093 
+<a id='L1094' name='L1094'></a>  1094   <a href='../D/1476.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("auto-fill-chars", Vauto_fill_chars,
+<a id='L1095' name='L1095'></a>  1095                doc: <em class='comment'>/*</em>
+<a id='L1096' name='L1096'></a>  1096 <em class='comment'>A char-table for characters which invoke auto-filling.</em>
+<a id='L1097' name='L1097'></a>  1097 <em class='comment'>Such characters have value t in this table.  */</em>);
+<a id='L1098' name='L1098'></a>  1098   Vauto_fill_chars = Fmake_char_table (Qauto_fill_chars, Qnil);
+<a id='L1099' name='L1099'></a>  1099   <a href='../D/920.html' title='Multiple defined in 2 places.'>CHAR_TABLE_SET</a> (Vauto_fill_chars, ' ', Qt);
+<a id='L1100' name='L1100'></a>  1100   <a href='../D/920.html' title='Multiple defined in 2 places.'>CHAR_TABLE_SET</a> (Vauto_fill_chars, '\n', Qt);
+<a id='L1101' name='L1101'></a>  1101 
+<a id='L1102' name='L1102'></a>  1102   <a href='../D/1476.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("char-width-table", Vchar_width_table,
+<a id='L1103' name='L1103'></a>  1103                doc: <em class='comment'>/*</em>
+<a id='L1104' name='L1104'></a>  1104 <em class='comment'>A char-table for width (columns) of each character.  */</em>);
+<a id='L1105' name='L1105'></a>  1105   Vchar_width_table = Fmake_char_table (Qnil, <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (1));
+<a id='L1106' name='L1106'></a>  1106   <a href='../S/2190.html#L464' title='Defined at 464 in src/chartab.c.'>char_table_set_range</a> (Vchar_width_table, 0x80, 0x9F, <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (4));
+<a id='L1107' name='L1107'></a>  1107   <a href='../S/2190.html#L464' title='Defined at 464 in src/chartab.c.'>char_table_set_range</a> (Vchar_width_table, <a href='../S/2218.html#L60' title='Defined at 60 in src/character.h.'>MAX_5_BYTE_CHAR</a> + 1, <a href='../S/2218.html#L50' title='Defined at 50 in src/character.h.'>MAX_CHAR</a>,
+<a id='L1108' name='L1108'></a>  1108                         <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (4));
+<a id='L1109' name='L1109'></a>  1109 
+<a id='L1110' name='L1110'></a>  1110   <a href='../D/1476.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("printable-chars", Vprintable_chars,
+<a id='L1111' name='L1111'></a>  1111                doc: <em class='comment'>/* A char-table for each printable character.  */</em>);
+<a id='L1112' name='L1112'></a>  1112   Vprintable_chars = Fmake_char_table (Qnil, Qnil);
+<a id='L1113' name='L1113'></a>  1113   Fset_char_table_range (Vprintable_chars,
+<a id='L1114' name='L1114'></a>  1114                          Fcons (<a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (32), <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (126)), Qt);
+<a id='L1115' name='L1115'></a>  1115   Fset_char_table_range (Vprintable_chars,
+<a id='L1116' name='L1116'></a>  1116                          Fcons (<a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (160),
+<a id='L1117' name='L1117'></a>  1117                                 <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (<a href='../S/2218.html#L60' title='Defined at 60 in src/character.h.'>MAX_5_BYTE_CHAR</a>)), Qt);
+<a id='L1118' name='L1118'></a>  1118 
+<a id='L1119' name='L1119'></a>  1119   <a href='../D/1476.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("char-script-table", Vchar_script_table,
+<a id='L1120' name='L1120'></a>  1120                doc: <em class='comment'>/* Char table of script symbols.</em>
+<a id='L1121' name='L1121'></a>  1121 <em class='comment'>It has one extra slot whose value is a list of script symbols.  */</em>);
+<a id='L1122' name='L1122'></a>  1122 
+<a id='L1123' name='L1123'></a>  1123   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qchar_script_table, "char-script-table");
+<a id='L1124' name='L1124'></a>  1124   Fput (Qchar_script_table, Qchar_table_extra_slots, <a href='../D/14092.html' title='Multiple defined in 2 places.'>make_fixnum</a> (1));
+<a id='L1125' name='L1125'></a>  1125   Vchar_script_table = Fmake_char_table (Qchar_script_table, Qnil);
+<a id='L1126' name='L1126'></a>  1126 
+<a id='L1127' name='L1127'></a>  1127   <a href='../D/1476.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("script-representative-chars", Vscript_representative_chars,
+<a id='L1128' name='L1128'></a>  1128                doc: <em class='comment'>/* Alist of scripts vs the representative characters.</em>
+<a id='L1129' name='L1129'></a>  1129 <em class='comment'>Each element is a cons (SCRIPT . CHARS).</em>
+<a id='L1130' name='L1130'></a>  1130 <em class='comment'>SCRIPT is a symbol representing a script or a subgroup of a script.</em>
+<a id='L1131' name='L1131'></a>  1131 <em class='comment'>CHARS is a list or a vector of characters.</em>
+<a id='L1132' name='L1132'></a>  1132 <em class='comment'>If it is a list, all characters in the list are necessary for supporting SCRIPT.</em>
+<a id='L1133' name='L1133'></a>  1133 <em class='comment'>If it is a vector, one of the characters in the vector is necessary.</em>
+<a id='L1134' name='L1134'></a>  1134 <em class='comment'>This variable is used to find a font for a specific script.  */</em>);
+<a id='L1135' name='L1135'></a>  1135   Vscript_representative_chars = Qnil;
+<a id='L1136' name='L1136'></a>  1136 
+<a id='L1137' name='L1137'></a>  1137   <a href='../D/1476.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("unicode-category-table", Vunicode_category_table,
+<a id='L1138' name='L1138'></a>  1138                doc: <em class='comment'>/* Char table of Unicode's "General Category".</em>
+<a id='L1139' name='L1139'></a>  1139 <em class='comment'>All Unicode characters have one of the following values (symbol):</em>
+<a id='L1140' name='L1140'></a>  1140 <em class='comment'>  Lu, Ll, Lt, Lm, Lo, Mn, Mc, Me, Nd, Nl, No, Pc, Pd, Ps, Pe, Pi, Pf, Po,</em>
+<a id='L1141' name='L1141'></a>  1141 <em class='comment'>  Sm, Sc, Sk, So, Zs, Zl, Zp, Cc, Cf, Cs, Co, Cn</em>
+<a id='L1142' name='L1142'></a>  1142 <em class='comment'>See The Unicode Standard for the meaning of those values.  */</em>);
+<a id='L1143' name='L1143'></a>  1143   <em class='comment'>/* The correct char-table is setup in characters.el.  */</em>
+<a id='L1144' name='L1144'></a>  1144   Vunicode_category_table = Qnil;
+<a id='L1145' name='L1145'></a>  1145 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L52'>[^]</a><a href='#L1068'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

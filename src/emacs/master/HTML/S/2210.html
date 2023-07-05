@@ -1,0 +1,342 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/process.h</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4596.html'>src</a>/process.h</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L208'>[^]</a><a href='#L248'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'><a href='../J/456.html' title='Multiple included from 23 places.'>INCLUDED FROM</a></h2>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L208' title='Defined at 208.'>PROCESSP</a></li>
+<li><a href='#L214' title='Defined at 214.'>CHECK_PROCESS</a></li>
+<li><a href='#L220' title='Defined at 220.'>XPROCESS</a></li>
+<li><a href='#L235' title='Defined at 235.'>pset_childp</a></li>
+<li><a href='#L241' title='Defined at 241.'>pset_status</a></li>
+<li><a href='#L248' title='Defined at 248.'>pset_gnutls_cred_type</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Definitions for asynchronous process control in GNU Emacs.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1985, 1994, 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L18' name='L18'></a>    18 
+<a id='L19' name='L19'></a>    19 <em class='sharp'>#ifndef</em> <a href='../S/2210.html#L20' title='Defined at 20 in src/process.h.'>EMACS_PROCESS_H</a>
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#define</em> <a href='../S/2210.html#L19' title='Referred from 19 in src/process.h.'>EMACS_PROCESS_H</a>
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#ifdef</em> HAVE_SYS_TYPES_H
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;sys/types.h&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#endif</em>
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;<a href='23.html'>unistd.h</a>&gt;
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#ifdef</em> HAVE_GNUTLS
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> "<a href='2173.html'>gnutls.h</a>"
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#endif</em>
+<a id='L31' name='L31'></a>    31 
+<a id='L32' name='L32'></a>    32 <a href='../D/2907.html' title='Multiple defined in 2 places.'>INLINE_HEADER_BEGIN</a>
+<a id='L33' name='L33'></a>    33 
+<a id='L34' name='L34'></a>    34 <em class='comment'>/* Bound on number of file descriptors opened on behalf of a process,</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'>   that need to be closed.  */</em>
+<a id='L36' name='L36'></a>    36 
+<a id='L37' name='L37'></a>    37 <strong class='reserved'>enum</strong> <em class='brace'>{</em> <a href='../R/4143.html' title='Multiple referred from 4 places.'>PROCESS_OPEN_FDS</a> = 6 <em class='brace'>}</em>;
+<a id='L38' name='L38'></a>    38 
+<a id='L39' name='L39'></a>    39 <em class='comment'>/* This structure records information about a subprocess</em>
+<a id='L40' name='L40'></a>    40 <em class='comment'>   or network connection.  */</em>
+<a id='L41' name='L41'></a>    41 
+<a id='L42' name='L42'></a>    42 <strong class='reserved'>struct</strong> <a href='../R/3204.html' title='Multiple referred from 108 places.'>Lisp_Process</a>
+<a id='L43' name='L43'></a>    43   <em class='brace'>{</em>
+<a id='L44' name='L44'></a>    44     <strong class='reserved'>union</strong> <a href='../D/16786.html' title='Multiple defined in 2 places.'>vectorlike_header</a> header;
+<a id='L45' name='L45'></a>    45 
+<a id='L46' name='L46'></a>    46     <em class='comment'>/* Name of subprocess terminal.  */</em>
+<a id='L47' name='L47'></a>    47     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> tty_name;
+<a id='L48' name='L48'></a>    48 
+<a id='L49' name='L49'></a>    49     <em class='comment'>/* Name of this process.  */</em>
+<a id='L50' name='L50'></a>    50     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>;
+<a id='L51' name='L51'></a>    51 
+<a id='L52' name='L52'></a>    52     <em class='comment'>/* List of command arguments that this process was run with.</em>
+<a id='L53' name='L53'></a>    53 <em class='comment'>       Is set to t for a stopped network process; nil otherwise.  */</em>
+<a id='L54' name='L54'></a>    54     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> command;
+<a id='L55' name='L55'></a>    55 
+<a id='L56' name='L56'></a>    56     <em class='comment'>/* (funcall FILTER PROC STRING)  (if FILTER is non-nil)</em>
+<a id='L57' name='L57'></a>    57 <em class='comment'>       to dispose of a bunch of chars from the process all at once.  */</em>
+<a id='L58' name='L58'></a>    58     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> filter;
+<a id='L59' name='L59'></a>    59 
+<a id='L60' name='L60'></a>    60     <em class='comment'>/* (funcall SENTINEL PROCESS) when process state changes.  */</em>
+<a id='L61' name='L61'></a>    61     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> sentinel;
+<a id='L62' name='L62'></a>    62 
+<a id='L63' name='L63'></a>    63     <em class='comment'>/* (funcall LOG SERVER CLIENT MESSAGE) when a server process</em>
+<a id='L64' name='L64'></a>    64 <em class='comment'>       accepts a connection from a client.  */</em>
+<a id='L65' name='L65'></a>    65     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> log;
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67     <em class='comment'>/* Buffer that output is going to.  */</em>
+<a id='L68' name='L68'></a>    68     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2029.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>;
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70     <em class='comment'>/* t if this is a real child process.  For a network or serial</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>       connection, it is a plist based on the arguments to</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>       make-network-process or make-serial-process.  */</em>
+<a id='L73' name='L73'></a>    73 
+<a id='L74' name='L74'></a>    74     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> childp;
+<a id='L75' name='L75'></a>    75 
+<a id='L76' name='L76'></a>    76     <em class='comment'>/* Plist for programs to keep per-process state information, parameters, etc.  */</em>
+<a id='L77' name='L77'></a>    77     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> plist;
+<a id='L78' name='L78'></a>    78 
+<a id='L79' name='L79'></a>    79     <em class='comment'>/* Symbol indicating the type of process: real, network, serial.  */</em>
+<a id='L80' name='L80'></a>    80     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> type;
+<a id='L81' name='L81'></a>    81 
+<a id='L82' name='L82'></a>    82     <em class='comment'>/* Marker set to end of last buffer-inserted output from this process.  */</em>
+<a id='L83' name='L83'></a>    83     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> mark;
+<a id='L84' name='L84'></a>    84 
+<a id='L85' name='L85'></a>    85     <em class='comment'>/* Symbol indicating status of process.</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>       This may be a symbol: run, open, closed, listen, or failed.</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'>       Or it may be a pair (connect . ADDRINFOS) where ADDRINFOS is</em>
+<a id='L88' name='L88'></a>    88 <em class='comment'>       a list of remaining (PROTOCOL . ADDRINFO) pairs to try.</em>
+<a id='L89' name='L89'></a>    89 <em class='comment'>       Or it may be (failed ERR) where ERR is an integer, string or symbol.</em>
+<a id='L90' name='L90'></a>    90 <em class='comment'>       Or it may be a list, whose car is stop, exit or signal</em>
+<a id='L91' name='L91'></a>    91 <em class='comment'>       and whose cdr is a pair (EXIT_CODE . COREDUMP_FLAG)</em>
+<a id='L92' name='L92'></a>    92 <em class='comment'>       or (SIGNAL_NUMBER . COREDUMP_FLAG).  */</em>
+<a id='L93' name='L93'></a>    93     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> status;
+<a id='L94' name='L94'></a>    94 
+<a id='L95' name='L95'></a>    95     <em class='comment'>/* Coding-system for decoding the input from this process.  */</em>
+<a id='L96' name='L96'></a>    96     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> decode_coding_system;
+<a id='L97' name='L97'></a>    97 
+<a id='L98' name='L98'></a>    98     <em class='comment'>/* Working buffer for decoding.  */</em>
+<a id='L99' name='L99'></a>    99     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> decoding_buf;
+<a id='L100' name='L100'></a>   100 
+<a id='L101' name='L101'></a>   101     <em class='comment'>/* Coding-system for encoding the output to this process.  */</em>
+<a id='L102' name='L102'></a>   102     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> encode_coding_system;
+<a id='L103' name='L103'></a>   103 
+<a id='L104' name='L104'></a>   104     <em class='comment'>/* Working buffer for encoding.  */</em>
+<a id='L105' name='L105'></a>   105     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> encoding_buf;
+<a id='L106' name='L106'></a>   106 
+<a id='L107' name='L107'></a>   107     <em class='comment'>/* Queue for storing waiting writes.  */</em>
+<a id='L108' name='L108'></a>   108     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> write_queue;
+<a id='L109' name='L109'></a>   109 
+<a id='L110' name='L110'></a>   110 <em class='sharp'>#ifdef</em> HAVE_GNUTLS
+<a id='L111' name='L111'></a>   111     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> gnutls_cred_type;
+<a id='L112' name='L112'></a>   112     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> gnutls_boot_parameters;
+<a id='L113' name='L113'></a>   113 <em class='sharp'>#endif</em>
+<a id='L114' name='L114'></a>   114 
+<a id='L115' name='L115'></a>   115     <em class='comment'>/* Pipe process attached to the standard error of this process.  */</em>
+<a id='L116' name='L116'></a>   116     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> stderrproc;
+<a id='L117' name='L117'></a>   117 
+<a id='L118' name='L118'></a>   118     <em class='comment'>/* The thread a process is linked to, or nil for any thread.  */</em>
+<a id='L119' name='L119'></a>   119     <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> thread;
+<a id='L120' name='L120'></a>   120     <em class='comment'>/* After this point, there are no Lisp_Objects.  */</em>
+<a id='L121' name='L121'></a>   121 
+<a id='L122' name='L122'></a>   122     <em class='comment'>/* Process ID.  A positive value is a child process ID.</em>
+<a id='L123' name='L123'></a>   123 <em class='comment'>       Zero is for pseudo-processes such as network or serial connections,</em>
+<a id='L124' name='L124'></a>   124 <em class='comment'>       or for processes that have not been fully created yet.</em>
+<a id='L125' name='L125'></a>   125 <em class='comment'>       -1 is for a process that was not created successfully.</em>
+<a id='L126' name='L126'></a>   126 <em class='comment'>       -2 is for a pty with no process, e.g., for GDB.  */</em>
+<a id='L127' name='L127'></a>   127     <a href='../S/40.html#L336' title='Defined at 336 in nt/inc/ms-w32.h.'>pid_t</a> pid;
+<a id='L128' name='L128'></a>   128     <em class='comment'>/* Descriptor by which we read from this process.  */</em>
+<a id='L129' name='L129'></a>   129     <strong class='reserved'>int</strong> infd;
+<a id='L130' name='L130'></a>   130     <em class='comment'>/* Byte-count modulo (UINTMAX_MAX + 1) for process output read from `infd'.  */</em>
+<a id='L131' name='L131'></a>   131     <a href='../D/16559.html' title='Multiple defined in 6 places.'>uintmax_t</a> nbytes_read;
+<a id='L132' name='L132'></a>   132     <em class='comment'>/* Descriptor by which we write to this process.  */</em>
+<a id='L133' name='L133'></a>   133     <strong class='reserved'>int</strong> outfd;
+<a id='L134' name='L134'></a>   134     <em class='comment'>/* Descriptors that were created for this process and that need</em>
+<a id='L135' name='L135'></a>   135 <em class='comment'>       closing.  Unused entries are negative.  */</em>
+<a id='L136' name='L136'></a>   136     <strong class='reserved'>int</strong> open_fd[<a href='../S/2210.html#L37' title='Defined at 37 in src/process.h.'>PROCESS_OPEN_FDS</a>];
+<a id='L137' name='L137'></a>   137     <em class='comment'>/* Event-count of last event in which this process changed status.  */</em>
+<a id='L138' name='L138'></a>   138     <a href='../D/1558.html' title='Multiple defined in 11 places.'>EMACS_INT</a> tick;
+<a id='L139' name='L139'></a>   139     <em class='comment'>/* Event-count of last such event reported.  */</em>
+<a id='L140' name='L140'></a>   140     <a href='../D/1558.html' title='Multiple defined in 11 places.'>EMACS_INT</a> update_tick;
+<a id='L141' name='L141'></a>   141     <em class='comment'>/* Size of carryover in decoding.  */</em>
+<a id='L142' name='L142'></a>   142     <strong class='reserved'>int</strong> decoding_carryover;
+<a id='L143' name='L143'></a>   143     <em class='comment'>/* Hysteresis to try to read process output in larger blocks.</em>
+<a id='L144' name='L144'></a>   144 <em class='comment'>       On some systems, e.g. GNU/Linux, Emacs is seen as</em>
+<a id='L145' name='L145'></a>   145 <em class='comment'>       an interactive app also when reading process output, meaning</em>
+<a id='L146' name='L146'></a>   146 <em class='comment'>       that process output can be read in as little as 1 byte at a</em>
+<a id='L147' name='L147'></a>   147 <em class='comment'>       time.  Value is nanoseconds to delay reading output from</em>
+<a id='L148' name='L148'></a>   148 <em class='comment'>       this process.  Range is 0 .. 50 * 1000 * 1000.  */</em>
+<a id='L149' name='L149'></a>   149     <strong class='reserved'>int</strong> read_output_delay;
+<a id='L150' name='L150'></a>   150     <em class='comment'>/* Should we delay reading output from this process.</em>
+<a id='L151' name='L151'></a>   151 <em class='comment'>       Initialized from `Vprocess_adaptive_read_buffering'.</em>
+<a id='L152' name='L152'></a>   152 <em class='comment'>       0 = nil, 1 = t, 2 = other.  */</em>
+<a id='L153' name='L153'></a>   153     <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> adaptive_read_buffering : 2;
+<a id='L154' name='L154'></a>   154     <em class='comment'>/* Skip reading this process on next read.  */</em>
+<a id='L155' name='L155'></a>   155     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> read_output_skip : 1;
+<a id='L156' name='L156'></a>   156     <em class='comment'>/* True means kill silently if Emacs is exited.</em>
+<a id='L157' name='L157'></a>   157 <em class='comment'>       This is the inverse of the `query-on-exit' flag.  */</em>
+<a id='L158' name='L158'></a>   158     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> kill_without_query : 1;
+<a id='L159' name='L159'></a>   159     <em class='comment'>/* True if communicating through a pty for input or output.  */</em>
+<a id='L160' name='L160'></a>   160     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> pty_in : 1;
+<a id='L161' name='L161'></a>   161     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> pty_out : 1;
+<a id='L162' name='L162'></a>   162     <em class='comment'>/* Flag to set coding-system of the process buffer from the</em>
+<a id='L163' name='L163'></a>   163 <em class='comment'>       coding_system used to decode process output.  */</em>
+<a id='L164' name='L164'></a>   164     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> inherit_coding_system_flag : 1;
+<a id='L165' name='L165'></a>   165     <em class='comment'>/* Whether the process is alive, i.e., can be waited for.  Running</em>
+<a id='L166' name='L166'></a>   166 <em class='comment'>       processes can be waited for, but exited and fake processes cannot.  */</em>
+<a id='L167' name='L167'></a>   167     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> <a href='../S/3909.html#L10' title='Defined at 10 in test/manual/etags/cp-src/conway.hpp.'>alive</a> : 1;
+<a id='L168' name='L168'></a>   168     <em class='comment'>/* Record the process status in the raw form in which it comes from `wait'.</em>
+<a id='L169' name='L169'></a>   169 <em class='comment'>       This is to avoid consing in a signal handler.  The `raw_status_new'</em>
+<a id='L170' name='L170'></a>   170 <em class='comment'>       flag indicates that `raw_status' contains a new status that still</em>
+<a id='L171' name='L171'></a>   171 <em class='comment'>       needs to be synced to `status'.  */</em>
+<a id='L172' name='L172'></a>   172     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> raw_status_new : 1;
+<a id='L173' name='L173'></a>   173     <em class='comment'>/* Whether this is a nonblocking socket. */</em>
+<a id='L174' name='L174'></a>   174     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> is_non_blocking_client : 1;
+<a id='L175' name='L175'></a>   175     <em class='comment'>/* Whether this is a server or a client socket. */</em>
+<a id='L176' name='L176'></a>   176     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> is_server : 1;
+<a id='L177' name='L177'></a>   177     <strong class='reserved'>int</strong> raw_status;
+<a id='L178' name='L178'></a>   178     <em class='comment'>/* The length of the socket backlog. */</em>
+<a id='L179' name='L179'></a>   179     <strong class='reserved'>int</strong> backlog;
+<a id='L180' name='L180'></a>   180     <em class='comment'>/* The port number. */</em>
+<a id='L181' name='L181'></a>   181     <strong class='reserved'>int</strong> port;
+<a id='L182' name='L182'></a>   182     <em class='comment'>/* The socket type. */</em>
+<a id='L183' name='L183'></a>   183     <strong class='reserved'>int</strong> socktype;
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185 <em class='sharp'>#ifdef</em> HAVE_GETADDRINFO_A
+<a id='L186' name='L186'></a>   186     <em class='comment'>/* Whether the socket is waiting for response from an asynchronous</em>
+<a id='L187' name='L187'></a>   187 <em class='comment'>       DNS call. */</em>
+<a id='L188' name='L188'></a>   188     <strong class='reserved'>struct</strong> gaicb *dns_request;
+<a id='L189' name='L189'></a>   189 <em class='sharp'>#endif</em>
+<a id='L190' name='L190'></a>   190 
+<a id='L191' name='L191'></a>   191 <em class='sharp'>#ifdef</em> HAVE_GNUTLS
+<a id='L192' name='L192'></a>   192     <a href='../S/2173.html#L54' title='Defined at 54 in src/gnutls.h.'>gnutls_initstage_t</a> gnutls_initstage;
+<a id='L193' name='L193'></a>   193     gnutls_session_t gnutls_state;
+<a id='L194' name='L194'></a>   194     gnutls_certificate_client_credentials gnutls_x509_cred;
+<a id='L195' name='L195'></a>   195     gnutls_anon_client_credentials_t gnutls_anon_cred;
+<a id='L196' name='L196'></a>   196     gnutls_x509_crt_t *gnutls_certificates;
+<a id='L197' name='L197'></a>   197     <strong class='reserved'>int</strong> gnutls_certificates_length;
+<a id='L198' name='L198'></a>   198     <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> gnutls_peer_verification;
+<a id='L199' name='L199'></a>   199     <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> gnutls_extra_peer_verification;
+<a id='L200' name='L200'></a>   200     <strong class='reserved'>int</strong> gnutls_log_level;
+<a id='L201' name='L201'></a>   201     <strong class='reserved'>int</strong> gnutls_handshakes_tried;
+<a id='L202' name='L202'></a>   202     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> gnutls_p : 1;
+<a id='L203' name='L203'></a>   203     <a href='../D/8172.html' title='Multiple defined in 2 places.'>bool_bf</a> gnutls_complete_negotiation_p : 1;
+<a id='L204' name='L204'></a>   204 <em class='sharp'>#endif</em>
+<a id='L205' name='L205'></a>   205   <em class='brace'>}</em> <a href='../D/2373.html' title='Multiple defined in 2 places.'>GCALIGNED_STRUCT</a>;
+<a id='L206' name='L206'></a>   206 
+<a id='L207' name='L207'></a>   207 <a href='../D/2906.html' title='Multiple defined in 3 places.'>INLINE</a> <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L208' name='L208'></a>   208 <a href='../R/4140.html' title='Multiple referred from 15 places.'>PROCESSP</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/7619.html' title='Multiple defined in 6 places.'>a</a>)
+<a id='L209' name='L209'></a>   209 <em class='brace'>{</em>
+<a id='L210' name='L210'></a>   210   <strong class='reserved'>return</strong> <a href='../D/4647.html' title='Multiple defined in 2 places.'>PSEUDOVECTORP</a> (<a href='../D/7619.html' title='Multiple defined in 6 places.'>a</a>, PVEC_PROCESS);
+<a id='L211' name='L211'></a>   211 <em class='brace'>}</em>
+<a id='L212' name='L212'></a>   212 
+<a id='L213' name='L213'></a>   213 <a href='../D/2906.html' title='Multiple defined in 3 places.'>INLINE</a> <strong class='reserved'>void</strong>
+<a id='L214' name='L214'></a>   214 <a href='../R/822.html' title='Multiple referred from 39 places.'>CHECK_PROCESS</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>)
+<a id='L215' name='L215'></a>   215 <em class='brace'>{</em>
+<a id='L216' name='L216'></a>   216   <a href='../D/895.html' title='Multiple defined in 2 places.'>CHECK_TYPE</a> (<a href='../D/4623.html' title='Multiple defined in 2 places.'>PROCESSP</a> (<a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>), Qprocessp, <a href='../S/3911.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>);
+<a id='L217' name='L217'></a>   217 <em class='brace'>}</em>
+<a id='L218' name='L218'></a>   218 
+<a id='L219' name='L219'></a>   219 <a href='../D/2906.html' title='Multiple defined in 3 places.'>INLINE</a> <strong class='reserved'>struct</strong> <a href='../S/2210.html#L42' title='Defined at 42 in src/process.h.'>Lisp_Process</a> *
+<a id='L220' name='L220'></a>   220 <a href='../R/6029.html' title='Multiple referred from 186 places.'>XPROCESS</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/7619.html' title='Multiple defined in 6 places.'>a</a>)
+<a id='L221' name='L221'></a>   221 <em class='brace'>{</em>
+<a id='L222' name='L222'></a>   222   <a href='../D/9688.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../D/4623.html' title='Multiple defined in 2 places.'>PROCESSP</a> (<a href='../D/7619.html' title='Multiple defined in 6 places.'>a</a>));
+<a id='L223' name='L223'></a>   223   <strong class='reserved'>return</strong> <a href='../D/6785.html' title='Multiple defined in 3 places.'>XUNTAG</a> (<a href='../D/7619.html' title='Multiple defined in 6 places.'>a</a>, <a href='../D/3552.html' title='Multiple defined in 2 places.'>Lisp_Vectorlike</a>, <strong class='reserved'>struct</strong> <a href='../S/2210.html#L42' title='Defined at 42 in src/process.h.'>Lisp_Process</a>);
+<a id='L224' name='L224'></a>   224 <em class='brace'>}</em>
+<a id='L225' name='L225'></a>   225 
+<a id='L226' name='L226'></a>   226 <em class='comment'>/* Every field in the preceding structure except for the first two</em>
+<a id='L227' name='L227'></a>   227 <em class='comment'>   must be a Lisp_Object, for GC's sake.  */</em>
+<a id='L228' name='L228'></a>   228 
+<a id='L229' name='L229'></a>   229 <em class='sharp'>#define</em> ChannelMask(n) (1 &lt;&lt; (n))
+<a id='L230' name='L230'></a>   230 
+<a id='L231' name='L231'></a>   231 <em class='comment'>/* Most code should use these functions to set Lisp fields in struct</em>
+<a id='L232' name='L232'></a>   232 <em class='comment'>   process.  */</em>
+<a id='L233' name='L233'></a>   233 
+<a id='L234' name='L234'></a>   234 <a href='../D/2906.html' title='Multiple defined in 3 places.'>INLINE</a> <strong class='reserved'>void</strong>
+<a id='L235' name='L235'></a>   235 <a href='../R/13265.html' title='Multiple referred from 11 places.'>pset_childp</a> (<strong class='reserved'>struct</strong> <a href='../S/2210.html#L42' title='Defined at 42 in src/process.h.'>Lisp_Process</a> *p, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> val)
+<a id='L236' name='L236'></a>   236 <em class='brace'>{</em>
+<a id='L237' name='L237'></a>   237   p-&gt;childp = val;
+<a id='L238' name='L238'></a>   238 <em class='brace'>}</em>
+<a id='L239' name='L239'></a>   239 
+<a id='L240' name='L240'></a>   240 <a href='../D/2906.html' title='Multiple defined in 3 places.'>INLINE</a> <strong class='reserved'>void</strong>
+<a id='L241' name='L241'></a>   241 <a href='../R/13278.html' title='Multiple referred from 25 places.'>pset_status</a> (<strong class='reserved'>struct</strong> <a href='../S/2210.html#L42' title='Defined at 42 in src/process.h.'>Lisp_Process</a> *p, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> val)
+<a id='L242' name='L242'></a>   242 <em class='brace'>{</em>
+<a id='L243' name='L243'></a>   243   p-&gt;status = val;
+<a id='L244' name='L244'></a>   244 <em class='brace'>}</em>
+<a id='L245' name='L245'></a>   245 
+<a id='L246' name='L246'></a>   246 <em class='sharp'>#ifdef</em> HAVE_GNUTLS
+<a id='L247' name='L247'></a>   247 <a href='../D/2906.html' title='Multiple defined in 3 places.'>INLINE</a> <strong class='reserved'>void</strong>
+<a id='L248' name='L248'></a>   248 <a href='../S/2087.html#L2045' title='Referred from 2045 in src/gnutls.c.'>pset_gnutls_cred_type</a> (<strong class='reserved'>struct</strong> <a href='../S/2210.html#L42' title='Defined at 42 in src/process.h.'>Lisp_Process</a> *p, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> val)
+<a id='L249' name='L249'></a>   249 <em class='brace'>{</em>
+<a id='L250' name='L250'></a>   250   p-&gt;gnutls_cred_type = val;
+<a id='L251' name='L251'></a>   251 <em class='brace'>}</em>
+<a id='L252' name='L252'></a>   252 <em class='sharp'>#endif</em>
+<a id='L253' name='L253'></a>   253 
+<a id='L254' name='L254'></a>   254 <em class='comment'>/* True means don't run process sentinels.  This is used</em>
+<a id='L255' name='L255'></a>   255 <em class='comment'>   when exiting.  */</em>
+<a id='L256' name='L256'></a>   256 <strong class='reserved'>extern</strong> <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> inhibit_sentinels;
+<a id='L257' name='L257'></a>   257 
+<a id='L258' name='L258'></a>   258 <em class='comment'>/* Exit statuses for GNU programs that exec other programs.  */</em>
+<a id='L259' name='L259'></a>   259 <strong class='reserved'>enum</strong>
+<a id='L260' name='L260'></a>   260 <em class='brace'>{</em>
+<a id='L261' name='L261'></a>   261   <a href='../R/1581.html' title='Multiple referred from 4 places.'>EXIT_CANCELED</a> = 125, <em class='comment'>/* Internal error prior to exec attempt.  */</em>
+<a id='L262' name='L262'></a>   262   <a href='../R/1582.html' title='Multiple referred from 5 places.'>EXIT_CANNOT_INVOKE</a> = 126, <em class='comment'>/* Program located, but not usable.  */</em>
+<a id='L263' name='L263'></a>   263   <a href='../R/1583.html' title='Multiple referred from 3 places.'>EXIT_ENOENT</a> = 127 <em class='comment'>/* Could not find program to exec.  */</em>
+<a id='L264' name='L264'></a>   264 <em class='brace'>}</em>;
+<a id='L265' name='L265'></a>   265 
+<a id='L266' name='L266'></a>   266 <em class='comment'>/* Defined in callproc.c.  */</em>
+<a id='L267' name='L267'></a>   267 
+<a id='L268' name='L268'></a>   268 <strong class='reserved'>extern</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2099.html#L150' title='Defined at 150 in src/callproc.c.'>get_current_directory</a> (<a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a>);
+<a id='L269' name='L269'></a>   269 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2099.html#L174' title='Defined at 174 in src/callproc.c.'>record_kill_process</a> (<strong class='reserved'>struct</strong> <a href='../S/2210.html#L42' title='Defined at 42 in src/process.h.'>Lisp_Process</a> *, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L270' name='L270'></a>   270 
+<a id='L271' name='L271'></a>   271 <em class='comment'>/* Defined in sysdep.c.  */</em>
+<a id='L272' name='L272'></a>   272 
+<a id='L273' name='L273'></a>   273 <strong class='reserved'>extern</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12508.html' title='Multiple defined in 6 places.'>list_system_processes</a> (<strong class='reserved'>void</strong>);
+<a id='L274' name='L274'></a>   274 <strong class='reserved'>extern</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/16103.html' title='Multiple defined in 9 places.'>system_process_attributes</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L275' name='L275'></a>   275 
+<a id='L276' name='L276'></a>   276 <em class='comment'>/* Defined in process.c.  */</em>
+<a id='L277' name='L277'></a>   277 
+<a id='L278' name='L278'></a>   278 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L1065' title='Defined at 1065 in src/process.c.'>record_deleted_pid</a> (<a href='../S/40.html#L336' title='Defined at 336 in nt/inc/ms-w32.h.'>pid_t</a>, <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L279' name='L279'></a>   279 <strong class='reserved'>struct</strong> sockaddr;
+<a id='L280' name='L280'></a>   280 <strong class='reserved'>extern</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2128.html#L2547' title='Defined at 2547 in src/process.c.'>conv_sockaddr_to_lisp</a> (<strong class='reserved'>struct</strong> sockaddr *, ptrdiff_t);
+<a id='L281' name='L281'></a>   281 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L8217' title='Defined at 8217 in src/process.c.'>hold_keyboard_input</a> (<strong class='reserved'>void</strong>);
+<a id='L282' name='L282'></a>   282 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L8225' title='Defined at 8225 in src/process.c.'>unhold_keyboard_input</a> (<strong class='reserved'>void</strong>);
+<a id='L283' name='L283'></a>   283 <strong class='reserved'>extern</strong> <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> <a href='../S/2128.html#L8233' title='Defined at 8233 in src/process.c.'>kbd_on_hold_p</a> (<strong class='reserved'>void</strong>);
+<a id='L284' name='L284'></a>   284 
+<a id='L285' name='L285'></a>   285 <strong class='reserved'>typedef</strong> <strong class='reserved'>void</strong> (*fd_callback) (<strong class='reserved'>int</strong> fd, <strong class='reserved'>void</strong> *data);
+<a id='L286' name='L286'></a>   286 
+<a id='L287' name='L287'></a>   287 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L469' title='Defined at 469 in src/process.c.'>add_read_fd</a> (<strong class='reserved'>int</strong> fd, fd_callback <a href='../D/10643.html' title='Multiple defined in 3 places.'>func</a>, <strong class='reserved'>void</strong> *data);
+<a id='L288' name='L288'></a>   288 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L479' title='Defined at 479 in src/process.c.'>add_non_keyboard_read_fd</a> (<strong class='reserved'>int</strong> fd, fd_callback <a href='../D/10643.html' title='Multiple defined in 3 places.'>func</a>, <strong class='reserved'>void</strong> *data);
+<a id='L289' name='L289'></a>   289 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L502' title='Defined at 502 in src/process.c.'>delete_read_fd</a> (<strong class='reserved'>int</strong> fd);
+<a id='L290' name='L290'></a>   290 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L518' title='Defined at 518 in src/process.c.'>add_write_fd</a> (<strong class='reserved'>int</strong> fd, fd_callback <a href='../D/10643.html' title='Multiple defined in 3 places.'>func</a>, <strong class='reserved'>void</strong> *data);
+<a id='L291' name='L291'></a>   291 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L561' title='Defined at 561 in src/process.c.'>delete_write_fd</a> (<strong class='reserved'>int</strong> fd);
+<a id='L292' name='L292'></a>   292 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L8369' title='Defined at 8369 in src/process.c.'>catch_child_signal</a> (<strong class='reserved'>void</strong>);
+<a id='L293' name='L293'></a>   293 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L8391' title='Defined at 8391 in src/process.c.'>restore_nofile_limit</a> (<strong class='reserved'>void</strong>);
+<a id='L294' name='L294'></a>   294 
+<a id='L295' name='L295'></a>   295 <em class='sharp'>#ifdef</em> <a href='../D/6183.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L296' name='L296'></a>   296 <strong class='reserved'>extern</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/13527.html' title='Multiple defined in 2 places.'>network_interface_list</a> (<a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> full, <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> <a href='../D/12904.html' title='Multiple defined in 4 places.'>match</a>);
+<a id='L297' name='L297'></a>   297 <strong class='reserved'>extern</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/13526.html' title='Multiple defined in 2 places.'>network_interface_info</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L298' name='L298'></a>   298 <em class='sharp'>#endif</em>
+<a id='L299' name='L299'></a>   299 
+<a id='L300' name='L300'></a>   300 <strong class='reserved'>extern</strong> <a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2128.html#L8067' title='Defined at 8067 in src/process.c.'>remove_slash_colon</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L301' name='L301'></a>   301 
+<a id='L302' name='L302'></a>   302 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../D/16699.html' title='Multiple defined in 2 places.'>update_processes_for_thread_death</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L303' name='L303'></a>   303 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/2128.html#L2090' title='Defined at 2090 in src/process.c.'>dissociate_controlling_tty</a> (<strong class='reserved'>void</strong>);
+<a id='L304' name='L304'></a>   304 
+<a id='L305' name='L305'></a>   305 <strong class='reserved'>extern</strong> <strong class='reserved'>int</strong> <a href='../S/2128.html#L8400' title='Defined at 8400 in src/process.c.'>open_channel_for_module</a> (<a href='../D/3532.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L306' name='L306'></a>   306 
+<a id='L307' name='L307'></a>   307 <a href='../D/2908.html' title='Multiple defined in 2 places.'>INLINE_HEADER_END</a>
+<a id='L308' name='L308'></a>   308 
+<a id='L309' name='L309'></a>   309 <em class='sharp'>#endif</em> <em class='comment'>/* EMACS_PROCESS_H */</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L208'>[^]</a><a href='#L248'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

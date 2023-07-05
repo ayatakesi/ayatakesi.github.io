@@ -1,0 +1,169 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/cygw32.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/cygw32.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L27'>[^]</a><a href='#L135'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L27' title='Defined at 27.'>fchdir_unwind</a></li>
+<li><a href='#L34' title='Defined at 34.'>chdir_to_default_directory</a></li>
+<li><a href='#L54' title='Defined at 54.'>conv_filename_to_w32_unicode</a></li>
+<li><a href='#L83' title='Defined at 83.'>conv_filename_from_w32_unicode</a></li>
+<li><a href='#L135' title='Defined at 135.'>syms_of_cygw32</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Cygwin support routines.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 2011-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L18' name='L18'></a>    18 
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> "<a href='2108.html'>cygw32.h</a>"
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> "<a href='2107.html'>character.h</a>"
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> "<a href='2026.html'>buffer.h</a>"
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;<a href='27.html'>unistd.h</a>&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L27' name='L27'></a>    27 <a href='../S/2086.html#L42' title='Referred from 42 in src/cygw32.c.'>fchdir_unwind</a> (<strong class='reserved'>int</strong> dir_fd)
+<a id='L28' name='L28'></a>    28 <em class='brace'>{</em>
+<a id='L29' name='L29'></a>    29   (<strong class='reserved'>void</strong>) <a href='../S/2601.html#L54' title='Defined at 54 in lib/save-cwd.c.'>fchdir</a> (dir_fd);
+<a id='L30' name='L30'></a>    30   (<strong class='reserved'>void</strong>) <a href='../D/8605.html' title='Multiple defined in 18 places.'>close</a> (dir_fd);
+<a id='L31' name='L31'></a>    31 <em class='brace'>}</em>
+<a id='L32' name='L32'></a>    32 
+<a id='L33' name='L33'></a>    33 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L34' name='L34'></a>    34 <a href='../R/7585.html' title='Multiple referred from 2 places.'>chdir_to_default_directory</a> (<strong class='reserved'>void</strong>)
+<a id='L35' name='L35'></a>    35 <em class='brace'>{</em>
+<a id='L36' name='L36'></a>    36   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> new_cwd;
+<a id='L37' name='L37'></a>    37   <strong class='reserved'>int</strong> old_cwd_fd = <a href='../S/2173.html#L2378' title='Defined at 2378 in src/sysdep.c.'>emacs_open</a> (".", O_RDONLY | <a href='../S/2603.html#L302' title='Defined at 302 in lib/fcntl.in.h.'>O_DIRECTORY</a>, 0);
+<a id='L38' name='L38'></a>    38 
+<a id='L39' name='L39'></a>    39   <strong class='reserved'>if</strong> (old_cwd_fd == -1)
+<a id='L40' name='L40'></a>    40     <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("could not open current directory: %s", <a href='../D/15642.html' title='Multiple defined in 4 places.'>strerror</a> (errno));
+<a id='L41' name='L41'></a>    41 
+<a id='L42' name='L42'></a>    42   <a href='../S/2080.html#L3568' title='Defined at 3568 in src/eval.c.'>record_unwind_protect_int</a> (<a href='../S/2086.html#L27' title='Defined at 27 in src/cygw32.c.'>fchdir_unwind</a>, old_cwd_fd);
+<a id='L43' name='L43'></a>    43 
+<a id='L44' name='L44'></a>    44   new_cwd = Funhandled_file_name_directory (
+<a id='L45' name='L45'></a>    45     Fexpand_file_name (<a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> ("."), Qnil));
+<a id='L46' name='L46'></a>    46   <strong class='reserved'>if</strong> (!<a href='../S/2154.html#L1599' title='Defined at 1599 in src/lisp.h.'>STRINGP</a> (new_cwd))
+<a id='L47' name='L47'></a>    47     new_cwd = <a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> ("/");
+<a id='L48' name='L48'></a>    48 
+<a id='L49' name='L49'></a>    49   <strong class='reserved'>if</strong> (<a href='../D/8442.html' title='Multiple defined in 12 places.'>chdir</a> (<a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (<a href='../S/2047.html#L643' title='Defined at 643 in src/coding.h.'>ENCODE_FILE</a> (new_cwd))))
+<a id='L50' name='L50'></a>    50     <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("could not chdir: %s", <a href='../D/15642.html' title='Multiple defined in 4 places.'>strerror</a> (errno));
+<a id='L51' name='L51'></a>    51 <em class='brace'>}</em>
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L54' name='L54'></a>    54 <a href='../S/2086.html#L118' title='Referred from 118 in src/cygw32.c.'>conv_filename_to_w32_unicode</a> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> in, <strong class='reserved'>int</strong> absolute_p)
+<a id='L55' name='L55'></a>    55 <em class='brace'>{</em>
+<a id='L56' name='L56'></a>    56   <a href='../S/44.html#L420' title='Defined at 420 in nt/inc/ms-w32.h.'>ssize_t</a> converted_len;
+<a id='L57' name='L57'></a>    57   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> converted;
+<a id='L58' name='L58'></a>    58   <strong class='reserved'>unsigned</strong> flags;
+<a id='L59' name='L59'></a>    59   <a href='../D/15483.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count = <a href='../D/5328.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L60' name='L60'></a>    60 
+<a id='L61' name='L61'></a>    61   <a href='../S/2086.html#L34' title='Defined at 34 in src/cygw32.c.'>chdir_to_default_directory</a> ();
+<a id='L62' name='L62'></a>    62 
+<a id='L63' name='L63'></a>    63   flags = CCP_POSIX_TO_WIN_W;
+<a id='L64' name='L64'></a>    64   <strong class='reserved'>if</strong> (!absolute_p) <em class='brace'>{</em>
+<a id='L65' name='L65'></a>    65     flags |= CCP_RELATIVE;
+<a id='L66' name='L66'></a>    66   <em class='brace'>}</em>
+<a id='L67' name='L67'></a>    67 
+<a id='L68' name='L68'></a>    68   in = <a href='../S/2047.html#L643' title='Defined at 643 in src/coding.h.'>ENCODE_FILE</a> (in);
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70   converted_len = cygwin_conv_path (flags, <a href='../D/5121.html' title='Multiple defined in 2 places.'>SDATA</a> (in), <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, 0);
+<a id='L71' name='L71'></a>    71   <strong class='reserved'>if</strong> (converted_len &lt; 2)
+<a id='L72' name='L72'></a>    72     <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("cygwin_conv_path: %s", <a href='../D/15642.html' title='Multiple defined in 4 places.'>strerror</a> (errno));
+<a id='L73' name='L73'></a>    73 
+<a id='L74' name='L74'></a>    74   converted = <a href='../S/2232.html#L2456' title='Defined at 2456 in src/alloc.c.'>make_uninit_string</a> (converted_len - 1);
+<a id='L75' name='L75'></a>    75   <strong class='reserved'>if</strong> (cygwin_conv_path (flags, <a href='../D/5121.html' title='Multiple defined in 2 places.'>SDATA</a> (in),
+<a id='L76' name='L76'></a>    76                         <a href='../D/5121.html' title='Multiple defined in 2 places.'>SDATA</a> (converted), converted_len))
+<a id='L77' name='L77'></a>    77     <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("cygwin_conv_path: %s", <a href='../D/15642.html' title='Multiple defined in 4 places.'>strerror</a> (errno));
+<a id='L78' name='L78'></a>    78 
+<a id='L79' name='L79'></a>    79   <strong class='reserved'>return</strong> <a href='../S/2080.html#L3743' title='Defined at 3743 in src/eval.c.'>unbind_to</a> (count, converted);
+<a id='L80' name='L80'></a>    80 <em class='brace'>}</em>
+<a id='L81' name='L81'></a>    81 
+<a id='L82' name='L82'></a>    82 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L83' name='L83'></a>    83 <a href='../S/2086.html#L130' title='Referred from 130 in src/cygw32.c.'>conv_filename_from_w32_unicode</a> (<strong class='reserved'>const</strong> <a href='../S/2640.html#L105' title='Defined at 105 in lib/stddef.in.h.'>wchar_t</a>* in, <strong class='reserved'>int</strong> absolute_p)
+<a id='L84' name='L84'></a>    84 <em class='brace'>{</em>
+<a id='L85' name='L85'></a>    85   <a href='../S/44.html#L420' title='Defined at 420 in nt/inc/ms-w32.h.'>ssize_t</a> converted_len;
+<a id='L86' name='L86'></a>    86   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> converted;
+<a id='L87' name='L87'></a>    87   <strong class='reserved'>unsigned</strong> flags;
+<a id='L88' name='L88'></a>    88   <a href='../D/15483.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count = <a href='../D/5328.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L89' name='L89'></a>    89 
+<a id='L90' name='L90'></a>    90   <a href='../S/2086.html#L34' title='Defined at 34 in src/cygw32.c.'>chdir_to_default_directory</a> ();
+<a id='L91' name='L91'></a>    91 
+<a id='L92' name='L92'></a>    92   flags = CCP_WIN_W_TO_POSIX;
+<a id='L93' name='L93'></a>    93   <strong class='reserved'>if</strong> (!absolute_p) <em class='brace'>{</em>
+<a id='L94' name='L94'></a>    94     flags |= CCP_RELATIVE;
+<a id='L95' name='L95'></a>    95   <em class='brace'>}</em>
+<a id='L96' name='L96'></a>    96 
+<a id='L97' name='L97'></a>    97   converted_len = cygwin_conv_path (flags, in, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, 0);
+<a id='L98' name='L98'></a>    98   <strong class='reserved'>if</strong> (converted_len &lt; 1)
+<a id='L99' name='L99'></a>    99     <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("cygwin_conv_path: %s", <a href='../D/15642.html' title='Multiple defined in 4 places.'>strerror</a> (errno));
+<a id='L100' name='L100'></a>   100 
+<a id='L101' name='L101'></a>   101   converted = <a href='../S/2232.html#L2456' title='Defined at 2456 in src/alloc.c.'>make_uninit_string</a> (converted_len - 1 <em class='comment'>/*subtract terminator*/</em>);
+<a id='L102' name='L102'></a>   102   <strong class='reserved'>if</strong> (cygwin_conv_path (flags, in, <a href='../D/5121.html' title='Multiple defined in 2 places.'>SDATA</a> (converted), converted_len))
+<a id='L103' name='L103'></a>   103     <a href='../D/9868.html' title='Multiple defined in 7 places.'>error</a> ("cygwin_conv_path: %s", <a href='../D/15642.html' title='Multiple defined in 4 places.'>strerror</a> (errno));
+<a id='L104' name='L104'></a>   104 
+<a id='L105' name='L105'></a>   105   <strong class='reserved'>return</strong> <a href='../S/2080.html#L3743' title='Defined at 3743 in src/eval.c.'>unbind_to</a> (count, <a href='../S/2047.html#L647' title='Defined at 647 in src/coding.h.'>DECODE_FILE</a> (converted));
+<a id='L106' name='L106'></a>   106 <em class='brace'>}</em>
+<a id='L107' name='L107'></a>   107 
+<a id='L108' name='L108'></a>   108 <a href='../D/1294.html' title='Multiple defined in 980 places.'>DEFUN</a> ("cygwin-convert-file-name-to-windows",
+<a id='L109' name='L109'></a>   109        Fcygwin_convert_file_name_to_windows,
+<a id='L110' name='L110'></a>   110        Scygwin_convert_file_name_to_windows,
+<a id='L111' name='L111'></a>   111        1, 2, 0,
+<a id='L112' name='L112'></a>   112        doc: <em class='comment'>/* Convert a Cygwin file name FILE to a Windows-style file name.</em>
+<a id='L113' name='L113'></a>   113 <em class='comment'>If ABSOLUTE-P is non-nil, return an absolute file name.</em>
+<a id='L114' name='L114'></a>   114 <em class='comment'>For the reverse operation, see `cygwin-convert-file-name-from-windows'.  */</em>)
+<a id='L115' name='L115'></a>   115   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> absolute_p)
+<a id='L116' name='L116'></a>   116 <em class='brace'>{</em>
+<a id='L117' name='L117'></a>   117   <strong class='reserved'>return</strong> <a href='../S/1987.html#L8495' title='Defined at 8495 in src/coding.c.'>from_unicode</a> (
+<a id='L118' name='L118'></a>   118     <a href='../S/2086.html#L54' title='Defined at 54 in src/cygw32.c.'>conv_filename_to_w32_unicode</a> (file, <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (absolute_p) ? 0 : 1));
+<a id='L119' name='L119'></a>   119 <em class='brace'>}</em>
+<a id='L120' name='L120'></a>   120 
+<a id='L121' name='L121'></a>   121 <a href='../D/1294.html' title='Multiple defined in 980 places.'>DEFUN</a> ("cygwin-convert-file-name-from-windows",
+<a id='L122' name='L122'></a>   122        Fcygwin_convert_file_name_from_windows,
+<a id='L123' name='L123'></a>   123        Scygwin_convert_file_name_from_windows,
+<a id='L124' name='L124'></a>   124        1, 2, 0,
+<a id='L125' name='L125'></a>   125        doc: <em class='comment'>/* Convert a Windows-style file name FILE to a Cygwin file name.</em>
+<a id='L126' name='L126'></a>   126 <em class='comment'>If ABSOLUTE-P is non-nil, return an absolute file name.</em>
+<a id='L127' name='L127'></a>   127 <em class='comment'>For the reverse operation, see `cygwin-convert-file-name-to-windows'.  */</em>)
+<a id='L128' name='L128'></a>   128   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> file, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> absolute_p)
+<a id='L129' name='L129'></a>   129 <em class='brace'>{</em>
+<a id='L130' name='L130'></a>   130   <strong class='reserved'>return</strong> <a href='../S/2086.html#L83' title='Defined at 83 in src/cygw32.c.'>conv_filename_from_w32_unicode</a> (<a href='../S/1987.html#L8517' title='Defined at 8517 in src/coding.c.'>to_unicode</a> (file, &amp;file),
+<a id='L131' name='L131'></a>   131                                          <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (absolute_p) ? 0 : 1);
+<a id='L132' name='L132'></a>   132 <em class='brace'>}</em>
+<a id='L133' name='L133'></a>   133 
+<a id='L134' name='L134'></a>   134 <strong class='reserved'>void</strong>
+<a id='L135' name='L135'></a>   135 <a href='../R/14646.html' title='Multiple referred from 2 places.'>syms_of_cygw32</a> (<strong class='reserved'>void</strong>)
+<a id='L136' name='L136'></a>   136 <em class='brace'>{</em>
+<a id='L137' name='L137'></a>   137   <a href='../S/2140.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Scygwin_convert_file_name_from_windows);
+<a id='L138' name='L138'></a>   138   <a href='../S/2140.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Scygwin_convert_file_name_to_windows);
+<a id='L139' name='L139'></a>   139 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L27'>[^]</a><a href='#L135'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>
