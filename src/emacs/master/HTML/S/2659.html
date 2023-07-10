@@ -1,30 +1,26 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>lib/fdopendir.c</title>
+<title>lib/faccessat.c</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4586.html'>lib</a>/fdopendir.c</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L38'>[^]</a><a href='#L261'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4585.html'>lib</a>/faccessat.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L37'>[^]</a><a href='#L58'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 <hr />
 <h2 class='header'>DEFINITIONS</h2>
 This source file includes following definitions.
 <ol>
-<li><a href='#L38' title='Defined at 38.'>fdopendir</a></li>
-<li><a href='#L52' title='Defined at 52.'>fdopendir</a></li>
-<li><a href='#L125' title='Defined at 125.'>fdopendir</a></li>
-<li><a href='#L159' title='Defined at 159.'>fdopendir_with_dup</a></li>
-<li><a href='#L199' title='Defined at 199.'>fd_clone_opendir</a></li>
-<li><a href='#L261' title='Defined at 261.'>rpl_fdopendir</a></li>
+<li><a href='#L37' title='Defined at 37.'>orig_faccessat</a></li>
+<li><a href='#L58' title='Defined at 58.'>rpl_faccessat</a></li>
 </ol>
 <hr />
 <pre>
-<a id='L1' name='L1'></a>     1 <em class='comment'>/* provide a replacement fdopendir function</em>
-<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 2004-2023 Free Software Foundation, Inc.</em>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Check the access rights of a file relative to an open directory.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 2009-2023 Free Software Foundation, Inc.</em>
 <a id='L3' name='L3'></a>     3 <em class='comment'></em>
 <a id='L4' name='L4'></a>     4 <em class='comment'>   This program is free software: you can redistribute it and/or modify</em>
 <a id='L5' name='L5'></a>     5 <em class='comment'>   it under the terms of the GNU General Public License as published by</em>
@@ -39,267 +35,87 @@ This source file includes following definitions.
 <a id='L14' name='L14'></a>    14 <em class='comment'>   You should have received a copy of the GNU General Public License</em>
 <a id='L15' name='L15'></a>    15 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
 <a id='L16' name='L16'></a>    16 
-<a id='L17' name='L17'></a>    17 <em class='comment'>/* written by Jim Meyering */</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>/* written by Eric Blake */</em>
 <a id='L18' name='L18'></a>    18 
-<a id='L19' name='L19'></a>    19 <em class='sharp'>#include</em> &lt;config.h&gt;
-<a id='L20' name='L20'></a>    20 
-<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;<a href='22.html'>dirent.h</a>&gt;
-<a id='L22' name='L22'></a>    22 
-<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
-<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;<a href='23.html'>unistd.h</a>&gt;
-<a id='L25' name='L25'></a>    25 
-<a id='L26' name='L26'></a>    26 <em class='sharp'>#if</em> !HAVE_FDOPENDIR
+<a id='L19' name='L19'></a>    19 <em class='comment'>/* If the user's config.h happens to include &lt;unistd.h&gt;, let it include only</em>
+<a id='L20' name='L20'></a>    20 <em class='comment'>   the system's &lt;unistd.h&gt; here, so that orig_faccessat doesn't recurse to</em>
+<a id='L21' name='L21'></a>    21 <em class='comment'>   rpl_faccessat.  */</em>
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#define</em> <a href='../S/2748.html#L24' title='Referred from 24 in lib/unistd.in.h.'>_GL_INCLUDING_UNISTD_H</a>
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 <em class='comment'>/* Specification.  */</em>
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;<a href='23.html'>unistd.h</a>&gt;
 <a id='L27' name='L27'></a>    27 
-<a id='L28' name='L28'></a>    28 <em class='sharp'># if</em> <a href='../S/2620.html#L73' title='Defined at 73 in lib/dirent.in.h.'>GNULIB_defined_DIR</a>
-<a id='L29' name='L29'></a>    29 <em class='comment'>/* We are in control of the file descriptor of a DIR.  */</em>
-<a id='L30' name='L30'></a>    30 
-<a id='L31' name='L31'></a>    31 <em class='sharp'>#  include</em> "<a href='2611.html'>dirent-private.h</a>"
-<a id='L32' name='L32'></a>    32 
-<a id='L33' name='L33'></a>    33 <em class='sharp'>#  if</em> !<a href='../S/2659.html#L96' title='Defined at 96 in lib/fdopendir.c.'>REPLACE_FCHDIR</a>
-<a id='L34' name='L34'></a>    34 <em class='sharp'>#   error</em> "unexpected configuration: GNULIB_defined_DIR but fchdir not replaced"
-<a id='L35' name='L35'></a>    35 <em class='sharp'>#  endif</em>
-<a id='L36' name='L36'></a>    36 
-<a id='L37' name='L37'></a>    37 <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *
-<a id='L38' name='L38'></a>    38 <a href='../R/9165.html' title='Multiple referred from 10 places.'>fdopendir</a> (<strong class='reserved'>int</strong> fd)
-<a id='L39' name='L39'></a>    39 <em class='brace'>{</em>
-<a id='L40' name='L40'></a>    40   <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a> = _gl_directory_name (fd);
-<a id='L41' name='L41'></a>    41   <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *dirp = <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a> ? <a href='../D/13693.html' title='Multiple defined in 7 places.'>opendir</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>) : <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L42' name='L42'></a>    42   <strong class='reserved'>if</strong> (dirp != <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>)
-<a id='L43' name='L43'></a>    43     dirp-&gt;fd_to_close = fd;
-<a id='L44' name='L44'></a>    44   <strong class='reserved'>return</strong> dirp;
-<a id='L45' name='L45'></a>    45 <em class='brace'>}</em>
-<a id='L46' name='L46'></a>    46 
-<a id='L47' name='L47'></a>    47 <em class='sharp'># elif</em> <strong class='reserved'>defined</strong> __KLIBC__
-<a id='L48' name='L48'></a>    48 
-<a id='L49' name='L49'></a>    49 <em class='sharp'>#  include</em> &lt;InnoTekLIBC/backend.h&gt;
-<a id='L50' name='L50'></a>    50 
-<a id='L51' name='L51'></a>    51 <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *
-<a id='L52' name='L52'></a>    52 <a href='../R/9165.html' title='Multiple referred from 10 places.'>fdopendir</a> (<strong class='reserved'>int</strong> fd)
-<a id='L53' name='L53'></a>    53 <em class='brace'>{</em>
-<a id='L54' name='L54'></a>    54   <strong class='reserved'>char</strong> path[_MAX_PATH];
-<a id='L55' name='L55'></a>    55   <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *dirp;
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;string.h&gt;
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;<a href='33.html'>sys/stat.h</a>&gt;
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#undef</em> <a href='../S/2748.html#L24' title='Referred from 24 in lib/unistd.in.h.'>_GL_INCLUDING_UNISTD_H</a>
+<a id='L34' name='L34'></a>    34 
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#if</em> HAVE_FACCESSAT
+<a id='L36' name='L36'></a>    36 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L37' name='L37'></a>    37 <a href='../S/2659.html#L60' title='Referred from 60 in lib/faccessat.c.'>orig_faccessat</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>int</strong> mode, <strong class='reserved'>int</strong> flag)
+<a id='L38' name='L38'></a>    38 <em class='brace'>{</em>
+<a id='L39' name='L39'></a>    39   <strong class='reserved'>return</strong> <a href='../D/10030.html' title='Multiple defined in 5 places.'>faccessat</a> (fd, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, mode, flag);
+<a id='L40' name='L40'></a>    40 <em class='brace'>}</em>
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#endif</em>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <em class='comment'>/* Write "unistd.h" here, not &lt;unistd.h&gt;, otherwise OSF/1 5.1 DTK cc</em>
+<a id='L44' name='L44'></a>    44 <em class='comment'>   eliminates this include because of the preliminary #include &lt;unistd.h&gt;</em>
+<a id='L45' name='L45'></a>    45 <em class='comment'>   above.  */</em>
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#include</em> "<a href='23.html'>unistd.h</a>"
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#ifndef</em> HAVE_ACCESS
+<a id='L49' name='L49'></a>    49 <em class='comment'>/* Mingw lacks access, but it also lacks real vs. effective ids, so</em>
+<a id='L50' name='L50'></a>    50 <em class='comment'>   the gnulib euidaccess module is good enough.  */</em>
+<a id='L51' name='L51'></a>    51 <em class='sharp'># undef</em> <a href='../R/6810.html' title='Multiple referred from 18 places.'>access</a>
+<a id='L52' name='L52'></a>    52 <em class='sharp'># define</em> <a href='../R/6810.html' title='Multiple referred from 18 places.'>access</a> <a href='../D/9952.html' title='Multiple defined in 4 places.'>euidaccess</a>
+<a id='L53' name='L53'></a>    53 <em class='sharp'>#endif</em>
+<a id='L54' name='L54'></a>    54 
+<a id='L55' name='L55'></a>    55 <em class='sharp'>#if</em> HAVE_FACCESSAT
 <a id='L56' name='L56'></a>    56 
-<a id='L57' name='L57'></a>    57   <em class='comment'>/* Get a path from fd */</em>
-<a id='L58' name='L58'></a>    58   <strong class='reserved'>if</strong> (__libc_Back_ioFHToPath (fd, path, <strong class='reserved'>sizeof</strong> (path)))
-<a id='L59' name='L59'></a>    59     <strong class='reserved'>return</strong> <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L60' name='L60'></a>    60 
-<a id='L61' name='L61'></a>    61   dirp = <a href='../D/13693.html' title='Multiple defined in 7 places.'>opendir</a> (path);
-<a id='L62' name='L62'></a>    62   <strong class='reserved'>if</strong> (!dirp)
-<a id='L63' name='L63'></a>    63     <strong class='reserved'>return</strong> <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L64' name='L64'></a>    64 
-<a id='L65' name='L65'></a>    65   <em class='comment'>/* Unregister fd registered by opendir() */</em>
-<a id='L66' name='L66'></a>    66   <a href='../S/2662.html#L59' title='Defined at 59 in lib/dirfd.c.'>_gl_unregister_dirp_fd</a> (<a href='../D/9320.html' title='Multiple defined in 5 places.'>dirfd</a> (dirp));
-<a id='L67' name='L67'></a>    67 
-<a id='L68' name='L68'></a>    68   <em class='comment'>/* Register our fd */</em>
-<a id='L69' name='L69'></a>    69   <strong class='reserved'>if</strong> (<a href='../D/7575.html' title='Multiple defined in 2 places.'>_gl_register_dirp_fd</a> (fd, dirp))
-<a id='L70' name='L70'></a>    70     <em class='brace'>{</em>
-<a id='L71' name='L71'></a>    71       <strong class='reserved'>int</strong> saved_errno = errno;
+<a id='L57' name='L57'></a>    57 <strong class='reserved'>int</strong>
+<a id='L58' name='L58'></a>    58 <a href='../S/2748.html#L940' title='Referred from 940 in lib/unistd.in.h.'>rpl_faccessat</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file, <strong class='reserved'>int</strong> mode, <strong class='reserved'>int</strong> flag)
+<a id='L59' name='L59'></a>    59 <em class='brace'>{</em>
+<a id='L60' name='L60'></a>    60   <strong class='reserved'>int</strong> result = <a href='../S/2659.html#L37' title='Defined at 37 in lib/faccessat.c.'>orig_faccessat</a> (fd, file, mode, flag);
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62   <strong class='reserved'>if</strong> (result == 0 &amp;&amp; file[strlen (file) - 1] == '/')
+<a id='L63' name='L63'></a>    63     <em class='brace'>{</em>
+<a id='L64' name='L64'></a>    64       <strong class='reserved'>struct</strong> <a href='../D/15669.html' title='Multiple defined in 13 places.'>stat</a> st;
+<a id='L65' name='L65'></a>    65       result = <a href='../D/10564.html' title='Multiple defined in 8 places.'>fstatat</a> (fd, file, &amp;st, 0);
+<a id='L66' name='L66'></a>    66       <strong class='reserved'>if</strong> (result == 0 &amp;&amp; !<a href='../D/5602.html' title='Multiple defined in 4 places.'>S_ISDIR</a> (st.st_mode))
+<a id='L67' name='L67'></a>    67         <em class='brace'>{</em>
+<a id='L68' name='L68'></a>    68           errno = ENOTDIR;
+<a id='L69' name='L69'></a>    69           <strong class='reserved'>return</strong> -1;
+<a id='L70' name='L70'></a>    70         <em class='brace'>}</em>
+<a id='L71' name='L71'></a>    71     <em class='brace'>}</em>
 <a id='L72' name='L72'></a>    72 
-<a id='L73' name='L73'></a>    73       <a href='../D/8691.html' title='Multiple defined in 5 places.'>closedir</a> (dirp);
-<a id='L74' name='L74'></a>    74 
-<a id='L75' name='L75'></a>    75       errno = saved_errno;
-<a id='L76' name='L76'></a>    76 
-<a id='L77' name='L77'></a>    77       dirp = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L78' name='L78'></a>    78     <em class='brace'>}</em>
-<a id='L79' name='L79'></a>    79 
-<a id='L80' name='L80'></a>    80   <strong class='reserved'>return</strong> dirp;
-<a id='L81' name='L81'></a>    81 <em class='brace'>}</em>
-<a id='L82' name='L82'></a>    82 
-<a id='L83' name='L83'></a>    83 <em class='sharp'># else</em>
-<a id='L84' name='L84'></a>    84 <em class='comment'>/* We are not in control of the file descriptor of a DIR, and therefore have to</em>
-<a id='L85' name='L85'></a>    85 <em class='comment'>   play tricks with file descriptors before and after a call to opendir().  */</em>
-<a id='L86' name='L86'></a>    86 
-<a id='L87' name='L87'></a>    87 <em class='sharp'>#  include</em> "<a href='2593.html'>openat.h</a>"
-<a id='L88' name='L88'></a>    88 <em class='sharp'>#  include</em> "<a href='2674.html'>openat-priv.h</a>"
-<a id='L89' name='L89'></a>    89 <em class='sharp'>#  include</em> "<a href='2701.html'>save-cwd.h</a>"
-<a id='L90' name='L90'></a>    90 
-<a id='L91' name='L91'></a>    91 <em class='sharp'>#  if</em> GNULIB_DIRENT_SAFER
-<a id='L92' name='L92'></a>    92 <em class='sharp'>#   include</em> "dirent--.h"
-<a id='L93' name='L93'></a>    93 <em class='sharp'>#  endif</em>
-<a id='L94' name='L94'></a>    94 
-<a id='L95' name='L95'></a>    95 <em class='sharp'>#  ifndef</em> <a href='../S/2659.html#L96' title='Defined at 96 in lib/fdopendir.c.'>REPLACE_FCHDIR</a>
-<a id='L96' name='L96'></a>    96 <em class='sharp'>#   define</em> <a href='../R/4371.html' title='Multiple referred from 12 places.'>REPLACE_FCHDIR</a> 0
-<a id='L97' name='L97'></a>    97 <em class='sharp'>#  endif</em>
-<a id='L98' name='L98'></a>    98 
-<a id='L99' name='L99'></a>    99 <strong class='reserved'>static</strong> <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *<a href='../S/2659.html#L159' title='Defined at 159 in lib/fdopendir.c.'>fdopendir_with_dup</a> (<strong class='reserved'>int</strong>, <strong class='reserved'>int</strong>, <strong class='reserved'>struct</strong> <a href='../S/2701.html#L24' title='Defined at 24 in lib/save-cwd.h.'>saved_cwd</a> <strong class='reserved'>const</strong> *);
-<a id='L100' name='L100'></a>   100 <strong class='reserved'>static</strong> <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *<a href='../S/2659.html#L199' title='Defined at 199 in lib/fdopendir.c.'>fd_clone_opendir</a> (<strong class='reserved'>int</strong>, <strong class='reserved'>struct</strong> <a href='../S/2701.html#L24' title='Defined at 24 in lib/save-cwd.h.'>saved_cwd</a> <strong class='reserved'>const</strong> *);
-<a id='L101' name='L101'></a>   101 
-<a id='L102' name='L102'></a>   102 <em class='comment'>/* Replacement for POSIX fdopendir.</em>
-<a id='L103' name='L103'></a>   103 <em class='comment'></em>
-<a id='L104' name='L104'></a>   104 <em class='comment'>   First, try to simulate it via opendir ("/proc/self/fd/...").  Failing</em>
-<a id='L105' name='L105'></a>   105 <em class='comment'>   that, simulate it by using fchdir metadata, or by doing</em>
-<a id='L106' name='L106'></a>   106 <em class='comment'>   save_cwd/fchdir/opendir(".")/restore_cwd.</em>
-<a id='L107' name='L107'></a>   107 <em class='comment'>   If either the save_cwd or the restore_cwd fails (relatively unlikely),</em>
-<a id='L108' name='L108'></a>   108 <em class='comment'>   then give a diagnostic and exit nonzero.</em>
-<a id='L109' name='L109'></a>   109 <em class='comment'></em>
-<a id='L110' name='L110'></a>   110 <em class='comment'>   If successful, the resulting stream is based on FD in</em>
-<a id='L111' name='L111'></a>   111 <em class='comment'>   implementations where streams are based on file descriptors and in</em>
-<a id='L112' name='L112'></a>   112 <em class='comment'>   applications where no other thread or signal handler allocates or</em>
-<a id='L113' name='L113'></a>   113 <em class='comment'>   frees file descriptors.  In other cases, consult dirfd on the result</em>
-<a id='L114' name='L114'></a>   114 <em class='comment'>   to find out whether FD is still being used.</em>
-<a id='L115' name='L115'></a>   115 <em class='comment'></em>
-<a id='L116' name='L116'></a>   116 <em class='comment'>   Otherwise, this function works just like POSIX fdopendir.</em>
-<a id='L117' name='L117'></a>   117 <em class='comment'></em>
-<a id='L118' name='L118'></a>   118 <em class='comment'>   W A R N I N G:</em>
-<a id='L119' name='L119'></a>   119 <em class='comment'></em>
-<a id='L120' name='L120'></a>   120 <em class='comment'>   Unlike other fd-related functions, this one places constraints on FD.</em>
-<a id='L121' name='L121'></a>   121 <em class='comment'>   If this function returns successfully, FD is under control of the</em>
-<a id='L122' name='L122'></a>   122 <em class='comment'>   dirent.h system, and the caller should not close or modify the state of</em>
-<a id='L123' name='L123'></a>   123 <em class='comment'>   FD other than by the dirent.h functions.  */</em>
-<a id='L124' name='L124'></a>   124 <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *
-<a id='L125' name='L125'></a>   125 <a href='../R/9165.html' title='Multiple referred from 10 places.'>fdopendir</a> (<strong class='reserved'>int</strong> fd)
-<a id='L126' name='L126'></a>   126 <em class='brace'>{</em>
-<a id='L127' name='L127'></a>   127   <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *dir = <a href='../S/2659.html#L159' title='Defined at 159 in lib/fdopendir.c.'>fdopendir_with_dup</a> (fd, -1, <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>);
-<a id='L128' name='L128'></a>   128 
-<a id='L129' name='L129'></a>   129   <strong class='reserved'>if</strong> (! <a href='../S/2659.html#L96' title='Defined at 96 in lib/fdopendir.c.'>REPLACE_FCHDIR</a> &amp;&amp; ! dir)
-<a id='L130' name='L130'></a>   130     <em class='brace'>{</em>
-<a id='L131' name='L131'></a>   131       <strong class='reserved'>int</strong> saved_errno = errno;
-<a id='L132' name='L132'></a>   132       <strong class='reserved'>if</strong> (<a href='../S/2674.html#L53' title='Defined at 53 in lib/openat-priv.h.'>EXPECTED_ERRNO</a> (saved_errno))
-<a id='L133' name='L133'></a>   133         <em class='brace'>{</em>
-<a id='L134' name='L134'></a>   134           <strong class='reserved'>struct</strong> <a href='../S/2701.html#L24' title='Defined at 24 in lib/save-cwd.h.'>saved_cwd</a> cwd;
-<a id='L135' name='L135'></a>   135           <strong class='reserved'>if</strong> (<a href='../S/2614.html#L58' title='Defined at 58 in lib/save-cwd.c.'>save_cwd</a> (&amp;cwd) != 0)
-<a id='L136' name='L136'></a>   136             <a href='../S/2760.html#L6' title='Defined at 6 in lib/openat-die.c.'>openat_save_fail</a> (errno);
-<a id='L137' name='L137'></a>   137           dir = <a href='../S/2659.html#L159' title='Defined at 159 in lib/fdopendir.c.'>fdopendir_with_dup</a> (fd, -1, &amp;cwd);
-<a id='L138' name='L138'></a>   138           saved_errno = errno;
-<a id='L139' name='L139'></a>   139           <a href='../S/2614.html#L86' title='Defined at 86 in lib/save-cwd.c.'>free_cwd</a> (&amp;cwd);
-<a id='L140' name='L140'></a>   140           errno = saved_errno;
-<a id='L141' name='L141'></a>   141         <em class='brace'>}</em>
-<a id='L142' name='L142'></a>   142     <em class='brace'>}</em>
-<a id='L143' name='L143'></a>   143 
-<a id='L144' name='L144'></a>   144   <strong class='reserved'>return</strong> dir;
-<a id='L145' name='L145'></a>   145 <em class='brace'>}</em>
-<a id='L146' name='L146'></a>   146 
-<a id='L147' name='L147'></a>   147 <em class='comment'>/* Like fdopendir, except that if OLDER_DUPFD is not -1, it is known</em>
-<a id='L148' name='L148'></a>   148 <em class='comment'>   to be a dup of FD which is less than FD - 1 and which will be</em>
-<a id='L149' name='L149'></a>   149 <em class='comment'>   closed by the caller and not otherwise used by the caller.  This</em>
-<a id='L150' name='L150'></a>   150 <em class='comment'>   function makes sure that FD is closed and all file descriptors less</em>
-<a id='L151' name='L151'></a>   151 <em class='comment'>   than FD are open, and then calls fd_clone_opendir on a dup of FD.</em>
-<a id='L152' name='L152'></a>   152 <em class='comment'>   That way, barring race conditions, fd_clone_opendir returns a</em>
-<a id='L153' name='L153'></a>   153 <em class='comment'>   stream whose file descriptor is FD.</em>
-<a id='L154' name='L154'></a>   154 <em class='comment'></em>
-<a id='L155' name='L155'></a>   155 <em class='comment'>   If REPLACE_FCHDIR or CWD is null, use opendir ("/proc/self/fd/...",</em>
-<a id='L156' name='L156'></a>   156 <em class='comment'>   falling back on fchdir metadata.  Otherwise, CWD is a saved version</em>
-<a id='L157' name='L157'></a>   157 <em class='comment'>   of the working directory; use fchdir/opendir(".")/restore_cwd(CWD).  */</em>
-<a id='L158' name='L158'></a>   158 <strong class='reserved'>static</strong> <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *
-<a id='L159' name='L159'></a>   159 <a href='../R/9166.html' title='Multiple referred from 4 places.'>fdopendir_with_dup</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>int</strong> older_dupfd, <strong class='reserved'>struct</strong> <a href='../S/2701.html#L24' title='Defined at 24 in lib/save-cwd.h.'>saved_cwd</a> <strong class='reserved'>const</strong> *cwd)
-<a id='L160' name='L160'></a>   160 <em class='brace'>{</em>
-<a id='L161' name='L161'></a>   161   <strong class='reserved'>int</strong> <a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a> = <a href='../D/9662.html' title='Multiple defined in 11 places.'>dup</a> (fd);
-<a id='L162' name='L162'></a>   162   <strong class='reserved'>if</strong> (<a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a> &lt; 0 &amp;&amp; errno == EMFILE)
-<a id='L163' name='L163'></a>   163     <a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a> = older_dupfd;
-<a id='L164' name='L164'></a>   164   <strong class='reserved'>if</strong> (<a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a> &lt; 0)
-<a id='L165' name='L165'></a>   165     <strong class='reserved'>return</strong> <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L166' name='L166'></a>   166   <strong class='reserved'>else</strong>
-<a id='L167' name='L167'></a>   167     <em class='brace'>{</em>
-<a id='L168' name='L168'></a>   168       <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *dir;
-<a id='L169' name='L169'></a>   169       <strong class='reserved'>int</strong> saved_errno;
-<a id='L170' name='L170'></a>   170       <strong class='reserved'>if</strong> (<a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a> &lt; fd - 1 &amp;&amp; <a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a> != older_dupfd)
-<a id='L171' name='L171'></a>   171         <em class='brace'>{</em>
-<a id='L172' name='L172'></a>   172           dir = <a href='../S/2659.html#L159' title='Defined at 159 in lib/fdopendir.c.'>fdopendir_with_dup</a> (fd, <a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a>, cwd);
-<a id='L173' name='L173'></a>   173           saved_errno = errno;
-<a id='L174' name='L174'></a>   174         <em class='brace'>}</em>
-<a id='L175' name='L175'></a>   175       <strong class='reserved'>else</strong>
-<a id='L176' name='L176'></a>   176         <em class='brace'>{</em>
-<a id='L177' name='L177'></a>   177           <a href='../D/8678.html' title='Multiple defined in 18 places.'>close</a> (fd);
-<a id='L178' name='L178'></a>   178           dir = <a href='../S/2659.html#L199' title='Defined at 199 in lib/fdopendir.c.'>fd_clone_opendir</a> (<a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a>, cwd);
-<a id='L179' name='L179'></a>   179           saved_errno = errno;
-<a id='L180' name='L180'></a>   180           <strong class='reserved'>if</strong> (! dir)
-<a id='L181' name='L181'></a>   181             <em class='brace'>{</em>
-<a id='L182' name='L182'></a>   182               <strong class='reserved'>int</strong> fd1 = <a href='../D/9662.html' title='Multiple defined in 11 places.'>dup</a> (<a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a>);
-<a id='L183' name='L183'></a>   183               <strong class='reserved'>if</strong> (fd1 != fd)
-<a id='L184' name='L184'></a>   184                 <a href='../S/2760.html#L6' title='Defined at 6 in lib/openat-die.c.'>openat_save_fail</a> (fd1 &lt; 0 ? errno : EBADF);
-<a id='L185' name='L185'></a>   185             <em class='brace'>}</em>
-<a id='L186' name='L186'></a>   186         <em class='brace'>}</em>
-<a id='L187' name='L187'></a>   187 
-<a id='L188' name='L188'></a>   188       <strong class='reserved'>if</strong> (<a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a> != older_dupfd)
-<a id='L189' name='L189'></a>   189         <a href='../D/8678.html' title='Multiple defined in 18 places.'>close</a> (<a href='../S/2681.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a>);
-<a id='L190' name='L190'></a>   190       errno = saved_errno;
-<a id='L191' name='L191'></a>   191       <strong class='reserved'>return</strong> dir;
-<a id='L192' name='L192'></a>   192     <em class='brace'>}</em>
-<a id='L193' name='L193'></a>   193 <em class='brace'>}</em>
-<a id='L194' name='L194'></a>   194 
-<a id='L195' name='L195'></a>   195 <em class='comment'>/* Like fdopendir, except the result controls a clone of FD.  It is</em>
-<a id='L196' name='L196'></a>   196 <em class='comment'>   the caller's responsibility both to close FD and (if the result is</em>
-<a id='L197' name='L197'></a>   197 <em class='comment'>   not null) to closedir the result.  */</em>
-<a id='L198' name='L198'></a>   198 <strong class='reserved'>static</strong> <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *
-<a id='L199' name='L199'></a>   199 <a href='../R/9158.html' title='Multiple referred from 2 places.'>fd_clone_opendir</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>struct</strong> <a href='../S/2701.html#L24' title='Defined at 24 in lib/save-cwd.h.'>saved_cwd</a> <strong class='reserved'>const</strong> *cwd)
-<a id='L200' name='L200'></a>   200 <em class='brace'>{</em>
-<a id='L201' name='L201'></a>   201   <strong class='reserved'>if</strong> (<a href='../S/2659.html#L96' title='Defined at 96 in lib/fdopendir.c.'>REPLACE_FCHDIR</a> || ! cwd)
-<a id='L202' name='L202'></a>   202     <em class='brace'>{</em>
-<a id='L203' name='L203'></a>   203       <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *dir = <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L204' name='L204'></a>   204       <strong class='reserved'>int</strong> saved_errno = <a href='../D/1664.html' title='Multiple defined in 5 places.'>EOPNOTSUPP</a>;
-<a id='L205' name='L205'></a>   205       <strong class='reserved'>char</strong> buf[<a href='../D/4280.html' title='Multiple defined in 3 places.'>OPENAT_BUFFER_SIZE</a>];
-<a id='L206' name='L206'></a>   206       <strong class='reserved'>char</strong> *proc_file = <a href='../S/2561.html#L47' title='Defined at 47 in lib/openat-proc.c.'>openat_proc_name</a> (buf, fd, ".");
-<a id='L207' name='L207'></a>   207       <strong class='reserved'>if</strong> (proc_file)
-<a id='L208' name='L208'></a>   208         <em class='brace'>{</em>
-<a id='L209' name='L209'></a>   209           dir = <a href='../D/13693.html' title='Multiple defined in 7 places.'>opendir</a> (proc_file);
-<a id='L210' name='L210'></a>   210           saved_errno = errno;
-<a id='L211' name='L211'></a>   211           <strong class='reserved'>if</strong> (proc_file != buf)
-<a id='L212' name='L212'></a>   212             <a href='../D/10457.html' title='Multiple defined in 19 places.'>free</a> (proc_file);
-<a id='L213' name='L213'></a>   213         <em class='brace'>}</em>
-<a id='L214' name='L214'></a>   214 <em class='sharp'>#  if</em> <a href='../S/2659.html#L96' title='Defined at 96 in lib/fdopendir.c.'>REPLACE_FCHDIR</a>
-<a id='L215' name='L215'></a>   215       <strong class='reserved'>if</strong> (! dir &amp;&amp; <a href='../S/2674.html#L53' title='Defined at 53 in lib/openat-priv.h.'>EXPECTED_ERRNO</a> (saved_errno))
-<a id='L216' name='L216'></a>   216         <em class='brace'>{</em>
-<a id='L217' name='L217'></a>   217           <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a> = _gl_directory_name (fd);
-<a id='L218' name='L218'></a>   218           <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *dp = <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a> ? <a href='../D/13693.html' title='Multiple defined in 7 places.'>opendir</a> (<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>) : <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L219' name='L219'></a>   219 
-<a id='L220' name='L220'></a>   220           <em class='comment'>/* The caller has done an elaborate dance to arrange for opendir to</em>
-<a id='L221' name='L221'></a>   221 <em class='comment'>             consume just the right file descriptor.  If dirfd returns -1,</em>
-<a id='L222' name='L222'></a>   222 <em class='comment'>             though, we're on a system like mingw where opendir does not</em>
-<a id='L223' name='L223'></a>   223 <em class='comment'>             consume a file descriptor.  Consume it via 'dup' instead.  */</em>
-<a id='L224' name='L224'></a>   224           <strong class='reserved'>if</strong> (dp &amp;&amp; <a href='../D/9320.html' title='Multiple defined in 5 places.'>dirfd</a> (dp) &lt; 0)
-<a id='L225' name='L225'></a>   225             <a href='../D/9662.html' title='Multiple defined in 11 places.'>dup</a> (fd);
-<a id='L226' name='L226'></a>   226 
-<a id='L227' name='L227'></a>   227           <strong class='reserved'>return</strong> dp;
-<a id='L228' name='L228'></a>   228         <em class='brace'>}</em>
-<a id='L229' name='L229'></a>   229 <em class='sharp'>#  endif</em>
-<a id='L230' name='L230'></a>   230       errno = saved_errno;
-<a id='L231' name='L231'></a>   231       <strong class='reserved'>return</strong> dir;
-<a id='L232' name='L232'></a>   232     <em class='brace'>}</em>
-<a id='L233' name='L233'></a>   233   <strong class='reserved'>else</strong>
-<a id='L234' name='L234'></a>   234     <em class='brace'>{</em>
-<a id='L235' name='L235'></a>   235       <strong class='reserved'>if</strong> (<a href='../S/2614.html#L54' title='Defined at 54 in lib/save-cwd.c.'>fchdir</a> (fd) != 0)
-<a id='L236' name='L236'></a>   236         <strong class='reserved'>return</strong> <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L237' name='L237'></a>   237       <strong class='reserved'>else</strong>
-<a id='L238' name='L238'></a>   238         <em class='brace'>{</em>
-<a id='L239' name='L239'></a>   239           <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *dir = <a href='../D/13693.html' title='Multiple defined in 7 places.'>opendir</a> (".");
-<a id='L240' name='L240'></a>   240           <strong class='reserved'>int</strong> saved_errno = errno;
-<a id='L241' name='L241'></a>   241           <strong class='reserved'>if</strong> (<a href='../S/2614.html#L72' title='Defined at 72 in lib/save-cwd.c.'>restore_cwd</a> (cwd) != 0)
-<a id='L242' name='L242'></a>   242             <a href='../S/2760.html#L7' title='Defined at 7 in lib/openat-die.c.'>openat_restore_fail</a> (errno);
-<a id='L243' name='L243'></a>   243           errno = saved_errno;
-<a id='L244' name='L244'></a>   244           <strong class='reserved'>return</strong> dir;
-<a id='L245' name='L245'></a>   245         <em class='brace'>}</em>
-<a id='L246' name='L246'></a>   246     <em class='brace'>}</em>
-<a id='L247' name='L247'></a>   247 <em class='brace'>}</em>
-<a id='L248' name='L248'></a>   248 
-<a id='L249' name='L249'></a>   249 <em class='sharp'># endif</em>
-<a id='L250' name='L250'></a>   250 
-<a id='L251' name='L251'></a>   251 <em class='sharp'>#else</em> <em class='comment'>/* HAVE_FDOPENDIR */</em>
-<a id='L252' name='L252'></a>   252 
-<a id='L253' name='L253'></a>   253 <em class='sharp'># include</em> &lt;errno.h&gt;
-<a id='L254' name='L254'></a>   254 <em class='sharp'># include</em> &lt;<a href='33.html'>sys/stat.h</a>&gt;
-<a id='L255' name='L255'></a>   255 
-<a id='L256' name='L256'></a>   256 <em class='sharp'># undef</em> <a href='../R/9165.html' title='Multiple referred from 10 places.'>fdopendir</a>
-<a id='L257' name='L257'></a>   257 
-<a id='L258' name='L258'></a>   258 <em class='comment'>/* Like fdopendir, but work around GNU/Hurd bug by validating FD.  */</em>
-<a id='L259' name='L259'></a>   259 
-<a id='L260' name='L260'></a>   260 <a href='../D/1378.html' title='Multiple defined in 5 places.'>DIR</a> *
-<a id='L261' name='L261'></a>   261 <a href='../S/2620.html#L276' title='Referred from 276 in lib/dirent.in.h.'>rpl_fdopendir</a> (<strong class='reserved'>int</strong> fd)
-<a id='L262' name='L262'></a>   262 <em class='brace'>{</em>
-<a id='L263' name='L263'></a>   263   <strong class='reserved'>struct</strong> <a href='../D/15669.html' title='Multiple defined in 13 places.'>stat</a> st;
-<a id='L264' name='L264'></a>   264   <strong class='reserved'>if</strong> (<a href='../D/10563.html' title='Multiple defined in 9 places.'>fstat</a> (fd, &amp;st))
-<a id='L265' name='L265'></a>   265     <strong class='reserved'>return</strong> <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L266' name='L266'></a>   266   <strong class='reserved'>if</strong> (!<a href='../D/5602.html' title='Multiple defined in 4 places.'>S_ISDIR</a> (st.st_mode))
-<a id='L267' name='L267'></a>   267     <em class='brace'>{</em>
-<a id='L268' name='L268'></a>   268       errno = ENOTDIR;
-<a id='L269' name='L269'></a>   269       <strong class='reserved'>return</strong> <a href='../D/4203.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L270' name='L270'></a>   270     <em class='brace'>}</em>
-<a id='L271' name='L271'></a>   271   <strong class='reserved'>return</strong> <a href='../D/10092.html' title='Multiple defined in 7 places.'>fdopendir</a> (fd);
-<a id='L272' name='L272'></a>   272 <em class='brace'>}</em>
-<a id='L273' name='L273'></a>   273 
-<a id='L274' name='L274'></a>   274 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_FDOPENDIR */</em>
+<a id='L73' name='L73'></a>    73   <strong class='reserved'>return</strong> result;
+<a id='L74' name='L74'></a>    74 <em class='brace'>}</em>
+<a id='L75' name='L75'></a>    75 
+<a id='L76' name='L76'></a>    76 <em class='sharp'>#else</em> <em class='comment'>/* !HAVE_FACCESSAT */</em>
+<a id='L77' name='L77'></a>    77 
+<a id='L78' name='L78'></a>    78 <em class='comment'>/* Invoke access or euidaccess on file, FILE, using mode MODE, in the directory</em>
+<a id='L79' name='L79'></a>    79 <em class='comment'>   open on descriptor FD.  If possible, do it without changing the</em>
+<a id='L80' name='L80'></a>    80 <em class='comment'>   working directory.  Otherwise, resort to using save_cwd/fchdir, then</em>
+<a id='L81' name='L81'></a>    81 <em class='comment'>   (access|euidaccess)/restore_cwd.  If either the save_cwd or the</em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>   restore_cwd fails, then give a diagnostic and exit nonzero.</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>   Note that this implementation only supports AT_EACCESS, although some</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>   native versions also support AT_SYMLINK_NOFOLLOW.  */</em>
+<a id='L85' name='L85'></a>    85 
+<a id='L86' name='L86'></a>    86 <em class='sharp'># define</em> AT_FUNC_NAME <a href='../D/10030.html' title='Multiple defined in 5 places.'>faccessat</a>
+<a id='L87' name='L87'></a>    87 <em class='sharp'># define</em> <a href='../R/141.html' title='Multiple referred from 2 places.'>AT_FUNC_F1</a> <a href='../D/9952.html' title='Multiple defined in 4 places.'>euidaccess</a>
+<a id='L88' name='L88'></a>    88 <em class='sharp'># define</em> <a href='../S/2682.html#L36' title='Referred from 36 in lib/at-func.c.'>AT_FUNC_F2</a> <a href='../D/7641.html' title='Multiple defined in 15 places.'>access</a>
+<a id='L89' name='L89'></a>    89 <em class='sharp'># define</em> <a href='../R/146.html' title='Multiple referred from 3 places.'>AT_FUNC_USE_F1_COND</a> <a href='../D/155.html' title='Multiple defined in 2 places.'>AT_EACCESS</a>
+<a id='L90' name='L90'></a>    90 <em class='sharp'># define</em> <a href='../S/2682.html#L70' title='Referred from 70 in lib/at-func.c.'>AT_FUNC_POST_FILE_PARAM_DECLS</a> , <strong class='reserved'>int</strong> mode, <strong class='reserved'>int</strong> flag
+<a id='L91' name='L91'></a>    91 <em class='sharp'># define</em> <a href='../R/143.html' title='Multiple referred from 3 places.'>AT_FUNC_POST_FILE_ARGS</a>        , mode
+<a id='L92' name='L92'></a>    92 <em class='sharp'># include</em> "at-func.c"
+<a id='L93' name='L93'></a>    93 
+<a id='L94' name='L94'></a>    94 <em class='sharp'>#endif</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L38'>[^]</a><a href='#L261'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L37'>[^]</a><a href='#L58'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>
