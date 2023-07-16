@@ -1,0 +1,645 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/unexaix.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4601.html'>src</a>/unexaix.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L94'>[^]</a><a href='#L515'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L94' title='Defined at 94.'>report_error</a></li>
+<li><a href='#L106' title='Defined at 106.'>ATTRIBUTE_FORMAT_PRINTF</a></li>
+<li><a href='#L128' title='Defined at 128.'>unexec</a></li>
+<li><a href='#L163' title='Defined at 163.'>make_hdr</a></li>
+<li><a href='#L374' title='Defined at 374.'>copy_text_and_data</a></li>
+<li><a href='#L394' title='Defined at 394.'>write_segment</a></li>
+<li><a href='#L437' title='Defined at 437.'>copy_sym</a></li>
+<li><a href='#L468' title='Defined at 468.'>adjust_lnnoptrs</a></li>
+<li><a href='#L515' title='Defined at 515.'>unrelocate_symbols</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Dump an executable file.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1985-1988, 1999, 2001-2023 Free Software Foundation,</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='comment'>/*</em>
+<a id='L21' name='L21'></a>    21 <em class='comment'>In other words, you are welcome to use, share and improve this program.</em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>You are forbidden to forbid anyone else to use, share and improve</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'>what you give them.   Help stamp out software-hoarding!  */</em>
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='comment'>/* Originally based on the COFF unexec.c by Spencer W. Thomas.</em>
+<a id='L27' name='L27'></a>    27 <em class='comment'> *</em>
+<a id='L28' name='L28'></a>    28 <em class='comment'> * Subsequently hacked on by</em>
+<a id='L29' name='L29'></a>    29 <em class='comment'> * Bill Mann &lt;Bill_Man@praxisint.com&gt;</em>
+<a id='L30' name='L30'></a>    30 <em class='comment'> * Andrew Vignaux &lt;Andrew.Vignaux@comp.vuw.ac.nz&gt;</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'> * Mike Sperber &lt;sperber@informatik.uni-tuebingen.de&gt;</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'> *</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'> * Synopsis:</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'> *      unexec (const char *new_name, const *old_name);</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'> *</em>
+<a id='L36' name='L36'></a>    36 <em class='comment'> * Takes a snapshot of the program and makes an a.out format file in the</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'> * file named by the string argument new_name.</em>
+<a id='L38' name='L38'></a>    38 <em class='comment'> * If a_name is non-NULL, the symbol table will be taken from the given file.</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'> * On some machines, an existing a_name file is required.</em>
+<a id='L40' name='L40'></a>    40 <em class='comment'> *</em>
+<a id='L41' name='L41'></a>    41 <em class='comment'> */</em>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#include</em> "<a href='2248.html'>unexec.h</a>"
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L46' name='L46'></a>    46 
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#define</em> <a href='../R/3971.html' title='Multiple referred from 31 places.'>PERROR</a>(file) <a href='../D/14819.html' title='Multiple defined in 2 places.'>report_error</a> (file, new)
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#include</em> &lt;a.out.h&gt;
+<a id='L49' name='L49'></a>    49 <em class='comment'>/* Define getpagesize () if the system does not.</em>
+<a id='L50' name='L50'></a>    50 <em class='comment'>   Note that this may depend on symbols defined in a.out.h</em>
+<a id='L51' name='L51'></a>    51 <em class='comment'> */</em>
+<a id='L52' name='L52'></a>    52 <em class='sharp'>#include</em> "<a href='2069.html'>getpagesize.h</a>"
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54 <em class='sharp'>#include</em> &lt;sys/types.h&gt;
+<a id='L55' name='L55'></a>    55 <em class='sharp'>#include</em> &lt;<a href='../I/248.html'>inttypes.h</a>&gt;
+<a id='L56' name='L56'></a>    56 <em class='sharp'>#include</em> &lt;stdarg.h&gt;
+<a id='L57' name='L57'></a>    57 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L58' name='L58'></a>    58 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L59' name='L59'></a>    59 <em class='sharp'>#include</em> &lt;<a href='23.html'>unistd.h</a>&gt;
+<a id='L60' name='L60'></a>    60 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62 <strong class='reserved'>extern</strong> <strong class='reserved'>char</strong> _data[];
+<a id='L63' name='L63'></a>    63 <strong class='reserved'>extern</strong> <strong class='reserved'>char</strong> _text[];
+<a id='L64' name='L64'></a>    64 
+<a id='L65' name='L65'></a>    65 <em class='sharp'>#include</em> &lt;filehdr.h&gt;
+<a id='L66' name='L66'></a>    66 <em class='sharp'>#include</em> &lt;aouthdr.h&gt;
+<a id='L67' name='L67'></a>    67 <em class='sharp'>#include</em> &lt;scnhdr.h&gt;
+<a id='L68' name='L68'></a>    68 <em class='sharp'>#include</em> &lt;syms.h&gt;
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2035.html#L70' title='Defined at 70 in src/unexcoff.c.'>filehdr</a> f_hdr;            <em class='comment'>/* File header */</em>
+<a id='L71' name='L71'></a>    71 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/2035.html#L76' title='Defined at 76 in src/unexcoff.c.'>aouthdr</a> f_ohdr;           <em class='comment'>/* Optional file header (a.out) */</em>
+<a id='L72' name='L72'></a>    72 <strong class='reserved'>static</strong> <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> bias;                      <em class='comment'>/* Bias to add for growth */</em>
+<a id='L73' name='L73'></a>    73 <strong class='reserved'>static</strong> <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> lnnoptr;                   <em class='comment'>/* Pointer to line-number info within file */</em>
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75 <strong class='reserved'>static</strong> <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> text_scnptr;
+<a id='L76' name='L76'></a>    76 <strong class='reserved'>static</strong> <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> data_scnptr;
+<a id='L77' name='L77'></a>    77 <em class='sharp'>#define</em> <a href='../S/2103.html#L527' title='Referred from 527 in src/unexaix.c.'>ALIGN</a>(val, pwr) (((val) + ((1L&lt;&lt;(pwr))-1)) &amp; ~((1L&lt;&lt;(pwr))-1))
+<a id='L78' name='L78'></a>    78 <strong class='reserved'>static</strong> <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> load_scnptr;
+<a id='L79' name='L79'></a>    79 <strong class='reserved'>static</strong> <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> orig_load_scnptr;
+<a id='L80' name='L80'></a>    80 <strong class='reserved'>static</strong> <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> orig_data_scnptr;
+<a id='L81' name='L81'></a>    81 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../S/2103.html#L515' title='Defined at 515 in src/unexaix.c.'>unrelocate_symbols</a> (<strong class='reserved'>int</strong>, <strong class='reserved'>int</strong>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *);
+<a id='L82' name='L82'></a>    82 
+<a id='L83' name='L83'></a>    83 <em class='sharp'>#ifndef</em> <a href='../S/2103.html#L84' title='Defined at 84 in src/unexaix.c.'>MAX_SECTIONS</a>
+<a id='L84' name='L84'></a>    84 <em class='sharp'>#define</em> <a href='../R/3347.html' title='Multiple referred from 3 places.'>MAX_SECTIONS</a>    10
+<a id='L85' name='L85'></a>    85 <em class='sharp'>#endif</em>
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../D/7753.html' title='Multiple defined in 2 places.'>adjust_lnnoptrs</a> (<strong class='reserved'>int</strong>, <strong class='reserved'>int</strong>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *);
+<a id='L88' name='L88'></a>    88 
+<a id='L89' name='L89'></a>    89 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> pagemask;
+<a id='L90' name='L90'></a>    90 
+<a id='L91' name='L91'></a>    91 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L92' name='L92'></a>    92 
+<a id='L93' name='L93'></a>    93 <strong class='reserved'>static</strong> <strong class='reserved'>_Noreturn</strong> <strong class='reserved'>void</strong>
+<a id='L94' name='L94'></a>    94 <a href='../R/13708.html' title='Multiple referred from 2 places.'>report_error</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *file, <strong class='reserved'>int</strong> fd)
+<a id='L95' name='L95'></a>    95 <em class='brace'>{</em>
+<a id='L96' name='L96'></a>    96   <strong class='reserved'>int</strong> err = errno;
+<a id='L97' name='L97'></a>    97   <strong class='reserved'>if</strong> (fd)
+<a id='L98' name='L98'></a>    98     <a href='../S/2178.html#L2480' title='Defined at 2480 in src/sysdep.c.'>emacs_close</a> (fd);
+<a id='L99' name='L99'></a>    99   <a href='../S/2204.html#L208' title='Defined at 208 in src/fileio.c.'>report_file_errno</a> ("Cannot unexec", <a href='../D/8327.html' title='Multiple defined in 2 places.'>build_string</a> (file), err);
+<a id='L100' name='L100'></a>   100 <em class='brace'>}</em>
+<a id='L101' name='L101'></a>   101 
+<a id='L102' name='L102'></a>   102 <em class='sharp'>#define</em> <a href='../R/1556.html' title='Multiple referred from 3 places.'>ERROR0</a>(msg) <a href='../S/2035.html#L141' title='Defined at 141 in src/unexcoff.c.'>report_error_1</a> (new, msg)
+<a id='L103' name='L103'></a>   103 <em class='sharp'>#define</em> <a href='../R/1557.html' title='Multiple referred from 3 places.'>ERROR1</a>(msg,<a href='../S/3916.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>) <a href='../S/2035.html#L141' title='Defined at 141 in src/unexcoff.c.'>report_error_1</a> (new, msg, <a href='../S/3916.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>)
+<a id='L104' name='L104'></a>   104 <em class='sharp'>#define</em> <a href='../R/1558.html' title='Multiple referred from 2 places.'>ERROR2</a>(msg,<a href='../S/3916.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>,y) <a href='../S/2035.html#L141' title='Defined at 141 in src/unexcoff.c.'>report_error_1</a> (new, msg, <a href='../S/3916.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y)
+<a id='L105' name='L105'></a>   105 
+<a id='L106' name='L106'></a>   106 <strong class='reserved'>static</strong> <strong class='reserved'>_Noreturn</strong> <strong class='reserved'>void</strong> <a href='../R/130.html' title='Multiple referred from 31 places.'>ATTRIBUTE_FORMAT_PRINTF</a> (2, 3)
+<a id='L107' name='L107'></a>   107 <a href='../S/2035.html#L141' title='Defined at 141 in src/unexcoff.c.'>report_error_1</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *msg, ...)
+<a id='L108' name='L108'></a>   108 <em class='brace'>{</em>
+<a id='L109' name='L109'></a>   109   va_list ap;
+<a id='L110' name='L110'></a>   110   <a href='../S/2178.html#L2480' title='Defined at 2480 in src/sysdep.c.'>emacs_close</a> (fd);
+<a id='L111' name='L111'></a>   111   va_start (ap, msg);
+<a id='L112' name='L112'></a>   112   <a href='../D/16799.html' title='Multiple defined in 2 places.'>verror</a> (msg, ap);
+<a id='L113' name='L113'></a>   113   va_end (ap);
+<a id='L114' name='L114'></a>   114 <em class='brace'>}</em>
+<a id='L115' name='L115'></a>   115 
+<a id='L116' name='L116'></a>   116 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../D/12716.html' title='Multiple defined in 2 places.'>make_hdr</a> (<strong class='reserved'>int</strong>, <strong class='reserved'>int</strong>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *);
+<a id='L117' name='L117'></a>   117 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> mark_x (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *);
+<a id='L118' name='L118'></a>   118 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../D/8983.html' title='Multiple defined in 2 places.'>copy_text_and_data</a> (<strong class='reserved'>int</strong>);
+<a id='L119' name='L119'></a>   119 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../D/8980.html' title='Multiple defined in 2 places.'>copy_sym</a> (<strong class='reserved'>int</strong>, <strong class='reserved'>int</strong>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *);
+<a id='L120' name='L120'></a>   120 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../D/17314.html' title='Multiple defined in 2 places.'>write_segment</a> (<strong class='reserved'>int</strong>, <strong class='reserved'>char</strong> *, <strong class='reserved'>char</strong> *);
+<a id='L121' name='L121'></a>   121 
+<a id='L122' name='L122'></a>   122 <em class='comment'>/* ****************************************************************</em>
+<a id='L123' name='L123'></a>   123 <em class='comment'> * unexec</em>
+<a id='L124' name='L124'></a>   124 <em class='comment'> *</em>
+<a id='L125' name='L125'></a>   125 <em class='comment'> * driving logic.</em>
+<a id='L126' name='L126'></a>   126 <em class='comment'> */</em>
+<a id='L127' name='L127'></a>   127 <strong class='reserved'>void</strong>
+<a id='L128' name='L128'></a>   128 <a href='../R/15376.html' title='Multiple referred from 2 places.'>unexec</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *new_name, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *a_name)
+<a id='L129' name='L129'></a>   129 <em class='brace'>{</em>
+<a id='L130' name='L130'></a>   130   <strong class='reserved'>int</strong> new = -1, a_out = -1;
+<a id='L131' name='L131'></a>   131 
+<a id='L132' name='L132'></a>   132   <strong class='reserved'>if</strong> (a_name &amp;&amp; (a_out = <a href='../S/2178.html#L2378' title='Defined at 2378 in src/sysdep.c.'>emacs_open</a> (a_name, O_RDONLY, 0)) &lt; 0)
+<a id='L133' name='L133'></a>   133     <em class='brace'>{</em>
+<a id='L134' name='L134'></a>   134       <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (a_name);
+<a id='L135' name='L135'></a>   135     <em class='brace'>}</em>
+<a id='L136' name='L136'></a>   136   <strong class='reserved'>if</strong> ((new = <a href='../S/2178.html#L2378' title='Defined at 2378 in src/sysdep.c.'>emacs_open</a> (new_name, O_WRONLY | O_CREAT | O_TRUNC, 0777)) &lt; 0)
+<a id='L137' name='L137'></a>   137     <em class='brace'>{</em>
+<a id='L138' name='L138'></a>   138       <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (new_name);
+<a id='L139' name='L139'></a>   139     <em class='brace'>}</em>
+<a id='L140' name='L140'></a>   140   <strong class='reserved'>if</strong> (<a href='../D/12716.html' title='Multiple defined in 2 places.'>make_hdr</a> (new, a_out,
+<a id='L141' name='L141'></a>   141                 a_name, new_name) &lt; 0
+<a id='L142' name='L142'></a>   142       || <a href='../D/8983.html' title='Multiple defined in 2 places.'>copy_text_and_data</a> (new) &lt; 0
+<a id='L143' name='L143'></a>   143       || <a href='../D/8980.html' title='Multiple defined in 2 places.'>copy_sym</a> (new, a_out, a_name, new_name) &lt; 0
+<a id='L144' name='L144'></a>   144       || <a href='../D/7753.html' title='Multiple defined in 2 places.'>adjust_lnnoptrs</a> (new, a_out, new_name) &lt; 0
+<a id='L145' name='L145'></a>   145       || <a href='../S/2103.html#L515' title='Defined at 515 in src/unexaix.c.'>unrelocate_symbols</a> (new, a_out, a_name, new_name) &lt; 0)
+<a id='L146' name='L146'></a>   146     <em class='brace'>{</em>
+<a id='L147' name='L147'></a>   147       <a href='../S/2178.html#L2480' title='Defined at 2480 in src/sysdep.c.'>emacs_close</a> (new);
+<a id='L148' name='L148'></a>   148       <strong class='reserved'>return</strong>;
+<a id='L149' name='L149'></a>   149     <em class='brace'>}</em>
+<a id='L150' name='L150'></a>   150 
+<a id='L151' name='L151'></a>   151   <a href='../S/2178.html#L2480' title='Defined at 2480 in src/sysdep.c.'>emacs_close</a> (new);
+<a id='L152' name='L152'></a>   152   <strong class='reserved'>if</strong> (a_out &gt;= 0)
+<a id='L153' name='L153'></a>   153     <a href='../S/2178.html#L2480' title='Defined at 2480 in src/sysdep.c.'>emacs_close</a> (a_out);
+<a id='L154' name='L154'></a>   154 <em class='brace'>}</em>
+<a id='L155' name='L155'></a>   155 
+<a id='L156' name='L156'></a>   156 <em class='comment'>/* ****************************************************************</em>
+<a id='L157' name='L157'></a>   157 <em class='comment'> * make_hdr</em>
+<a id='L158' name='L158'></a>   158 <em class='comment'> *</em>
+<a id='L159' name='L159'></a>   159 <em class='comment'> * Make the header in the new a.out from the header in core.</em>
+<a id='L160' name='L160'></a>   160 <em class='comment'> * Modify the text and data sizes.</em>
+<a id='L161' name='L161'></a>   161 <em class='comment'> */</em>
+<a id='L162' name='L162'></a>   162 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L163' name='L163'></a>   163 <a href='../R/11688.html' title='Multiple referred from 4 places.'>make_hdr</a> (<strong class='reserved'>int</strong> new, <strong class='reserved'>int</strong> a_out,
+<a id='L164' name='L164'></a>   164           <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *a_name, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *new_name)
+<a id='L165' name='L165'></a>   165 <em class='brace'>{</em>
+<a id='L166' name='L166'></a>   166   <strong class='reserved'>int</strong> scns;
+<a id='L167' name='L167'></a>   167   <a href='../D/16561.html' title='Multiple defined in 2 places.'>uintptr_t</a> bss_start;
+<a id='L168' name='L168'></a>   168   <a href='../D/16561.html' title='Multiple defined in 2 places.'>uintptr_t</a> <a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>;
+<a id='L169' name='L169'></a>   169 
+<a id='L170' name='L170'></a>   170   <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> <a href='../S/2196.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>[<a href='../S/2103.html#L84' title='Defined at 84 in src/unexaix.c.'>MAX_SECTIONS</a>];
+<a id='L171' name='L171'></a>   171   <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> * f_thdr;               <em class='comment'>/* Text section header */</em>
+<a id='L172' name='L172'></a>   172   <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> * f_dhdr;               <em class='comment'>/* Data section header */</em>
+<a id='L173' name='L173'></a>   173   <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> * f_bhdr;               <em class='comment'>/* Bss section header */</em>
+<a id='L174' name='L174'></a>   174   <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> * f_lhdr;               <em class='comment'>/* Loader section header */</em>
+<a id='L175' name='L175'></a>   175   <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> * f_tchdr;              <em class='comment'>/* Typechk section header */</em>
+<a id='L176' name='L176'></a>   176   <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> * f_dbhdr;              <em class='comment'>/* Debug section header */</em>
+<a id='L177' name='L177'></a>   177   <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> * f_xhdr;               <em class='comment'>/* Except section header */</em>
+<a id='L178' name='L178'></a>   178 
+<a id='L179' name='L179'></a>   179   load_scnptr = orig_load_scnptr = lnnoptr = 0;
+<a id='L180' name='L180'></a>   180   pagemask = <a href='../D/11005.html' title='Multiple defined in 10 places.'>getpagesize</a> () - 1;
+<a id='L181' name='L181'></a>   181 
+<a id='L182' name='L182'></a>   182   <em class='comment'>/* Adjust text/data boundary. */</em>
+<a id='L183' name='L183'></a>   183   <a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a> = (<a href='../D/16561.html' title='Multiple defined in 2 places.'>uintptr_t</a>) _data;
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185   <a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a> = <a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a> &amp; ~pagemask; <em class='comment'>/* (Down) to page boundary. */</em>
+<a id='L186' name='L186'></a>   186 
+<a id='L187' name='L187'></a>   187   bss_start = (<a href='../D/16561.html' title='Multiple defined in 2 places.'>uintptr_t</a>) <a href='../S/2180.html#L653' title='Defined at 653 in src/w32heap.c.'>sbrk</a> (0) + pagemask;
+<a id='L188' name='L188'></a>   188   bss_start &amp;= ~ pagemask;
+<a id='L189' name='L189'></a>   189 
+<a id='L190' name='L190'></a>   190   <strong class='reserved'>if</strong> (<a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a> &gt; bss_start)   <em class='comment'>/* Can't have negative data size. */</em>
+<a id='L191' name='L191'></a>   191     <em class='brace'>{</em>
+<a id='L192' name='L192'></a>   192       <a href='../D/1685.html' title='Multiple defined in 2 places.'>ERROR2</a> (("unexec: data_start (0x%"<a href='../S/2600.html#L504' title='Defined at 504 in lib/inttypes.in.h.'>PRIxPTR</a>
+<a id='L193' name='L193'></a>   193                ") can't be greater than bss_start (0x%"<a href='../S/2600.html#L504' title='Defined at 504 in lib/inttypes.in.h.'>PRIxPTR</a>")"),
+<a id='L194' name='L194'></a>   194               <a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>, bss_start);
+<a id='L195' name='L195'></a>   195     <em class='brace'>}</em>
+<a id='L196' name='L196'></a>   196 
+<a id='L197' name='L197'></a>   197   <em class='comment'>/* Salvage as much info from the existing file as possible */</em>
+<a id='L198' name='L198'></a>   198   f_thdr = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>; f_dhdr = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>; f_bhdr = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L199' name='L199'></a>   199   f_lhdr = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>; f_tchdr = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>; f_dbhdr = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>; f_xhdr = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L200' name='L200'></a>   200   <strong class='reserved'>if</strong> (a_out &gt;= 0)
+<a id='L201' name='L201'></a>   201     <em class='brace'>{</em>
+<a id='L202' name='L202'></a>   202       <strong class='reserved'>if</strong> (<a href='../D/14574.html' title='Multiple defined in 14 places.'>read</a> (a_out, &amp;f_hdr, <strong class='reserved'>sizeof</strong> (f_hdr)) != <strong class='reserved'>sizeof</strong> (f_hdr))
+<a id='L203' name='L203'></a>   203         <em class='brace'>{</em>
+<a id='L204' name='L204'></a>   204           <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (a_name);
+<a id='L205' name='L205'></a>   205         <em class='brace'>}</em>
+<a id='L206' name='L206'></a>   206       <strong class='reserved'>if</strong> (f_hdr.f_opthdr &gt; 0)
+<a id='L207' name='L207'></a>   207         <em class='brace'>{</em>
+<a id='L208' name='L208'></a>   208           <strong class='reserved'>if</strong> (<a href='../D/14574.html' title='Multiple defined in 14 places.'>read</a> (a_out, &amp;f_ohdr, <strong class='reserved'>sizeof</strong> (f_ohdr)) != <strong class='reserved'>sizeof</strong> (f_ohdr))
+<a id='L209' name='L209'></a>   209             <em class='brace'>{</em>
+<a id='L210' name='L210'></a>   210               <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (a_name);
+<a id='L211' name='L211'></a>   211             <em class='brace'>}</em>
+<a id='L212' name='L212'></a>   212         <em class='brace'>}</em>
+<a id='L213' name='L213'></a>   213       <strong class='reserved'>if</strong> (f_hdr.f_nscns &gt; <a href='../S/2103.html#L84' title='Defined at 84 in src/unexaix.c.'>MAX_SECTIONS</a>)
+<a id='L214' name='L214'></a>   214         <em class='brace'>{</em>
+<a id='L215' name='L215'></a>   215           <a href='../D/1683.html' title='Multiple defined in 2 places.'>ERROR0</a> ("unexec: too many section headers -- increase MAX_SECTIONS");
+<a id='L216' name='L216'></a>   216         <em class='brace'>}</em>
+<a id='L217' name='L217'></a>   217       <em class='comment'>/* Loop through section headers */</em>
+<a id='L218' name='L218'></a>   218       <strong class='reserved'>for</strong> (scns = 0; scns &lt; f_hdr.f_nscns; scns++) <em class='brace'>{</em>
+<a id='L219' name='L219'></a>   219         <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> *s = &amp;<a href='../S/2196.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>[scns];
+<a id='L220' name='L220'></a>   220         <strong class='reserved'>if</strong> (<a href='../D/14574.html' title='Multiple defined in 14 places.'>read</a> (a_out, s, <strong class='reserved'>sizeof</strong> (*s)) != <strong class='reserved'>sizeof</strong> (*s))
+<a id='L221' name='L221'></a>   221           <em class='brace'>{</em>
+<a id='L222' name='L222'></a>   222             <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (a_name);
+<a id='L223' name='L223'></a>   223           <em class='brace'>}</em>
+<a id='L224' name='L224'></a>   224 
+<a id='L225' name='L225'></a>   225 <em class='sharp'>#define</em> <a href='../R/823.html' title='Multiple referred from 7 places.'>CHECK_SCNHDR</a>(ptr, <a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a>, flags) \
+<a id='L226' name='L226'></a>   226   <strong class='reserved'>if</strong> (strcmp (s-&gt;s_name, <a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a>) == 0) <em class='brace'>{</em> \
+<a id='L227' name='L227'></a>   227     <strong class='reserved'>if</strong> (s-&gt;s_flags != flags) <em class='brace'>{</em> \
+<a id='L228' name='L228'></a>   228       <a href='../D/10421.html' title='Multiple defined in 4 places.'>fprintf</a> (<a href='../S/6.html#L50' title='Defined at 50 in nt/cmdproxy.c.'>stderr</a>, "unexec: %lx flags where %x expected in %s section.\n", \
+<a id='L229' name='L229'></a>   229                (<strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong>)s-&gt;s_flags, flags, <a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a>);                 \
+<a id='L230' name='L230'></a>   230     <em class='brace'>}</em> \
+<a id='L231' name='L231'></a>   231     <strong class='reserved'>if</strong> (ptr) <em class='brace'>{</em> \
+<a id='L232' name='L232'></a>   232       <a href='../D/10421.html' title='Multiple defined in 4 places.'>fprintf</a> (<a href='../S/6.html#L50' title='Defined at 50 in nt/cmdproxy.c.'>stderr</a>, "unexec: duplicate section header for section %s.\n", \
+<a id='L233' name='L233'></a>   233                <a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a>);                                                   \
+<a id='L234' name='L234'></a>   234     <em class='brace'>}</em> \
+<a id='L235' name='L235'></a>   235     ptr = s; \
+<a id='L236' name='L236'></a>   236   <em class='brace'>}</em>
+<a id='L237' name='L237'></a>   237         <a href='../S/2103.html#L225' title='Defined at 225 in src/unexaix.c.'>CHECK_SCNHDR</a> (f_thdr, _TEXT, STYP_TEXT);
+<a id='L238' name='L238'></a>   238         <a href='../S/2103.html#L225' title='Defined at 225 in src/unexaix.c.'>CHECK_SCNHDR</a> (f_dhdr, _DATA, STYP_DATA);
+<a id='L239' name='L239'></a>   239         <a href='../S/2103.html#L225' title='Defined at 225 in src/unexaix.c.'>CHECK_SCNHDR</a> (f_bhdr, _BSS, STYP_BSS);
+<a id='L240' name='L240'></a>   240         <a href='../S/2103.html#L225' title='Defined at 225 in src/unexaix.c.'>CHECK_SCNHDR</a> (f_lhdr, _LOADER, STYP_LOADER);
+<a id='L241' name='L241'></a>   241         <a href='../S/2103.html#L225' title='Defined at 225 in src/unexaix.c.'>CHECK_SCNHDR</a> (f_dbhdr, _DEBUG,  STYP_DEBUG);
+<a id='L242' name='L242'></a>   242         <a href='../S/2103.html#L225' title='Defined at 225 in src/unexaix.c.'>CHECK_SCNHDR</a> (f_tchdr, _TYPCHK,  STYP_TYPCHK);
+<a id='L243' name='L243'></a>   243         <a href='../S/2103.html#L225' title='Defined at 225 in src/unexaix.c.'>CHECK_SCNHDR</a> (f_xhdr, _EXCEPT,  STYP_EXCEPT);
+<a id='L244' name='L244'></a>   244       <em class='brace'>}</em>
+<a id='L245' name='L245'></a>   245 
+<a id='L246' name='L246'></a>   246       <strong class='reserved'>if</strong> (f_thdr == 0)
+<a id='L247' name='L247'></a>   247         <em class='brace'>{</em>
+<a id='L248' name='L248'></a>   248           <a href='../D/1684.html' title='Multiple defined in 2 places.'>ERROR1</a> ("unexec: couldn't find \"%s\" section", _TEXT);
+<a id='L249' name='L249'></a>   249         <em class='brace'>}</em>
+<a id='L250' name='L250'></a>   250       <strong class='reserved'>if</strong> (f_dhdr == 0)
+<a id='L251' name='L251'></a>   251         <em class='brace'>{</em>
+<a id='L252' name='L252'></a>   252           <a href='../D/1684.html' title='Multiple defined in 2 places.'>ERROR1</a> ("unexec: couldn't find \"%s\" section", _DATA);
+<a id='L253' name='L253'></a>   253         <em class='brace'>}</em>
+<a id='L254' name='L254'></a>   254       <strong class='reserved'>if</strong> (f_bhdr == 0)
+<a id='L255' name='L255'></a>   255         <em class='brace'>{</em>
+<a id='L256' name='L256'></a>   256           <a href='../D/1684.html' title='Multiple defined in 2 places.'>ERROR1</a> ("unexec: couldn't find \"%s\" section", _BSS);
+<a id='L257' name='L257'></a>   257         <em class='brace'>}</em>
+<a id='L258' name='L258'></a>   258     <em class='brace'>}</em>
+<a id='L259' name='L259'></a>   259   <strong class='reserved'>else</strong>
+<a id='L260' name='L260'></a>   260     <em class='brace'>{</em>
+<a id='L261' name='L261'></a>   261       <a href='../D/1683.html' title='Multiple defined in 2 places.'>ERROR0</a> ("can't build a COFF file from scratch yet");
+<a id='L262' name='L262'></a>   262     <em class='brace'>}</em>
+<a id='L263' name='L263'></a>   263   orig_data_scnptr = f_dhdr-&gt;s_scnptr;
+<a id='L264' name='L264'></a>   264   orig_load_scnptr = f_lhdr ? f_lhdr-&gt;s_scnptr : 0;
+<a id='L265' name='L265'></a>   265 
+<a id='L266' name='L266'></a>   266   <em class='comment'>/* Now we alter the contents of all the f_*hdr variables</em>
+<a id='L267' name='L267'></a>   267 <em class='comment'>     to correspond to what we want to dump.  */</em>
+<a id='L268' name='L268'></a>   268 
+<a id='L269' name='L269'></a>   269   <em class='comment'>/* Indicate that the reloc information is no longer valid for ld (bind);</em>
+<a id='L270' name='L270'></a>   270 <em class='comment'>     we only update it enough to fake out the exec-time loader.  */</em>
+<a id='L271' name='L271'></a>   271   f_hdr.f_flags |= (F_RELFLG | F_EXEC);
+<a id='L272' name='L272'></a>   272 
+<a id='L273' name='L273'></a>   273   f_ohdr.dsize = bss_start - f_ohdr.<a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>;
+<a id='L274' name='L274'></a>   274   f_ohdr.bsize = 0;
+<a id='L275' name='L275'></a>   275 
+<a id='L276' name='L276'></a>   276   f_dhdr-&gt;s_size = f_ohdr.dsize;
+<a id='L277' name='L277'></a>   277   f_bhdr-&gt;s_size = f_ohdr.bsize;
+<a id='L278' name='L278'></a>   278   f_bhdr-&gt;s_paddr = f_ohdr.<a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a> + f_ohdr.dsize;
+<a id='L279' name='L279'></a>   279   f_bhdr-&gt;s_vaddr = f_ohdr.<a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a> + f_ohdr.dsize;
+<a id='L280' name='L280'></a>   280 
+<a id='L281' name='L281'></a>   281   <em class='comment'>/* fix scnptr's */</em>
+<a id='L282' name='L282'></a>   282   <em class='brace'>{</em>
+<a id='L283' name='L283'></a>   283     <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> ptr = <a href='../S/2196.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>[0].s_scnptr;
+<a id='L284' name='L284'></a>   284 
+<a id='L285' name='L285'></a>   285     bias = -1;
+<a id='L286' name='L286'></a>   286     <strong class='reserved'>for</strong> (scns = 0; scns &lt; f_hdr.f_nscns; scns++)
+<a id='L287' name='L287'></a>   287       <em class='brace'>{</em>
+<a id='L288' name='L288'></a>   288         <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> *s = &amp;<a href='../S/2196.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>[scns];
+<a id='L289' name='L289'></a>   289 
+<a id='L290' name='L290'></a>   290         <strong class='reserved'>if</strong> (s-&gt;s_flags &amp; STYP_PAD)        <em class='comment'>/* .pad sections omitted in AIX 4.1 */</em>
+<a id='L291' name='L291'></a>   291           <em class='brace'>{</em>
+<a id='L292' name='L292'></a>   292             <em class='comment'>/*</em>
+<a id='L293' name='L293'></a>   293 <em class='comment'>             * the text_start should probably be o_algntext but that doesn't</em>
+<a id='L294' name='L294'></a>   294 <em class='comment'>             * seem to change</em>
+<a id='L295' name='L295'></a>   295 <em class='comment'>             */</em>
+<a id='L296' name='L296'></a>   296             <strong class='reserved'>if</strong> (f_ohdr.text_start != 0) <em class='comment'>/* &amp;&amp; scns != 0 */</em>
+<a id='L297' name='L297'></a>   297               <em class='brace'>{</em>
+<a id='L298' name='L298'></a>   298                 s-&gt;s_size = 512 - (ptr % 512);
+<a id='L299' name='L299'></a>   299                 <strong class='reserved'>if</strong> (s-&gt;s_size == 512)
+<a id='L300' name='L300'></a>   300                   s-&gt;s_size = 0;
+<a id='L301' name='L301'></a>   301               <em class='brace'>}</em>
+<a id='L302' name='L302'></a>   302             s-&gt;s_scnptr = ptr;
+<a id='L303' name='L303'></a>   303           <em class='brace'>}</em>
+<a id='L304' name='L304'></a>   304         <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (s-&gt;s_flags &amp; STYP_DATA)
+<a id='L305' name='L305'></a>   305           s-&gt;s_scnptr = ptr;
+<a id='L306' name='L306'></a>   306         <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!(s-&gt;s_flags &amp; (STYP_TEXT | STYP_BSS)))
+<a id='L307' name='L307'></a>   307           <em class='brace'>{</em>
+<a id='L308' name='L308'></a>   308             <strong class='reserved'>if</strong> (bias == -1)                <em class='comment'>/* if first section after bss */</em>
+<a id='L309' name='L309'></a>   309               bias = ptr - s-&gt;s_scnptr;
+<a id='L310' name='L310'></a>   310 
+<a id='L311' name='L311'></a>   311             s-&gt;s_scnptr += bias;
+<a id='L312' name='L312'></a>   312             ptr = s-&gt;s_scnptr;
+<a id='L313' name='L313'></a>   313           <em class='brace'>}</em>
+<a id='L314' name='L314'></a>   314 
+<a id='L315' name='L315'></a>   315         ptr = ptr + s-&gt;s_size;
+<a id='L316' name='L316'></a>   316       <em class='brace'>}</em>
+<a id='L317' name='L317'></a>   317   <em class='brace'>}</em>
+<a id='L318' name='L318'></a>   318 
+<a id='L319' name='L319'></a>   319   <em class='comment'>/* fix other pointers */</em>
+<a id='L320' name='L320'></a>   320   <strong class='reserved'>for</strong> (scns = 0; scns &lt; f_hdr.f_nscns; scns++)
+<a id='L321' name='L321'></a>   321     <em class='brace'>{</em>
+<a id='L322' name='L322'></a>   322       <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> *s = &amp;<a href='../S/2196.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>[scns];
+<a id='L323' name='L323'></a>   323 
+<a id='L324' name='L324'></a>   324       <strong class='reserved'>if</strong> (s-&gt;s_relptr != 0)
+<a id='L325' name='L325'></a>   325         <em class='brace'>{</em>
+<a id='L326' name='L326'></a>   326           s-&gt;s_relptr += bias;
+<a id='L327' name='L327'></a>   327         <em class='brace'>}</em>
+<a id='L328' name='L328'></a>   328       <strong class='reserved'>if</strong> (s-&gt;s_lnnoptr != 0)
+<a id='L329' name='L329'></a>   329         <em class='brace'>{</em>
+<a id='L330' name='L330'></a>   330           <strong class='reserved'>if</strong> (lnnoptr == 0) lnnoptr = s-&gt;s_lnnoptr;
+<a id='L331' name='L331'></a>   331           s-&gt;s_lnnoptr += bias;
+<a id='L332' name='L332'></a>   332         <em class='brace'>}</em>
+<a id='L333' name='L333'></a>   333     <em class='brace'>}</em>
+<a id='L334' name='L334'></a>   334 
+<a id='L335' name='L335'></a>   335   <strong class='reserved'>if</strong> (f_hdr.f_symptr &gt; 0L)
+<a id='L336' name='L336'></a>   336     <em class='brace'>{</em>
+<a id='L337' name='L337'></a>   337       f_hdr.f_symptr += bias;
+<a id='L338' name='L338'></a>   338     <em class='brace'>}</em>
+<a id='L339' name='L339'></a>   339 
+<a id='L340' name='L340'></a>   340   text_scnptr = f_thdr-&gt;s_scnptr;
+<a id='L341' name='L341'></a>   341   data_scnptr = f_dhdr-&gt;s_scnptr;
+<a id='L342' name='L342'></a>   342   load_scnptr = f_lhdr ? f_lhdr-&gt;s_scnptr : 0;
+<a id='L343' name='L343'></a>   343 
+<a id='L344' name='L344'></a>   344   <strong class='reserved'>if</strong> (<a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, &amp;f_hdr, <strong class='reserved'>sizeof</strong> (f_hdr)) != <strong class='reserved'>sizeof</strong> (f_hdr))
+<a id='L345' name='L345'></a>   345     <em class='brace'>{</em>
+<a id='L346' name='L346'></a>   346       <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (new_name);
+<a id='L347' name='L347'></a>   347     <em class='brace'>}</em>
+<a id='L348' name='L348'></a>   348 
+<a id='L349' name='L349'></a>   349   <strong class='reserved'>if</strong> (f_hdr.f_opthdr &gt; 0)
+<a id='L350' name='L350'></a>   350     <em class='brace'>{</em>
+<a id='L351' name='L351'></a>   351       <strong class='reserved'>if</strong> (<a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, &amp;f_ohdr, <strong class='reserved'>sizeof</strong> (f_ohdr)) != <strong class='reserved'>sizeof</strong> (f_ohdr))
+<a id='L352' name='L352'></a>   352         <em class='brace'>{</em>
+<a id='L353' name='L353'></a>   353           <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (new_name);
+<a id='L354' name='L354'></a>   354         <em class='brace'>}</em>
+<a id='L355' name='L355'></a>   355     <em class='brace'>}</em>
+<a id='L356' name='L356'></a>   356 
+<a id='L357' name='L357'></a>   357   <strong class='reserved'>for</strong> (scns = 0; scns &lt; f_hdr.f_nscns; scns++) <em class='brace'>{</em>
+<a id='L358' name='L358'></a>   358     <strong class='reserved'>struct</strong> <a href='../S/2035.html#L71' title='Defined at 71 in src/unexcoff.c.'>scnhdr</a> *s = &amp;<a href='../S/2196.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>[scns];
+<a id='L359' name='L359'></a>   359     <strong class='reserved'>if</strong> (<a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, s, <strong class='reserved'>sizeof</strong> (*s)) != <strong class='reserved'>sizeof</strong> (*s))
+<a id='L360' name='L360'></a>   360       <em class='brace'>{</em>
+<a id='L361' name='L361'></a>   361         <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (new_name);
+<a id='L362' name='L362'></a>   362       <em class='brace'>}</em>
+<a id='L363' name='L363'></a>   363   <em class='brace'>}</em>
+<a id='L364' name='L364'></a>   364 
+<a id='L365' name='L365'></a>   365   <strong class='reserved'>return</strong> (0);
+<a id='L366' name='L366'></a>   366 <em class='brace'>}</em>
+<a id='L367' name='L367'></a>   367 
+<a id='L368' name='L368'></a>   368 <em class='comment'>/* ****************************************************************</em>
+<a id='L369' name='L369'></a>   369 <em class='comment'></em>
+<a id='L370' name='L370'></a>   370 <em class='comment'> *</em>
+<a id='L371' name='L371'></a>   371 <em class='comment'> * Copy the text and data segments from memory to the new a.out</em>
+<a id='L372' name='L372'></a>   372 <em class='comment'> */</em>
+<a id='L373' name='L373'></a>   373 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L374' name='L374'></a>   374 <a href='../R/8115.html' title='Multiple referred from 4 places.'>copy_text_and_data</a> (<strong class='reserved'>int</strong> new)
+<a id='L375' name='L375'></a>   375 <em class='brace'>{</em>
+<a id='L376' name='L376'></a>   376   <strong class='reserved'>char</strong> *end;
+<a id='L377' name='L377'></a>   377   <strong class='reserved'>char</strong> *ptr;
+<a id='L378' name='L378'></a>   378 
+<a id='L379' name='L379'></a>   379   <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (new, text_scnptr, SEEK_SET);
+<a id='L380' name='L380'></a>   380   ptr = _text;
+<a id='L381' name='L381'></a>   381   end = ptr + f_ohdr.tsize;
+<a id='L382' name='L382'></a>   382   <a href='../D/17314.html' title='Multiple defined in 2 places.'>write_segment</a> (new, ptr, end);
+<a id='L383' name='L383'></a>   383 
+<a id='L384' name='L384'></a>   384   <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (new, data_scnptr, SEEK_SET);
+<a id='L385' name='L385'></a>   385   ptr = (<strong class='reserved'>char</strong> *) (ptrdiff_t) f_ohdr.<a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>;
+<a id='L386' name='L386'></a>   386   end = ptr + f_ohdr.dsize;
+<a id='L387' name='L387'></a>   387   <a href='../D/17314.html' title='Multiple defined in 2 places.'>write_segment</a> (new, ptr, end);
+<a id='L388' name='L388'></a>   388 
+<a id='L389' name='L389'></a>   389   <strong class='reserved'>return</strong> 0;
+<a id='L390' name='L390'></a>   390 <em class='brace'>}</em>
+<a id='L391' name='L391'></a>   391 
+<a id='L392' name='L392'></a>   392 <em class='sharp'>#define</em> <a href='../R/5458.html' title='Multiple referred from 3 places.'>UnexBlockSz</a> (1&lt;&lt;12)                     <em class='comment'>/* read/write block size */</em>
+<a id='L393' name='L393'></a>   393 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L394' name='L394'></a>   394 <a href='../R/16095.html' title='Multiple referred from 5 places.'>write_segment</a> (<strong class='reserved'>int</strong> new, <strong class='reserved'>char</strong> *ptr, <strong class='reserved'>char</strong> *end)
+<a id='L395' name='L395'></a>   395 <em class='brace'>{</em>
+<a id='L396' name='L396'></a>   396   <strong class='reserved'>int</strong> i, nwrite, ret;
+<a id='L397' name='L397'></a>   397   <strong class='reserved'>char</strong> zeros[<a href='../S/2103.html#L392' title='Defined at 392 in src/unexaix.c.'>UnexBlockSz</a>];
+<a id='L398' name='L398'></a>   398 
+<a id='L399' name='L399'></a>   399   <strong class='reserved'>for</strong> (i = 0; ptr &lt; end;)
+<a id='L400' name='L400'></a>   400     <em class='brace'>{</em>
+<a id='L401' name='L401'></a>   401       <em class='comment'>/* distance to next block.  */</em>
+<a id='L402' name='L402'></a>   402       nwrite = (((ptrdiff_t) ptr + <a href='../S/2103.html#L392' title='Defined at 392 in src/unexaix.c.'>UnexBlockSz</a>) &amp; -<a href='../S/2103.html#L392' title='Defined at 392 in src/unexaix.c.'>UnexBlockSz</a>) - (ptrdiff_t) ptr;
+<a id='L403' name='L403'></a>   403       <em class='comment'>/* But not beyond specified end.  */</em>
+<a id='L404' name='L404'></a>   404       <strong class='reserved'>if</strong> (nwrite &gt; end - ptr) nwrite = end - ptr;
+<a id='L405' name='L405'></a>   405       ret = <a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, ptr, nwrite);
+<a id='L406' name='L406'></a>   406       <em class='comment'>/* If write gets a page fault, it means we reached</em>
+<a id='L407' name='L407'></a>   407 <em class='comment'>         a gap between the old text segment and the old data segment.</em>
+<a id='L408' name='L408'></a>   408 <em class='comment'>         This gap has probably been remapped into part of the text segment.</em>
+<a id='L409' name='L409'></a>   409 <em class='comment'>         So write zeros for it.  */</em>
+<a id='L410' name='L410'></a>   410       <strong class='reserved'>if</strong> (ret == -1 &amp;&amp; errno == EFAULT)
+<a id='L411' name='L411'></a>   411         <em class='brace'>{</em>
+<a id='L412' name='L412'></a>   412           memset (zeros, 0, nwrite);
+<a id='L413' name='L413'></a>   413           <a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, zeros, nwrite);
+<a id='L414' name='L414'></a>   414         <em class='brace'>}</em>
+<a id='L415' name='L415'></a>   415       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (nwrite != ret)
+<a id='L416' name='L416'></a>   416         <em class='brace'>{</em>
+<a id='L417' name='L417'></a>   417           <strong class='reserved'>int</strong> write_errno = errno;
+<a id='L418' name='L418'></a>   418           <strong class='reserved'>char</strong> buf[1000];
+<a id='L419' name='L419'></a>   419           <strong class='reserved'>void</strong> *addr = ptr;
+<a id='L420' name='L420'></a>   420           <a href='../D/15590.html' title='Multiple defined in 2 places.'>sprintf</a> (buf,
+<a id='L421' name='L421'></a>   421                    "unexec write failure: addr %p, fileno %d, size 0x%x, wrote 0x%x, errno %d",
+<a id='L422' name='L422'></a>   422                    addr, new, nwrite, ret, errno);
+<a id='L423' name='L423'></a>   423           errno = write_errno;
+<a id='L424' name='L424'></a>   424           <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (buf);
+<a id='L425' name='L425'></a>   425         <em class='brace'>}</em>
+<a id='L426' name='L426'></a>   426       i += nwrite;
+<a id='L427' name='L427'></a>   427       ptr += nwrite;
+<a id='L428' name='L428'></a>   428     <em class='brace'>}</em>
+<a id='L429' name='L429'></a>   429 <em class='brace'>}</em>
+<a id='L430' name='L430'></a>   430 
+<a id='L431' name='L431'></a>   431 <em class='comment'>/* ****************************************************************</em>
+<a id='L432' name='L432'></a>   432 <em class='comment'> * copy_sym</em>
+<a id='L433' name='L433'></a>   433 <em class='comment'> *</em>
+<a id='L434' name='L434'></a>   434 <em class='comment'> * Copy the relocation information and symbol table from the a.out to the new</em>
+<a id='L435' name='L435'></a>   435 <em class='comment'> */</em>
+<a id='L436' name='L436'></a>   436 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L437' name='L437'></a>   437 <a href='../R/8112.html' title='Multiple referred from 4 places.'>copy_sym</a> (<strong class='reserved'>int</strong> new, <strong class='reserved'>int</strong> a_out, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *a_name, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *new_name)
+<a id='L438' name='L438'></a>   438 <em class='brace'>{</em>
+<a id='L439' name='L439'></a>   439   <strong class='reserved'>char</strong> page[<a href='../S/2103.html#L392' title='Defined at 392 in src/unexaix.c.'>UnexBlockSz</a>];
+<a id='L440' name='L440'></a>   440   <strong class='reserved'>int</strong> n;
+<a id='L441' name='L441'></a>   441 
+<a id='L442' name='L442'></a>   442   <strong class='reserved'>if</strong> (a_out &lt; 0)
+<a id='L443' name='L443'></a>   443     <strong class='reserved'>return</strong> 0;
+<a id='L444' name='L444'></a>   444 
+<a id='L445' name='L445'></a>   445   <strong class='reserved'>if</strong> (orig_load_scnptr == 0L)
+<a id='L446' name='L446'></a>   446     <strong class='reserved'>return</strong> 0;
+<a id='L447' name='L447'></a>   447 
+<a id='L448' name='L448'></a>   448   <strong class='reserved'>if</strong> (lnnoptr &amp;&amp; lnnoptr &lt; orig_load_scnptr) <em class='comment'>/* if there is line number info  */</em>
+<a id='L449' name='L449'></a>   449     <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (a_out, lnnoptr, SEEK_SET);  <em class='comment'>/* start copying from there */</em>
+<a id='L450' name='L450'></a>   450   <strong class='reserved'>else</strong>
+<a id='L451' name='L451'></a>   451     <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (a_out, orig_load_scnptr, SEEK_SET); <em class='comment'>/* Position a.out to symtab. */</em>
+<a id='L452' name='L452'></a>   452 
+<a id='L453' name='L453'></a>   453   <strong class='reserved'>while</strong> ((n = <a href='../D/14574.html' title='Multiple defined in 14 places.'>read</a> (a_out, page, <strong class='reserved'>sizeof</strong> page)) &gt; 0)
+<a id='L454' name='L454'></a>   454     <em class='brace'>{</em>
+<a id='L455' name='L455'></a>   455       <strong class='reserved'>if</strong> (<a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, page, n) != n)
+<a id='L456' name='L456'></a>   456         <em class='brace'>{</em>
+<a id='L457' name='L457'></a>   457           <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (new_name);
+<a id='L458' name='L458'></a>   458         <em class='brace'>}</em>
+<a id='L459' name='L459'></a>   459     <em class='brace'>}</em>
+<a id='L460' name='L460'></a>   460   <strong class='reserved'>if</strong> (n &lt; 0)
+<a id='L461' name='L461'></a>   461     <em class='brace'>{</em>
+<a id='L462' name='L462'></a>   462       <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (a_name);
+<a id='L463' name='L463'></a>   463     <em class='brace'>}</em>
+<a id='L464' name='L464'></a>   464   <strong class='reserved'>return</strong> 0;
+<a id='L465' name='L465'></a>   465 <em class='brace'>}</em>
+<a id='L466' name='L466'></a>   466 
+<a id='L467' name='L467'></a>   467 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L468' name='L468'></a>   468 <a href='../R/6916.html' title='Multiple referred from 3 places.'>adjust_lnnoptrs</a> (<strong class='reserved'>int</strong> writedesc, <strong class='reserved'>int</strong> readdesc, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *new_name)
+<a id='L469' name='L469'></a>   469 <em class='brace'>{</em>
+<a id='L470' name='L470'></a>   470   <strong class='reserved'>int</strong> nsyms;
+<a id='L471' name='L471'></a>   471   <strong class='reserved'>int</strong> naux;
+<a id='L472' name='L472'></a>   472   <strong class='reserved'>int</strong> new;
+<a id='L473' name='L473'></a>   473   <strong class='reserved'>struct</strong> <a href='../S/2035.html#L72' title='Defined at 72 in src/unexcoff.c.'>syment</a> symentry;
+<a id='L474' name='L474'></a>   474   <strong class='reserved'>union</strong> <a href='../S/2035.html#L73' title='Defined at 73 in src/unexcoff.c.'>auxent</a> auxentry;
+<a id='L475' name='L475'></a>   475 
+<a id='L476' name='L476'></a>   476   <strong class='reserved'>if</strong> (!lnnoptr || !f_hdr.f_symptr)
+<a id='L477' name='L477'></a>   477     <strong class='reserved'>return</strong> 0;
+<a id='L478' name='L478'></a>   478 
+<a id='L479' name='L479'></a>   479   <strong class='reserved'>if</strong> ((new = <a href='../S/2178.html#L2378' title='Defined at 2378 in src/sysdep.c.'>emacs_open</a> (new_name, O_RDWR, 0)) &lt; 0)
+<a id='L480' name='L480'></a>   480     <em class='brace'>{</em>
+<a id='L481' name='L481'></a>   481       <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (new_name);
+<a id='L482' name='L482'></a>   482       <strong class='reserved'>return</strong> -1;
+<a id='L483' name='L483'></a>   483     <em class='brace'>}</em>
+<a id='L484' name='L484'></a>   484 
+<a id='L485' name='L485'></a>   485   <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (new, f_hdr.f_symptr, SEEK_SET);
+<a id='L486' name='L486'></a>   486   <strong class='reserved'>for</strong> (nsyms = 0; nsyms &lt; f_hdr.f_nsyms; nsyms++)
+<a id='L487' name='L487'></a>   487     <em class='brace'>{</em>
+<a id='L488' name='L488'></a>   488       <a href='../D/14574.html' title='Multiple defined in 14 places.'>read</a> (new, &amp;symentry, SYMESZ);
+<a id='L489' name='L489'></a>   489       <strong class='reserved'>if</strong> (symentry.n_sclass == C_BINCL || symentry.n_sclass == C_EINCL)
+<a id='L490' name='L490'></a>   490         <em class='brace'>{</em>
+<a id='L491' name='L491'></a>   491           symentry.n_value += bias;
+<a id='L492' name='L492'></a>   492           <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (new, -SYMESZ, SEEK_CUR);
+<a id='L493' name='L493'></a>   493           <a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, &amp;symentry, SYMESZ);
+<a id='L494' name='L494'></a>   494         <em class='brace'>}</em>
+<a id='L495' name='L495'></a>   495 
+<a id='L496' name='L496'></a>   496       <strong class='reserved'>for</strong> (naux = symentry.<a href='../S/2035.html#L74' title='Defined at 74 in src/unexcoff.c.'>n_numaux</a>; naux-- != 0; )
+<a id='L497' name='L497'></a>   497         <em class='brace'>{</em>
+<a id='L498' name='L498'></a>   498           <a href='../D/14574.html' title='Multiple defined in 14 places.'>read</a> (new, &amp;auxentry, AUXESZ);
+<a id='L499' name='L499'></a>   499           nsyms++;
+<a id='L500' name='L500'></a>   500           <strong class='reserved'>if</strong> (naux != 0              <em class='comment'>/* skip csect auxentry (last entry) */</em>
+<a id='L501' name='L501'></a>   501               &amp;&amp; (symentry.n_sclass == <a href='../D/1205.html' title='Multiple defined in 2 places.'>C_EXT</a> || symentry.n_sclass == C_HIDEXT))
+<a id='L502' name='L502'></a>   502             <em class='brace'>{</em>
+<a id='L503' name='L503'></a>   503               auxentry.x_sym.x_fcnary.x_fcn.x_lnnoptr += bias;
+<a id='L504' name='L504'></a>   504               <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (new, -AUXESZ, SEEK_CUR);
+<a id='L505' name='L505'></a>   505               <a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, &amp;auxentry, AUXESZ);
+<a id='L506' name='L506'></a>   506             <em class='brace'>}</em>
+<a id='L507' name='L507'></a>   507         <em class='brace'>}</em>
+<a id='L508' name='L508'></a>   508     <em class='brace'>}</em>
+<a id='L509' name='L509'></a>   509   <a href='../S/2178.html#L2480' title='Defined at 2480 in src/sysdep.c.'>emacs_close</a> (new);
+<a id='L510' name='L510'></a>   510 
+<a id='L511' name='L511'></a>   511   <strong class='reserved'>return</strong> 0;
+<a id='L512' name='L512'></a>   512 <em class='brace'>}</em>
+<a id='L513' name='L513'></a>   513 
+<a id='L514' name='L514'></a>   514 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L515' name='L515'></a>   515 <a href='../R/15440.html' title='Multiple referred from 2 places.'>unrelocate_symbols</a> (<strong class='reserved'>int</strong> new, <strong class='reserved'>int</strong> a_out,
+<a id='L516' name='L516'></a>   516                     <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *a_name, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *new_name)
+<a id='L517' name='L517'></a>   517 <em class='brace'>{</em>
+<a id='L518' name='L518'></a>   518   <strong class='reserved'>int</strong> i;
+<a id='L519' name='L519'></a>   519   LDHDR ldhdr;
+<a id='L520' name='L520'></a>   520   LDREL ldrel;
+<a id='L521' name='L521'></a>   521   <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> t_reloc = (<a href='../D/12085.html' title='Multiple defined in 4 places.'>intptr_t</a>) _text - f_ohdr.text_start;
+<a id='L522' name='L522'></a>   522 <em class='sharp'>#ifndef</em> ALIGN_DATA_RELOC
+<a id='L523' name='L523'></a>   523   <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> d_reloc = (<a href='../D/12085.html' title='Multiple defined in 4 places.'>intptr_t</a>) _data - f_ohdr.<a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>;
+<a id='L524' name='L524'></a>   524 <em class='sharp'>#else</em>
+<a id='L525' name='L525'></a>   525   <em class='comment'>/* This worked (and was needed) before AIX 4.2.</em>
+<a id='L526' name='L526'></a>   526 <em class='comment'>     I have no idea why. -- Mike */</em>
+<a id='L527' name='L527'></a>   527   <a href='../D/13655.html' title='Multiple defined in 2 places.'>off_t</a> d_reloc = (<a href='../D/12085.html' title='Multiple defined in 4 places.'>intptr_t</a>) _data - <a href='../S/2103.html#L77' title='Defined at 77 in src/unexaix.c.'>ALIGN</a> (f_ohdr.<a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>, 2);
+<a id='L528' name='L528'></a>   528 <em class='sharp'>#endif</em>
+<a id='L529' name='L529'></a>   529   <strong class='reserved'>int</strong> * p;
+<a id='L530' name='L530'></a>   530 
+<a id='L531' name='L531'></a>   531   <strong class='reserved'>if</strong> (load_scnptr == 0)
+<a id='L532' name='L532'></a>   532     <strong class='reserved'>return</strong> 0;
+<a id='L533' name='L533'></a>   533 
+<a id='L534' name='L534'></a>   534   <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (a_out, orig_load_scnptr, SEEK_SET);
+<a id='L535' name='L535'></a>   535   <strong class='reserved'>if</strong> (<a href='../D/14574.html' title='Multiple defined in 14 places.'>read</a> (a_out, &amp;ldhdr, <strong class='reserved'>sizeof</strong> (ldhdr)) != <strong class='reserved'>sizeof</strong> (ldhdr))
+<a id='L536' name='L536'></a>   536     <em class='brace'>{</em>
+<a id='L537' name='L537'></a>   537       <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (new_name);
+<a id='L538' name='L538'></a>   538     <em class='brace'>}</em>
+<a id='L539' name='L539'></a>   539 
+<a id='L540' name='L540'></a>   540 <em class='sharp'>#define</em> <a href='../S/2103.html#L587' title='Referred from 587 in src/unexaix.c.'>SYMNDX_TEXT</a>     0
+<a id='L541' name='L541'></a>   541 <em class='sharp'>#define</em> <a href='../R/5012.html' title='Multiple referred from 2 places.'>SYMNDX_DATA</a>     1
+<a id='L542' name='L542'></a>   542 <em class='sharp'>#define</em> <a href='../R/5011.html' title='Multiple referred from 2 places.'>SYMNDX_BSS</a>      2
+<a id='L543' name='L543'></a>   543 
+<a id='L544' name='L544'></a>   544   <strong class='reserved'>for</strong> (i = 0; i &lt; ldhdr.l_nreloc; i++)
+<a id='L545' name='L545'></a>   545     <em class='brace'>{</em>
+<a id='L546' name='L546'></a>   546       <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (a_out,
+<a id='L547' name='L547'></a>   547              orig_load_scnptr + LDHDRSZ + LDSYMSZ*ldhdr.l_nsyms + LDRELSZ*i,
+<a id='L548' name='L548'></a>   548              SEEK_SET);
+<a id='L549' name='L549'></a>   549 
+<a id='L550' name='L550'></a>   550       <strong class='reserved'>if</strong> (<a href='../D/14574.html' title='Multiple defined in 14 places.'>read</a> (a_out, &amp;ldrel, LDRELSZ) != LDRELSZ)
+<a id='L551' name='L551'></a>   551         <em class='brace'>{</em>
+<a id='L552' name='L552'></a>   552           <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (a_name);
+<a id='L553' name='L553'></a>   553         <em class='brace'>}</em>
+<a id='L554' name='L554'></a>   554 
+<a id='L555' name='L555'></a>   555       <em class='comment'>/* move the BSS loader symbols to the DATA segment */</em>
+<a id='L556' name='L556'></a>   556       <strong class='reserved'>if</strong> (ldrel.l_symndx == <a href='../S/2103.html#L542' title='Defined at 542 in src/unexaix.c.'>SYMNDX_BSS</a>)
+<a id='L557' name='L557'></a>   557         <em class='brace'>{</em>
+<a id='L558' name='L558'></a>   558           ldrel.l_symndx = <a href='../S/2103.html#L541' title='Defined at 541 in src/unexaix.c.'>SYMNDX_DATA</a>;
+<a id='L559' name='L559'></a>   559 
+<a id='L560' name='L560'></a>   560           <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (new,
+<a id='L561' name='L561'></a>   561                  load_scnptr + LDHDRSZ + LDSYMSZ*ldhdr.l_nsyms + LDRELSZ*i,
+<a id='L562' name='L562'></a>   562                  SEEK_SET);
+<a id='L563' name='L563'></a>   563 
+<a id='L564' name='L564'></a>   564           <strong class='reserved'>if</strong> (<a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, &amp;ldrel, LDRELSZ) != LDRELSZ)
+<a id='L565' name='L565'></a>   565             <em class='brace'>{</em>
+<a id='L566' name='L566'></a>   566               <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (new_name);
+<a id='L567' name='L567'></a>   567             <em class='brace'>}</em>
+<a id='L568' name='L568'></a>   568         <em class='brace'>}</em>
+<a id='L569' name='L569'></a>   569 
+<a id='L570' name='L570'></a>   570       <strong class='reserved'>if</strong> (ldrel.l_rsecnm == f_ohdr.o_sndata)
+<a id='L571' name='L571'></a>   571         <em class='brace'>{</em>
+<a id='L572' name='L572'></a>   572           <strong class='reserved'>int</strong> orig_int;
+<a id='L573' name='L573'></a>   573 
+<a id='L574' name='L574'></a>   574           <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (a_out,
+<a id='L575' name='L575'></a>   575                  orig_data_scnptr + (ldrel.l_vaddr - f_ohdr.<a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>),
+<a id='L576' name='L576'></a>   576                  SEEK_SET);
+<a id='L577' name='L577'></a>   577 
+<a id='L578' name='L578'></a>   578           <strong class='reserved'>if</strong> (<a href='../D/14574.html' title='Multiple defined in 14 places.'>read</a> (a_out, (<strong class='reserved'>void</strong> *) &amp;orig_int, <strong class='reserved'>sizeof</strong> (orig_int))
+<a id='L579' name='L579'></a>   579               != <strong class='reserved'>sizeof</strong> (orig_int))
+<a id='L580' name='L580'></a>   580             <em class='brace'>{</em>
+<a id='L581' name='L581'></a>   581               <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (a_name);
+<a id='L582' name='L582'></a>   582             <em class='brace'>}</em>
+<a id='L583' name='L583'></a>   583 
+<a id='L584' name='L584'></a>   584           p = (<strong class='reserved'>int</strong> *) (<a href='../D/12085.html' title='Multiple defined in 4 places.'>intptr_t</a>) (ldrel.l_vaddr + d_reloc);
+<a id='L585' name='L585'></a>   585 
+<a id='L586' name='L586'></a>   586           <strong class='reserved'>switch</strong> (ldrel.l_symndx) <em class='brace'>{</em>
+<a id='L587' name='L587'></a>   587           <strong class='reserved'>case</strong> <a href='../S/2103.html#L540' title='Defined at 540 in src/unexaix.c.'>SYMNDX_TEXT</a>:
+<a id='L588' name='L588'></a>   588             orig_int = * p - t_reloc;
+<a id='L589' name='L589'></a>   589             <strong class='reserved'>break</strong>;
+<a id='L590' name='L590'></a>   590 
+<a id='L591' name='L591'></a>   591           <strong class='reserved'>case</strong> <a href='../S/2103.html#L541' title='Defined at 541 in src/unexaix.c.'>SYMNDX_DATA</a>:
+<a id='L592' name='L592'></a>   592           <strong class='reserved'>case</strong> <a href='../S/2103.html#L542' title='Defined at 542 in src/unexaix.c.'>SYMNDX_BSS</a>:
+<a id='L593' name='L593'></a>   593             orig_int = * p - d_reloc;
+<a id='L594' name='L594'></a>   594             <strong class='reserved'>break</strong>;
+<a id='L595' name='L595'></a>   595           <em class='brace'>}</em>
+<a id='L596' name='L596'></a>   596 
+<a id='L597' name='L597'></a>   597           <strong class='reserved'>if</strong> (orig_int != * p)
+<a id='L598' name='L598'></a>   598             <em class='brace'>{</em>
+<a id='L599' name='L599'></a>   599               <a href='../D/12615.html' title='Multiple defined in 7 places.'>lseek</a> (new,
+<a id='L600' name='L600'></a>   600                      data_scnptr + (ldrel.l_vaddr - f_ohdr.<a href='../S/2031.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>),
+<a id='L601' name='L601'></a>   601                      SEEK_SET);
+<a id='L602' name='L602'></a>   602               <strong class='reserved'>if</strong> (<a href='../D/17303.html' title='Multiple defined in 14 places.'>write</a> (new, (<strong class='reserved'>void</strong> *) &amp;orig_int, <strong class='reserved'>sizeof</strong> (orig_int))
+<a id='L603' name='L603'></a>   603                   != <strong class='reserved'>sizeof</strong> (orig_int))
+<a id='L604' name='L604'></a>   604                 <em class='brace'>{</em>
+<a id='L605' name='L605'></a>   605                   <a href='../D/4438.html' title='Multiple defined in 2 places.'>PERROR</a> (new_name);
+<a id='L606' name='L606'></a>   606                 <em class='brace'>}</em>
+<a id='L607' name='L607'></a>   607             <em class='brace'>}</em>
+<a id='L608' name='L608'></a>   608         <em class='brace'>}</em>
+<a id='L609' name='L609'></a>   609     <em class='brace'>}</em>
+<a id='L610' name='L610'></a>   610   <strong class='reserved'>return</strong> 0;
+<a id='L611' name='L611'></a>   611 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L94'>[^]</a><a href='#L515'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

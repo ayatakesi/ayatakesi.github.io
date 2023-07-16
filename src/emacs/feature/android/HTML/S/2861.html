@@ -1,28 +1,29 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>lib/nanosleep.c</title>
+<title>lib/fcntl.c</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4780.html'>lib</a>/nanosleep.c</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L42'>[^]</a><a href='#L187'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4787.html'>lib</a>/fcntl.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L55'>[^]</a><a href='#L551'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 <hr />
 <h2 class='header'>DEFINITIONS</h2>
 This source file includes following definitions.
 <ol>
-<li><a href='#L42' title='Defined at 42.'>nanosleep</a></li>
-<li><a href='#L97' title='Defined at 97.'>nanosleep</a></li>
-<li><a href='#L187' title='Defined at 187.'>nanosleep</a></li>
+<li><a href='#L55' title='Defined at 55.'>dupfd</a></li>
+<li><a href='#L447' title='Defined at 447.'>rpl_fcntl_DUPFD</a></li>
+<li><a href='#L488' title='Defined at 488.'>rpl_fcntl_DUPFD_CLOEXEC</a></li>
+<li><a href='#L551' title='Defined at 551.'>klibc_fcntl</a></li>
 </ol>
 <hr />
 <pre>
-<a id='L1' name='L1'></a>     1 <em class='comment'>/* Provide a replacement for the POSIX nanosleep function.</em>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Provide file descriptor control.</em>
 <a id='L2' name='L2'></a>     2 <em class='comment'></em>
-<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright (C) 1999-2000, 2002, 2004-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright (C) 2009-2023 Free Software Foundation, Inc.</em>
 <a id='L4' name='L4'></a>     4 <em class='comment'></em>
 <a id='L5' name='L5'></a>     5 <em class='comment'>   This file is free software: you can redistribute it and/or modify</em>
 <a id='L6' name='L6'></a>     6 <em class='comment'>   it under the terms of the GNU Lesser General Public License as</em>
@@ -37,184 +38,621 @@ This source file includes following definitions.
 <a id='L15' name='L15'></a>    15 <em class='comment'>   You should have received a copy of the GNU Lesser General Public License</em>
 <a id='L16' name='L16'></a>    16 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
 <a id='L17' name='L17'></a>    17 
-<a id='L18' name='L18'></a>    18 <em class='comment'>/* written by Jim Meyering</em>
-<a id='L19' name='L19'></a>    19 <em class='comment'>   and Bruno Haible for the native Windows part */</em>
-<a id='L20' name='L20'></a>    20 
-<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;config.h&gt;
-<a id='L22' name='L22'></a>    22 
-<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;<a href='44.html'>time.h</a>&gt;
+<a id='L18' name='L18'></a>    18 <em class='comment'>/* Written by Eric Blake &lt;ebb9@byu.net&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='comment'>/* Specification.  */</em>
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
 <a id='L24' name='L24'></a>    24 
-<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='2707.html'>intprops.h</a>"
-<a id='L26' name='L26'></a>    26 
-<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;stdio.h&gt;
-<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;sys/types.h&gt;
-<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;sys/select.h&gt;
-<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;signal.h&gt;
-<a id='L31' name='L31'></a>    31 
-<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;errno.h&gt;
-<a id='L33' name='L33'></a>    33 
-<a id='L34' name='L34'></a>    34 <em class='sharp'>#include</em> &lt;<a href='37.html'>unistd.h</a>&gt;
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;limits.h&gt;
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;stdarg.h&gt;
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;<a href='37.html'>unistd.h</a>&gt;
+<a id='L30' name='L30'></a>    30 
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#ifdef</em> __KLIBC__
+<a id='L32' name='L32'></a>    32 <em class='sharp'># define</em> INCL_DOS
+<a id='L33' name='L33'></a>    33 <em class='sharp'># include</em> &lt;os2.h&gt;
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#endif</em>
 <a id='L35' name='L35'></a>    35 
-<a id='L36' name='L36'></a>    36 
-<a id='L37' name='L37'></a>    37 <strong class='reserved'>enum</strong> <em class='brace'>{</em> <a href='../R/371.html' title='Multiple referred from 2 places.'>BILLION</a> = 1000 * 1000 * 1000 <em class='brace'>}</em>;
-<a id='L38' name='L38'></a>    38 
-<a id='L39' name='L39'></a>    39 <em class='sharp'>#if</em> HAVE_BUG_BIG_NANOSLEEP
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> _WIN32 &amp;&amp; ! <strong class='reserved'>defined</strong> __CYGWIN__
+<a id='L37' name='L37'></a>    37 <em class='comment'>/* Get declarations of the native Windows API functions.  */</em>
+<a id='L38' name='L38'></a>    38 <em class='sharp'># define</em> WIN32_LEAN_AND_MEAN
+<a id='L39' name='L39'></a>    39 <em class='sharp'># include</em> &lt;windows.h&gt;
 <a id='L40' name='L40'></a>    40 
-<a id='L41' name='L41'></a>    41 <strong class='reserved'>int</strong>
-<a id='L42' name='L42'></a>    42 <a href='../R/13778.html' title='Multiple referred from 11 places.'>nanosleep</a> (<strong class='reserved'>const</strong> <strong class='reserved'>struct</strong> <a href='../D/18278.html' title='Multiple defined in 3 places.'>timespec</a> *requested_delay,
-<a id='L43' name='L43'></a>    43            <strong class='reserved'>struct</strong> <a href='../D/18278.html' title='Multiple defined in 3 places.'>timespec</a> *remaining_delay)
-<a id='L44' name='L44'></a>    44 <em class='sharp'># undef</em> <a href='../D/14935.html' title='Multiple defined in 4 places.'>nanosleep</a>
-<a id='L45' name='L45'></a>    45 <em class='brace'>{</em>
-<a id='L46' name='L46'></a>    46   <em class='comment'>/* nanosleep mishandles large sleeps due to internal overflow problems.</em>
-<a id='L47' name='L47'></a>    47 <em class='comment'>     The worst known case of this is Linux 2.6.9 with glibc 2.3.4, which</em>
-<a id='L48' name='L48'></a>    48 <em class='comment'>     can't sleep more than 24.85 days (2^31 milliseconds).  Similarly,</em>
-<a id='L49' name='L49'></a>    49 <em class='comment'>     cygwin 1.5.x, which can't sleep more than 49.7 days (2^32 milliseconds).</em>
-<a id='L50' name='L50'></a>    50 <em class='comment'>     Solve this by breaking the sleep up into smaller chunks.  */</em>
-<a id='L51' name='L51'></a>    51 
-<a id='L52' name='L52'></a>    52   <strong class='reserved'>if</strong> (requested_delay-&gt;tv_nsec &lt; 0 || <a href='../S/2861.html#L37' title='Defined at 37 in lib/nanosleep.c.'>BILLION</a> &lt;= requested_delay-&gt;tv_nsec)
-<a id='L53' name='L53'></a>    53     <em class='brace'>{</em>
-<a id='L54' name='L54'></a>    54       errno = EINVAL;
-<a id='L55' name='L55'></a>    55       <strong class='reserved'>return</strong> -1;
-<a id='L56' name='L56'></a>    56     <em class='brace'>}</em>
-<a id='L57' name='L57'></a>    57 
-<a id='L58' name='L58'></a>    58   <em class='brace'>{</em>
-<a id='L59' name='L59'></a>    59     <em class='comment'>/* Verify that time_t is large enough.  */</em>
-<a id='L60' name='L60'></a>    60     <a href='../D/17679.html' title='Multiple defined in 2 places.'>static_assert</a> (<a href='../S/2707.html#L47' title='Defined at 47 in lib/intprops.h.'>TYPE_MAXIMUM</a> (time_t) / 24 / 24 / 60 / 60);
-<a id='L61' name='L61'></a>    61     <strong class='reserved'>const</strong> time_t limit = 24 * 24 * 60 * 60;
-<a id='L62' name='L62'></a>    62     time_t seconds = requested_delay-&gt;tv_sec;
-<a id='L63' name='L63'></a>    63     <strong class='reserved'>struct</strong> <a href='../D/18278.html' title='Multiple defined in 3 places.'>timespec</a> intermediate = *requested_delay;
-<a id='L64' name='L64'></a>    64 
-<a id='L65' name='L65'></a>    65     <strong class='reserved'>while</strong> (limit &lt; seconds)
-<a id='L66' name='L66'></a>    66       <em class='brace'>{</em>
-<a id='L67' name='L67'></a>    67         <strong class='reserved'>int</strong> result;
-<a id='L68' name='L68'></a>    68         intermediate.tv_sec = limit;
-<a id='L69' name='L69'></a>    69         result = <a href='../D/14935.html' title='Multiple defined in 4 places.'>nanosleep</a> (&amp;intermediate, remaining_delay);
-<a id='L70' name='L70'></a>    70         seconds -= limit;
-<a id='L71' name='L71'></a>    71         <strong class='reserved'>if</strong> (result)
-<a id='L72' name='L72'></a>    72           <em class='brace'>{</em>
-<a id='L73' name='L73'></a>    73             <strong class='reserved'>if</strong> (remaining_delay)
-<a id='L74' name='L74'></a>    74               remaining_delay-&gt;tv_sec += seconds;
-<a id='L75' name='L75'></a>    75             <strong class='reserved'>return</strong> result;
-<a id='L76' name='L76'></a>    76           <em class='brace'>}</em>
-<a id='L77' name='L77'></a>    77         intermediate.tv_nsec = 0;
-<a id='L78' name='L78'></a>    78       <em class='brace'>}</em>
-<a id='L79' name='L79'></a>    79     intermediate.tv_sec = seconds;
-<a id='L80' name='L80'></a>    80     <strong class='reserved'>return</strong> <a href='../D/14935.html' title='Multiple defined in 4 places.'>nanosleep</a> (&amp;intermediate, remaining_delay);
-<a id='L81' name='L81'></a>    81   <em class='brace'>}</em>
-<a id='L82' name='L82'></a>    82 <em class='brace'>}</em>
-<a id='L83' name='L83'></a>    83 
-<a id='L84' name='L84'></a>    84 <em class='sharp'>#elif</em> <strong class='reserved'>defined</strong> _WIN32 &amp;&amp; ! <strong class='reserved'>defined</strong> __CYGWIN__
-<a id='L85' name='L85'></a>    85 <em class='comment'>/* Native Windows platforms.  */</em>
-<a id='L86' name='L86'></a>    86 
-<a id='L87' name='L87'></a>    87 <em class='sharp'># define</em> WIN32_LEAN_AND_MEAN
-<a id='L88' name='L88'></a>    88 <em class='sharp'># include</em> &lt;windows.h&gt;
-<a id='L89' name='L89'></a>    89 
-<a id='L90' name='L90'></a>    90 <em class='comment'>/* The Windows API function Sleep() has a resolution of about 15 ms and takes</em>
-<a id='L91' name='L91'></a>    91 <em class='comment'>   at least 5 ms to execute.  We use this function for longer time periods.</em>
-<a id='L92' name='L92'></a>    92 <em class='comment'>   Additionally, we use busy-looping over short time periods, to get a</em>
-<a id='L93' name='L93'></a>    93 <em class='comment'>   resolution of about 0.01 ms.  In order to measure such short timespans,</em>
-<a id='L94' name='L94'></a>    94 <em class='comment'>   we use the QueryPerformanceCounter() function.  */</em>
-<a id='L95' name='L95'></a>    95 
-<a id='L96' name='L96'></a>    96 <strong class='reserved'>int</strong>
-<a id='L97' name='L97'></a>    97 <a href='../R/13778.html' title='Multiple referred from 11 places.'>nanosleep</a> (<strong class='reserved'>const</strong> <strong class='reserved'>struct</strong> <a href='../D/18278.html' title='Multiple defined in 3 places.'>timespec</a> *requested_delay,
-<a id='L98' name='L98'></a>    98            <strong class='reserved'>struct</strong> <a href='../D/18278.html' title='Multiple defined in 3 places.'>timespec</a> *remaining_delay)
-<a id='L99' name='L99'></a>    99 <em class='brace'>{</em>
-<a id='L100' name='L100'></a>   100   <strong class='reserved'>static</strong> <a href='../D/9263.html' title='Multiple defined in 11 places.'>bool</a> initialized;
-<a id='L101' name='L101'></a>   101   <em class='comment'>/* Number of performance counter increments per nanosecond,</em>
-<a id='L102' name='L102'></a>   102 <em class='comment'>     or zero if it could not be determined.  */</em>
-<a id='L103' name='L103'></a>   103   <strong class='reserved'>static</strong> <strong class='reserved'>double</strong> ticks_per_nanosecond;
-<a id='L104' name='L104'></a>   104 
-<a id='L105' name='L105'></a>   105   <strong class='reserved'>if</strong> (requested_delay-&gt;tv_nsec &lt; 0 || <a href='../S/2861.html#L37' title='Defined at 37 in lib/nanosleep.c.'>BILLION</a> &lt;= requested_delay-&gt;tv_nsec)
-<a id='L106' name='L106'></a>   106     <em class='brace'>{</em>
-<a id='L107' name='L107'></a>   107       errno = EINVAL;
-<a id='L108' name='L108'></a>   108       <strong class='reserved'>return</strong> -1;
-<a id='L109' name='L109'></a>   109     <em class='brace'>}</em>
-<a id='L110' name='L110'></a>   110 
-<a id='L111' name='L111'></a>   111   <em class='comment'>/* For requested delays of one second or more, 15ms resolution is</em>
-<a id='L112' name='L112'></a>   112 <em class='comment'>     sufficient.  */</em>
-<a id='L113' name='L113'></a>   113   <strong class='reserved'>if</strong> (requested_delay-&gt;tv_sec == 0)
-<a id='L114' name='L114'></a>   114     <em class='brace'>{</em>
-<a id='L115' name='L115'></a>   115       <strong class='reserved'>if</strong> (!initialized)
-<a id='L116' name='L116'></a>   116         <em class='brace'>{</em>
-<a id='L117' name='L117'></a>   117           <em class='comment'>/* Initialize ticks_per_nanosecond.  */</em>
-<a id='L118' name='L118'></a>   118           LARGE_INTEGER ticks_per_second;
-<a id='L119' name='L119'></a>   119 
-<a id='L120' name='L120'></a>   120           <strong class='reserved'>if</strong> (QueryPerformanceFrequency (&amp;ticks_per_second))
-<a id='L121' name='L121'></a>   121             ticks_per_nanosecond =
-<a id='L122' name='L122'></a>   122               (<strong class='reserved'>double</strong>) ticks_per_second.QuadPart / 1000000000.0;
-<a id='L123' name='L123'></a>   123 
-<a id='L124' name='L124'></a>   124           initialized = <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L41' name='L41'></a>    41 <em class='comment'>/* Get _get_osfhandle.  */</em>
+<a id='L42' name='L42'></a>    42 <em class='sharp'># if</em> GNULIB_MSVC_NOTHROW
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#  include</em> "msvc-nothrow.h"
+<a id='L44' name='L44'></a>    44 <em class='sharp'># else</em>
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#  include</em> &lt;io.h&gt;
+<a id='L46' name='L46'></a>    46 <em class='sharp'># endif</em>
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48 <em class='comment'>/* Upper bound on getdtablesize().  See lib/getdtablesize.c.  */</em>
+<a id='L49' name='L49'></a>    49 <em class='sharp'># define</em> <a href='../S/2861.html#L61' title='Referred from 61 in lib/fcntl.c.'>OPEN_MAX_MAX</a> 0x10000
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51 <em class='comment'>/* Duplicate OLDFD into the first available slot of at least NEWFD,</em>
+<a id='L52' name='L52'></a>    52 <em class='comment'>   which must be positive, with FLAGS determining whether the duplicate</em>
+<a id='L53' name='L53'></a>    53 <em class='comment'>   will be inheritable.  */</em>
+<a id='L54' name='L54'></a>    54 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L55' name='L55'></a>    55 <a href='../R/9870.html' title='Multiple referred from 19 places.'>dupfd</a> (<strong class='reserved'>int</strong> oldfd, <strong class='reserved'>int</strong> newfd, <strong class='reserved'>int</strong> flags)
+<a id='L56' name='L56'></a>    56 <em class='brace'>{</em>
+<a id='L57' name='L57'></a>    57   <em class='comment'>/* Mingw has no way to create an arbitrary fd.  Iterate until all</em>
+<a id='L58' name='L58'></a>    58 <em class='comment'>     file descriptors less than newfd are filled up.  */</em>
+<a id='L59' name='L59'></a>    59   HANDLE curr_process = GetCurrentProcess ();
+<a id='L60' name='L60'></a>    60   HANDLE old_handle = (HANDLE) _get_osfhandle (oldfd);
+<a id='L61' name='L61'></a>    61   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> fds_to_close[<a href='../S/2861.html#L49' title='Defined at 49 in lib/fcntl.c.'>OPEN_MAX_MAX</a> / CHAR_BIT];
+<a id='L62' name='L62'></a>    62   <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> fds_to_close_bound = 0;
+<a id='L63' name='L63'></a>    63   <strong class='reserved'>int</strong> result;
+<a id='L64' name='L64'></a>    64   <a href='../D/452.html' title='Multiple defined in 3 places.'>BOOL</a> inherit = flags &amp; <a href='../D/4695.html' title='Multiple defined in 7 places.'>O_CLOEXEC</a> ? <a href='../D/2029.html' title='Multiple defined in 3 places.'>FALSE</a> : <a href='../D/6378.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L65' name='L65'></a>    65   <strong class='reserved'>int</strong> mode;
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67   <strong class='reserved'>if</strong> (newfd &lt; 0 || <a href='../D/12282.html' title='Multiple defined in 5 places.'>getdtablesize</a> () &lt;= newfd)
+<a id='L68' name='L68'></a>    68     <em class='brace'>{</em>
+<a id='L69' name='L69'></a>    69       errno = EINVAL;
+<a id='L70' name='L70'></a>    70       <strong class='reserved'>return</strong> -1;
+<a id='L71' name='L71'></a>    71     <em class='brace'>}</em>
+<a id='L72' name='L72'></a>    72   <strong class='reserved'>if</strong> (old_handle == INVALID_HANDLE_VALUE
+<a id='L73' name='L73'></a>    73       || (mode = _setmode (oldfd, <a href='../D/4694.html' title='Multiple defined in 3 places.'>O_BINARY</a>)) == -1)
+<a id='L74' name='L74'></a>    74     <em class='brace'>{</em>
+<a id='L75' name='L75'></a>    75       <em class='comment'>/* oldfd is not open, or is an unassigned standard file</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>         descriptor.  */</em>
+<a id='L77' name='L77'></a>    77       errno = EBADF;
+<a id='L78' name='L78'></a>    78       <strong class='reserved'>return</strong> -1;
+<a id='L79' name='L79'></a>    79     <em class='brace'>}</em>
+<a id='L80' name='L80'></a>    80   _setmode (oldfd, mode);
+<a id='L81' name='L81'></a>    81   flags |= mode;
+<a id='L82' name='L82'></a>    82 
+<a id='L83' name='L83'></a>    83   <strong class='reserved'>for</strong> (;;)
+<a id='L84' name='L84'></a>    84     <em class='brace'>{</em>
+<a id='L85' name='L85'></a>    85       HANDLE new_handle;
+<a id='L86' name='L86'></a>    86       <strong class='reserved'>int</strong> duplicated_fd;
+<a id='L87' name='L87'></a>    87       <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> <a href='../S/2962.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a>;
+<a id='L88' name='L88'></a>    88 
+<a id='L89' name='L89'></a>    89       <strong class='reserved'>if</strong> (!DuplicateHandle (curr_process,           <em class='comment'>/* SourceProcessHandle */</em>
+<a id='L90' name='L90'></a>    90                             old_handle,             <em class='comment'>/* SourceHandle */</em>
+<a id='L91' name='L91'></a>    91                             curr_process,           <em class='comment'>/* TargetProcessHandle */</em>
+<a id='L92' name='L92'></a>    92                             (PHANDLE) &amp;new_handle,  <em class='comment'>/* TargetHandle */</em>
+<a id='L93' name='L93'></a>    93                             (DWORD) 0,              <em class='comment'>/* DesiredAccess */</em>
+<a id='L94' name='L94'></a>    94                             inherit,                <em class='comment'>/* InheritHandle */</em>
+<a id='L95' name='L95'></a>    95                             DUPLICATE_SAME_ACCESS)) <em class='comment'>/* Options */</em>
+<a id='L96' name='L96'></a>    96         <em class='brace'>{</em>
+<a id='L97' name='L97'></a>    97           <strong class='reserved'>switch</strong> (GetLastError ())
+<a id='L98' name='L98'></a>    98             <em class='brace'>{</em>
+<a id='L99' name='L99'></a>    99               <strong class='reserved'>case</strong> ERROR_TOO_MANY_OPEN_FILES:
+<a id='L100' name='L100'></a>   100                 errno = EMFILE;
+<a id='L101' name='L101'></a>   101                 <strong class='reserved'>break</strong>;
+<a id='L102' name='L102'></a>   102               <strong class='reserved'>case</strong> ERROR_INVALID_HANDLE:
+<a id='L103' name='L103'></a>   103               <strong class='reserved'>case</strong> ERROR_INVALID_TARGET_HANDLE:
+<a id='L104' name='L104'></a>   104               <strong class='reserved'>case</strong> ERROR_DIRECT_ACCESS_HANDLE:
+<a id='L105' name='L105'></a>   105                 errno = EBADF;
+<a id='L106' name='L106'></a>   106                 <strong class='reserved'>break</strong>;
+<a id='L107' name='L107'></a>   107               <strong class='reserved'>case</strong> ERROR_INVALID_PARAMETER:
+<a id='L108' name='L108'></a>   108               <strong class='reserved'>case</strong> ERROR_INVALID_FUNCTION:
+<a id='L109' name='L109'></a>   109               <strong class='reserved'>case</strong> ERROR_INVALID_ACCESS:
+<a id='L110' name='L110'></a>   110                 errno = EINVAL;
+<a id='L111' name='L111'></a>   111                 <strong class='reserved'>break</strong>;
+<a id='L112' name='L112'></a>   112               <strong class='reserved'>default</strong>:
+<a id='L113' name='L113'></a>   113                 errno = EACCES;
+<a id='L114' name='L114'></a>   114                 <strong class='reserved'>break</strong>;
+<a id='L115' name='L115'></a>   115             <em class='brace'>}</em>
+<a id='L116' name='L116'></a>   116           result = -1;
+<a id='L117' name='L117'></a>   117           <strong class='reserved'>break</strong>;
+<a id='L118' name='L118'></a>   118         <em class='brace'>}</em>
+<a id='L119' name='L119'></a>   119       duplicated_fd = _open_osfhandle ((<a href='../D/13425.html' title='Multiple defined in 4 places.'>intptr_t</a>) new_handle, flags);
+<a id='L120' name='L120'></a>   120       <strong class='reserved'>if</strong> (duplicated_fd &lt; 0)
+<a id='L121' name='L121'></a>   121         <em class='brace'>{</em>
+<a id='L122' name='L122'></a>   122           CloseHandle (new_handle);
+<a id='L123' name='L123'></a>   123           result = -1;
+<a id='L124' name='L124'></a>   124           <strong class='reserved'>break</strong>;
 <a id='L125' name='L125'></a>   125         <em class='brace'>}</em>
-<a id='L126' name='L126'></a>   126       <strong class='reserved'>if</strong> (ticks_per_nanosecond)
+<a id='L126' name='L126'></a>   126       <strong class='reserved'>if</strong> (newfd &lt;= duplicated_fd)
 <a id='L127' name='L127'></a>   127         <em class='brace'>{</em>
-<a id='L128' name='L128'></a>   128           <em class='comment'>/* QueryPerformanceFrequency worked.  We can use</em>
-<a id='L129' name='L129'></a>   129 <em class='comment'>             QueryPerformanceCounter.  Use a combination of Sleep and</em>
-<a id='L130' name='L130'></a>   130 <em class='comment'>             busy-looping.  */</em>
-<a id='L131' name='L131'></a>   131           <em class='comment'>/* Number of milliseconds to pass to the Sleep function.</em>
-<a id='L132' name='L132'></a>   132 <em class='comment'>             Since Sleep can take up to 8 ms less or 8 ms more than requested</em>
-<a id='L133' name='L133'></a>   133 <em class='comment'>             (or maybe more if the system is loaded), we subtract 10 ms.  */</em>
-<a id='L134' name='L134'></a>   134           <strong class='reserved'>int</strong> sleep_millis = (<strong class='reserved'>int</strong>) requested_delay-&gt;tv_nsec / 1000000 - 10;
-<a id='L135' name='L135'></a>   135           <em class='comment'>/* Determine how many ticks to delay.  */</em>
-<a id='L136' name='L136'></a>   136           LONGLONG wait_ticks = requested_delay-&gt;tv_nsec * ticks_per_nanosecond;
-<a id='L137' name='L137'></a>   137           <em class='comment'>/* Start.  */</em>
-<a id='L138' name='L138'></a>   138           LARGE_INTEGER counter_before;
-<a id='L139' name='L139'></a>   139           <strong class='reserved'>if</strong> (QueryPerformanceCounter (&amp;counter_before))
-<a id='L140' name='L140'></a>   140             <em class='brace'>{</em>
-<a id='L141' name='L141'></a>   141               <em class='comment'>/* Wait until the performance counter has reached this value.</em>
-<a id='L142' name='L142'></a>   142 <em class='comment'>                 We don't need to worry about overflow, because the performance</em>
-<a id='L143' name='L143'></a>   143 <em class='comment'>                 counter is reset at reboot, and with a frequency of 3.6E6</em>
-<a id='L144' name='L144'></a>   144 <em class='comment'>                 ticks per second 63 bits suffice for over 80000 years.  */</em>
-<a id='L145' name='L145'></a>   145               LONGLONG wait_until = counter_before.QuadPart + wait_ticks;
-<a id='L146' name='L146'></a>   146               <em class='comment'>/* Use Sleep for the longest part.  */</em>
-<a id='L147' name='L147'></a>   147               <strong class='reserved'>if</strong> (sleep_millis &gt; 0)
-<a id='L148' name='L148'></a>   148                 Sleep (sleep_millis);
-<a id='L149' name='L149'></a>   149               <em class='comment'>/* Busy-loop for the rest.  */</em>
-<a id='L150' name='L150'></a>   150               <strong class='reserved'>for</strong> (;;)
-<a id='L151' name='L151'></a>   151                 <em class='brace'>{</em>
-<a id='L152' name='L152'></a>   152                   LARGE_INTEGER counter_after;
-<a id='L153' name='L153'></a>   153                   <strong class='reserved'>if</strong> (!QueryPerformanceCounter (&amp;counter_after))
-<a id='L154' name='L154'></a>   154                     <em class='comment'>/* QueryPerformanceCounter failed, but succeeded earlier.</em>
-<a id='L155' name='L155'></a>   155 <em class='comment'>                       Should not happen.  */</em>
-<a id='L156' name='L156'></a>   156                     <strong class='reserved'>break</strong>;
-<a id='L157' name='L157'></a>   157                   <strong class='reserved'>if</strong> (counter_after.QuadPart &gt;= wait_until)
-<a id='L158' name='L158'></a>   158                     <em class='comment'>/* The requested time has elapsed.  */</em>
-<a id='L159' name='L159'></a>   159                     <strong class='reserved'>break</strong>;
-<a id='L160' name='L160'></a>   160                 <em class='brace'>}</em>
-<a id='L161' name='L161'></a>   161               <strong class='reserved'>goto</strong> done;
-<a id='L162' name='L162'></a>   162             <em class='brace'>}</em>
-<a id='L163' name='L163'></a>   163         <em class='brace'>}</em>
-<a id='L164' name='L164'></a>   164     <em class='brace'>}</em>
-<a id='L165' name='L165'></a>   165   <em class='comment'>/* Implementation for long delays and as fallback.  */</em>
-<a id='L166' name='L166'></a>   166   Sleep (requested_delay-&gt;tv_sec * 1000 + requested_delay-&gt;tv_nsec / 1000000);
-<a id='L167' name='L167'></a>   167 
-<a id='L168' name='L168'></a>   168  done:
-<a id='L169' name='L169'></a>   169   <em class='comment'>/* Sleep is not interruptible.  So there is no remaining delay.  */</em>
-<a id='L170' name='L170'></a>   170   <strong class='reserved'>if</strong> (remaining_delay != <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>)
-<a id='L171' name='L171'></a>   171     <em class='brace'>{</em>
-<a id='L172' name='L172'></a>   172       remaining_delay-&gt;tv_sec = 0;
-<a id='L173' name='L173'></a>   173       remaining_delay-&gt;tv_nsec = 0;
-<a id='L174' name='L174'></a>   174     <em class='brace'>}</em>
-<a id='L175' name='L175'></a>   175   <strong class='reserved'>return</strong> 0;
-<a id='L176' name='L176'></a>   176 <em class='brace'>}</em>
-<a id='L177' name='L177'></a>   177 
-<a id='L178' name='L178'></a>   178 <em class='sharp'>#else</em>
-<a id='L179' name='L179'></a>   179 <em class='comment'>/* Other platforms lacking nanosleep.</em>
-<a id='L180' name='L180'></a>   180 <em class='comment'>   It's not clear whether these are still practical porting targets.</em>
-<a id='L181' name='L181'></a>   181 <em class='comment'>   For now, just fall back on pselect.  */</em>
-<a id='L182' name='L182'></a>   182 
-<a id='L183' name='L183'></a>   183 <em class='comment'>/* Suspend execution for at least *REQUESTED_DELAY seconds.  The</em>
-<a id='L184' name='L184'></a>   184 <em class='comment'>   *REMAINING_DELAY part isn't implemented yet.  */</em>
-<a id='L185' name='L185'></a>   185 
-<a id='L186' name='L186'></a>   186 <strong class='reserved'>int</strong>
-<a id='L187' name='L187'></a>   187 <a href='../R/13778.html' title='Multiple referred from 11 places.'>nanosleep</a> (<strong class='reserved'>const</strong> <strong class='reserved'>struct</strong> <a href='../D/18278.html' title='Multiple defined in 3 places.'>timespec</a> *requested_delay,
-<a id='L188' name='L188'></a>   188            <strong class='reserved'>struct</strong> <a href='../D/18278.html' title='Multiple defined in 3 places.'>timespec</a> *remaining_delay)
-<a id='L189' name='L189'></a>   189 <em class='brace'>{</em>
-<a id='L190' name='L190'></a>   190   <strong class='reserved'>return</strong> <a href='../D/15844.html' title='Multiple defined in 7 places.'>pselect</a> (0, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>, requested_delay, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
-<a id='L191' name='L191'></a>   191 <em class='brace'>}</em>
-<a id='L192' name='L192'></a>   192 <em class='sharp'>#endif</em>
+<a id='L128' name='L128'></a>   128           result = duplicated_fd;
+<a id='L129' name='L129'></a>   129           <strong class='reserved'>break</strong>;
+<a id='L130' name='L130'></a>   130         <em class='brace'>}</em>
+<a id='L131' name='L131'></a>   131 
+<a id='L132' name='L132'></a>   132       <em class='comment'>/* Set the bit duplicated_fd in fds_to_close[].  */</em>
+<a id='L133' name='L133'></a>   133       <a href='../S/2962.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a> = (<strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong>) duplicated_fd / CHAR_BIT;
+<a id='L134' name='L134'></a>   134       <strong class='reserved'>if</strong> (fds_to_close_bound &lt;= <a href='../S/2962.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a>)
+<a id='L135' name='L135'></a>   135         <em class='brace'>{</em>
+<a id='L136' name='L136'></a>   136           <strong class='reserved'>if</strong> (<strong class='reserved'>sizeof</strong> fds_to_close &lt;= <a href='../S/2962.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a>)
+<a id='L137' name='L137'></a>   137             <em class='comment'>/* Need to increase OPEN_MAX_MAX.  */</em>
+<a id='L138' name='L138'></a>   138             abort ();
+<a id='L139' name='L139'></a>   139           memset (fds_to_close + fds_to_close_bound, '\0',
+<a id='L140' name='L140'></a>   140                   <a href='../S/2962.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a> + 1 - fds_to_close_bound);
+<a id='L141' name='L141'></a>   141           fds_to_close_bound = <a href='../S/2962.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a> + 1;
+<a id='L142' name='L142'></a>   142         <em class='brace'>}</em>
+<a id='L143' name='L143'></a>   143       fds_to_close[<a href='../S/2962.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a>] |= 1 &lt;&lt; ((<strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong>) duplicated_fd % CHAR_BIT);
+<a id='L144' name='L144'></a>   144     <em class='brace'>}</em>
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146   <em class='comment'>/* Close the previous fds that turned out to be too small.  */</em>
+<a id='L147' name='L147'></a>   147   <em class='brace'>{</em>
+<a id='L148' name='L148'></a>   148     <strong class='reserved'>int</strong> saved_errno = errno;
+<a id='L149' name='L149'></a>   149     <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> duplicated_fd;
+<a id='L150' name='L150'></a>   150 
+<a id='L151' name='L151'></a>   151     <strong class='reserved'>for</strong> (duplicated_fd = 0;
+<a id='L152' name='L152'></a>   152          duplicated_fd &lt; fds_to_close_bound * CHAR_BIT;
+<a id='L153' name='L153'></a>   153          duplicated_fd++)
+<a id='L154' name='L154'></a>   154       <strong class='reserved'>if</strong> ((fds_to_close[duplicated_fd / CHAR_BIT]
+<a id='L155' name='L155'></a>   155            &gt;&gt; (duplicated_fd % CHAR_BIT))
+<a id='L156' name='L156'></a>   156           &amp; 1)
+<a id='L157' name='L157'></a>   157         <a href='../D/9798.html' title='Multiple defined in 18 places.'>close</a> (duplicated_fd);
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159     errno = saved_errno;
+<a id='L160' name='L160'></a>   160   <em class='brace'>}</em>
+<a id='L161' name='L161'></a>   161 
+<a id='L162' name='L162'></a>   162 <em class='sharp'># if</em> <a href='../S/2834.html#L96' title='Defined at 96 in lib/fdopendir.c.'>REPLACE_FCHDIR</a>
+<a id='L163' name='L163'></a>   163   <strong class='reserved'>if</strong> (0 &lt;= result)
+<a id='L164' name='L164'></a>   164     result = _gl_register_dup (oldfd, result);
+<a id='L165' name='L165'></a>   165 <em class='sharp'># endif</em>
+<a id='L166' name='L166'></a>   166   <strong class='reserved'>return</strong> result;
+<a id='L167' name='L167'></a>   167 <em class='brace'>}</em>
+<a id='L168' name='L168'></a>   168 <em class='sharp'>#endif</em> <em class='comment'>/* W32 */</em>
+<a id='L169' name='L169'></a>   169 
+<a id='L170' name='L170'></a>   170 <em class='comment'>/* Forward declarations, because we '#undef fcntl' in the middle of this</em>
+<a id='L171' name='L171'></a>   171 <em class='comment'>   compilation unit.  */</em>
+<a id='L172' name='L172'></a>   172 <em class='comment'>/* Our implementation of fcntl (fd, F_DUPFD, target).  */</em>
+<a id='L173' name='L173'></a>   173 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../S/2861.html#L447' title='Defined at 447 in lib/fcntl.c.'>rpl_fcntl_DUPFD</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>int</strong> target);
+<a id='L174' name='L174'></a>   174 <em class='comment'>/* Our implementation of fcntl (fd, F_DUPFD_CLOEXEC, target).  */</em>
+<a id='L175' name='L175'></a>   175 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../S/2861.html#L488' title='Defined at 488 in lib/fcntl.c.'>rpl_fcntl_DUPFD_CLOEXEC</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>int</strong> target);
+<a id='L176' name='L176'></a>   176 <em class='sharp'>#ifdef</em> __KLIBC__
+<a id='L177' name='L177'></a>   177 <em class='comment'>/* Adds support for fcntl on directories.  */</em>
+<a id='L178' name='L178'></a>   178 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../S/2861.html#L551' title='Defined at 551 in lib/fcntl.c.'>klibc_fcntl</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>int</strong> action, <em class='comment'>/* arg */</em>...);
+<a id='L179' name='L179'></a>   179 <em class='sharp'>#endif</em>
+<a id='L180' name='L180'></a>   180 
+<a id='L181' name='L181'></a>   181 
+<a id='L182' name='L182'></a>   182 <em class='comment'>/* Perform the specified ACTION on the file descriptor FD, possibly</em>
+<a id='L183' name='L183'></a>   183 <em class='comment'>   using the argument ARG further described below.  This replacement</em>
+<a id='L184' name='L184'></a>   184 <em class='comment'>   handles the following actions, and forwards all others on to the</em>
+<a id='L185' name='L185'></a>   185 <em class='comment'>   native fcntl.  An unrecognized ACTION returns -1 with errno set to</em>
+<a id='L186' name='L186'></a>   186 <em class='comment'>   EINVAL.</em>
+<a id='L187' name='L187'></a>   187 <em class='comment'></em>
+<a id='L188' name='L188'></a>   188 <em class='comment'>   F_DUPFD - duplicate FD, with int ARG being the minimum target fd.</em>
+<a id='L189' name='L189'></a>   189 <em class='comment'>   If successful, return the duplicate, which will be inheritable;</em>
+<a id='L190' name='L190'></a>   190 <em class='comment'>   otherwise return -1 and set errno.</em>
+<a id='L191' name='L191'></a>   191 <em class='comment'></em>
+<a id='L192' name='L192'></a>   192 <em class='comment'>   F_DUPFD_CLOEXEC - duplicate FD, with int ARG being the minimum</em>
+<a id='L193' name='L193'></a>   193 <em class='comment'>   target fd.  If successful, return the duplicate, which will not be</em>
+<a id='L194' name='L194'></a>   194 <em class='comment'>   inheritable; otherwise return -1 and set errno.</em>
+<a id='L195' name='L195'></a>   195 <em class='comment'></em>
+<a id='L196' name='L196'></a>   196 <em class='comment'>   F_GETFD - ARG need not be present.  If successful, return a</em>
+<a id='L197' name='L197'></a>   197 <em class='comment'>   non-negative value containing the descriptor flags of FD (only</em>
+<a id='L198' name='L198'></a>   198 <em class='comment'>   FD_CLOEXEC is portable, but other flags may be present); otherwise</em>
+<a id='L199' name='L199'></a>   199 <em class='comment'>   return -1 and set errno.  */</em>
+<a id='L200' name='L200'></a>   200 
+<a id='L201' name='L201'></a>   201 <strong class='reserved'>int</strong>
+<a id='L202' name='L202'></a>   202 <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>int</strong> action, <em class='comment'>/* arg */</em>...)
+<a id='L203' name='L203'></a>   203 <em class='sharp'>#undef</em> <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a>
+<a id='L204' name='L204'></a>   204 <em class='sharp'>#ifdef</em> __KLIBC__
+<a id='L205' name='L205'></a>   205 <em class='sharp'># define</em> <a href='../R/10297.html' title='Multiple referred from 72 places.'>fcntl</a> <a href='../S/2861.html#L551' title='Defined at 551 in lib/fcntl.c.'>klibc_fcntl</a>
+<a id='L206' name='L206'></a>   206 <em class='sharp'>#endif</em>
+<a id='L207' name='L207'></a>   207 <em class='brace'>{</em>
+<a id='L208' name='L208'></a>   208   va_list arg;
+<a id='L209' name='L209'></a>   209   <strong class='reserved'>int</strong> result = -1;
+<a id='L210' name='L210'></a>   210   va_start (arg, action);
+<a id='L211' name='L211'></a>   211   <strong class='reserved'>switch</strong> (action)
+<a id='L212' name='L212'></a>   212     <em class='brace'>{</em>
+<a id='L213' name='L213'></a>   213     <strong class='reserved'>case</strong> <a href='../S/2780.html#L260' title='Defined at 260 in lib/fcntl.in.h.'>F_DUPFD</a>:
+<a id='L214' name='L214'></a>   214       <em class='brace'>{</em>
+<a id='L215' name='L215'></a>   215         <strong class='reserved'>int</strong> target = va_arg (arg, <strong class='reserved'>int</strong>);
+<a id='L216' name='L216'></a>   216         result = <a href='../S/2861.html#L447' title='Defined at 447 in lib/fcntl.c.'>rpl_fcntl_DUPFD</a> (fd, target);
+<a id='L217' name='L217'></a>   217         <strong class='reserved'>break</strong>;
+<a id='L218' name='L218'></a>   218       <em class='brace'>}</em>
+<a id='L219' name='L219'></a>   219 
+<a id='L220' name='L220'></a>   220     <strong class='reserved'>case</strong> <a href='../D/2547.html' title='Multiple defined in 2 places.'>F_DUPFD_CLOEXEC</a>:
+<a id='L221' name='L221'></a>   221       <em class='brace'>{</em>
+<a id='L222' name='L222'></a>   222         <strong class='reserved'>int</strong> target = va_arg (arg, <strong class='reserved'>int</strong>);
+<a id='L223' name='L223'></a>   223         result = <a href='../S/2861.html#L488' title='Defined at 488 in lib/fcntl.c.'>rpl_fcntl_DUPFD_CLOEXEC</a> (fd, target);
+<a id='L224' name='L224'></a>   224         <strong class='reserved'>break</strong>;
+<a id='L225' name='L225'></a>   225       <em class='brace'>}</em>
+<a id='L226' name='L226'></a>   226 
+<a id='L227' name='L227'></a>   227 <em class='sharp'>#if</em> !HAVE_FCNTL
+<a id='L228' name='L228'></a>   228     <strong class='reserved'>case</strong> <a href='../S/2780.html#L264' title='Defined at 264 in lib/fcntl.in.h.'>F_GETFD</a>:
+<a id='L229' name='L229'></a>   229       <em class='brace'>{</em>
+<a id='L230' name='L230'></a>   230 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> _WIN32 &amp;&amp; ! <strong class='reserved'>defined</strong> __CYGWIN__
+<a id='L231' name='L231'></a>   231         HANDLE handle = (HANDLE) _get_osfhandle (fd);
+<a id='L232' name='L232'></a>   232         DWORD flags;
+<a id='L233' name='L233'></a>   233         <strong class='reserved'>if</strong> (handle == INVALID_HANDLE_VALUE
+<a id='L234' name='L234'></a>   234             || GetHandleInformation (handle, &amp;flags) == 0)
+<a id='L235' name='L235'></a>   235           errno = EBADF;
+<a id='L236' name='L236'></a>   236         <strong class='reserved'>else</strong>
+<a id='L237' name='L237'></a>   237           result = (flags &amp; <a href='../S/2301.html#L7706' title='Defined at 7706 in src/w32.c.'>HANDLE_FLAG_INHERIT</a>) ? 0 : <a href='../D/2041.html' title='Multiple defined in 2 places.'>FD_CLOEXEC</a>;
+<a id='L238' name='L238'></a>   238 <em class='sharp'># else</em> <em class='comment'>/* !W32 */</em>
+<a id='L239' name='L239'></a>   239         <em class='comment'>/* Use dup2 to reject invalid file descriptors.  No way to</em>
+<a id='L240' name='L240'></a>   240 <em class='comment'>           access this information, so punt.  */</em>
+<a id='L241' name='L241'></a>   241         <strong class='reserved'>if</strong> (0 &lt;= <a href='../D/10847.html' title='Multiple defined in 14 places.'>dup2</a> (fd, fd))
+<a id='L242' name='L242'></a>   242           result = 0;
+<a id='L243' name='L243'></a>   243 <em class='sharp'># endif</em> <em class='comment'>/* !W32 */</em>
+<a id='L244' name='L244'></a>   244         <strong class='reserved'>break</strong>;
+<a id='L245' name='L245'></a>   245       <em class='brace'>}</em> <em class='comment'>/* F_GETFD */</em>
+<a id='L246' name='L246'></a>   246 <em class='sharp'>#endif</em> <em class='comment'>/* !HAVE_FCNTL */</em>
+<a id='L247' name='L247'></a>   247 
+<a id='L248' name='L248'></a>   248       <em class='comment'>/* Implementing F_SETFD on mingw is not trivial - there is no</em>
+<a id='L249' name='L249'></a>   249 <em class='comment'>         API for changing the O_NOINHERIT bit on an fd, and merely</em>
+<a id='L250' name='L250'></a>   250 <em class='comment'>         changing the HANDLE_FLAG_INHERIT bit on the underlying handle</em>
+<a id='L251' name='L251'></a>   251 <em class='comment'>         can lead to odd state.  It may be possible by duplicating the</em>
+<a id='L252' name='L252'></a>   252 <em class='comment'>         handle, using _open_osfhandle with the right flags, then</em>
+<a id='L253' name='L253'></a>   253 <em class='comment'>         using dup2 to move the duplicate onto the original, but that</em>
+<a id='L254' name='L254'></a>   254 <em class='comment'>         is not supported for now.  */</em>
+<a id='L255' name='L255'></a>   255 
+<a id='L256' name='L256'></a>   256     <strong class='reserved'>default</strong>:
+<a id='L257' name='L257'></a>   257       <em class='brace'>{</em>
+<a id='L258' name='L258'></a>   258 <em class='sharp'>#if</em> HAVE_FCNTL
+<a id='L259' name='L259'></a>   259         <strong class='reserved'>switch</strong> (action)
+<a id='L260' name='L260'></a>   260           <em class='brace'>{</em>
+<a id='L261' name='L261'></a>   261 <em class='sharp'>          #ifdef</em> F_BARRIERFSYNC                  <em class='comment'>/* macOS */</em>
+<a id='L262' name='L262'></a>   262           <strong class='reserved'>case</strong> F_BARRIERFSYNC:
+<a id='L263' name='L263'></a>   263 <em class='sharp'>          #endif</em>
+<a id='L264' name='L264'></a>   264 <em class='sharp'>          #ifdef</em> F_CHKCLEAN                      <em class='comment'>/* macOS */</em>
+<a id='L265' name='L265'></a>   265           <strong class='reserved'>case</strong> F_CHKCLEAN:
+<a id='L266' name='L266'></a>   266 <em class='sharp'>          #endif</em>
+<a id='L267' name='L267'></a>   267 <em class='sharp'>          #ifdef</em> F_CLOSEM                        <em class='comment'>/* NetBSD, HP-UX */</em>
+<a id='L268' name='L268'></a>   268           <strong class='reserved'>case</strong> F_CLOSEM:
+<a id='L269' name='L269'></a>   269 <em class='sharp'>          #endif</em>
+<a id='L270' name='L270'></a>   270 <em class='sharp'>          #ifdef</em> F_FLUSH_DATA                    <em class='comment'>/* macOS */</em>
+<a id='L271' name='L271'></a>   271           <strong class='reserved'>case</strong> F_FLUSH_DATA:
+<a id='L272' name='L272'></a>   272 <em class='sharp'>          #endif</em>
+<a id='L273' name='L273'></a>   273 <em class='sharp'>          #ifdef</em> F_FREEZE_FS                     <em class='comment'>/* macOS */</em>
+<a id='L274' name='L274'></a>   274           <strong class='reserved'>case</strong> F_FREEZE_FS:
+<a id='L275' name='L275'></a>   275 <em class='sharp'>          #endif</em>
+<a id='L276' name='L276'></a>   276 <em class='sharp'>          #ifdef</em> F_FULLFSYNC                     <em class='comment'>/* macOS */</em>
+<a id='L277' name='L277'></a>   277           <strong class='reserved'>case</strong> F_FULLFSYNC:
+<a id='L278' name='L278'></a>   278 <em class='sharp'>          #endif</em>
+<a id='L279' name='L279'></a>   279 <em class='sharp'>          #ifdef</em> F_GETCONFINED                   <em class='comment'>/* macOS */</em>
+<a id='L280' name='L280'></a>   280           <strong class='reserved'>case</strong> F_GETCONFINED:
+<a id='L281' name='L281'></a>   281 <em class='sharp'>          #endif</em>
+<a id='L282' name='L282'></a>   282 <em class='sharp'>          #ifdef</em> F_GETDEFAULTPROTLEVEL           <em class='comment'>/* macOS */</em>
+<a id='L283' name='L283'></a>   283           <strong class='reserved'>case</strong> F_GETDEFAULTPROTLEVEL:
+<a id='L284' name='L284'></a>   284 <em class='sharp'>          #endif</em>
+<a id='L285' name='L285'></a>   285 <em class='sharp'>          #ifdef</em> <a href='../S/2780.html#L264' title='Defined at 264 in lib/fcntl.in.h.'>F_GETFD</a>                         <em class='comment'>/* POSIX */</em>
+<a id='L286' name='L286'></a>   286           <strong class='reserved'>case</strong> <a href='../S/2780.html#L264' title='Defined at 264 in lib/fcntl.in.h.'>F_GETFD</a>:
+<a id='L287' name='L287'></a>   287 <em class='sharp'>          #endif</em>
+<a id='L288' name='L288'></a>   288 <em class='sharp'>          #ifdef</em> F_GETFL                         <em class='comment'>/* POSIX */</em>
+<a id='L289' name='L289'></a>   289           <strong class='reserved'>case</strong> F_GETFL:
+<a id='L290' name='L290'></a>   290 <em class='sharp'>          #endif</em>
+<a id='L291' name='L291'></a>   291 <em class='sharp'>          #ifdef</em> F_GETLEASE                      <em class='comment'>/* Linux */</em>
+<a id='L292' name='L292'></a>   292           <strong class='reserved'>case</strong> F_GETLEASE:
+<a id='L293' name='L293'></a>   293 <em class='sharp'>          #endif</em>
+<a id='L294' name='L294'></a>   294 <em class='sharp'>          #ifdef</em> F_GETNOSIGPIPE                  <em class='comment'>/* macOS */</em>
+<a id='L295' name='L295'></a>   295           <strong class='reserved'>case</strong> F_GETNOSIGPIPE:
+<a id='L296' name='L296'></a>   296 <em class='sharp'>          #endif</em>
+<a id='L297' name='L297'></a>   297 <em class='sharp'>          #ifdef</em> F_GETOWN                        <em class='comment'>/* POSIX */</em>
+<a id='L298' name='L298'></a>   298           <strong class='reserved'>case</strong> F_GETOWN:
+<a id='L299' name='L299'></a>   299 <em class='sharp'>          #endif</em>
+<a id='L300' name='L300'></a>   300 <em class='sharp'>          #ifdef</em> F_GETPIPE_SZ                    <em class='comment'>/* Linux */</em>
+<a id='L301' name='L301'></a>   301           <strong class='reserved'>case</strong> F_GETPIPE_SZ:
+<a id='L302' name='L302'></a>   302 <em class='sharp'>          #endif</em>
+<a id='L303' name='L303'></a>   303 <em class='sharp'>          #ifdef</em> F_GETPROTECTIONCLASS            <em class='comment'>/* macOS */</em>
+<a id='L304' name='L304'></a>   304           <strong class='reserved'>case</strong> F_GETPROTECTIONCLASS:
+<a id='L305' name='L305'></a>   305 <em class='sharp'>          #endif</em>
+<a id='L306' name='L306'></a>   306 <em class='sharp'>          #ifdef</em> F_GETPROTECTIONLEVEL            <em class='comment'>/* macOS */</em>
+<a id='L307' name='L307'></a>   307           <strong class='reserved'>case</strong> F_GETPROTECTIONLEVEL:
+<a id='L308' name='L308'></a>   308 <em class='sharp'>          #endif</em>
+<a id='L309' name='L309'></a>   309 <em class='sharp'>          #ifdef</em> F_GET_SEALS                     <em class='comment'>/* Linux */</em>
+<a id='L310' name='L310'></a>   310           <strong class='reserved'>case</strong> F_GET_SEALS:
+<a id='L311' name='L311'></a>   311 <em class='sharp'>          #endif</em>
+<a id='L312' name='L312'></a>   312 <em class='sharp'>          #ifdef</em> F_GETSIG                        <em class='comment'>/* Linux */</em>
+<a id='L313' name='L313'></a>   313           <strong class='reserved'>case</strong> F_GETSIG:
+<a id='L314' name='L314'></a>   314 <em class='sharp'>          #endif</em>
+<a id='L315' name='L315'></a>   315 <em class='sharp'>          #ifdef</em> F_MAXFD                         <em class='comment'>/* NetBSD */</em>
+<a id='L316' name='L316'></a>   316           <strong class='reserved'>case</strong> F_MAXFD:
+<a id='L317' name='L317'></a>   317 <em class='sharp'>          #endif</em>
+<a id='L318' name='L318'></a>   318 <em class='sharp'>          #ifdef</em> F_RECYCLE                       <em class='comment'>/* macOS */</em>
+<a id='L319' name='L319'></a>   319           <strong class='reserved'>case</strong> F_RECYCLE:
+<a id='L320' name='L320'></a>   320 <em class='sharp'>          #endif</em>
+<a id='L321' name='L321'></a>   321 <em class='sharp'>          #ifdef</em> F_SETFIFOENH                    <em class='comment'>/* HP-UX */</em>
+<a id='L322' name='L322'></a>   322           <strong class='reserved'>case</strong> F_SETFIFOENH:
+<a id='L323' name='L323'></a>   323 <em class='sharp'>          #endif</em>
+<a id='L324' name='L324'></a>   324 <em class='sharp'>          #ifdef</em> F_THAW_FS                       <em class='comment'>/* macOS */</em>
+<a id='L325' name='L325'></a>   325           <strong class='reserved'>case</strong> F_THAW_FS:
+<a id='L326' name='L326'></a>   326 <em class='sharp'>          #endif</em>
+<a id='L327' name='L327'></a>   327             <em class='comment'>/* These actions take no argument.  */</em>
+<a id='L328' name='L328'></a>   328             result = <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (fd, action);
+<a id='L329' name='L329'></a>   329             <strong class='reserved'>break</strong>;
+<a id='L330' name='L330'></a>   330 
+<a id='L331' name='L331'></a>   331 <em class='sharp'>          #ifdef</em> F_ADD_SEALS                     <em class='comment'>/* Linux */</em>
+<a id='L332' name='L332'></a>   332           <strong class='reserved'>case</strong> F_ADD_SEALS:
+<a id='L333' name='L333'></a>   333 <em class='sharp'>          #endif</em>
+<a id='L334' name='L334'></a>   334 <em class='sharp'>          #ifdef</em> F_BADFD                         <em class='comment'>/* Solaris */</em>
+<a id='L335' name='L335'></a>   335           <strong class='reserved'>case</strong> F_BADFD:
+<a id='L336' name='L336'></a>   336 <em class='sharp'>          #endif</em>
+<a id='L337' name='L337'></a>   337 <em class='sharp'>          #ifdef</em> F_CHECK_OPENEVT                 <em class='comment'>/* macOS */</em>
+<a id='L338' name='L338'></a>   338           <strong class='reserved'>case</strong> F_CHECK_OPENEVT:
+<a id='L339' name='L339'></a>   339 <em class='sharp'>          #endif</em>
+<a id='L340' name='L340'></a>   340 <em class='sharp'>          #ifdef</em> F_DUP2FD                        <em class='comment'>/* FreeBSD, AIX, Solaris */</em>
+<a id='L341' name='L341'></a>   341           <strong class='reserved'>case</strong> F_DUP2FD:
+<a id='L342' name='L342'></a>   342 <em class='sharp'>          #endif</em>
+<a id='L343' name='L343'></a>   343 <em class='sharp'>          #ifdef</em> F_DUP2FD_CLOEXEC                <em class='comment'>/* FreeBSD, Solaris */</em>
+<a id='L344' name='L344'></a>   344           <strong class='reserved'>case</strong> F_DUP2FD_CLOEXEC:
+<a id='L345' name='L345'></a>   345 <em class='sharp'>          #endif</em>
+<a id='L346' name='L346'></a>   346 <em class='sharp'>          #ifdef</em> F_DUP2FD_CLOFORK                <em class='comment'>/* Solaris */</em>
+<a id='L347' name='L347'></a>   347           <strong class='reserved'>case</strong> F_DUP2FD_CLOFORK:
+<a id='L348' name='L348'></a>   348 <em class='sharp'>          #endif</em>
+<a id='L349' name='L349'></a>   349 <em class='sharp'>          #ifdef</em> <a href='../S/2780.html#L260' title='Defined at 260 in lib/fcntl.in.h.'>F_DUPFD</a>                         <em class='comment'>/* POSIX */</em>
+<a id='L350' name='L350'></a>   350           <strong class='reserved'>case</strong> <a href='../S/2780.html#L260' title='Defined at 260 in lib/fcntl.in.h.'>F_DUPFD</a>:
+<a id='L351' name='L351'></a>   351 <em class='sharp'>          #endif</em>
+<a id='L352' name='L352'></a>   352 <em class='sharp'>          #ifdef</em> <a href='../D/2547.html' title='Multiple defined in 2 places.'>F_DUPFD_CLOEXEC</a>                 <em class='comment'>/* POSIX */</em>
+<a id='L353' name='L353'></a>   353           <strong class='reserved'>case</strong> <a href='../D/2547.html' title='Multiple defined in 2 places.'>F_DUPFD_CLOEXEC</a>:
+<a id='L354' name='L354'></a>   354 <em class='sharp'>          #endif</em>
+<a id='L355' name='L355'></a>   355 <em class='sharp'>          #ifdef</em> F_DUPFD_CLOFORK                 <em class='comment'>/* Solaris */</em>
+<a id='L356' name='L356'></a>   356           <strong class='reserved'>case</strong> F_DUPFD_CLOFORK:
+<a id='L357' name='L357'></a>   357 <em class='sharp'>          #endif</em>
+<a id='L358' name='L358'></a>   358 <em class='sharp'>          #ifdef</em> F_GETXFL                        <em class='comment'>/* Solaris */</em>
+<a id='L359' name='L359'></a>   359           <strong class='reserved'>case</strong> F_GETXFL:
+<a id='L360' name='L360'></a>   360 <em class='sharp'>          #endif</em>
+<a id='L361' name='L361'></a>   361 <em class='sharp'>          #ifdef</em> F_GLOBAL_NOCACHE                <em class='comment'>/* macOS */</em>
+<a id='L362' name='L362'></a>   362           <strong class='reserved'>case</strong> F_GLOBAL_NOCACHE:
+<a id='L363' name='L363'></a>   363 <em class='sharp'>          #endif</em>
+<a id='L364' name='L364'></a>   364 <em class='sharp'>          #ifdef</em> F_MAKECOMPRESSED                <em class='comment'>/* macOS */</em>
+<a id='L365' name='L365'></a>   365           <strong class='reserved'>case</strong> F_MAKECOMPRESSED:
+<a id='L366' name='L366'></a>   366 <em class='sharp'>          #endif</em>
+<a id='L367' name='L367'></a>   367 <em class='sharp'>          #ifdef</em> F_MOVEDATAEXTENTS               <em class='comment'>/* macOS */</em>
+<a id='L368' name='L368'></a>   368           <strong class='reserved'>case</strong> F_MOVEDATAEXTENTS:
+<a id='L369' name='L369'></a>   369 <em class='sharp'>          #endif</em>
+<a id='L370' name='L370'></a>   370 <em class='sharp'>          #ifdef</em> F_NOCACHE                       <em class='comment'>/* macOS */</em>
+<a id='L371' name='L371'></a>   371           <strong class='reserved'>case</strong> F_NOCACHE:
+<a id='L372' name='L372'></a>   372 <em class='sharp'>          #endif</em>
+<a id='L373' name='L373'></a>   373 <em class='sharp'>          #ifdef</em> F_NODIRECT                      <em class='comment'>/* macOS */</em>
+<a id='L374' name='L374'></a>   374           <strong class='reserved'>case</strong> F_NODIRECT:
+<a id='L375' name='L375'></a>   375 <em class='sharp'>          #endif</em>
+<a id='L376' name='L376'></a>   376 <em class='sharp'>          #ifdef</em> F_NOTIFY                        <em class='comment'>/* Linux */</em>
+<a id='L377' name='L377'></a>   377           <strong class='reserved'>case</strong> F_NOTIFY:
+<a id='L378' name='L378'></a>   378 <em class='sharp'>          #endif</em>
+<a id='L379' name='L379'></a>   379 <em class='sharp'>          #ifdef</em> F_OPLKACK                       <em class='comment'>/* IRIX */</em>
+<a id='L380' name='L380'></a>   380           <strong class='reserved'>case</strong> F_OPLKACK:
+<a id='L381' name='L381'></a>   381 <em class='sharp'>          #endif</em>
+<a id='L382' name='L382'></a>   382 <em class='sharp'>          #ifdef</em> F_OPLKREG                       <em class='comment'>/* IRIX */</em>
+<a id='L383' name='L383'></a>   383           <strong class='reserved'>case</strong> F_OPLKREG:
+<a id='L384' name='L384'></a>   384 <em class='sharp'>          #endif</em>
+<a id='L385' name='L385'></a>   385 <em class='sharp'>          #ifdef</em> F_RDAHEAD                       <em class='comment'>/* macOS */</em>
+<a id='L386' name='L386'></a>   386           <strong class='reserved'>case</strong> F_RDAHEAD:
+<a id='L387' name='L387'></a>   387 <em class='sharp'>          #endif</em>
+<a id='L388' name='L388'></a>   388 <em class='sharp'>          #ifdef</em> F_SETBACKINGSTORE               <em class='comment'>/* macOS */</em>
+<a id='L389' name='L389'></a>   389           <strong class='reserved'>case</strong> F_SETBACKINGSTORE:
+<a id='L390' name='L390'></a>   390 <em class='sharp'>          #endif</em>
+<a id='L391' name='L391'></a>   391 <em class='sharp'>          #ifdef</em> F_SETCONFINED                   <em class='comment'>/* macOS */</em>
+<a id='L392' name='L392'></a>   392           <strong class='reserved'>case</strong> F_SETCONFINED:
+<a id='L393' name='L393'></a>   393 <em class='sharp'>          #endif</em>
+<a id='L394' name='L394'></a>   394 <em class='sharp'>          #ifdef</em> <a href='../S/42.html#L141' title='Defined at 141 in nt/inc/sys/socket.h.'>F_SETFD</a>                         <em class='comment'>/* POSIX */</em>
+<a id='L395' name='L395'></a>   395           <strong class='reserved'>case</strong> <a href='../S/42.html#L141' title='Defined at 141 in nt/inc/sys/socket.h.'>F_SETFD</a>:
+<a id='L396' name='L396'></a>   396 <em class='sharp'>          #endif</em>
+<a id='L397' name='L397'></a>   397 <em class='sharp'>          #ifdef</em> <a href='../S/42.html#L140' title='Defined at 140 in nt/inc/sys/socket.h.'>F_SETFL</a>                         <em class='comment'>/* POSIX */</em>
+<a id='L398' name='L398'></a>   398           <strong class='reserved'>case</strong> <a href='../S/42.html#L140' title='Defined at 140 in nt/inc/sys/socket.h.'>F_SETFL</a>:
+<a id='L399' name='L399'></a>   399 <em class='sharp'>          #endif</em>
+<a id='L400' name='L400'></a>   400 <em class='sharp'>          #ifdef</em> F_SETLEASE                      <em class='comment'>/* Linux */</em>
+<a id='L401' name='L401'></a>   401           <strong class='reserved'>case</strong> F_SETLEASE:
+<a id='L402' name='L402'></a>   402 <em class='sharp'>          #endif</em>
+<a id='L403' name='L403'></a>   403 <em class='sharp'>          #ifdef</em> F_SETNOSIGPIPE                  <em class='comment'>/* macOS */</em>
+<a id='L404' name='L404'></a>   404           <strong class='reserved'>case</strong> F_SETNOSIGPIPE:
+<a id='L405' name='L405'></a>   405 <em class='sharp'>          #endif</em>
+<a id='L406' name='L406'></a>   406 <em class='sharp'>          #ifdef</em> F_SETOWN                        <em class='comment'>/* POSIX */</em>
+<a id='L407' name='L407'></a>   407           <strong class='reserved'>case</strong> F_SETOWN:
+<a id='L408' name='L408'></a>   408 <em class='sharp'>          #endif</em>
+<a id='L409' name='L409'></a>   409 <em class='sharp'>          #ifdef</em> F_SETPIPE_SZ                    <em class='comment'>/* Linux */</em>
+<a id='L410' name='L410'></a>   410           <strong class='reserved'>case</strong> F_SETPIPE_SZ:
+<a id='L411' name='L411'></a>   411 <em class='sharp'>          #endif</em>
+<a id='L412' name='L412'></a>   412 <em class='sharp'>          #ifdef</em> F_SETPROTECTIONCLASS            <em class='comment'>/* macOS */</em>
+<a id='L413' name='L413'></a>   413           <strong class='reserved'>case</strong> F_SETPROTECTIONCLASS:
+<a id='L414' name='L414'></a>   414 <em class='sharp'>          #endif</em>
+<a id='L415' name='L415'></a>   415 <em class='sharp'>          #ifdef</em> F_SETSIG                        <em class='comment'>/* Linux */</em>
+<a id='L416' name='L416'></a>   416           <strong class='reserved'>case</strong> F_SETSIG:
+<a id='L417' name='L417'></a>   417 <em class='sharp'>          #endif</em>
+<a id='L418' name='L418'></a>   418 <em class='sharp'>          #ifdef</em> F_SINGLE_WRITER                 <em class='comment'>/* macOS */</em>
+<a id='L419' name='L419'></a>   419           <strong class='reserved'>case</strong> F_SINGLE_WRITER:
+<a id='L420' name='L420'></a>   420 <em class='sharp'>          #endif</em>
+<a id='L421' name='L421'></a>   421             <em class='comment'>/* These actions take an 'int' argument.  */</em>
+<a id='L422' name='L422'></a>   422             <em class='brace'>{</em>
+<a id='L423' name='L423'></a>   423               <strong class='reserved'>int</strong> <a href='../S/4105.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a> = va_arg (arg, <strong class='reserved'>int</strong>);
+<a id='L424' name='L424'></a>   424               result = <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (fd, action, <a href='../S/4105.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>);
+<a id='L425' name='L425'></a>   425             <em class='brace'>}</em>
+<a id='L426' name='L426'></a>   426             <strong class='reserved'>break</strong>;
+<a id='L427' name='L427'></a>   427 
+<a id='L428' name='L428'></a>   428           <strong class='reserved'>default</strong>:
+<a id='L429' name='L429'></a>   429             <em class='comment'>/* Other actions take a pointer argument.  */</em>
+<a id='L430' name='L430'></a>   430             <em class='brace'>{</em>
+<a id='L431' name='L431'></a>   431               <strong class='reserved'>void</strong> *p = va_arg (arg, <strong class='reserved'>void</strong> *);
+<a id='L432' name='L432'></a>   432               result = <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (fd, action, p);
+<a id='L433' name='L433'></a>   433             <em class='brace'>}</em>
+<a id='L434' name='L434'></a>   434             <strong class='reserved'>break</strong>;
+<a id='L435' name='L435'></a>   435           <em class='brace'>}</em>
+<a id='L436' name='L436'></a>   436 <em class='sharp'>#else</em>
+<a id='L437' name='L437'></a>   437         errno = EINVAL;
+<a id='L438' name='L438'></a>   438 <em class='sharp'>#endif</em>
+<a id='L439' name='L439'></a>   439         <strong class='reserved'>break</strong>;
+<a id='L440' name='L440'></a>   440       <em class='brace'>}</em>
+<a id='L441' name='L441'></a>   441     <em class='brace'>}</em>
+<a id='L442' name='L442'></a>   442   va_end (arg);
+<a id='L443' name='L443'></a>   443   <strong class='reserved'>return</strong> result;
+<a id='L444' name='L444'></a>   444 <em class='brace'>}</em>
+<a id='L445' name='L445'></a>   445 
+<a id='L446' name='L446'></a>   446 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L447' name='L447'></a>   447 <a href='../R/15233.html' title='Multiple referred from 4 places.'>rpl_fcntl_DUPFD</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>int</strong> target)
+<a id='L448' name='L448'></a>   448 <em class='brace'>{</em>
+<a id='L449' name='L449'></a>   449   <strong class='reserved'>int</strong> result;
+<a id='L450' name='L450'></a>   450 <em class='sharp'>#if</em> !HAVE_FCNTL
+<a id='L451' name='L451'></a>   451   result = <a href='../S/2861.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a> (fd, target, 0);
+<a id='L452' name='L452'></a>   452 <em class='sharp'>#elif</em> FCNTL_DUPFD_BUGGY || <a href='../S/2834.html#L96' title='Defined at 96 in lib/fdopendir.c.'>REPLACE_FCHDIR</a>
+<a id='L453' name='L453'></a>   453   <em class='comment'>/* Detect invalid target; needed for cygwin 1.5.x.  */</em>
+<a id='L454' name='L454'></a>   454   <strong class='reserved'>if</strong> (target &lt; 0 || <a href='../D/12282.html' title='Multiple defined in 5 places.'>getdtablesize</a> () &lt;= target)
+<a id='L455' name='L455'></a>   455     <em class='brace'>{</em>
+<a id='L456' name='L456'></a>   456       result = -1;
+<a id='L457' name='L457'></a>   457       errno = EINVAL;
+<a id='L458' name='L458'></a>   458     <em class='brace'>}</em>
+<a id='L459' name='L459'></a>   459   <strong class='reserved'>else</strong>
+<a id='L460' name='L460'></a>   460     <em class='brace'>{</em>
+<a id='L461' name='L461'></a>   461       <em class='comment'>/* Haiku alpha 2 loses fd flags on original.  */</em>
+<a id='L462' name='L462'></a>   462       <strong class='reserved'>int</strong> flags = <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (fd, <a href='../S/2780.html#L264' title='Defined at 264 in lib/fcntl.in.h.'>F_GETFD</a>);
+<a id='L463' name='L463'></a>   463       <strong class='reserved'>if</strong> (flags &lt; 0)
+<a id='L464' name='L464'></a>   464         result = -1;
+<a id='L465' name='L465'></a>   465       <strong class='reserved'>else</strong>
+<a id='L466' name='L466'></a>   466         <em class='brace'>{</em>
+<a id='L467' name='L467'></a>   467           result = <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (fd, <a href='../S/2780.html#L260' title='Defined at 260 in lib/fcntl.in.h.'>F_DUPFD</a>, target);
+<a id='L468' name='L468'></a>   468           <strong class='reserved'>if</strong> (0 &lt;= result &amp;&amp; <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (fd, <a href='../S/42.html#L141' title='Defined at 141 in nt/inc/sys/socket.h.'>F_SETFD</a>, flags) == -1)
+<a id='L469' name='L469'></a>   469             <em class='brace'>{</em>
+<a id='L470' name='L470'></a>   470               <strong class='reserved'>int</strong> saved_errno = errno;
+<a id='L471' name='L471'></a>   471               <a href='../D/9798.html' title='Multiple defined in 18 places.'>close</a> (result);
+<a id='L472' name='L472'></a>   472               result = -1;
+<a id='L473' name='L473'></a>   473               errno = saved_errno;
+<a id='L474' name='L474'></a>   474             <em class='brace'>}</em>
+<a id='L475' name='L475'></a>   475 <em class='sharp'># if</em> <a href='../S/2834.html#L96' title='Defined at 96 in lib/fdopendir.c.'>REPLACE_FCHDIR</a>
+<a id='L476' name='L476'></a>   476           <strong class='reserved'>if</strong> (0 &lt;= result)
+<a id='L477' name='L477'></a>   477             result = _gl_register_dup (fd, result);
+<a id='L478' name='L478'></a>   478 <em class='sharp'># endif</em>
+<a id='L479' name='L479'></a>   479         <em class='brace'>}</em>
+<a id='L480' name='L480'></a>   480     <em class='brace'>}</em>
+<a id='L481' name='L481'></a>   481 <em class='sharp'>#else</em>
+<a id='L482' name='L482'></a>   482   result = <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (fd, <a href='../S/2780.html#L260' title='Defined at 260 in lib/fcntl.in.h.'>F_DUPFD</a>, target);
+<a id='L483' name='L483'></a>   483 <em class='sharp'>#endif</em>
+<a id='L484' name='L484'></a>   484   <strong class='reserved'>return</strong> result;
+<a id='L485' name='L485'></a>   485 <em class='brace'>}</em>
+<a id='L486' name='L486'></a>   486 
+<a id='L487' name='L487'></a>   487 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L488' name='L488'></a>   488 <a href='../R/15234.html' title='Multiple referred from 2 places.'>rpl_fcntl_DUPFD_CLOEXEC</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>int</strong> target)
+<a id='L489' name='L489'></a>   489 <em class='brace'>{</em>
+<a id='L490' name='L490'></a>   490   <strong class='reserved'>int</strong> result;
+<a id='L491' name='L491'></a>   491 <em class='sharp'>#if</em> !HAVE_FCNTL
+<a id='L492' name='L492'></a>   492   result = <a href='../S/2861.html#L55' title='Defined at 55 in lib/fcntl.c.'>dupfd</a> (fd, target, <a href='../D/4695.html' title='Multiple defined in 7 places.'>O_CLOEXEC</a>);
+<a id='L493' name='L493'></a>   493 <em class='sharp'>#else</em> <em class='comment'>/* HAVE_FCNTL */</em>
+<a id='L494' name='L494'></a>   494 <em class='sharp'># if</em> <strong class='reserved'>defined</strong> __NetBSD__ || <strong class='reserved'>defined</strong> __HAIKU__
+<a id='L495' name='L495'></a>   495   <em class='comment'>/* On NetBSD 9.0, the system fcntl (fd, F_DUPFD_CLOEXEC, target)</em>
+<a id='L496' name='L496'></a>   496 <em class='comment'>     has only the same effect as fcntl (fd, F_DUPFD, target).  */</em>
+<a id='L497' name='L497'></a>   497   <em class='comment'>/* On Haiku, the system fcntl (fd, F_DUPFD_CLOEXEC, target) sets</em>
+<a id='L498' name='L498'></a>   498 <em class='comment'>     the FD_CLOEXEC flag on fd, not on target.  Therefore avoid the</em>
+<a id='L499' name='L499'></a>   499 <em class='comment'>     system fcntl in this case.  */</em>
+<a id='L500' name='L500'></a>   500 <em class='sharp'>#  define</em> <a href='../R/11897.html' title='Multiple referred from 5 places.'>have_dupfd_cloexec</a> -1
+<a id='L501' name='L501'></a>   501 <em class='sharp'># else</em>
+<a id='L502' name='L502'></a>   502   <em class='comment'>/* Try the system call first, if the headers claim it exists</em>
+<a id='L503' name='L503'></a>   503 <em class='comment'>     (that is, if GNULIB_defined_F_DUPFD_CLOEXEC is 0), since we</em>
+<a id='L504' name='L504'></a>   504 <em class='comment'>     may be running with a glibc that has the macro but with an</em>
+<a id='L505' name='L505'></a>   505 <em class='comment'>     older kernel that does not support it.  Cache the</em>
+<a id='L506' name='L506'></a>   506 <em class='comment'>     information on whether the system call really works, but</em>
+<a id='L507' name='L507'></a>   507 <em class='comment'>     avoid caching failure if the corresponding F_DUPFD fails</em>
+<a id='L508' name='L508'></a>   508 <em class='comment'>     for any reason.  0 = unknown, 1 = yes, -1 = no.  */</em>
+<a id='L509' name='L509'></a>   509   <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../S/2861.html#L500' title='Defined at 500 in lib/fcntl.c.'>have_dupfd_cloexec</a> = <a href='../D/2809.html' title='Multiple defined in 2 places.'>GNULIB_defined_F_DUPFD_CLOEXEC</a> ? -1 : 0;
+<a id='L510' name='L510'></a>   510   <strong class='reserved'>if</strong> (0 &lt;= <a href='../S/2861.html#L500' title='Defined at 500 in lib/fcntl.c.'>have_dupfd_cloexec</a>)
+<a id='L511' name='L511'></a>   511     <em class='brace'>{</em>
+<a id='L512' name='L512'></a>   512       result = <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (fd, <a href='../D/2547.html' title='Multiple defined in 2 places.'>F_DUPFD_CLOEXEC</a>, target);
+<a id='L513' name='L513'></a>   513       <strong class='reserved'>if</strong> (0 &lt;= result || errno != EINVAL)
+<a id='L514' name='L514'></a>   514         <em class='brace'>{</em>
+<a id='L515' name='L515'></a>   515           <a href='../S/2861.html#L500' title='Defined at 500 in lib/fcntl.c.'>have_dupfd_cloexec</a> = 1;
+<a id='L516' name='L516'></a>   516 <em class='sharp'>#  if</em> <a href='../S/2834.html#L96' title='Defined at 96 in lib/fdopendir.c.'>REPLACE_FCHDIR</a>
+<a id='L517' name='L517'></a>   517           <strong class='reserved'>if</strong> (0 &lt;= result)
+<a id='L518' name='L518'></a>   518             result = _gl_register_dup (fd, result);
+<a id='L519' name='L519'></a>   519 <em class='sharp'>#  endif</em>
+<a id='L520' name='L520'></a>   520         <em class='brace'>}</em>
+<a id='L521' name='L521'></a>   521       <strong class='reserved'>else</strong>
+<a id='L522' name='L522'></a>   522         <em class='brace'>{</em>
+<a id='L523' name='L523'></a>   523           result = <a href='../S/2861.html#L447' title='Defined at 447 in lib/fcntl.c.'>rpl_fcntl_DUPFD</a> (fd, target);
+<a id='L524' name='L524'></a>   524           <strong class='reserved'>if</strong> (result &gt;= 0)
+<a id='L525' name='L525'></a>   525             <a href='../S/2861.html#L500' title='Defined at 500 in lib/fcntl.c.'>have_dupfd_cloexec</a> = -1;
+<a id='L526' name='L526'></a>   526         <em class='brace'>}</em>
+<a id='L527' name='L527'></a>   527     <em class='brace'>}</em>
+<a id='L528' name='L528'></a>   528   <strong class='reserved'>else</strong>
+<a id='L529' name='L529'></a>   529 <em class='sharp'># endif</em>
+<a id='L530' name='L530'></a>   530     result = <a href='../S/2861.html#L447' title='Defined at 447 in lib/fcntl.c.'>rpl_fcntl_DUPFD</a> (fd, target);
+<a id='L531' name='L531'></a>   531   <strong class='reserved'>if</strong> (0 &lt;= result &amp;&amp; <a href='../S/2861.html#L500' title='Defined at 500 in lib/fcntl.c.'>have_dupfd_cloexec</a> == -1)
+<a id='L532' name='L532'></a>   532     <em class='brace'>{</em>
+<a id='L533' name='L533'></a>   533       <strong class='reserved'>int</strong> flags = <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (result, <a href='../S/2780.html#L264' title='Defined at 264 in lib/fcntl.in.h.'>F_GETFD</a>);
+<a id='L534' name='L534'></a>   534       <strong class='reserved'>if</strong> (flags &lt; 0 || <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (result, <a href='../S/42.html#L141' title='Defined at 141 in nt/inc/sys/socket.h.'>F_SETFD</a>, flags | <a href='../D/2041.html' title='Multiple defined in 2 places.'>FD_CLOEXEC</a>) == -1)
+<a id='L535' name='L535'></a>   535         <em class='brace'>{</em>
+<a id='L536' name='L536'></a>   536           <strong class='reserved'>int</strong> saved_errno = errno;
+<a id='L537' name='L537'></a>   537           <a href='../D/9798.html' title='Multiple defined in 18 places.'>close</a> (result);
+<a id='L538' name='L538'></a>   538           errno = saved_errno;
+<a id='L539' name='L539'></a>   539           result = -1;
+<a id='L540' name='L540'></a>   540         <em class='brace'>}</em>
+<a id='L541' name='L541'></a>   541     <em class='brace'>}</em>
+<a id='L542' name='L542'></a>   542 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_FCNTL */</em>
+<a id='L543' name='L543'></a>   543   <strong class='reserved'>return</strong> result;
+<a id='L544' name='L544'></a>   544 <em class='brace'>}</em>
+<a id='L545' name='L545'></a>   545 
+<a id='L546' name='L546'></a>   546 <em class='sharp'>#undef</em> <a href='../R/10297.html' title='Multiple referred from 72 places.'>fcntl</a>
+<a id='L547' name='L547'></a>   547 
+<a id='L548' name='L548'></a>   548 <em class='sharp'>#ifdef</em> __KLIBC__
+<a id='L549' name='L549'></a>   549 
+<a id='L550' name='L550'></a>   550 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L551' name='L551'></a>   551 <a href='../R/12566.html' title='Multiple referred from 2 places.'>klibc_fcntl</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>int</strong> action, <em class='comment'>/* arg */</em>...)
+<a id='L552' name='L552'></a>   552 <em class='brace'>{</em>
+<a id='L553' name='L553'></a>   553   va_list arg_ptr;
+<a id='L554' name='L554'></a>   554   <strong class='reserved'>int</strong> arg;
+<a id='L555' name='L555'></a>   555   <strong class='reserved'>struct</strong> <a href='../D/17672.html' title='Multiple defined in 13 places.'>stat</a> sbuf;
+<a id='L556' name='L556'></a>   556   <strong class='reserved'>int</strong> result;
+<a id='L557' name='L557'></a>   557 
+<a id='L558' name='L558'></a>   558   va_start (arg_ptr, action);
+<a id='L559' name='L559'></a>   559   arg = va_arg (arg_ptr, <strong class='reserved'>int</strong>);
+<a id='L560' name='L560'></a>   560   result = <a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (fd, action, arg);
+<a id='L561' name='L561'></a>   561   <em class='comment'>/* EPERM for F_DUPFD, ENOTSUP for others */</em>
+<a id='L562' name='L562'></a>   562   <strong class='reserved'>if</strong> (result == -1 &amp;&amp; (errno == EPERM || errno == <a href='../D/1816.html' title='Multiple defined in 5 places.'>ENOTSUP</a>)
+<a id='L563' name='L563'></a>   563       &amp;&amp; !<a href='../D/11824.html' title='Multiple defined in 9 places.'>fstat</a> (fd, &amp;sbuf) &amp;&amp; <a href='../D/6130.html' title='Multiple defined in 4 places.'>S_ISDIR</a> (sbuf.st_mode))
+<a id='L564' name='L564'></a>   564     <em class='brace'>{</em>
+<a id='L565' name='L565'></a>   565       ULONG ulMode;
+<a id='L566' name='L566'></a>   566 
+<a id='L567' name='L567'></a>   567       <strong class='reserved'>switch</strong> (action)
+<a id='L568' name='L568'></a>   568         <em class='brace'>{</em>
+<a id='L569' name='L569'></a>   569         <strong class='reserved'>case</strong> <a href='../S/2780.html#L260' title='Defined at 260 in lib/fcntl.in.h.'>F_DUPFD</a>:
+<a id='L570' name='L570'></a>   570           <em class='comment'>/* Find available fd */</em>
+<a id='L571' name='L571'></a>   571           <strong class='reserved'>while</strong> (<a href='../D/11304.html' title='Multiple defined in 6 places.'>fcntl</a> (arg, F_GETFL) != -1 || errno != EBADF)
+<a id='L572' name='L572'></a>   572             arg++;
+<a id='L573' name='L573'></a>   573 
+<a id='L574' name='L574'></a>   574           result = <a href='../D/10847.html' title='Multiple defined in 14 places.'>dup2</a> (fd, arg);
+<a id='L575' name='L575'></a>   575           <strong class='reserved'>break</strong>;
+<a id='L576' name='L576'></a>   576 
+<a id='L577' name='L577'></a>   577         <em class='comment'>/* Using underlying APIs is right ? */</em>
+<a id='L578' name='L578'></a>   578         <strong class='reserved'>case</strong> <a href='../S/2780.html#L264' title='Defined at 264 in lib/fcntl.in.h.'>F_GETFD</a>:
+<a id='L579' name='L579'></a>   579           <strong class='reserved'>if</strong> (DosQueryFHState (fd, &amp;ulMode))
+<a id='L580' name='L580'></a>   580             <strong class='reserved'>break</strong>;
+<a id='L581' name='L581'></a>   581 
+<a id='L582' name='L582'></a>   582           result = (ulMode &amp; OPEN_FLAGS_NOINHERIT) ? <a href='../D/2041.html' title='Multiple defined in 2 places.'>FD_CLOEXEC</a> : 0;
+<a id='L583' name='L583'></a>   583           <strong class='reserved'>break</strong>;
+<a id='L584' name='L584'></a>   584 
+<a id='L585' name='L585'></a>   585         <strong class='reserved'>case</strong> <a href='../S/42.html#L141' title='Defined at 141 in nt/inc/sys/socket.h.'>F_SETFD</a>:
+<a id='L586' name='L586'></a>   586           <strong class='reserved'>if</strong> (arg &amp; ~<a href='../D/2041.html' title='Multiple defined in 2 places.'>FD_CLOEXEC</a>)
+<a id='L587' name='L587'></a>   587             <strong class='reserved'>break</strong>;
+<a id='L588' name='L588'></a>   588 
+<a id='L589' name='L589'></a>   589           <strong class='reserved'>if</strong> (DosQueryFHState (fd, &amp;ulMode))
+<a id='L590' name='L590'></a>   590             <strong class='reserved'>break</strong>;
+<a id='L591' name='L591'></a>   591 
+<a id='L592' name='L592'></a>   592           <strong class='reserved'>if</strong> (arg &amp; <a href='../D/2041.html' title='Multiple defined in 2 places.'>FD_CLOEXEC</a>)
+<a id='L593' name='L593'></a>   593             ulMode |= OPEN_FLAGS_NOINHERIT;
+<a id='L594' name='L594'></a>   594           <strong class='reserved'>else</strong>
+<a id='L595' name='L595'></a>   595             ulMode &amp;= ~OPEN_FLAGS_NOINHERIT;
+<a id='L596' name='L596'></a>   596 
+<a id='L597' name='L597'></a>   597           <em class='comment'>/* Filter supported flags.  */</em>
+<a id='L598' name='L598'></a>   598           ulMode &amp;= (OPEN_FLAGS_WRITE_THROUGH | OPEN_FLAGS_FAIL_ON_ERROR
+<a id='L599' name='L599'></a>   599                      | OPEN_FLAGS_NO_CACHE | OPEN_FLAGS_NOINHERIT);
+<a id='L600' name='L600'></a>   600 
+<a id='L601' name='L601'></a>   601           <strong class='reserved'>if</strong> (DosSetFHState (fd, ulMode))
+<a id='L602' name='L602'></a>   602             <strong class='reserved'>break</strong>;
+<a id='L603' name='L603'></a>   603 
+<a id='L604' name='L604'></a>   604           result = 0;
+<a id='L605' name='L605'></a>   605           <strong class='reserved'>break</strong>;
+<a id='L606' name='L606'></a>   606 
+<a id='L607' name='L607'></a>   607         <strong class='reserved'>case</strong> F_GETFL:
+<a id='L608' name='L608'></a>   608           result = 0;
+<a id='L609' name='L609'></a>   609           <strong class='reserved'>break</strong>;
+<a id='L610' name='L610'></a>   610 
+<a id='L611' name='L611'></a>   611         <strong class='reserved'>case</strong> <a href='../S/42.html#L140' title='Defined at 140 in nt/inc/sys/socket.h.'>F_SETFL</a>:
+<a id='L612' name='L612'></a>   612           <strong class='reserved'>if</strong> (arg != 0)
+<a id='L613' name='L613'></a>   613             <strong class='reserved'>break</strong>;
+<a id='L614' name='L614'></a>   614 
+<a id='L615' name='L615'></a>   615           result = 0;
+<a id='L616' name='L616'></a>   616           <strong class='reserved'>break</strong>;
+<a id='L617' name='L617'></a>   617 
+<a id='L618' name='L618'></a>   618         <strong class='reserved'>default</strong>:
+<a id='L619' name='L619'></a>   619           errno = EINVAL;
+<a id='L620' name='L620'></a>   620           <strong class='reserved'>break</strong>;
+<a id='L621' name='L621'></a>   621         <em class='brace'>}</em>
+<a id='L622' name='L622'></a>   622     <em class='brace'>}</em>
+<a id='L623' name='L623'></a>   623 
+<a id='L624' name='L624'></a>   624   va_end (arg_ptr);
+<a id='L625' name='L625'></a>   625 
+<a id='L626' name='L626'></a>   626   <strong class='reserved'>return</strong> result;
+<a id='L627' name='L627'></a>   627 <em class='brace'>}</em>
+<a id='L628' name='L628'></a>   628 
+<a id='L629' name='L629'></a>   629 <em class='sharp'>#endif</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L42'>[^]</a><a href='#L187'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L55'>[^]</a><a href='#L551'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>

@@ -1,160 +1,352 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>lib/openat.h</title>
+<title>lib/time_rz.c</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4585.html'>lib</a>/openat.h</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L64'>[^]</a><a href='#L112'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
-<hr />
-<h2 class='header'><a href='../J/157.html' title='Multiple included from 3 places.'>INCLUDED FROM</a></h2>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4591.html'>lib</a>/time_rz.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L56'>[^]</a><a href='#L285'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 <hr />
 <h2 class='header'>DEFINITIONS</h2>
 This source file includes following definitions.
 <ol>
-<li><a href='#L64' title='Defined at 64.'>chownat</a></li>
-<li><a href='#L70' title='Defined at 70.'>lchownat</a></li>
-<li><a href='#L84' title='Defined at 84.'>chmodat</a></li>
-<li><a href='#L90' title='Defined at 90.'>lchmodat</a></li>
-<li><a href='#L105' title='Defined at 105.'>statat</a></li>
-<li><a href='#L112' title='Defined at 112.'>lstatat</a></li>
+<li><a href='#L56' title='Defined at 56.'>extend_abbrs</a></li>
+<li><a href='#L65' title='Defined at 65.'>tzalloc</a></li>
+<li><a href='#L89' title='Defined at 89.'>save_abbr</a></li>
+<li><a href='#L160' title='Defined at 160.'>tzfree</a></li>
+<li><a href='#L176' title='Defined at 176.'>getenv_TZ</a></li>
+<li><a href='#L184' title='Defined at 184.'>setenv_TZ</a></li>
+<li><a href='#L193' title='Defined at 193.'>change_env</a></li>
+<li><a href='#L206' title='Defined at 206.'>set_tz</a></li>
+<li><a href='#L233' title='Defined at 233.'>revert_tz</a></li>
+<li><a href='#L251' title='Defined at 251.'>localtime_rz</a></li>
+<li><a href='#L285' title='Defined at 285.'>mktime_z</a></li>
 </ol>
 <hr />
 <pre>
-<a id='L1' name='L1'></a>     1 <em class='comment'>/* provide a replacement openat function</em>
-<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 2004-2006, 2008-2023 Free Software Foundation, Inc.</em>
-<a id='L3' name='L3'></a>     3 <em class='comment'></em>
-<a id='L4' name='L4'></a>     4 <em class='comment'>   This program is free software: you can redistribute it and/or modify</em>
-<a id='L5' name='L5'></a>     5 <em class='comment'>   it under the terms of the GNU General Public License as published by</em>
-<a id='L6' name='L6'></a>     6 <em class='comment'>   the Free Software Foundation, either version 3 of the License, or</em>
-<a id='L7' name='L7'></a>     7 <em class='comment'>   (at your option) any later version.</em>
-<a id='L8' name='L8'></a>     8 <em class='comment'></em>
-<a id='L9' name='L9'></a>     9 <em class='comment'>   This program is distributed in the hope that it will be useful,</em>
-<a id='L10' name='L10'></a>    10 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
-<a id='L11' name='L11'></a>    11 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
-<a id='L12' name='L12'></a>    12 <em class='comment'>   GNU General Public License for more details.</em>
-<a id='L13' name='L13'></a>    13 <em class='comment'></em>
-<a id='L14' name='L14'></a>    14 <em class='comment'>   You should have received a copy of the GNU General Public License</em>
-<a id='L15' name='L15'></a>    15 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
-<a id='L16' name='L16'></a>    16 
-<a id='L17' name='L17'></a>    17 <em class='comment'>/* written by Jim Meyering */</em>
-<a id='L18' name='L18'></a>    18 
-<a id='L19' name='L19'></a>    19 <em class='sharp'>#ifndef</em> <a href='../S/2592.html#L20' title='Defined at 20 in lib/openat.h.'>_GL_HEADER_OPENAT</a>
-<a id='L20' name='L20'></a>    20 <em class='sharp'>#define</em> <a href='../S/2592.html#L19' title='Referred from 19 in lib/openat.h.'>_GL_HEADER_OPENAT</a>
-<a id='L21' name='L21'></a>    21 
-<a id='L22' name='L22'></a>    22 <em class='comment'>/* This file uses _GL_INLINE_HEADER_BEGIN, _GL_INLINE, _Noreturn,</em>
-<a id='L23' name='L23'></a>    23 <em class='comment'>   _GL_ATTRIBUTE_DEPRECATED, HAVE_OPENAT.  */</em>
-<a id='L24' name='L24'></a>    24 <em class='sharp'>#if</em> !_GL_CONFIG_H_INCLUDED
-<a id='L25' name='L25'></a>    25 <em class='sharp'> #error</em> "Please include config.h first."
-<a id='L26' name='L26'></a>    26 <em class='sharp'>#endif</em>
-<a id='L27' name='L27'></a>    27 
-<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
-<a id='L29' name='L29'></a>    29 
-<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;sys/types.h&gt;
-<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;<a href='33.html'>sys/stat.h</a>&gt;
-<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;<a href='23.html'>unistd.h</a>&gt;
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Time zone functions such as tzalloc and localtime_rz</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright 2015-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>   This file is free software: you can redistribute it and/or modify</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>   it under the terms of the GNU Lesser General Public License as</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>   published by the Free Software Foundation, either version 3 of the</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>   License, or (at your option) any later version.</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'></em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>   This file is distributed in the hope that it will be useful,</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>   GNU Lesser General Public License for more details.</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'></em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>   You should have received a copy of the GNU Lesser General Public License</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L17' name='L17'></a>    17 
+<a id='L18' name='L18'></a>    18 <em class='comment'>/* Written by Paul Eggert.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='comment'>/* Although this module is not thread-safe, any races should be fairly</em>
+<a id='L21' name='L21'></a>    21 <em class='comment'>   rare and reasonably benign.  For complete thread-safety, use a C</em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>   library with a working timezone_t type, so that this module is not</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'>   needed.  */</em>
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;<a href='30.html'>time.h</a>&gt;
+<a id='L28' name='L28'></a>    28 
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;stddef.h&gt;
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;string.h&gt;
 <a id='L33' name='L33'></a>    33 
-<a id='L34' name='L34'></a>    34 _GL_INLINE_HEADER_BEGIN
-<a id='L35' name='L35'></a>    35 
-<a id='L36' name='L36'></a>    36 <em class='sharp'>#if</em> !HAVE_OPENAT
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#include</em> "<a href='2678.html'>flexmember.h</a>"
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#include</em> "<a href='2617.html'>idx.h</a>"
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#include</em> "<a href='2599.html'>time-internal.h</a>"
 <a id='L37' name='L37'></a>    37 
-<a id='L38' name='L38'></a>    38 <strong class='reserved'>int</strong> <a href='../S/2592.html#L44' title='Defined at 44 in lib/openat.h.'>openat_permissive</a> (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file, <strong class='reserved'>int</strong> flags, <a href='../S/40.html#L154' title='Defined at 154 in nt/inc/ms-w32.h.'>mode_t</a> mode,
-<a id='L39' name='L39'></a>    39                        <strong class='reserved'>int</strong> *cwd_errno);
-<a id='L40' name='L40'></a>    40 <a href='../D/8171.html' title='Multiple defined in 10 places.'>bool</a> <a href='../S/2592.html#L46' title='Defined at 46 in lib/openat.h.'>openat_needs_fchdir</a> (<strong class='reserved'>void</strong>);
+<a id='L38' name='L38'></a>    38 <em class='comment'>/* The approximate size to use for small allocation requests.  This is</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>   the largest "small" request for the GNU C library malloc.  */</em>
+<a id='L40' name='L40'></a>    40 <strong class='reserved'>enum</strong> <em class='brace'>{</em> <a href='../R/1210.html' title='Multiple referred from 2 places.'>DEFAULT_MXFAST</a> = 64 * <strong class='reserved'>sizeof</strong> (size_t) / 4 <em class='brace'>}</em>;
 <a id='L41' name='L41'></a>    41 
-<a id='L42' name='L42'></a>    42 <em class='sharp'>#else</em>
-<a id='L43' name='L43'></a>    43 
-<a id='L44' name='L44'></a>    44 <em class='sharp'># define</em> <a href='../S/2592.html#L38' title='Referred from 38 in lib/openat.h.'>openat_permissive</a>(Fd, File, Flags, Mode, Cwd_errno) \
-<a id='L45' name='L45'></a>    45     <a href='../D/13687.html' title='Multiple defined in 5 places.'>openat</a> (Fd, File, Flags, Mode)
-<a id='L46' name='L46'></a>    46 <em class='sharp'># define</em> <a href='../S/2592.html#L40' title='Referred from 40 in lib/openat.h.'>openat_needs_fchdir</a>() <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>
-<a id='L47' name='L47'></a>    47 
-<a id='L48' name='L48'></a>    48 <em class='sharp'>#endif</em>
-<a id='L49' name='L49'></a>    49 
-<a id='L50' name='L50'></a>    50 <strong class='reserved'>_Noreturn</strong> <strong class='reserved'>void</strong> <a href='../S/2759.html#L7' title='Defined at 7 in lib/openat-die.c.'>openat_restore_fail</a> (<strong class='reserved'>int</strong>);
-<a id='L51' name='L51'></a>    51 <strong class='reserved'>_Noreturn</strong> <strong class='reserved'>void</strong> <a href='../S/2759.html#L6' title='Defined at 6 in lib/openat-die.c.'>openat_save_fail</a> (<strong class='reserved'>int</strong>);
-<a id='L52' name='L52'></a>    52 
-<a id='L53' name='L53'></a>    53 <em class='comment'>/* Using these function names makes application code</em>
-<a id='L54' name='L54'></a>    54 <em class='comment'>   slightly more readable than it would be with</em>
-<a id='L55' name='L55'></a>    55 <em class='comment'>   fchownat (..., 0) or fchownat (..., AT_SYMLINK_NOFOLLOW).  */</em>
-<a id='L56' name='L56'></a>    56 
-<a id='L57' name='L57'></a>    57 <em class='sharp'>#if</em> GNULIB_CHOWNAT
-<a id='L58' name='L58'></a>    58 
-<a id='L59' name='L59'></a>    59 <em class='sharp'># ifndef</em> <a href='../S/2592.html#L60' title='Defined at 60 in lib/openat.h.'>CHOWNAT_INLINE</a>
-<a id='L60' name='L60'></a>    60 <em class='sharp'>#  define</em> <a href='../R/855.html' title='Multiple referred from 3 places.'>CHOWNAT_INLINE</a> _GL_INLINE
-<a id='L61' name='L61'></a>    61 <em class='sharp'># endif</em>
-<a id='L62' name='L62'></a>    62 
-<a id='L63' name='L63'></a>    63 <a href='../S/2592.html#L60' title='Defined at 60 in lib/openat.h.'>CHOWNAT_INLINE</a> <strong class='reserved'>int</strong>
-<a id='L64' name='L64'></a>    64 chownat (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file, <a href='../S/36.html#L18' title='Defined at 18 in nt/inc/pwd.h.'>uid_t</a> owner, <a href='../S/36.html#L19' title='Defined at 19 in nt/inc/pwd.h.'>gid_t</a> <a href='../S/42.html#L26' title='Defined at 26 in nt/inc/grp.h.'>group</a>)
-<a id='L65' name='L65'></a>    65 <em class='brace'>{</em>
-<a id='L66' name='L66'></a>    66   <strong class='reserved'>return</strong> <a href='../D/10073.html' title='Multiple defined in 2 places.'>fchownat</a> (fd, file, owner, <a href='../S/42.html#L26' title='Defined at 26 in nt/inc/grp.h.'>group</a>, 0);
-<a id='L67' name='L67'></a>    67 <em class='brace'>}</em>
-<a id='L68' name='L68'></a>    68 
-<a id='L69' name='L69'></a>    69 <a href='../S/2592.html#L60' title='Defined at 60 in lib/openat.h.'>CHOWNAT_INLINE</a> <strong class='reserved'>int</strong>
-<a id='L70' name='L70'></a>    70 lchownat (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file, <a href='../S/36.html#L18' title='Defined at 18 in nt/inc/pwd.h.'>uid_t</a> owner, <a href='../S/36.html#L19' title='Defined at 19 in nt/inc/pwd.h.'>gid_t</a> <a href='../S/42.html#L26' title='Defined at 26 in nt/inc/grp.h.'>group</a>)
-<a id='L71' name='L71'></a>    71 <em class='brace'>{</em>
-<a id='L72' name='L72'></a>    72   <strong class='reserved'>return</strong> <a href='../D/10073.html' title='Multiple defined in 2 places.'>fchownat</a> (fd, file, owner, <a href='../S/42.html#L26' title='Defined at 26 in nt/inc/grp.h.'>group</a>, <a href='../D/169.html' title='Multiple defined in 2 places.'>AT_SYMLINK_NOFOLLOW</a>);
-<a id='L73' name='L73'></a>    73 <em class='brace'>}</em>
-<a id='L74' name='L74'></a>    74 
+<a id='L42' name='L42'></a>    42 <em class='comment'>/* Minimum size of the ABBRS member of struct tm_zone.  ABBRS is larger</em>
+<a id='L43' name='L43'></a>    43 <em class='comment'>   only in the unlikely case where an abbreviation longer than this is</em>
+<a id='L44' name='L44'></a>    44 <em class='comment'>   used.  */</em>
+<a id='L45' name='L45'></a>    45 <strong class='reserved'>enum</strong> <em class='brace'>{</em> <a href='../R/4.html' title='Multiple referred from 2 places.'>ABBR_SIZE_MIN</a> = <a href='../D/1301.html' title='Multiple defined in 2 places.'>DEFAULT_MXFAST</a> - offsetof (<strong class='reserved'>struct</strong> <a href='../S/2599.html#L21' title='Defined at 21 in lib/time-internal.h.'>tm_zone</a>, abbrs) <em class='brace'>}</em>;
+<a id='L46' name='L46'></a>    46 
+<a id='L47' name='L47'></a>    47 <em class='comment'>/* Magic cookie timezone_t value, for local time.  It differs from</em>
+<a id='L48' name='L48'></a>    48 <em class='comment'>   NULL and from all other timezone_t values.  Only the address</em>
+<a id='L49' name='L49'></a>    49 <em class='comment'>   matters; the pointer is never dereferenced.  */</em>
+<a id='L50' name='L50'></a>    50 <strong class='reserved'>static</strong> <a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> <strong class='reserved'>const</strong> local_tz = (<a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a>) 1;
+<a id='L51' name='L51'></a>    51 
+<a id='L52' name='L52'></a>    52 <em class='comment'>/* Copy to ABBRS the abbreviation at ABBR with size ABBR_SIZE (this</em>
+<a id='L53' name='L53'></a>    53 <em class='comment'>   includes its trailing null byte).  Append an extra null byte to</em>
+<a id='L54' name='L54'></a>    54 <em class='comment'>   mark the end of ABBRS.  */</em>
+<a id='L55' name='L55'></a>    55 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L56' name='L56'></a>    56 <a href='../R/9082.html' title='Multiple referred from 2 places.'>extend_abbrs</a> (<strong class='reserved'>char</strong> *abbrs, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *abbr, size_t abbr_size)
+<a id='L57' name='L57'></a>    57 <em class='brace'>{</em>
+<a id='L58' name='L58'></a>    58   memcpy (abbrs, abbr, abbr_size);
+<a id='L59' name='L59'></a>    59   abbrs[abbr_size] = '\0';
+<a id='L60' name='L60'></a>    60 <em class='brace'>}</em>
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62 <em class='comment'>/* Return a newly allocated time zone for NAME, or NULL on failure.</em>
+<a id='L63' name='L63'></a>    63 <em class='comment'>   A null NAME stands for wall clock time (which is like unset TZ).  */</em>
+<a id='L64' name='L64'></a>    64 <a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a>
+<a id='L65' name='L65'></a>    65 <a href='../R/15327.html' title='Multiple referred from 6 places.'>tzalloc</a> (<strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a>)
+<a id='L66' name='L66'></a>    66 <em class='brace'>{</em>
+<a id='L67' name='L67'></a>    67   size_t name_size = <a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a> ? strlen (<a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a>) + 1 : 0;
+<a id='L68' name='L68'></a>    68   size_t abbr_size = name_size &lt; <a href='../S/2592.html#L45' title='Defined at 45 in lib/time_rz.c.'>ABBR_SIZE_MIN</a> ? <a href='../S/2592.html#L45' title='Defined at 45 in lib/time_rz.c.'>ABBR_SIZE_MIN</a> : name_size + 1;
+<a id='L69' name='L69'></a>    69   <a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a> = <a href='../D/12803.html' title='Multiple defined in 19 places.'>malloc</a> (<a href='../S/2678.html#L63' title='Defined at 63 in lib/flexmember.h.'>FLEXSIZEOF</a> (<strong class='reserved'>struct</strong> <a href='../S/2599.html#L21' title='Defined at 21 in lib/time-internal.h.'>tm_zone</a>, abbrs, abbr_size));
+<a id='L70' name='L70'></a>    70   <strong class='reserved'>if</strong> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L71' name='L71'></a>    71     <em class='brace'>{</em>
+<a id='L72' name='L72'></a>    72       <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;next = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L73' name='L73'></a>    73 <em class='sharp'>#if</em> <a href='../S/2587.html#L22' title='Defined at 22 in lib/nstrftime.c.'>HAVE_TZNAME</a> &amp;&amp; !<a href='../S/2587.html#L21' title='Defined at 21 in lib/nstrftime.c.'>HAVE_STRUCT_TM_TM_ZONE</a>
+<a id='L74' name='L74'></a>    74       <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;tzname_copy[0] = <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;tzname_copy[1] = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>;
 <a id='L75' name='L75'></a>    75 <em class='sharp'>#endif</em>
-<a id='L76' name='L76'></a>    76 
-<a id='L77' name='L77'></a>    77 <em class='sharp'>#if</em> GNULIB_CHMODAT
-<a id='L78' name='L78'></a>    78 
-<a id='L79' name='L79'></a>    79 <em class='sharp'># ifndef</em> <a href='../S/2592.html#L80' title='Defined at 80 in lib/openat.h.'>CHMODAT_INLINE</a>
-<a id='L80' name='L80'></a>    80 <em class='sharp'>#  define</em> <a href='../R/854.html' title='Multiple referred from 3 places.'>CHMODAT_INLINE</a> _GL_INLINE
-<a id='L81' name='L81'></a>    81 <em class='sharp'># endif</em>
-<a id='L82' name='L82'></a>    82 
-<a id='L83' name='L83'></a>    83 <a href='../S/2592.html#L80' title='Defined at 80 in lib/openat.h.'>CHMODAT_INLINE</a> <strong class='reserved'>int</strong>
-<a id='L84' name='L84'></a>    84 chmodat (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file, <a href='../S/40.html#L154' title='Defined at 154 in nt/inc/ms-w32.h.'>mode_t</a> mode)
-<a id='L85' name='L85'></a>    85 <em class='brace'>{</em>
-<a id='L86' name='L86'></a>    86   <strong class='reserved'>return</strong> <a href='../D/10071.html' title='Multiple defined in 6 places.'>fchmodat</a> (fd, file, mode, 0);
-<a id='L87' name='L87'></a>    87 <em class='brace'>}</em>
-<a id='L88' name='L88'></a>    88 
-<a id='L89' name='L89'></a>    89 <a href='../S/2592.html#L80' title='Defined at 80 in lib/openat.h.'>CHMODAT_INLINE</a> <strong class='reserved'>int</strong>
-<a id='L90' name='L90'></a>    90 lchmodat (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *file, <a href='../S/40.html#L154' title='Defined at 154 in nt/inc/ms-w32.h.'>mode_t</a> mode)
-<a id='L91' name='L91'></a>    91 <em class='brace'>{</em>
-<a id='L92' name='L92'></a>    92   <strong class='reserved'>return</strong> <a href='../D/10071.html' title='Multiple defined in 6 places.'>fchmodat</a> (fd, file, mode, <a href='../D/169.html' title='Multiple defined in 2 places.'>AT_SYMLINK_NOFOLLOW</a>);
-<a id='L93' name='L93'></a>    93 <em class='brace'>}</em>
+<a id='L76' name='L76'></a>    76       <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;tz_is_set = !!<a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a>;
+<a id='L77' name='L77'></a>    77       <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;abbrs[0] = '\0';
+<a id='L78' name='L78'></a>    78       <strong class='reserved'>if</strong> (<a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a>)
+<a id='L79' name='L79'></a>    79         <a href='../S/2592.html#L56' title='Defined at 56 in lib/time_rz.c.'>extend_abbrs</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;abbrs, <a href='../D/13507.html' title='Multiple defined in 4 places.'>name</a>, name_size);
+<a id='L80' name='L80'></a>    80     <em class='brace'>}</em>
+<a id='L81' name='L81'></a>    81   <strong class='reserved'>return</strong> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>;
+<a id='L82' name='L82'></a>    82 <em class='brace'>}</em>
+<a id='L83' name='L83'></a>    83 
+<a id='L84' name='L84'></a>    84 <em class='comment'>/* Save into TZ any nontrivial time zone abbreviation used by TM, and</em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>   update *TM (if HAVE_STRUCT_TM_TM_ZONE) or *TZ (if</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>   !HAVE_STRUCT_TM_TM_ZONE &amp;&amp; HAVE_TZNAME) if they use the abbreviation.</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'>   Return true if successful, false (setting errno) otherwise.  */</em>
+<a id='L88' name='L88'></a>    88 <strong class='reserved'>static</strong> <a href='../D/8172.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L89' name='L89'></a>    89 <a href='../R/13932.html' title='Multiple referred from 2 places.'>save_abbr</a> (<a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>, <strong class='reserved'>struct</strong> tm *tm)
+<a id='L90' name='L90'></a>    90 <em class='brace'>{</em>
+<a id='L91' name='L91'></a>    91 <em class='sharp'>#if</em> <a href='../S/2587.html#L21' title='Defined at 21 in lib/nstrftime.c.'>HAVE_STRUCT_TM_TM_ZONE</a> || <a href='../S/2587.html#L22' title='Defined at 22 in lib/nstrftime.c.'>HAVE_TZNAME</a>
+<a id='L92' name='L92'></a>    92   <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *zone = <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L93' name='L93'></a>    93   <strong class='reserved'>char</strong> *zone_copy = (<strong class='reserved'>char</strong> *) "";
 <a id='L94' name='L94'></a>    94 
-<a id='L95' name='L95'></a>    95 <em class='sharp'>#endif</em>
-<a id='L96' name='L96'></a>    96 
-<a id='L97' name='L97'></a>    97 <em class='sharp'>#if</em> GNULIB_STATAT
+<a id='L95' name='L95'></a>    95 <em class='sharp'># if</em> <a href='../S/2587.html#L22' title='Defined at 22 in lib/nstrftime.c.'>HAVE_TZNAME</a>
+<a id='L96' name='L96'></a>    96   <strong class='reserved'>int</strong> tzname_index = -1;
+<a id='L97' name='L97'></a>    97 <em class='sharp'># endif</em>
 <a id='L98' name='L98'></a>    98 
-<a id='L99' name='L99'></a>    99 <em class='sharp'># ifndef</em> <a href='../S/2592.html#L100' title='Defined at 100 in lib/openat.h.'>STATAT_INLINE</a>
-<a id='L100' name='L100'></a>   100 <em class='sharp'>#  define</em> <a href='../R/4881.html' title='Multiple referred from 3 places.'>STATAT_INLINE</a> _GL_INLINE
+<a id='L99' name='L99'></a>    99 <em class='sharp'># if</em> <a href='../S/2587.html#L21' title='Defined at 21 in lib/nstrftime.c.'>HAVE_STRUCT_TM_TM_ZONE</a>
+<a id='L100' name='L100'></a>   100   zone = tm-&gt;<a href='../S/2599.html#L21' title='Defined at 21 in lib/time-internal.h.'>tm_zone</a>;
 <a id='L101' name='L101'></a>   101 <em class='sharp'># endif</em>
 <a id='L102' name='L102'></a>   102 
-<a id='L103' name='L103'></a>   103 _GL_ATTRIBUTE_DEPRECATED
-<a id='L104' name='L104'></a>   104 <a href='../S/2592.html#L100' title='Defined at 100 in lib/openat.h.'>STATAT_INLINE</a> <strong class='reserved'>int</strong>
-<a id='L105' name='L105'></a>   105 statat (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>struct</strong> <a href='../D/15669.html' title='Multiple defined in 13 places.'>stat</a> *st)
-<a id='L106' name='L106'></a>   106 <em class='brace'>{</em>
-<a id='L107' name='L107'></a>   107   <strong class='reserved'>return</strong> <a href='../D/10564.html' title='Multiple defined in 8 places.'>fstatat</a> (fd, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, st, 0);
-<a id='L108' name='L108'></a>   108 <em class='brace'>}</em>
-<a id='L109' name='L109'></a>   109 
-<a id='L110' name='L110'></a>   110 _GL_ATTRIBUTE_DEPRECATED
-<a id='L111' name='L111'></a>   111 <a href='../S/2592.html#L100' title='Defined at 100 in lib/openat.h.'>STATAT_INLINE</a> <strong class='reserved'>int</strong>
-<a id='L112' name='L112'></a>   112 lstatat (<strong class='reserved'>int</strong> fd, <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>struct</strong> <a href='../D/15669.html' title='Multiple defined in 13 places.'>stat</a> *st)
-<a id='L113' name='L113'></a>   113 <em class='brace'>{</em>
-<a id='L114' name='L114'></a>   114   <strong class='reserved'>return</strong> <a href='../D/10564.html' title='Multiple defined in 8 places.'>fstatat</a> (fd, <a href='../D/13506.html' title='Multiple defined in 4 places.'>name</a>, st, <a href='../D/169.html' title='Multiple defined in 2 places.'>AT_SYMLINK_NOFOLLOW</a>);
-<a id='L115' name='L115'></a>   115 <em class='brace'>}</em>
-<a id='L116' name='L116'></a>   116 
-<a id='L117' name='L117'></a>   117 <em class='sharp'>#endif</em>
+<a id='L103' name='L103'></a>   103 <em class='sharp'># if</em> <a href='../S/2587.html#L22' title='Defined at 22 in lib/nstrftime.c.'>HAVE_TZNAME</a>
+<a id='L104' name='L104'></a>   104   <strong class='reserved'>if</strong> (! (zone &amp;&amp; *zone) &amp;&amp; 0 &lt;= tm-&gt;tm_isdst)
+<a id='L105' name='L105'></a>   105     <em class='brace'>{</em>
+<a id='L106' name='L106'></a>   106       tzname_index = tm-&gt;tm_isdst != 0;
+<a id='L107' name='L107'></a>   107       zone = <a href='../D/16529.html' title='Multiple defined in 2 places.'>tzname</a>[tzname_index];
+<a id='L108' name='L108'></a>   108     <em class='brace'>}</em>
+<a id='L109' name='L109'></a>   109 <em class='sharp'># endif</em>
+<a id='L110' name='L110'></a>   110 
+<a id='L111' name='L111'></a>   111   <em class='comment'>/* No need to replace null zones, or zones within the struct tm.  */</em>
+<a id='L112' name='L112'></a>   112   <strong class='reserved'>if</strong> (!zone || ((<strong class='reserved'>char</strong> *) tm &lt;= zone &amp;&amp; zone &lt; (<strong class='reserved'>char</strong> *) (tm + 1)))
+<a id='L113' name='L113'></a>   113     <strong class='reserved'>return</strong> <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L114' name='L114'></a>   114 
+<a id='L115' name='L115'></a>   115   <strong class='reserved'>if</strong> (*zone)
+<a id='L116' name='L116'></a>   116     <em class='brace'>{</em>
+<a id='L117' name='L117'></a>   117       zone_copy = <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;abbrs;
 <a id='L118' name='L118'></a>   118 
-<a id='L119' name='L119'></a>   119 <em class='comment'>/* For now, there are no wrappers named laccessat or leuidaccessat,</em>
-<a id='L120' name='L120'></a>   120 <em class='comment'>   since gnulib doesn't support faccessat(,AT_SYMLINK_NOFOLLOW) and</em>
-<a id='L121' name='L121'></a>   121 <em class='comment'>   since access rights on symlinks are of limited utility.  Likewise,</em>
-<a id='L122' name='L122'></a>   122 <em class='comment'>   wrappers are not provided for accessat or euidaccessat, so as to</em>
-<a id='L123' name='L123'></a>   123 <em class='comment'>   avoid dragging in -lgen on some platforms.  */</em>
-<a id='L124' name='L124'></a>   124 
-<a id='L125' name='L125'></a>   125 _GL_INLINE_HEADER_END
-<a id='L126' name='L126'></a>   126 
-<a id='L127' name='L127'></a>   127 <em class='sharp'>#endif</em> <em class='comment'>/* _GL_HEADER_OPENAT */</em>
+<a id='L119' name='L119'></a>   119       <strong class='reserved'>while</strong> (strcmp (zone_copy, zone) != 0)
+<a id='L120' name='L120'></a>   120         <em class='brace'>{</em>
+<a id='L121' name='L121'></a>   121           <strong class='reserved'>if</strong> (! (*zone_copy || (zone_copy == <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;abbrs &amp;&amp; <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;tz_is_set)))
+<a id='L122' name='L122'></a>   122             <em class='brace'>{</em>
+<a id='L123' name='L123'></a>   123               <a href='../S/2617.html#L125' title='Defined at 125 in lib/idx.h.'>idx_t</a> zone_size = strlen (zone) + 1;
+<a id='L124' name='L124'></a>   124               <strong class='reserved'>if</strong> (zone_size &lt; <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;abbrs + <a href='../S/2592.html#L45' title='Defined at 45 in lib/time_rz.c.'>ABBR_SIZE_MIN</a> - zone_copy)
+<a id='L125' name='L125'></a>   125                 <a href='../S/2592.html#L56' title='Defined at 56 in lib/time_rz.c.'>extend_abbrs</a> (zone_copy, zone, zone_size);
+<a id='L126' name='L126'></a>   126               <strong class='reserved'>else</strong>
+<a id='L127' name='L127'></a>   127                 <em class='brace'>{</em>
+<a id='L128' name='L128'></a>   128                   <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a> = <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;next = <a href='../S/2592.html#L65' title='Defined at 65 in lib/time_rz.c.'>tzalloc</a> (zone);
+<a id='L129' name='L129'></a>   129                   <strong class='reserved'>if</strong> (!<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L130' name='L130'></a>   130                     <strong class='reserved'>return</strong> <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L131' name='L131'></a>   131                   <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;tz_is_set = 0;
+<a id='L132' name='L132'></a>   132                   zone_copy = <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;abbrs;
+<a id='L133' name='L133'></a>   133                 <em class='brace'>}</em>
+<a id='L134' name='L134'></a>   134               <strong class='reserved'>break</strong>;
+<a id='L135' name='L135'></a>   135             <em class='brace'>}</em>
+<a id='L136' name='L136'></a>   136 
+<a id='L137' name='L137'></a>   137           zone_copy += strlen (zone_copy) + 1;
+<a id='L138' name='L138'></a>   138           <strong class='reserved'>if</strong> (!*zone_copy &amp;&amp; <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;next)
+<a id='L139' name='L139'></a>   139             <em class='brace'>{</em>
+<a id='L140' name='L140'></a>   140               <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a> = <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;next;
+<a id='L141' name='L141'></a>   141               zone_copy = <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;abbrs;
+<a id='L142' name='L142'></a>   142             <em class='brace'>}</em>
+<a id='L143' name='L143'></a>   143         <em class='brace'>}</em>
+<a id='L144' name='L144'></a>   144     <em class='brace'>}</em>
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146   <em class='comment'>/* Replace the zone name so that its lifetime matches that of TZ.  */</em>
+<a id='L147' name='L147'></a>   147 <em class='sharp'># if</em> <a href='../S/2587.html#L21' title='Defined at 21 in lib/nstrftime.c.'>HAVE_STRUCT_TM_TM_ZONE</a>
+<a id='L148' name='L148'></a>   148   tm-&gt;<a href='../S/2599.html#L21' title='Defined at 21 in lib/time-internal.h.'>tm_zone</a> = zone_copy;
+<a id='L149' name='L149'></a>   149 <em class='sharp'># else</em>
+<a id='L150' name='L150'></a>   150   <strong class='reserved'>if</strong> (0 &lt;= tzname_index)
+<a id='L151' name='L151'></a>   151     <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;tzname_copy[tzname_index] = zone_copy;
+<a id='L152' name='L152'></a>   152 <em class='sharp'># endif</em>
+<a id='L153' name='L153'></a>   153 <em class='sharp'>#endif</em>
+<a id='L154' name='L154'></a>   154 
+<a id='L155' name='L155'></a>   155   <strong class='reserved'>return</strong> <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L156' name='L156'></a>   156 <em class='brace'>}</em>
+<a id='L157' name='L157'></a>   157 
+<a id='L158' name='L158'></a>   158 <em class='comment'>/* Free a time zone.  */</em>
+<a id='L159' name='L159'></a>   159 <strong class='reserved'>void</strong>
+<a id='L160' name='L160'></a>   160 <a href='../R/15329.html' title='Multiple referred from 6 places.'>tzfree</a> (<a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L161' name='L161'></a>   161 <em class='brace'>{</em>
+<a id='L162' name='L162'></a>   162   <strong class='reserved'>if</strong> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a> != local_tz)
+<a id='L163' name='L163'></a>   163     <strong class='reserved'>while</strong> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L164' name='L164'></a>   164       <em class='brace'>{</em>
+<a id='L165' name='L165'></a>   165         <a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> next = <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;next;
+<a id='L166' name='L166'></a>   166         <a href='../D/10458.html' title='Multiple defined in 19 places.'>free</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>);
+<a id='L167' name='L167'></a>   167         <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a> = next;
+<a id='L168' name='L168'></a>   168       <em class='brace'>}</em>
+<a id='L169' name='L169'></a>   169 <em class='brace'>}</em>
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171 <em class='comment'>/* Get and set the TZ environment variable.  These functions can be</em>
+<a id='L172' name='L172'></a>   172 <em class='comment'>   overridden by programs like Emacs that manage their own environment.  */</em>
+<a id='L173' name='L173'></a>   173 
+<a id='L174' name='L174'></a>   174 <em class='sharp'>#ifndef</em> <a href='../D/10987.html' title='Multiple defined in 2 places.'>getenv_TZ</a>
+<a id='L175' name='L175'></a>   175 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *
+<a id='L176' name='L176'></a>   176 <a href='../R/10015.html' title='Multiple referred from 2 places.'>getenv_TZ</a> (<strong class='reserved'>void</strong>)
+<a id='L177' name='L177'></a>   177 <em class='brace'>{</em>
+<a id='L178' name='L178'></a>   178   <strong class='reserved'>return</strong> getenv ("TZ");
+<a id='L179' name='L179'></a>   179 <em class='brace'>}</em>
+<a id='L180' name='L180'></a>   180 <em class='sharp'>#endif</em>
+<a id='L181' name='L181'></a>   181 
+<a id='L182' name='L182'></a>   182 <em class='sharp'>#ifndef</em> <a href='../D/15362.html' title='Multiple defined in 2 places.'>setenv_TZ</a>
+<a id='L183' name='L183'></a>   183 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L184' name='L184'></a>   184 <a href='../R/14229.html' title='Multiple referred from 2 places.'>setenv_TZ</a> (<strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L185' name='L185'></a>   185 <em class='brace'>{</em>
+<a id='L186' name='L186'></a>   186   <strong class='reserved'>return</strong> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a> ? <a href='../D/15361.html' title='Multiple defined in 3 places.'>setenv</a> ("TZ", <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>, 1) : <a href='../D/16650.html' title='Multiple defined in 5 places.'>unsetenv</a> ("TZ");
+<a id='L187' name='L187'></a>   187 <em class='brace'>}</em>
+<a id='L188' name='L188'></a>   188 <em class='sharp'>#endif</em>
+<a id='L189' name='L189'></a>   189 
+<a id='L190' name='L190'></a>   190 <em class='comment'>/* Change the environment to match the specified timezone_t value.</em>
+<a id='L191' name='L191'></a>   191 <em class='comment'>   Return true if successful, false (setting errno) otherwise.  */</em>
+<a id='L192' name='L192'></a>   192 <strong class='reserved'>static</strong> <a href='../D/8172.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L193' name='L193'></a>   193 <a href='../R/7589.html' title='Multiple referred from 2 places.'>change_env</a> (<a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L194' name='L194'></a>   194 <em class='brace'>{</em>
+<a id='L195' name='L195'></a>   195   <strong class='reserved'>if</strong> (<a href='../D/15362.html' title='Multiple defined in 2 places.'>setenv_TZ</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;tz_is_set ? <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;abbrs : <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>) != 0)
+<a id='L196' name='L196'></a>   196     <strong class='reserved'>return</strong> <a href='../S/38.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L197' name='L197'></a>   197   <a href='../D/16530.html' title='Multiple defined in 9 places.'>tzset</a> ();
+<a id='L198' name='L198'></a>   198   <strong class='reserved'>return</strong> <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L199' name='L199'></a>   199 <em class='brace'>}</em>
+<a id='L200' name='L200'></a>   200 
+<a id='L201' name='L201'></a>   201 <em class='comment'>/* Temporarily set the time zone to TZ, which must not be null.</em>
+<a id='L202' name='L202'></a>   202 <em class='comment'>   Return LOCAL_TZ if the time zone setting is already correct.</em>
+<a id='L203' name='L203'></a>   203 <em class='comment'>   Otherwise return a newly allocated time zone representing the old</em>
+<a id='L204' name='L204'></a>   204 <em class='comment'>   setting, or NULL (setting errno) on failure.  */</em>
+<a id='L205' name='L205'></a>   205 <strong class='reserved'>static</strong> <a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a>
+<a id='L206' name='L206'></a>   206 <a href='../R/14207.html' title='Multiple referred from 2 places.'>set_tz</a> (<a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L207' name='L207'></a>   207 <em class='brace'>{</em>
+<a id='L208' name='L208'></a>   208   <strong class='reserved'>char</strong> *env_tz = <a href='../D/10987.html' title='Multiple defined in 2 places.'>getenv_TZ</a> ();
+<a id='L209' name='L209'></a>   209   <strong class='reserved'>if</strong> (env_tz
+<a id='L210' name='L210'></a>   210       ? <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;tz_is_set &amp;&amp; strcmp (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;abbrs, env_tz) == 0
+<a id='L211' name='L211'></a>   211       : !<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>-&gt;tz_is_set)
+<a id='L212' name='L212'></a>   212     <strong class='reserved'>return</strong> local_tz;
+<a id='L213' name='L213'></a>   213   <strong class='reserved'>else</strong>
+<a id='L214' name='L214'></a>   214     <em class='brace'>{</em>
+<a id='L215' name='L215'></a>   215       <a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> old_tz = <a href='../S/2592.html#L65' title='Defined at 65 in lib/time_rz.c.'>tzalloc</a> (env_tz);
+<a id='L216' name='L216'></a>   216       <strong class='reserved'>if</strong> (!old_tz)
+<a id='L217' name='L217'></a>   217         <strong class='reserved'>return</strong> old_tz;
+<a id='L218' name='L218'></a>   218       <strong class='reserved'>if</strong> (! <a href='../S/2592.html#L193' title='Defined at 193 in lib/time_rz.c.'>change_env</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>))
+<a id='L219' name='L219'></a>   219         <em class='brace'>{</em>
+<a id='L220' name='L220'></a>   220           <strong class='reserved'>int</strong> saved_errno = errno;
+<a id='L221' name='L221'></a>   221           <a href='../S/2592.html#L160' title='Defined at 160 in lib/time_rz.c.'>tzfree</a> (old_tz);
+<a id='L222' name='L222'></a>   222           errno = saved_errno;
+<a id='L223' name='L223'></a>   223           <strong class='reserved'>return</strong> <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L224' name='L224'></a>   224         <em class='brace'>}</em>
+<a id='L225' name='L225'></a>   225       <strong class='reserved'>return</strong> old_tz;
+<a id='L226' name='L226'></a>   226     <em class='brace'>}</em>
+<a id='L227' name='L227'></a>   227 <em class='brace'>}</em>
+<a id='L228' name='L228'></a>   228 
+<a id='L229' name='L229'></a>   229 <em class='comment'>/* Restore an old setting returned by set_tz.  It must not be null.</em>
+<a id='L230' name='L230'></a>   230 <em class='comment'>   Return true (preserving errno) if successful, false (setting errno)</em>
+<a id='L231' name='L231'></a>   231 <em class='comment'>   otherwise.  */</em>
+<a id='L232' name='L232'></a>   232 <strong class='reserved'>static</strong> <a href='../D/8172.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L233' name='L233'></a>   233 <a href='../R/13797.html' title='Multiple referred from 2 places.'>revert_tz</a> (<a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L234' name='L234'></a>   234 <em class='brace'>{</em>
+<a id='L235' name='L235'></a>   235   <strong class='reserved'>if</strong> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a> == local_tz)
+<a id='L236' name='L236'></a>   236     <strong class='reserved'>return</strong> <a href='../S/38.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L237' name='L237'></a>   237   <strong class='reserved'>else</strong>
+<a id='L238' name='L238'></a>   238     <em class='brace'>{</em>
+<a id='L239' name='L239'></a>   239       <strong class='reserved'>int</strong> saved_errno = errno;
+<a id='L240' name='L240'></a>   240       <a href='../D/8172.html' title='Multiple defined in 10 places.'>bool</a> ok = <a href='../S/2592.html#L193' title='Defined at 193 in lib/time_rz.c.'>change_env</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>);
+<a id='L241' name='L241'></a>   241       <strong class='reserved'>if</strong> (!ok)
+<a id='L242' name='L242'></a>   242         saved_errno = errno;
+<a id='L243' name='L243'></a>   243       <a href='../S/2592.html#L160' title='Defined at 160 in lib/time_rz.c.'>tzfree</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>);
+<a id='L244' name='L244'></a>   244       errno = saved_errno;
+<a id='L245' name='L245'></a>   245       <strong class='reserved'>return</strong> ok;
+<a id='L246' name='L246'></a>   246     <em class='brace'>}</em>
+<a id='L247' name='L247'></a>   247 <em class='brace'>}</em>
+<a id='L248' name='L248'></a>   248 
+<a id='L249' name='L249'></a>   249 <em class='comment'>/* Use time zone TZ to compute localtime_r (T, TM).  */</em>
+<a id='L250' name='L250'></a>   250 <strong class='reserved'>struct</strong> tm *
+<a id='L251' name='L251'></a>   251 <a href='../R/11544.html' title='Multiple referred from 4 places.'>localtime_rz</a> (<a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>, time_t <strong class='reserved'>const</strong> *t, <strong class='reserved'>struct</strong> tm *tm)
+<a id='L252' name='L252'></a>   252 <em class='brace'>{</em>
+<a id='L253' name='L253'></a>   253 <em class='sharp'>#ifdef</em> HAVE_LOCALTIME_INFLOOP_BUG
+<a id='L254' name='L254'></a>   254   <em class='comment'>/* The -67768038400665599 comes from:</em>
+<a id='L255' name='L255'></a>   255 <em class='comment'>     https://lists.gnu.org/r/bug-gnulib/2017-07/msg00142.html</em>
+<a id='L256' name='L256'></a>   256 <em class='comment'>     On affected platforms the greatest POSIX-compatible time_t value</em>
+<a id='L257' name='L257'></a>   257 <em class='comment'>     that could return nonnull is 67768036191766798 (when</em>
+<a id='L258' name='L258'></a>   258 <em class='comment'>     TZ="XXX24:59:59" it resolves to the year 2**31 - 1 + 1900, on</em>
+<a id='L259' name='L259'></a>   259 <em class='comment'>     12-31 at 23:59:59), so test for that too while we're in the</em>
+<a id='L260' name='L260'></a>   260 <em class='comment'>     neighborhood.  */</em>
+<a id='L261' name='L261'></a>   261   <strong class='reserved'>if</strong> (! (-67768038400665599 &lt;= *t &amp;&amp; *t &lt;= 67768036191766798))
+<a id='L262' name='L262'></a>   262     <em class='brace'>{</em>
+<a id='L263' name='L263'></a>   263       errno = <a href='../D/1666.html' title='Multiple defined in 4 places.'>EOVERFLOW</a>;
+<a id='L264' name='L264'></a>   264       <strong class='reserved'>return</strong> <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L265' name='L265'></a>   265     <em class='brace'>}</em>
+<a id='L266' name='L266'></a>   266 <em class='sharp'>#endif</em>
+<a id='L267' name='L267'></a>   267 
+<a id='L268' name='L268'></a>   268   <strong class='reserved'>if</strong> (!<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L269' name='L269'></a>   269     <strong class='reserved'>return</strong> <a href='../D/11116.html' title='Multiple defined in 3 places.'>gmtime_r</a> (t, tm);
+<a id='L270' name='L270'></a>   270   <strong class='reserved'>else</strong>
+<a id='L271' name='L271'></a>   271     <em class='brace'>{</em>
+<a id='L272' name='L272'></a>   272       <a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> old_tz = <a href='../S/2592.html#L206' title='Defined at 206 in lib/time_rz.c.'>set_tz</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>);
+<a id='L273' name='L273'></a>   273       <strong class='reserved'>if</strong> (old_tz)
+<a id='L274' name='L274'></a>   274         <em class='brace'>{</em>
+<a id='L275' name='L275'></a>   275           <a href='../D/8172.html' title='Multiple defined in 10 places.'>bool</a> abbr_saved = <a href='../D/12564.html' title='Multiple defined in 3 places.'>localtime_r</a> (t, tm) &amp;&amp; <a href='../S/2592.html#L89' title='Defined at 89 in lib/time_rz.c.'>save_abbr</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>, tm);
+<a id='L276' name='L276'></a>   276           <strong class='reserved'>if</strong> (<a href='../S/2592.html#L233' title='Defined at 233 in lib/time_rz.c.'>revert_tz</a> (old_tz) &amp;&amp; abbr_saved)
+<a id='L277' name='L277'></a>   277             <strong class='reserved'>return</strong> tm;
+<a id='L278' name='L278'></a>   278         <em class='brace'>}</em>
+<a id='L279' name='L279'></a>   279       <strong class='reserved'>return</strong> <a href='../D/4204.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L280' name='L280'></a>   280     <em class='brace'>}</em>
+<a id='L281' name='L281'></a>   281 <em class='brace'>}</em>
+<a id='L282' name='L282'></a>   282 
+<a id='L283' name='L283'></a>   283 <em class='comment'>/* Use time zone TZ to compute mktime (TM).  */</em>
+<a id='L284' name='L284'></a>   284 time_t
+<a id='L285' name='L285'></a>   285 <a href='../R/12062.html' title='Multiple referred from 5 places.'>mktime_z</a> (<a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> <a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>, <strong class='reserved'>struct</strong> tm *tm)
+<a id='L286' name='L286'></a>   286 <em class='brace'>{</em>
+<a id='L287' name='L287'></a>   287   <strong class='reserved'>if</strong> (!<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>)
+<a id='L288' name='L288'></a>   288     <strong class='reserved'>return</strong> <a href='../D/16239.html' title='Multiple defined in 2 places.'>timegm</a> (tm);
+<a id='L289' name='L289'></a>   289   <strong class='reserved'>else</strong>
+<a id='L290' name='L290'></a>   290     <em class='brace'>{</em>
+<a id='L291' name='L291'></a>   291       <a href='../S/2717.html#L404' title='Defined at 404 in lib/time.in.h.'>timezone_t</a> old_tz = <a href='../S/2592.html#L206' title='Defined at 206 in lib/time_rz.c.'>set_tz</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>);
+<a id='L292' name='L292'></a>   292       <strong class='reserved'>if</strong> (old_tz)
+<a id='L293' name='L293'></a>   293         <em class='brace'>{</em>
+<a id='L294' name='L294'></a>   294           <strong class='reserved'>struct</strong> tm tm_1;
+<a id='L295' name='L295'></a>   295           tm_1.tm_sec = tm-&gt;tm_sec;
+<a id='L296' name='L296'></a>   296           tm_1.tm_min = tm-&gt;tm_min;
+<a id='L297' name='L297'></a>   297           tm_1.tm_hour = tm-&gt;tm_hour;
+<a id='L298' name='L298'></a>   298           tm_1.tm_mday = tm-&gt;tm_mday;
+<a id='L299' name='L299'></a>   299           tm_1.tm_mon = tm-&gt;tm_mon;
+<a id='L300' name='L300'></a>   300           tm_1.tm_year = tm-&gt;tm_year;
+<a id='L301' name='L301'></a>   301           tm_1.tm_yday = -1;
+<a id='L302' name='L302'></a>   302           tm_1.tm_isdst = tm-&gt;tm_isdst;
+<a id='L303' name='L303'></a>   303           time_t t = <a href='../D/13094.html' title='Multiple defined in 2 places.'>mktime</a> (&amp;tm_1);
+<a id='L304' name='L304'></a>   304           <a href='../D/8172.html' title='Multiple defined in 10 places.'>bool</a> ok = 0 &lt;= tm_1.tm_yday;
+<a id='L305' name='L305'></a>   305 <em class='sharp'>#if</em> <a href='../S/2587.html#L21' title='Defined at 21 in lib/nstrftime.c.'>HAVE_STRUCT_TM_TM_ZONE</a> || <a href='../S/2587.html#L22' title='Defined at 22 in lib/nstrftime.c.'>HAVE_TZNAME</a>
+<a id='L306' name='L306'></a>   306           ok = ok &amp;&amp; <a href='../S/2592.html#L89' title='Defined at 89 in lib/time_rz.c.'>save_abbr</a> (<a href='../S/2587.html#L403' title='Defined at 403 in lib/nstrftime.c.'>tz</a>, &amp;tm_1);
+<a id='L307' name='L307'></a>   307 <em class='sharp'>#endif</em>
+<a id='L308' name='L308'></a>   308           <strong class='reserved'>if</strong> (<a href='../S/2592.html#L233' title='Defined at 233 in lib/time_rz.c.'>revert_tz</a> (old_tz) &amp;&amp; ok)
+<a id='L309' name='L309'></a>   309             <em class='brace'>{</em>
+<a id='L310' name='L310'></a>   310               *tm = tm_1;
+<a id='L311' name='L311'></a>   311               <strong class='reserved'>return</strong> t;
+<a id='L312' name='L312'></a>   312             <em class='brace'>}</em>
+<a id='L313' name='L313'></a>   313         <em class='brace'>}</em>
+<a id='L314' name='L314'></a>   314       <strong class='reserved'>return</strong> -1;
+<a id='L315' name='L315'></a>   315     <em class='brace'>}</em>
+<a id='L316' name='L316'></a>   316 <em class='brace'>}</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L64'>[^]</a><a href='#L112'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L56'>[^]</a><a href='#L285'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>

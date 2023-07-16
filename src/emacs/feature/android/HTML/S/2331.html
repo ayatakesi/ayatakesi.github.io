@@ -1,889 +1,512 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>src/haikumenu.c</title>
+<title>src/w32image.c</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4790.html'>src</a>/haikumenu.c</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L37'>[^]</a><a href='#L838'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4797.html'>src</a>/w32image.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L86'>[^]</a><a href='#L405'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 <hr />
 <h2 class='header'>DEFINITIONS</h2>
 This source file includes following definitions.
 <ol>
-<li><a href='#L37' title='Defined at 37.'>digest_menu_items</a></li>
-<li><a href='#L191' title='Defined at 191.'>haiku_dialog_show</a></li>
-<li><a href='#L306' title='Defined at 306.'>haiku_popup_dialog</a></li>
-<li><a href='#L340' title='Defined at 340.'>haiku_menu_show_help</a></li>
-<li><a href='#L352' title='Defined at 352.'>haiku_process_pending_signals_for_menu_1</a></li>
-<li><a href='#L360' title='Defined at 360.'>haiku_process_pending_signals_for_menu_2</a></li>
-<li><a href='#L369' title='Defined at 369.'>haiku_process_pending_signals_for_menu</a></li>
-<li><a href='#L383' title='Defined at 383.'>haiku_menu_show</a></li>
-<li><a href='#L509' title='Defined at 509.'>free_frame_menubar</a></li>
-<li><a href='#L533' title='Defined at 533.'>initialize_frame_menubar</a></li>
-<li><a href='#L542' title='Defined at 542.'>set_frame_menubar</a></li>
-<li><a href='#L735' title='Defined at 735.'>run_menu_bar_help_event</a></li>
-<li><a href='#L759' title='Defined at 759.'>DEFUN</a></li>
-<li><a href='#L766' title='Defined at 766.'>DEFUN</a></li>
-<li><a href='#L799' title='Defined at 799.'>haiku_activate_menubar</a></li>
-<li><a href='#L838' title='Defined at 838.'>syms_of_haikumenu</a></li>
+<li><a href='#L86' title='Defined at 86.'>gdiplus_init</a></li>
+<li><a href='#L211' title='Defined at 211.'>gdiplus_startup</a></li>
+<li><a href='#L240' title='Defined at 240.'>w32_gdiplus_shutdown</a></li>
+<li><a href='#L248' title='Defined at 248.'>w32_can_use_native_image_api</a></li>
+<li><a href='#L278' title='Defined at 278.'>decode_delay</a></li>
+<li><a href='#L311' title='Defined at 311.'>w32_frame_delay</a></li>
+<li><a href='#L347' title='Defined at 347.'>w32_select_active_frame</a></li>
+<li><a href='#L383' title='Defined at 383.'>w32_image_bg_color</a></li>
+<li><a href='#L405' title='Defined at 405.'>w32_load_image</a></li>
 </ol>
 <hr />
 <pre>
-<a id='L1' name='L1'></a>     1 <em class='comment'>/* Haiku window system support</em>
-<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 2021-2023 Free Software Foundation, Inc.</em>
-<a id='L3' name='L3'></a>     3 <em class='comment'></em>
-<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
-<a id='L5' name='L5'></a>     5 <em class='comment'></em>
-<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
-<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
-<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
-<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
-<a id='L10' name='L10'></a>    10 <em class='comment'></em>
-<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
-<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
-<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
-<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
-<a id='L15' name='L15'></a>    15 <em class='comment'></em>
-<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
-<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
-<a id='L18' name='L18'></a>    18 
-<a id='L19' name='L19'></a>    19 <em class='sharp'>#include</em> &lt;config.h&gt;
-<a id='L20' name='L20'></a>    20 
-<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
-<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> "<a href='2183.html'>frame.h</a>"
-<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> "<a href='2185.html'>keyboard.h</a>"
-<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> "<a href='2285.html'>menu.h</a>"
-<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='2130.html'>buffer.h</a>"
-<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='2089.html'>blockinput.h</a>"
-<a id='L27' name='L27'></a>    27 
-<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> "<a href='2166.html'>haikuterm.h</a>"
-<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> "<a href='2229.html'>haiku_support.h</a>"
-<a id='L30' name='L30'></a>    30 
-<a id='L31' name='L31'></a>    31 <strong class='reserved'>static</strong> <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *<strong class='reserved'>volatile</strong> menu_item_selection;
-<a id='L32' name='L32'></a>    32 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../D/18278.html' title='Multiple defined in 3 places.'>timespec</a> menu_timer_timespec;
-<a id='L33' name='L33'></a>    33 
-<a id='L34' name='L34'></a>    34 <strong class='reserved'>int</strong> popup_activated_p = 0;
-<a id='L35' name='L35'></a>    35 
-<a id='L36' name='L36'></a>    36 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L37' name='L37'></a>    37 <a href='../R/9508.html' title='Multiple referred from 2 places.'>digest_menu_items</a> (<strong class='reserved'>void</strong> *first_menu, <strong class='reserved'>int</strong> <a href='../D/17653.html' title='Multiple defined in 2 places.'>start</a>, <strong class='reserved'>int</strong> menu_items_used,
-<a id='L38' name='L38'></a>    38                    <a href='../D/9263.html' title='Multiple defined in 11 places.'>bool</a> is_menu_bar)
-<a id='L39' name='L39'></a>    39 <em class='brace'>{</em>
-<a id='L40' name='L40'></a>    40   <strong class='reserved'>void</strong> **menus, **panes;
-<a id='L41' name='L41'></a>    41   <a href='../S/54.html#L420' title='Defined at 420 in nt/inc/ms-w32.h.'>ssize_t</a> menu_len;
-<a id='L42' name='L42'></a>    42   <a href='../S/54.html#L420' title='Defined at 420 in nt/inc/ms-w32.h.'>ssize_t</a> pane_len;
-<a id='L43' name='L43'></a>    43   <strong class='reserved'>int</strong> i, menu_depth;
-<a id='L44' name='L44'></a>    44   <strong class='reserved'>void</strong> *menu, *<a href='../S/2317.html#L100' title='Defined at 100 in src/window.h.'>window</a>, *view;
-<a id='L45' name='L45'></a>    45   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> pane_name, prefix;
-<a id='L46' name='L46'></a>    46   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *pane_string;
-<a id='L47' name='L47'></a>    47   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> item_name, enable, descrip, def, selected, <a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>;
-<a id='L48' name='L48'></a>    48 
-<a id='L49' name='L49'></a>    49   <a href='../D/6613.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
-<a id='L50' name='L50'></a>    50 
-<a id='L51' name='L51'></a>    51   menu_len = (menu_items_used + 1 - <a href='../D/17653.html' title='Multiple defined in 2 places.'>start</a>) * <strong class='reserved'>sizeof</strong> *menus;
-<a id='L52' name='L52'></a>    52   pane_len = (menu_items_used + 1 - <a href='../D/17653.html' title='Multiple defined in 2 places.'>start</a>) * <strong class='reserved'>sizeof</strong> *panes;
-<a id='L53' name='L53'></a>    53   menu = first_menu;
-<a id='L54' name='L54'></a>    54 
-<a id='L55' name='L55'></a>    55   i = <a href='../D/17653.html' title='Multiple defined in 2 places.'>start</a>;
-<a id='L56' name='L56'></a>    56   menu_depth = 0;
-<a id='L57' name='L57'></a>    57 
-<a id='L58' name='L58'></a>    58   menus = <a href='../D/5389.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (menu_len);
-<a id='L59' name='L59'></a>    59   panes = <a href='../D/5389.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (pane_len);
-<a id='L60' name='L60'></a>    60   memset (menus, 0, menu_len);
-<a id='L61' name='L61'></a>    61   memset (panes, 0, pane_len);
-<a id='L62' name='L62'></a>    62   menus[0] = first_menu;
-<a id='L63' name='L63'></a>    63 
-<a id='L64' name='L64'></a>    64   <a href='../S/2317.html#L100' title='Defined at 100 in src/window.h.'>window</a> = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L65' name='L65'></a>    65   view = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L66' name='L66'></a>    66 
-<a id='L67' name='L67'></a>    67   <strong class='reserved'>if</strong> (<a href='../D/2249.html' title='Multiple defined in 2 places.'>FRAMEP</a> (Vmenu_updating_frame) &amp;&amp;
-<a id='L68' name='L68'></a>    68       <a href='../S/2183.html#L1028' title='Defined at 1028 in src/frame.h.'>FRAME_LIVE_P</a> (<a href='../S/2183.html#L909' title='Defined at 909 in src/frame.h.'>XFRAME</a> (Vmenu_updating_frame)) &amp;&amp;
-<a id='L69' name='L69'></a>    69       <a href='../D/2313.html' title='Multiple defined in 2 places.'>FRAME_HAIKU_P</a> (<a href='../S/2183.html#L909' title='Defined at 909 in src/frame.h.'>XFRAME</a> (Vmenu_updating_frame)))
-<a id='L70' name='L70'></a>    70     <em class='brace'>{</em>
-<a id='L71' name='L71'></a>    71       <a href='../S/2317.html#L100' title='Defined at 100 in src/window.h.'>window</a> = <a href='../S/2166.html#L285' title='Defined at 285 in src/haikuterm.h.'>FRAME_HAIKU_WINDOW</a> (<a href='../S/2183.html#L909' title='Defined at 909 in src/frame.h.'>XFRAME</a> (Vmenu_updating_frame));
-<a id='L72' name='L72'></a>    72       view = <a href='../S/2166.html#L286' title='Defined at 286 in src/haikuterm.h.'>FRAME_HAIKU_VIEW</a> (<a href='../S/2183.html#L909' title='Defined at 909 in src/frame.h.'>XFRAME</a> (Vmenu_updating_frame));
-<a id='L73' name='L73'></a>    73     <em class='brace'>}</em>
-<a id='L74' name='L74'></a>    74 
-<a id='L75' name='L75'></a>    75   <strong class='reserved'>if</strong> (view)
-<a id='L76' name='L76'></a>    76     <a href='../S/2226.html#L3769' title='Defined at 3769 in src/haiku_support.cc.'>BView_draw_lock</a> (view, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, 0, 0, 0, 0);
-<a id='L77' name='L77'></a>    77 
-<a id='L78' name='L78'></a>    78   <strong class='reserved'>while</strong> (i &lt; menu_items_used)
-<a id='L79' name='L79'></a>    79     <em class='brace'>{</em>
-<a id='L80' name='L80'></a>    80       <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i)))
-<a id='L81' name='L81'></a>    81         <em class='brace'>{</em>
-<a id='L82' name='L82'></a>    82           menus[++menu_depth] = menu;
-<a id='L83' name='L83'></a>    83           i++;
-<a id='L84' name='L84'></a>    84         <em class='brace'>}</em>
-<a id='L85' name='L85'></a>    85       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qlambda))
-<a id='L86' name='L86'></a>    86         <em class='brace'>{</em>
-<a id='L87' name='L87'></a>    87           panes[menu_depth] = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L88' name='L88'></a>    88           menu = panes[--menu_depth] ? panes[menu_depth] : menus[menu_depth];
-<a id='L89' name='L89'></a>    89           i++;
-<a id='L90' name='L90'></a>    90         <em class='brace'>}</em>
-<a id='L91' name='L91'></a>    91       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qquote))
-<a id='L92' name='L92'></a>    92         i += 1;
-<a id='L93' name='L93'></a>    93       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qt))
-<a id='L94' name='L94'></a>    94         <em class='brace'>{</em>
-<a id='L95' name='L95'></a>    95           <strong class='reserved'>if</strong> (menu_items_n_panes == 1)
-<a id='L96' name='L96'></a>    96             <em class='brace'>{</em>
-<a id='L97' name='L97'></a>    97               i += <a href='../S/2185.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>;
-<a id='L98' name='L98'></a>    98               <strong class='reserved'>continue</strong>;
-<a id='L99' name='L99'></a>    99             <em class='brace'>}</em>
-<a id='L100' name='L100'></a>   100 
-<a id='L101' name='L101'></a>   101           pane_name = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L356' title='Defined at 356 in src/keyboard.h.'>MENU_ITEMS_PANE_NAME</a>);
-<a id='L102' name='L102'></a>   102           prefix = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L357' title='Defined at 357 in src/keyboard.h.'>MENU_ITEMS_PANE_PREFIX</a>);
-<a id='L103' name='L103'></a>   103 
-<a id='L104' name='L104'></a>   104           <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (pane_name) &amp;&amp; <a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (pane_name))
-<a id='L105' name='L105'></a>   105             <em class='brace'>{</em>
-<a id='L106' name='L106'></a>   106               pane_name = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (pane_name);
-<a id='L107' name='L107'></a>   107               <a href='../D/222.html' title='Multiple defined in 2 places.'>ASET</a> (menu_items, i + <a href='../S/2185.html#L356' title='Defined at 356 in src/keyboard.h.'>MENU_ITEMS_PANE_NAME</a>, pane_name);
-<a id='L108' name='L108'></a>   108             <em class='brace'>}</em>
-<a id='L109' name='L109'></a>   109 
-<a id='L110' name='L110'></a>   110           pane_string = (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (pane_name)
-<a id='L111' name='L111'></a>   111                          ? "" : <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (pane_name));
-<a id='L112' name='L112'></a>   112           <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (prefix))
-<a id='L113' name='L113'></a>   113             pane_string++;
-<a id='L114' name='L114'></a>   114 
-<a id='L115' name='L115'></a>   115           <strong class='reserved'>if</strong> (strcmp (pane_string, ""))
-<a id='L116' name='L116'></a>   116             <em class='brace'>{</em>
-<a id='L117' name='L117'></a>   117               panes[menu_depth] =
-<a id='L118' name='L118'></a>   118                 menu = <a href='../S/2226.html#L4069' title='Defined at 4069 in src/haiku_support.cc.'>BMenu_new_submenu</a> (menus[menu_depth], pane_string, 1);
-<a id='L119' name='L119'></a>   119             <em class='brace'>}</em>
-<a id='L120' name='L120'></a>   120 
-<a id='L121' name='L121'></a>   121           i += <a href='../S/2185.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>;
-<a id='L122' name='L122'></a>   122         <em class='brace'>}</em>
-<a id='L123' name='L123'></a>   123       <strong class='reserved'>else</strong>
-<a id='L124' name='L124'></a>   124         <em class='brace'>{</em>
-<a id='L125' name='L125'></a>   125           item_name = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L362' title='Defined at 362 in src/keyboard.h.'>MENU_ITEMS_ITEM_NAME</a>);
-<a id='L126' name='L126'></a>   126           enable = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L363' title='Defined at 363 in src/keyboard.h.'>MENU_ITEMS_ITEM_ENABLE</a>);
-<a id='L127' name='L127'></a>   127           descrip = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L365' title='Defined at 365 in src/keyboard.h.'>MENU_ITEMS_ITEM_EQUIV_KEY</a>);
-<a id='L128' name='L128'></a>   128           def = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L366' title='Defined at 366 in src/keyboard.h.'>MENU_ITEMS_ITEM_DEFINITION</a>);
-<a id='L129' name='L129'></a>   129           selected = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L368' title='Defined at 368 in src/keyboard.h.'>MENU_ITEMS_ITEM_SELECTED</a>);
-<a id='L130' name='L130'></a>   130           <a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a> = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L369' title='Defined at 369 in src/keyboard.h.'>MENU_ITEMS_ITEM_HELP</a>);
-<a id='L131' name='L131'></a>   131 
-<a id='L132' name='L132'></a>   132           <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (item_name) &amp;&amp; <a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (item_name))
-<a id='L133' name='L133'></a>   133             <em class='brace'>{</em>
-<a id='L134' name='L134'></a>   134               item_name = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (item_name);
-<a id='L135' name='L135'></a>   135               <a href='../D/222.html' title='Multiple defined in 2 places.'>ASET</a> (menu_items, i + <a href='../S/2185.html#L362' title='Defined at 362 in src/keyboard.h.'>MENU_ITEMS_ITEM_NAME</a>, item_name);
-<a id='L136' name='L136'></a>   136             <em class='brace'>}</em>
-<a id='L137' name='L137'></a>   137 
-<a id='L138' name='L138'></a>   138           <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (descrip) &amp;&amp; <a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (descrip))
-<a id='L139' name='L139'></a>   139             <em class='brace'>{</em>
-<a id='L140' name='L140'></a>   140               descrip = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (descrip);
-<a id='L141' name='L141'></a>   141               <a href='../D/222.html' title='Multiple defined in 2 places.'>ASET</a> (menu_items, i + <a href='../S/2185.html#L365' title='Defined at 365 in src/keyboard.h.'>MENU_ITEMS_ITEM_EQUIV_KEY</a>, descrip);
-<a id='L142' name='L142'></a>   142             <em class='brace'>}</em>
-<a id='L143' name='L143'></a>   143 
-<a id='L144' name='L144'></a>   144           <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>) &amp;&amp; <a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>))
-<a id='L145' name='L145'></a>   145             <a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a> = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>);
-<a id='L146' name='L146'></a>   146 
-<a id='L147' name='L147'></a>   147           <strong class='reserved'>if</strong> (i + <a href='../S/2185.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a> &lt; menu_items_used &amp;&amp;
-<a id='L148' name='L148'></a>   148               <a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a>)))
-<a id='L149' name='L149'></a>   149             menu = <a href='../S/2226.html#L4069' title='Defined at 4069 in src/haiku_support.cc.'>BMenu_new_submenu</a> (menu, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (item_name), !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (enable));
-<a id='L150' name='L150'></a>   150           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (def) &amp;&amp; <a href='../D/14421.html' title='Multiple defined in 2 places.'>menu_separator_name_p</a> (<a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (item_name)))
-<a id='L151' name='L151'></a>   151             <a href='../S/2226.html#L4060' title='Defined at 4060 in src/haiku_support.cc.'>BMenu_add_separator</a> (menu);
-<a id='L152' name='L152'></a>   152           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!is_menu_bar)
-<a id='L153' name='L153'></a>   153             <em class='brace'>{</em>
-<a id='L154' name='L154'></a>   154               <strong class='reserved'>if</strong> (!use_system_tooltips || <a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Fsymbol_value (Qtooltip_mode)))
-<a id='L155' name='L155'></a>   155                 <a href='../S/2226.html#L4035' title='Defined at 4035 in src/haiku_support.cc.'>BMenu_add_item</a> (menu, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (item_name),
-<a id='L156' name='L156'></a>   156                                 !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (def) ? <a href='../D/8960.html' title='Multiple defined in 2 places.'>aref_addr</a> (menu_items, i) : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>,
-<a id='L157' name='L157'></a>   157                                 !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (enable), !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (selected), 0, <a href='../S/2317.html#L100' title='Defined at 100 in src/window.h.'>window</a>,
-<a id='L158' name='L158'></a>   158                                 !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (descrip) ? <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (descrip) : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>,
-<a id='L159' name='L159'></a>   159                                 <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
-<a id='L160' name='L160'></a>   160               <strong class='reserved'>else</strong>
-<a id='L161' name='L161'></a>   161                 <a href='../S/2226.html#L4035' title='Defined at 4035 in src/haiku_support.cc.'>BMenu_add_item</a> (menu, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (item_name),
-<a id='L162' name='L162'></a>   162                                 !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (def) ? <a href='../D/8960.html' title='Multiple defined in 2 places.'>aref_addr</a> (menu_items, i) : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>,
-<a id='L163' name='L163'></a>   163                                 !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (enable), !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (selected), 0, <a href='../S/2317.html#L100' title='Defined at 100 in src/window.h.'>window</a>,
-<a id='L164' name='L164'></a>   164                                 !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (descrip) ? <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (descrip) : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>,
-<a id='L165' name='L165'></a>   165                                 <a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>) ? <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>) : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
-<a id='L166' name='L166'></a>   166             <em class='brace'>}</em>
-<a id='L167' name='L167'></a>   167           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!use_system_tooltips || <a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Fsymbol_value (Qtooltip_mode)))
-<a id='L168' name='L168'></a>   168             <a href='../S/2226.html#L4035' title='Defined at 4035 in src/haiku_support.cc.'>BMenu_add_item</a> (menu, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (item_name),
-<a id='L169' name='L169'></a>   169                             !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (def) ? (<strong class='reserved'>void</strong> *) (<a href='../D/13424.html' title='Multiple defined in 4 places.'>intptr_t</a>) i : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>,
-<a id='L170' name='L170'></a>   170                             !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (enable), !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (selected), 1, <a href='../S/2317.html#L100' title='Defined at 100 in src/window.h.'>window</a>,
-<a id='L171' name='L171'></a>   171                             !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (descrip) ? <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (descrip) : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>,
-<a id='L172' name='L172'></a>   172                             <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
-<a id='L173' name='L173'></a>   173           <strong class='reserved'>else</strong>
-<a id='L174' name='L174'></a>   174             <a href='../S/2226.html#L4035' title='Defined at 4035 in src/haiku_support.cc.'>BMenu_add_item</a> (menu, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (item_name),
-<a id='L175' name='L175'></a>   175                             !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (def) ? (<strong class='reserved'>void</strong> *) (<a href='../D/13424.html' title='Multiple defined in 4 places.'>intptr_t</a>) i : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>,
-<a id='L176' name='L176'></a>   176                             !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (enable), !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (selected), 1, <a href='../S/2317.html#L100' title='Defined at 100 in src/window.h.'>window</a>,
-<a id='L177' name='L177'></a>   177                             !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (descrip) ? <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (descrip) : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>,
-<a id='L178' name='L178'></a>   178                             <a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>) ? <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>) : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
-<a id='L179' name='L179'></a>   179 
-<a id='L180' name='L180'></a>   180           i += <a href='../S/2185.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a>;
-<a id='L181' name='L181'></a>   181         <em class='brace'>}</em>
-<a id='L182' name='L182'></a>   182     <em class='brace'>}</em>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Implementation of MS-Windows native image API via the GDI+ library.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2020-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='comment'>/* Written by Juan Jose Garcia-Ripoll &lt;juanjose.garciaripoll@gmail.com&gt;.  */</em>
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> "<a href='2316.html'>dispextern.h</a>"
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#define</em> COBJMACROS
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#ifdef</em> <a href='../S/54.html#L35' title='Defined at 35 in nt/inc/ms-w32.h.'>MINGW_W64</a>
+<a id='L27' name='L27'></a>    27 <em class='comment'>/* FIXME: Do we need to include objidl.h?  */</em>
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;objidl.h&gt;
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#endif</em>
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;wtypes.h&gt;
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;gdiplus.h&gt;
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;shlwapi.h&gt;
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#include</em> "<a href='2372.html'>w32common.h</a>"
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#include</em> "<a href='2093.html'>w32term.h</a>"
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#ifdef</em> <a href='../D/6792.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#include</em> "<a href='2347.html'>w32.h</a>"        <em class='comment'>/* for map_w32_filename, filename_to_utf16 */</em>
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#endif</em>
+<a id='L38' name='L38'></a>    38 <em class='sharp'>#include</em> "<a href='2184.html'>frame.h</a>"
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> "<a href='2155.html'>coding.h</a>"
+<a id='L40' name='L40'></a>    40 
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#ifdef</em> <a href='../D/6792.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdiplusStartup_Proc)
+<a id='L44' name='L44'></a>    44   (ULONG_PTR *, GdiplusStartupInput *, GdiplusStartupOutput *);
+<a id='L45' name='L45'></a>    45 <strong class='reserved'>typedef</strong> <a href='../S/2975.html#L169' title='Defined at 169 in lib-src/ebrowse.c.'>VOID</a> (WINGDIPAPI *GdiplusShutdown_Proc) (ULONG_PTR);
+<a id='L46' name='L46'></a>    46 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipGetPropertyItemSize_Proc)
+<a id='L47' name='L47'></a>    47   (GpImage *, PROPID, UINT *);
+<a id='L48' name='L48'></a>    48 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipGetPropertyItem_Proc)
+<a id='L49' name='L49'></a>    49   (GpImage *, PROPID, UINT, PropertyItem *);
+<a id='L50' name='L50'></a>    50 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipImageGetFrameDimensionsCount_Proc)
+<a id='L51' name='L51'></a>    51   (GpImage *, UINT *);
+<a id='L52' name='L52'></a>    52 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipImageGetFrameDimensionsList_Proc)
+<a id='L53' name='L53'></a>    53   (GpImage *, GUID *, UINT);
+<a id='L54' name='L54'></a>    54 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipImageGetFrameCount_Proc)
+<a id='L55' name='L55'></a>    55   (GpImage *, GDIPCONST GUID *, UINT *);
+<a id='L56' name='L56'></a>    56 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipImageSelectActiveFrame_Proc)
+<a id='L57' name='L57'></a>    57   (GpImage*, GDIPCONST GUID *, UINT);
+<a id='L58' name='L58'></a>    58 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipCreateBitmapFromFile_Proc)
+<a id='L59' name='L59'></a>    59   (<a href='../S/2975.html#L186' title='Defined at 186 in lib-src/ebrowse.c.'>WCHAR</a> *, GpBitmap **);
+<a id='L60' name='L60'></a>    60 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipCreateBitmapFromStream_Proc)
+<a id='L61' name='L61'></a>    61   (IStream *, GpBitmap **);
+<a id='L62' name='L62'></a>    62 <strong class='reserved'>typedef</strong> IStream * (WINAPI *SHCreateMemStream_Proc) (<strong class='reserved'>const</strong> BYTE *, UINT);
+<a id='L63' name='L63'></a>    63 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipCreateHBITMAPFromBitmap_Proc)
+<a id='L64' name='L64'></a>    64   (GpBitmap *, HBITMAP *, ARGB);
+<a id='L65' name='L65'></a>    65 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipDisposeImage_Proc) (GpImage *);
+<a id='L66' name='L66'></a>    66 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipGetImageHeight_Proc) (GpImage *, UINT *);
+<a id='L67' name='L67'></a>    67 <strong class='reserved'>typedef</strong> GpStatus (WINGDIPAPI *GdipGetImageWidth_Proc) (GpImage *, UINT *);
+<a id='L68' name='L68'></a>    68 
+<a id='L69' name='L69'></a>    69 GdiplusStartup_Proc fn_GdiplusStartup;
+<a id='L70' name='L70'></a>    70 GdiplusShutdown_Proc fn_GdiplusShutdown;
+<a id='L71' name='L71'></a>    71 GdipGetPropertyItemSize_Proc fn_GdipGetPropertyItemSize;
+<a id='L72' name='L72'></a>    72 GdipGetPropertyItem_Proc fn_GdipGetPropertyItem;
+<a id='L73' name='L73'></a>    73 GdipImageGetFrameDimensionsCount_Proc fn_GdipImageGetFrameDimensionsCount;
+<a id='L74' name='L74'></a>    74 GdipImageGetFrameDimensionsList_Proc fn_GdipImageGetFrameDimensionsList;
+<a id='L75' name='L75'></a>    75 GdipImageGetFrameCount_Proc fn_GdipImageGetFrameCount;
+<a id='L76' name='L76'></a>    76 GdipImageSelectActiveFrame_Proc fn_GdipImageSelectActiveFrame;
+<a id='L77' name='L77'></a>    77 GdipCreateBitmapFromFile_Proc fn_GdipCreateBitmapFromFile;
+<a id='L78' name='L78'></a>    78 GdipCreateBitmapFromStream_Proc fn_GdipCreateBitmapFromStream;
+<a id='L79' name='L79'></a>    79 SHCreateMemStream_Proc fn_SHCreateMemStream;
+<a id='L80' name='L80'></a>    80 GdipCreateHBITMAPFromBitmap_Proc fn_GdipCreateHBITMAPFromBitmap;
+<a id='L81' name='L81'></a>    81 GdipDisposeImage_Proc fn_GdipDisposeImage;
+<a id='L82' name='L82'></a>    82 GdipGetImageHeight_Proc fn_GdipGetImageHeight;
+<a id='L83' name='L83'></a>    83 GdipGetImageWidth_Proc fn_GdipGetImageWidth;
+<a id='L84' name='L84'></a>    84 
+<a id='L85' name='L85'></a>    85 <strong class='reserved'>static</strong> <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L86' name='L86'></a>    86 <a href='../S/2331.html#L219' title='Referred from 219 in src/w32image.c.'>gdiplus_init</a> (<strong class='reserved'>void</strong>)
+<a id='L87' name='L87'></a>    87 <em class='brace'>{</em>
+<a id='L88' name='L88'></a>    88   HANDLE gdiplus_lib, shlwapi_lib;
+<a id='L89' name='L89'></a>    89 
+<a id='L90' name='L90'></a>    90   <strong class='reserved'>if</strong> (!((gdiplus_lib = <a href='../S/2301.html#L10240' title='Defined at 10240 in src/w32.c.'>w32_delayed_load</a> (Qgdiplus))
+<a id='L91' name='L91'></a>    91         &amp;&amp; (shlwapi_lib = <a href='../S/2301.html#L10240' title='Defined at 10240 in src/w32.c.'>w32_delayed_load</a> (Qshlwapi))))
+<a id='L92' name='L92'></a>    92     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L93' name='L93'></a>    93 
+<a id='L94' name='L94'></a>    94   fn_GdiplusStartup = (GdiplusStartup_Proc)
+<a id='L95' name='L95'></a>    95     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdiplusStartup");
+<a id='L96' name='L96'></a>    96   <strong class='reserved'>if</strong> (!fn_GdiplusStartup)
+<a id='L97' name='L97'></a>    97     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L98' name='L98'></a>    98   fn_GdiplusShutdown = (GdiplusShutdown_Proc)
+<a id='L99' name='L99'></a>    99     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdiplusShutdown");
+<a id='L100' name='L100'></a>   100   <strong class='reserved'>if</strong> (!fn_GdiplusShutdown)
+<a id='L101' name='L101'></a>   101     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L102' name='L102'></a>   102   fn_GdipGetPropertyItemSize = (GdipGetPropertyItemSize_Proc)
+<a id='L103' name='L103'></a>   103     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipGetPropertyItemSize");
+<a id='L104' name='L104'></a>   104   <strong class='reserved'>if</strong> (!fn_GdipGetPropertyItemSize)
+<a id='L105' name='L105'></a>   105     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L106' name='L106'></a>   106   fn_GdipGetPropertyItem = (GdipGetPropertyItem_Proc)
+<a id='L107' name='L107'></a>   107     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipGetPropertyItem");
+<a id='L108' name='L108'></a>   108   <strong class='reserved'>if</strong> (!fn_GdipGetPropertyItem)
+<a id='L109' name='L109'></a>   109     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L110' name='L110'></a>   110   fn_GdipImageGetFrameDimensionsCount = (GdipImageGetFrameDimensionsCount_Proc)
+<a id='L111' name='L111'></a>   111     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipImageGetFrameDimensionsCount");
+<a id='L112' name='L112'></a>   112   <strong class='reserved'>if</strong> (!fn_GdipImageGetFrameDimensionsCount)
+<a id='L113' name='L113'></a>   113     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L114' name='L114'></a>   114   fn_GdipImageGetFrameDimensionsList = (GdipImageGetFrameDimensionsList_Proc)
+<a id='L115' name='L115'></a>   115     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipImageGetFrameDimensionsList");
+<a id='L116' name='L116'></a>   116   <strong class='reserved'>if</strong> (!fn_GdipImageGetFrameDimensionsList)
+<a id='L117' name='L117'></a>   117     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L118' name='L118'></a>   118   fn_GdipImageGetFrameCount = (GdipImageGetFrameCount_Proc)
+<a id='L119' name='L119'></a>   119     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipImageGetFrameCount");
+<a id='L120' name='L120'></a>   120   <strong class='reserved'>if</strong> (!fn_GdipImageGetFrameCount)
+<a id='L121' name='L121'></a>   121     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L122' name='L122'></a>   122   fn_GdipImageSelectActiveFrame = (GdipImageSelectActiveFrame_Proc)
+<a id='L123' name='L123'></a>   123     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipImageSelectActiveFrame");
+<a id='L124' name='L124'></a>   124   <strong class='reserved'>if</strong> (!fn_GdipImageSelectActiveFrame)
+<a id='L125' name='L125'></a>   125     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L126' name='L126'></a>   126   fn_GdipCreateBitmapFromFile = (GdipCreateBitmapFromFile_Proc)
+<a id='L127' name='L127'></a>   127     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipCreateBitmapFromFile");
+<a id='L128' name='L128'></a>   128   <strong class='reserved'>if</strong> (!fn_GdipCreateBitmapFromFile)
+<a id='L129' name='L129'></a>   129     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L130' name='L130'></a>   130   fn_GdipCreateBitmapFromStream = (GdipCreateBitmapFromStream_Proc)
+<a id='L131' name='L131'></a>   131     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipCreateBitmapFromStream");
+<a id='L132' name='L132'></a>   132   <strong class='reserved'>if</strong> (!fn_GdipCreateBitmapFromStream)
+<a id='L133' name='L133'></a>   133     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L134' name='L134'></a>   134   fn_GdipCreateHBITMAPFromBitmap = (GdipCreateHBITMAPFromBitmap_Proc)
+<a id='L135' name='L135'></a>   135     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipCreateHBITMAPFromBitmap");
+<a id='L136' name='L136'></a>   136   <strong class='reserved'>if</strong> (!fn_GdipCreateHBITMAPFromBitmap)
+<a id='L137' name='L137'></a>   137     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L138' name='L138'></a>   138   fn_GdipDisposeImage = (GdipDisposeImage_Proc)
+<a id='L139' name='L139'></a>   139     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipDisposeImage");
+<a id='L140' name='L140'></a>   140   <strong class='reserved'>if</strong> (!fn_GdipDisposeImage)
+<a id='L141' name='L141'></a>   141     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L142' name='L142'></a>   142   fn_GdipGetImageHeight = (GdipGetImageHeight_Proc)
+<a id='L143' name='L143'></a>   143     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipGetImageHeight");
+<a id='L144' name='L144'></a>   144   <strong class='reserved'>if</strong> (!fn_GdipGetImageHeight)
+<a id='L145' name='L145'></a>   145     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L146' name='L146'></a>   146   fn_GdipGetImageWidth = (GdipGetImageWidth_Proc)
+<a id='L147' name='L147'></a>   147     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (gdiplus_lib, "GdipGetImageWidth");
+<a id='L148' name='L148'></a>   148   <strong class='reserved'>if</strong> (!fn_GdipGetImageWidth)
+<a id='L149' name='L149'></a>   149     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L150' name='L150'></a>   150   <em class='comment'>/* LOAD_DLL_FN (shlwapi_lib, SHCreateMemStream); */</em>
+<a id='L151' name='L151'></a>   151 
+<a id='L152' name='L152'></a>   152   <em class='comment'>/* The following terrible kludge is required to use native image API</em>
+<a id='L153' name='L153'></a>   153 <em class='comment'>     on Windows before Vista, because SHCreateMemStream was not</em>
+<a id='L154' name='L154'></a>   154 <em class='comment'>     exported by name in those versions, only by ordinal number.  */</em>
+<a id='L155' name='L155'></a>   155   fn_SHCreateMemStream = (SHCreateMemStream_Proc)
+<a id='L156' name='L156'></a>   156     <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (shlwapi_lib, "SHCreateMemStream");
+<a id='L157' name='L157'></a>   157   <strong class='reserved'>if</strong> (!fn_SHCreateMemStream)
+<a id='L158' name='L158'></a>   158     <em class='brace'>{</em>
+<a id='L159' name='L159'></a>   159       fn_SHCreateMemStream = (SHCreateMemStream_Proc)
+<a id='L160' name='L160'></a>   160         <a href='../S/2372.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (shlwapi_lib, MAKEINTRESOURCEA (12));
+<a id='L161' name='L161'></a>   161       <strong class='reserved'>if</strong> (!fn_SHCreateMemStream)
+<a id='L162' name='L162'></a>   162         <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L163' name='L163'></a>   163     <em class='brace'>}</em>
+<a id='L164' name='L164'></a>   164 
+<a id='L165' name='L165'></a>   165   <strong class='reserved'>return</strong> <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L166' name='L166'></a>   166 <em class='brace'>}</em>
+<a id='L167' name='L167'></a>   167 
+<a id='L168' name='L168'></a>   168 <em class='sharp'># undef</em> <a href='../S/2331.html#L230' title='Referred from 230 in src/w32image.c.'>GdiplusStartup</a>
+<a id='L169' name='L169'></a>   169 <em class='sharp'># undef</em> <a href='../S/2331.html#L243' title='Referred from 243 in src/w32image.c.'>GdiplusShutdown</a>
+<a id='L170' name='L170'></a>   170 <em class='sharp'># undef</em> <a href='../S/2331.html#L320' title='Referred from 320 in src/w32image.c.'>GdipGetPropertyItemSize</a>
+<a id='L171' name='L171'></a>   171 <em class='sharp'># undef</em> <a href='../S/2331.html#L330' title='Referred from 330 in src/w32image.c.'>GdipGetPropertyItem</a>
+<a id='L172' name='L172'></a>   172 <em class='sharp'># undef</em> <a href='../S/2331.html#L354' title='Referred from 354 in src/w32image.c.'>GdipImageGetFrameDimensionsCount</a>
+<a id='L173' name='L173'></a>   173 <em class='sharp'># undef</em> <a href='../S/2331.html#L364' title='Referred from 364 in src/w32image.c.'>GdipImageGetFrameDimensionsList</a>
+<a id='L174' name='L174'></a>   174 <em class='sharp'># undef</em> <a href='../S/2331.html#L365' title='Referred from 365 in src/w32image.c.'>GdipImageGetFrameCount</a>
+<a id='L175' name='L175'></a>   175 <em class='sharp'># undef</em> <a href='../S/2331.html#L372' title='Referred from 372 in src/w32image.c.'>GdipImageSelectActiveFrame</a>
+<a id='L176' name='L176'></a>   176 <em class='sharp'># undef</em> <a href='../S/2331.html#L421' title='Referred from 421 in src/w32image.c.'>GdipCreateBitmapFromFile</a>
+<a id='L177' name='L177'></a>   177 <em class='sharp'># undef</em> <a href='../S/2331.html#L429' title='Referred from 429 in src/w32image.c.'>GdipCreateBitmapFromStream</a>
+<a id='L178' name='L178'></a>   178 <em class='sharp'># undef</em> <a href='../S/2331.html#L425' title='Referred from 425 in src/w32image.c.'>SHCreateMemStream</a>
+<a id='L179' name='L179'></a>   179 <em class='sharp'># undef</em> <a href='../S/2331.html#L457' title='Referred from 457 in src/w32image.c.'>GdipCreateHBITMAPFromBitmap</a>
+<a id='L180' name='L180'></a>   180 <em class='sharp'># undef</em> <a href='../S/2331.html#L469' title='Referred from 469 in src/w32image.c.'>GdipDisposeImage</a>
+<a id='L181' name='L181'></a>   181 <em class='sharp'># undef</em> <a href='../S/2331.html#L462' title='Referred from 462 in src/w32image.c.'>GdipGetImageHeight</a>
+<a id='L182' name='L182'></a>   182 <em class='sharp'># undef</em> <a href='../S/2331.html#L461' title='Referred from 461 in src/w32image.c.'>GdipGetImageWidth</a>
 <a id='L183' name='L183'></a>   183 
-<a id='L184' name='L184'></a>   184   <strong class='reserved'>if</strong> (view)
-<a id='L185' name='L185'></a>   185     <a href='../S/2226.html#L3811' title='Defined at 3811 in src/haiku_support.cc.'>BView_draw_unlock</a> (view);
-<a id='L186' name='L186'></a>   186 
-<a id='L187' name='L187'></a>   187   <a href='../D/5394.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
-<a id='L188' name='L188'></a>   188 <em class='brace'>}</em>
-<a id='L189' name='L189'></a>   189 
-<a id='L190' name='L190'></a>   190 <strong class='reserved'>static</strong> <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
-<a id='L191' name='L191'></a>   191 <a href='../S/2331.html#L329' title='Referred from 329 in src/haikumenu.c.'>haiku_dialog_show</a> (<strong class='reserved'>struct</strong> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> title,
-<a id='L192' name='L192'></a>   192                    <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> header, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> **error_name)
-<a id='L193' name='L193'></a>   193 <em class='brace'>{</em>
-<a id='L194' name='L194'></a>   194   <strong class='reserved'>int</strong> i, nb_buttons = 0;
-<a id='L195' name='L195'></a>   195   <a href='../D/9263.html' title='Multiple defined in 11 places.'>bool</a> boundary_seen = <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
-<a id='L196' name='L196'></a>   196   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> pane_name, vals[10];
-<a id='L197' name='L197'></a>   197   <strong class='reserved'>void</strong> *alert, *button;
-<a id='L198' name='L198'></a>   198   <a href='../D/9263.html' title='Multiple defined in 11 places.'>bool</a> enabled_item_seen_p = <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
-<a id='L199' name='L199'></a>   199   int32 val;
-<a id='L200' name='L200'></a>   200 
-<a id='L201' name='L201'></a>   201   *error_name = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L202' name='L202'></a>   202 
-<a id='L203' name='L203'></a>   203   <strong class='reserved'>if</strong> (menu_items_n_panes &gt; 1)
-<a id='L204' name='L204'></a>   204     <em class='brace'>{</em>
-<a id='L205' name='L205'></a>   205       *error_name = "Multiple panes in dialog box";
-<a id='L206' name='L206'></a>   206       <strong class='reserved'>return</strong> Qnil;
-<a id='L207' name='L207'></a>   207     <em class='brace'>}</em>
+<a id='L184' name='L184'></a>   184 <em class='sharp'># define</em> <a href='../S/2331.html#L230' title='Referred from 230 in src/w32image.c.'>GdiplusStartup</a> fn_GdiplusStartup
+<a id='L185' name='L185'></a>   185 <em class='sharp'># define</em> <a href='../S/2331.html#L243' title='Referred from 243 in src/w32image.c.'>GdiplusShutdown</a> fn_GdiplusShutdown
+<a id='L186' name='L186'></a>   186 <em class='sharp'># define</em> <a href='../S/2331.html#L320' title='Referred from 320 in src/w32image.c.'>GdipGetPropertyItemSize</a> fn_GdipGetPropertyItemSize
+<a id='L187' name='L187'></a>   187 <em class='sharp'># define</em> <a href='../S/2331.html#L330' title='Referred from 330 in src/w32image.c.'>GdipGetPropertyItem</a> fn_GdipGetPropertyItem
+<a id='L188' name='L188'></a>   188 <em class='sharp'># define</em> <a href='../S/2331.html#L354' title='Referred from 354 in src/w32image.c.'>GdipImageGetFrameDimensionsCount</a> fn_GdipImageGetFrameDimensionsCount
+<a id='L189' name='L189'></a>   189 <em class='sharp'># define</em> <a href='../S/2331.html#L364' title='Referred from 364 in src/w32image.c.'>GdipImageGetFrameDimensionsList</a> fn_GdipImageGetFrameDimensionsList
+<a id='L190' name='L190'></a>   190 <em class='sharp'># define</em> <a href='../S/2331.html#L365' title='Referred from 365 in src/w32image.c.'>GdipImageGetFrameCount</a> fn_GdipImageGetFrameCount
+<a id='L191' name='L191'></a>   191 <em class='sharp'># define</em> <a href='../S/2331.html#L372' title='Referred from 372 in src/w32image.c.'>GdipImageSelectActiveFrame</a> fn_GdipImageSelectActiveFrame
+<a id='L192' name='L192'></a>   192 <em class='sharp'># define</em> <a href='../S/2331.html#L421' title='Referred from 421 in src/w32image.c.'>GdipCreateBitmapFromFile</a> fn_GdipCreateBitmapFromFile
+<a id='L193' name='L193'></a>   193 <em class='sharp'># define</em> <a href='../S/2331.html#L429' title='Referred from 429 in src/w32image.c.'>GdipCreateBitmapFromStream</a> fn_GdipCreateBitmapFromStream
+<a id='L194' name='L194'></a>   194 <em class='sharp'># define</em> <a href='../S/2331.html#L425' title='Referred from 425 in src/w32image.c.'>SHCreateMemStream</a> fn_SHCreateMemStream
+<a id='L195' name='L195'></a>   195 <em class='sharp'># define</em> <a href='../S/2331.html#L457' title='Referred from 457 in src/w32image.c.'>GdipCreateHBITMAPFromBitmap</a> fn_GdipCreateHBITMAPFromBitmap
+<a id='L196' name='L196'></a>   196 <em class='sharp'># define</em> <a href='../S/2331.html#L469' title='Referred from 469 in src/w32image.c.'>GdipDisposeImage</a> fn_GdipDisposeImage
+<a id='L197' name='L197'></a>   197 <em class='sharp'># define</em> <a href='../S/2331.html#L462' title='Referred from 462 in src/w32image.c.'>GdipGetImageHeight</a> fn_GdipGetImageHeight
+<a id='L198' name='L198'></a>   198 <em class='sharp'># define</em> <a href='../S/2331.html#L461' title='Referred from 461 in src/w32image.c.'>GdipGetImageWidth</a> fn_GdipGetImageWidth
+<a id='L199' name='L199'></a>   199 
+<a id='L200' name='L200'></a>   200 <em class='sharp'>#endif</em>  <em class='comment'>/* WINDOWSNT */</em>
+<a id='L201' name='L201'></a>   201 
+<a id='L202' name='L202'></a>   202 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> gdip_initialized;
+<a id='L203' name='L203'></a>   203 <strong class='reserved'>static</strong> <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a> gdiplus_started;
+<a id='L204' name='L204'></a>   204 <strong class='reserved'>static</strong> ULONG_PTR <a href='../D/18310.html' title='Multiple defined in 3 places.'>token</a>;
+<a id='L205' name='L205'></a>   205 <strong class='reserved'>static</strong> GdiplusStartupInput input;
+<a id='L206' name='L206'></a>   206 <strong class='reserved'>static</strong> GdiplusStartupOutput output;
+<a id='L207' name='L207'></a>   207 
 <a id='L208' name='L208'></a>   208 
-<a id='L209' name='L209'></a>   209   pane_name = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, <a href='../S/2185.html#L356' title='Defined at 356 in src/keyboard.h.'>MENU_ITEMS_PANE_NAME</a>);
-<a id='L210' name='L210'></a>   210   i = <a href='../S/2185.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>;
-<a id='L211' name='L211'></a>   211 
-<a id='L212' name='L212'></a>   212   <strong class='reserved'>if</strong> (<a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (pane_name))
-<a id='L213' name='L213'></a>   213     pane_name = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (pane_name);
+<a id='L209' name='L209'></a>   209 <em class='comment'>/* Initialize GDI+, return true if successful.  */</em>
+<a id='L210' name='L210'></a>   210 <strong class='reserved'>static</strong> <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L211' name='L211'></a>   211 <a href='../S/2331.html#L263' title='Referred from 263 in src/w32image.c.'>gdiplus_startup</a> (<strong class='reserved'>void</strong>)
+<a id='L212' name='L212'></a>   212 <em class='brace'>{</em>
+<a id='L213' name='L213'></a>   213   GpStatus status;
 <a id='L214' name='L214'></a>   214 
-<a id='L215' name='L215'></a>   215   <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L216' name='L216'></a>   216   alert = <a href='../S/2226.html#L4308' title='Defined at 4308 in src/haiku_support.cc.'>BAlert_new</a> (<a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (pane_name), <a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (header) ? <a href='../S/2229.html#L82' title='Defined at 82 in src/haiku_support.h.'>HAIKU_INFO_ALERT</a> :
-<a id='L217' name='L217'></a>   217                       <a href='../S/2229.html#L83' title='Defined at 83 in src/haiku_support.h.'>HAIKU_IDEA_ALERT</a>);
-<a id='L218' name='L218'></a>   218 
-<a id='L219' name='L219'></a>   219   <strong class='reserved'>while</strong> (i &lt; menu_items_used)
-<a id='L220' name='L220'></a>   220     <em class='brace'>{</em>
-<a id='L221' name='L221'></a>   221       <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> item_name, enable, descrip, <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
-<a id='L222' name='L222'></a>   222       item_name = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L362' title='Defined at 362 in src/keyboard.h.'>MENU_ITEMS_ITEM_NAME</a>);
-<a id='L223' name='L223'></a>   223       enable = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L363' title='Defined at 363 in src/keyboard.h.'>MENU_ITEMS_ITEM_ENABLE</a>);
-<a id='L224' name='L224'></a>   224       descrip = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L365' title='Defined at 365 in src/keyboard.h.'>MENU_ITEMS_ITEM_EQUIV_KEY</a>);
-<a id='L225' name='L225'></a>   225       <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L364' title='Defined at 364 in src/keyboard.h.'>MENU_ITEMS_ITEM_VALUE</a>);
-<a id='L226' name='L226'></a>   226 
-<a id='L227' name='L227'></a>   227       <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (item_name))
-<a id='L228' name='L228'></a>   228         <em class='brace'>{</em>
-<a id='L229' name='L229'></a>   229           <a href='../S/2226.html#L4465' title='Defined at 4465 in src/haiku_support.cc.'>BAlert_delete</a> (alert);
-<a id='L230' name='L230'></a>   230           *error_name = "Submenu in dialog items";
-<a id='L231' name='L231'></a>   231           <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L232' name='L232'></a>   232           <strong class='reserved'>return</strong> Qnil;
-<a id='L233' name='L233'></a>   233         <em class='brace'>}</em>
-<a id='L234' name='L234'></a>   234 
-<a id='L235' name='L235'></a>   235       <strong class='reserved'>if</strong> (<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (item_name, Qquote))
-<a id='L236' name='L236'></a>   236         <em class='brace'>{</em>
-<a id='L237' name='L237'></a>   237           <strong class='reserved'>if</strong> (nb_buttons)
-<a id='L238' name='L238'></a>   238             boundary_seen = <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
-<a id='L239' name='L239'></a>   239 
-<a id='L240' name='L240'></a>   240           i++;
-<a id='L241' name='L241'></a>   241           <strong class='reserved'>continue</strong>;
-<a id='L242' name='L242'></a>   242         <em class='brace'>}</em>
-<a id='L243' name='L243'></a>   243 
-<a id='L244' name='L244'></a>   244       <strong class='reserved'>if</strong> (nb_buttons &gt;= 9)
-<a id='L245' name='L245'></a>   245         <em class='brace'>{</em>
-<a id='L246' name='L246'></a>   246           <a href='../S/2226.html#L4465' title='Defined at 4465 in src/haiku_support.cc.'>BAlert_delete</a> (alert);
-<a id='L247' name='L247'></a>   247           *error_name = "Too many dialog items";
-<a id='L248' name='L248'></a>   248           <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L249' name='L249'></a>   249           <strong class='reserved'>return</strong> Qnil;
-<a id='L250' name='L250'></a>   250         <em class='brace'>}</em>
-<a id='L251' name='L251'></a>   251 
-<a id='L252' name='L252'></a>   252       <strong class='reserved'>if</strong> (<a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (item_name))
-<a id='L253' name='L253'></a>   253         item_name = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (item_name);
-<a id='L254' name='L254'></a>   254       <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (descrip) &amp;&amp; <a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (descrip))
-<a id='L255' name='L255'></a>   255         descrip = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (descrip);
-<a id='L256' name='L256'></a>   256 
-<a id='L257' name='L257'></a>   257       button = <a href='../S/2226.html#L4316' title='Defined at 4316 in src/haiku_support.cc.'>BAlert_add_button</a> (alert, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (item_name));
-<a id='L258' name='L258'></a>   258 
-<a id='L259' name='L259'></a>   259       <a href='../S/2226.html#L4404' title='Defined at 4404 in src/haiku_support.cc.'>BButton_set_enabled</a> (button, !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (enable));
-<a id='L260' name='L260'></a>   260       enabled_item_seen_p |= !<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (enable);
-<a id='L261' name='L261'></a>   261 
-<a id='L262' name='L262'></a>   262       <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (descrip))
-<a id='L263' name='L263'></a>   263         <a href='../S/2226.html#L4411' title='Defined at 4411 in src/haiku_support.cc.'>BView_set_tooltip</a> (button, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (descrip));
-<a id='L264' name='L264'></a>   264 
-<a id='L265' name='L265'></a>   265       vals[nb_buttons] = <a href='../S/2332.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
-<a id='L266' name='L266'></a>   266       ++nb_buttons;
-<a id='L267' name='L267'></a>   267       i += <a href='../S/2185.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a>;
-<a id='L268' name='L268'></a>   268     <em class='brace'>}</em>
-<a id='L269' name='L269'></a>   269 
-<a id='L270' name='L270'></a>   270   <em class='comment'>/* Haiku only lets us specify a single button to place on the</em>
-<a id='L271' name='L271'></a>   271 <em class='comment'>     left.  */</em>
-<a id='L272' name='L272'></a>   272   <strong class='reserved'>if</strong> (boundary_seen)
-<a id='L273' name='L273'></a>   273     <a href='../S/2226.html#L4326' title='Defined at 4326 in src/haiku_support.cc.'>BAlert_set_offset_spacing</a> (alert);
-<a id='L274' name='L274'></a>   274 
-<a id='L275' name='L275'></a>   275   <em class='comment'>/* If there isn't a single enabled item, add an "Ok" button so the</em>
-<a id='L276' name='L276'></a>   276 <em class='comment'>     popup can be dismissed.  */</em>
-<a id='L277' name='L277'></a>   277   <strong class='reserved'>if</strong> (!enabled_item_seen_p)
-<a id='L278' name='L278'></a>   278     <a href='../S/2226.html#L4316' title='Defined at 4316 in src/haiku_support.cc.'>BAlert_add_button</a> (alert, "Ok");
-<a id='L279' name='L279'></a>   279   <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L280' name='L280'></a>   280 
-<a id='L281' name='L281'></a>   281   <a href='../S/2286.html#L840' title='Defined at 840 in src/sysdep.c.'>unrequest_sigio</a> ();
-<a id='L282' name='L282'></a>   282   ++popup_activated_p;
-<a id='L283' name='L283'></a>   283   val = <a href='../S/2226.html#L4351' title='Defined at 4351 in src/haiku_support.cc.'>BAlert_go</a> (alert, <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a>, <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a>,
-<a id='L284' name='L284'></a>   284                    <a href='../D/15800.html' title='Multiple defined in 2 places.'>process_pending_signals</a>);
-<a id='L285' name='L285'></a>   285   --popup_activated_p;
-<a id='L286' name='L286'></a>   286   <a href='../S/2286.html#L816' title='Defined at 816 in src/sysdep.c.'>request_sigio</a> ();
-<a id='L287' name='L287'></a>   287 
-<a id='L288' name='L288'></a>   288   <strong class='reserved'>if</strong> (val &lt; 0)
-<a id='L289' name='L289'></a>   289     <a href='../D/15933.html' title='Multiple defined in 2 places.'>quit</a> ();
-<a id='L290' name='L290'></a>   290   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (val &lt; nb_buttons)
-<a id='L291' name='L291'></a>   291     <strong class='reserved'>return</strong> vals[val];
-<a id='L292' name='L292'></a>   292 
-<a id='L293' name='L293'></a>   293   <em class='comment'>/* The dialog was dismissed via the button appended to dismiss popup</em>
-<a id='L294' name='L294'></a>   294 <em class='comment'>     dialogs without a single enabled item.  */</em>
-<a id='L295' name='L295'></a>   295   <strong class='reserved'>if</strong> (nb_buttons)
-<a id='L296' name='L296'></a>   296     <a href='../D/15933.html' title='Multiple defined in 2 places.'>quit</a> ();
-<a id='L297' name='L297'></a>   297   <em class='comment'>/* Otherwise, the Ok button was added because no buttons were seen</em>
-<a id='L298' name='L298'></a>   298 <em class='comment'>     at all.  */</em>
-<a id='L299' name='L299'></a>   299   <strong class='reserved'>else</strong>
-<a id='L300' name='L300'></a>   300     <strong class='reserved'>return</strong> Qt;
-<a id='L301' name='L301'></a>   301 
-<a id='L302' name='L302'></a>   302   <a href='../D/10893.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
-<a id='L303' name='L303'></a>   303 <em class='brace'>}</em>
-<a id='L304' name='L304'></a>   304 
-<a id='L305' name='L305'></a>   305 <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
-<a id='L306' name='L306'></a>   306 <a href='../R/11704.html' title='Multiple referred from 2 places.'>haiku_popup_dialog</a> (<strong class='reserved'>struct</strong> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> header, <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> contents)
-<a id='L307' name='L307'></a>   307 <em class='brace'>{</em>
-<a id='L308' name='L308'></a>   308   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> title;
-<a id='L309' name='L309'></a>   309   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *error_name = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L310' name='L310'></a>   310   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2073.html#L63' title='Defined at 63 in lwlib/lwlib-Xm.c.'>selection</a>;
-<a id='L311' name='L311'></a>   311   <a href='../D/17570.html' title='Multiple defined in 2 places.'>specpdl_ref</a> specpdl_count = <a href='../D/5888.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
-<a id='L312' name='L312'></a>   312 
-<a id='L313' name='L313'></a>   313   <a href='../S/2247.html#L134' title='Defined at 134 in src/frame.c.'>check_window_system</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L314' name='L314'></a>   314 
-<a id='L315' name='L315'></a>   315   <em class='comment'>/* Decode the dialog items from what was specified.  */</em>
-<a id='L316' name='L316'></a>   316   title = Fcar (contents);
-<a id='L317' name='L317'></a>   317   <a href='../S/2267.html#L1603' title='Defined at 1603 in src/lisp.h.'>CHECK_STRING</a> (title);
-<a id='L318' name='L318'></a>   318   <a href='../S/2188.html#L3608' title='Defined at 3608 in src/eval.c.'>record_unwind_protect_void</a> (<a href='../S/2366.html#L103' title='Defined at 103 in src/menu.c.'>unuse_menu_items</a>);
-<a id='L319' name='L319'></a>   319 
-<a id='L320' name='L320'></a>   320   <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Fcar (Fcdr (contents))))
-<a id='L321' name='L321'></a>   321     <em class='comment'>/* No buttons specified, add an "Ok" button so users can pop down</em>
-<a id='L322' name='L322'></a>   322 <em class='comment'>       the dialog.  Also, the lesstif/motif version crashes if there are</em>
-<a id='L323' name='L323'></a>   323 <em class='comment'>       no buttons.  */</em>
-<a id='L324' name='L324'></a>   324     contents = <a href='../S/2350.html#L2925' title='Defined at 2925 in src/alloc.c.'>list2</a> (title, Fcons (<a href='../D/9420.html' title='Multiple defined in 2 places.'>build_string</a> ("Ok"), Qt));
-<a id='L325' name='L325'></a>   325 
-<a id='L326' name='L326'></a>   326   <a href='../S/2366.html#L497' title='Defined at 497 in src/menu.c.'>list_of_panes</a> (<a href='../S/2350.html#L2919' title='Defined at 2919 in src/alloc.c.'>list1</a> (contents));
-<a id='L327' name='L327'></a>   327 
-<a id='L328' name='L328'></a>   328   <em class='comment'>/* Display them in a dialog box.  */</em>
-<a id='L329' name='L329'></a>   329   <a href='../S/2073.html#L63' title='Defined at 63 in lwlib/lwlib-Xm.c.'>selection</a> = <a href='../S/2331.html#L191' title='Defined at 191 in src/haikumenu.c.'>haiku_dialog_show</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, title, header, &amp;error_name);
-<a id='L330' name='L330'></a>   330 
-<a id='L331' name='L331'></a>   331   <a href='../S/2188.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (specpdl_count, Qnil);
-<a id='L332' name='L332'></a>   332   <a href='../S/2366.html#L112' title='Defined at 112 in src/menu.c.'>discard_menu_items</a> ();
-<a id='L333' name='L333'></a>   333 
-<a id='L334' name='L334'></a>   334   <strong class='reserved'>if</strong> (error_name)
-<a id='L335' name='L335'></a>   335     <a href='../D/11145.html' title='Multiple defined in 7 places.'>error</a> ("%s", error_name);
-<a id='L336' name='L336'></a>   336   <strong class='reserved'>return</strong> <a href='../S/2073.html#L63' title='Defined at 63 in lwlib/lwlib-Xm.c.'>selection</a>;
-<a id='L337' name='L337'></a>   337 <em class='brace'>}</em>
-<a id='L338' name='L338'></a>   338 
-<a id='L339' name='L339'></a>   339 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L340' name='L340'></a>   340 <a href='../S/2331.html#L427' title='Referred from 427 in src/haikumenu.c.'>haiku_menu_show_help</a> (<strong class='reserved'>void</strong> *<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>, <strong class='reserved'>void</strong> *data)
-<a id='L341' name='L341'></a>   341 <em class='brace'>{</em>
-<a id='L342' name='L342'></a>   342   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *id = (<a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *) <a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>;
-<a id='L343' name='L343'></a>   343 
-<a id='L344' name='L344'></a>   344   <strong class='reserved'>if</strong> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>)
-<a id='L345' name='L345'></a>   345     <a href='../D/17421.html' title='Multiple defined in 2 places.'>show_help_echo</a> (id[<a href='../S/2185.html#L369' title='Defined at 369 in src/keyboard.h.'>MENU_ITEMS_ITEM_HELP</a>],
-<a id='L346' name='L346'></a>   346                     Qnil, Qnil, Qnil);
-<a id='L347' name='L347'></a>   347   <strong class='reserved'>else</strong>
-<a id='L348' name='L348'></a>   348     <a href='../D/17421.html' title='Multiple defined in 2 places.'>show_help_echo</a> (Qnil, Qnil, Qnil, Qnil);
-<a id='L349' name='L349'></a>   349 <em class='brace'>}</em>
-<a id='L350' name='L350'></a>   350 
-<a id='L351' name='L351'></a>   351 <strong class='reserved'>static</strong> <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
-<a id='L352' name='L352'></a>   352 <a href='../S/2331.html#L376' title='Referred from 376 in src/haikumenu.c.'>haiku_process_pending_signals_for_menu_1</a> (<strong class='reserved'>void</strong> *ptr)
-<a id='L353' name='L353'></a>   353 <em class='brace'>{</em>
-<a id='L354' name='L354'></a>   354   menu_timer_timespec = <a href='../D/18270.html' title='Multiple defined in 2 places.'>timer_check</a> ();
-<a id='L355' name='L355'></a>   355 
-<a id='L356' name='L356'></a>   356   <strong class='reserved'>return</strong> Qnil;
-<a id='L357' name='L357'></a>   357 <em class='brace'>}</em>
-<a id='L358' name='L358'></a>   358 
-<a id='L359' name='L359'></a>   359 <strong class='reserved'>static</strong> <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
-<a id='L360' name='L360'></a>   360 <a href='../S/2331.html#L377' title='Referred from 377 in src/haikumenu.c.'>haiku_process_pending_signals_for_menu_2</a> (<strong class='reserved'>enum</strong> <a href='../S/2267.html#L3619' title='Defined at 3619 in src/lisp.h.'>nonlocal_exit</a> exit, <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/11145.html' title='Multiple defined in 7 places.'>error</a>)
-<a id='L361' name='L361'></a>   361 <em class='brace'>{</em>
-<a id='L362' name='L362'></a>   362   menu_timer_timespec.tv_sec = 0;
-<a id='L363' name='L363'></a>   363   menu_timer_timespec.tv_nsec = -1;
-<a id='L364' name='L364'></a>   364 
-<a id='L365' name='L365'></a>   365   <strong class='reserved'>return</strong> Qnil;
-<a id='L366' name='L366'></a>   366 <em class='brace'>}</em>
-<a id='L367' name='L367'></a>   367 
-<a id='L368' name='L368'></a>   368 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../D/18278.html' title='Multiple defined in 3 places.'>timespec</a>
-<a id='L369' name='L369'></a>   369 <a href='../S/2331.html#L429' title='Referred from 429 in src/haikumenu.c.'>haiku_process_pending_signals_for_menu</a> (<strong class='reserved'>void</strong>)
-<a id='L370' name='L370'></a>   370 <em class='brace'>{</em>
-<a id='L371' name='L371'></a>   371   <a href='../D/15800.html' title='Multiple defined in 2 places.'>process_pending_signals</a> ();
-<a id='L372' name='L372'></a>   372 
-<a id='L373' name='L373'></a>   373   <em class='comment'>/* The original idea was to let timers throw so that timeouts can</em>
-<a id='L374' name='L374'></a>   374 <em class='comment'>     work correctly, but there's no way to pop down a BPopupMenu</em>
-<a id='L375' name='L375'></a>   375 <em class='comment'>     that's currently popped up.  */</em>
-<a id='L376' name='L376'></a>   376   <a href='../S/2188.html#L1585' title='Defined at 1585 in src/eval.c.'>internal_catch_all</a> (<a href='../S/2331.html#L352' title='Defined at 352 in src/haikumenu.c.'>haiku_process_pending_signals_for_menu_1</a>, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>,
-<a id='L377' name='L377'></a>   377                       <a href='../S/2331.html#L360' title='Defined at 360 in src/haikumenu.c.'>haiku_process_pending_signals_for_menu_2</a>);
-<a id='L378' name='L378'></a>   378 
-<a id='L379' name='L379'></a>   379   <strong class='reserved'>return</strong> menu_timer_timespec;
+<a id='L215' name='L215'></a>   215   <strong class='reserved'>if</strong> (gdiplus_started)
+<a id='L216' name='L216'></a>   216     <strong class='reserved'>return</strong> <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L217' name='L217'></a>   217 <em class='sharp'>#ifdef</em> <a href='../D/6792.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
+<a id='L218' name='L218'></a>   218   <strong class='reserved'>if</strong> (!gdip_initialized)
+<a id='L219' name='L219'></a>   219     gdip_initialized = <a href='../S/2331.html#L86' title='Defined at 86 in src/w32image.c.'>gdiplus_init</a> () ? 1 : -1;
+<a id='L220' name='L220'></a>   220 <em class='sharp'>#else</em>
+<a id='L221' name='L221'></a>   221   gdip_initialized = 1;
+<a id='L222' name='L222'></a>   222 <em class='sharp'>#endif</em>
+<a id='L223' name='L223'></a>   223   <strong class='reserved'>if</strong> (gdip_initialized &gt; 0)
+<a id='L224' name='L224'></a>   224     <em class='brace'>{</em>
+<a id='L225' name='L225'></a>   225       input.GdiplusVersion = 1;
+<a id='L226' name='L226'></a>   226       input.DebugEventCallback = <a href='../D/4538.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L227' name='L227'></a>   227       input.SuppressBackgroundThread = <a href='../D/2029.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L228' name='L228'></a>   228       input.SuppressExternalCodecs = <a href='../D/2029.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L229' name='L229'></a>   229 
+<a id='L230' name='L230'></a>   230       status = <a href='../D/2950.html' title='Multiple defined in 2 places.'>GdiplusStartup</a> (&amp;<a href='../D/18310.html' title='Multiple defined in 3 places.'>token</a>, &amp;input, &amp;output);
+<a id='L231' name='L231'></a>   231       <strong class='reserved'>if</strong> (status == Ok)
+<a id='L232' name='L232'></a>   232         gdiplus_started = <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L233' name='L233'></a>   233       <strong class='reserved'>return</strong> (status == Ok);
+<a id='L234' name='L234'></a>   234     <em class='brace'>}</em>
+<a id='L235' name='L235'></a>   235   <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L236' name='L236'></a>   236 <em class='brace'>}</em>
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238 <em class='comment'>/* This is called from term_ntproc.  */</em>
+<a id='L239' name='L239'></a>   239 <strong class='reserved'>void</strong>
+<a id='L240' name='L240'></a>   240 <a href='../R/17645.html' title='Multiple referred from 2 places.'>w32_gdiplus_shutdown</a> (<strong class='reserved'>void</strong>)
+<a id='L241' name='L241'></a>   241 <em class='brace'>{</em>
+<a id='L242' name='L242'></a>   242   <strong class='reserved'>if</strong> (gdiplus_started)
+<a id='L243' name='L243'></a>   243     <a href='../D/2949.html' title='Multiple defined in 2 places.'>GdiplusShutdown</a> (<a href='../D/18310.html' title='Multiple defined in 3 places.'>token</a>);
+<a id='L244' name='L244'></a>   244   gdiplus_started = <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L245' name='L245'></a>   245 <em class='brace'>}</em>
+<a id='L246' name='L246'></a>   246 
+<a id='L247' name='L247'></a>   247 <a href='../D/9264.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L248' name='L248'></a>   248 <a href='../R/17543.html' title='Multiple referred from 2 places.'>w32_can_use_native_image_api</a> (<a href='../D/3835.html' title='Multiple defined in 11 places.'>Lisp_Object</a> type)
+<a id='L249' name='L249'></a>   249 <em class='brace'>{</em>
+<a id='L250' name='L250'></a>   250   <strong class='reserved'>if</strong> (!w32_use_native_image_api)
+<a id='L251' name='L251'></a>   251     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L252' name='L252'></a>   252   <strong class='reserved'>if</strong> (!(<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (type, Qjpeg)
+<a id='L253' name='L253'></a>   253         || <a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (type, Qpng)
+<a id='L254' name='L254'></a>   254         || <a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (type, Qgif)
+<a id='L255' name='L255'></a>   255         || <a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (type, Qtiff)
+<a id='L256' name='L256'></a>   256         || <a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (type, Qbmp)
+<a id='L257' name='L257'></a>   257         || <a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (type, Qnative_image)))
+<a id='L258' name='L258'></a>   258     <em class='brace'>{</em>
+<a id='L259' name='L259'></a>   259       <em class='comment'>/* GDI+ can also display Exif, ICON, WMF, and EMF images.</em>
+<a id='L260' name='L260'></a>   260 <em class='comment'>         But we don't yet support these in image.c.  */</em>
+<a id='L261' name='L261'></a>   261       <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L262' name='L262'></a>   262     <em class='brace'>}</em>
+<a id='L263' name='L263'></a>   263   <strong class='reserved'>return</strong> <a href='../S/2331.html#L211' title='Defined at 211 in src/w32image.c.'>gdiplus_startup</a> ();
+<a id='L264' name='L264'></a>   264 <em class='brace'>}</em>
+<a id='L265' name='L265'></a>   265 
+<a id='L266' name='L266'></a>   266 <strong class='reserved'>enum</strong> <a href='../S/2331.html#L280' title='Referred from 280 in src/w32image.c.'>PropertyItem_type</a> <em class='brace'>{</em>
+<a id='L267' name='L267'></a>   267   <a href='../S/2331.html#L286' title='Referred from 286 in src/w32image.c.'>PI_BYTE</a> = 1,
+<a id='L268' name='L268'></a>   268   PI_ASCIIZ = 2,
+<a id='L269' name='L269'></a>   269   <a href='../S/2331.html#L291' title='Referred from 291 in src/w32image.c.'>PI_USHORT</a> = 3,
+<a id='L270' name='L270'></a>   270   <a href='../S/2331.html#L295' title='Referred from 295 in src/w32image.c.'>PI_ULONG</a> = 4,
+<a id='L271' name='L271'></a>   271   PI_ULONG_PAIR = 5,
+<a id='L272' name='L272'></a>   272   <a href='../S/2331.html#L287' title='Referred from 287 in src/w32image.c.'>PI_BYTE_ANY</a> = 6,
+<a id='L273' name='L273'></a>   273   <a href='../S/2331.html#L296' title='Referred from 296 in src/w32image.c.'>PI_LONG</a> = 7,
+<a id='L274' name='L274'></a>   274   PI_LONG_PAIR = 10
+<a id='L275' name='L275'></a>   275 <em class='brace'>}</em>;
+<a id='L276' name='L276'></a>   276 
+<a id='L277' name='L277'></a>   277 <strong class='reserved'>static</strong> <strong class='reserved'>double</strong>
+<a id='L278' name='L278'></a>   278 <a href='../R/9344.html' title='Multiple referred from 2 places.'>decode_delay</a> (PropertyItem *propertyItem, <strong class='reserved'>int</strong> <a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a>)
+<a id='L279' name='L279'></a>   279 <em class='brace'>{</em>
+<a id='L280' name='L280'></a>   280   <strong class='reserved'>enum</strong> <a href='../S/2331.html#L266' title='Defined at 266 in src/w32image.c.'>PropertyItem_type</a> type = propertyItem[0].type;
+<a id='L281' name='L281'></a>   281   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> udelay;
+<a id='L282' name='L282'></a>   282   <strong class='reserved'>double</strong> retval;
+<a id='L283' name='L283'></a>   283 
+<a id='L284' name='L284'></a>   284   <strong class='reserved'>switch</strong> (type)
+<a id='L285' name='L285'></a>   285     <em class='brace'>{</em>
+<a id='L286' name='L286'></a>   286     <strong class='reserved'>case</strong> <a href='../S/2331.html#L267' title='Defined at 267 in src/w32image.c.'>PI_BYTE</a>:
+<a id='L287' name='L287'></a>   287     <strong class='reserved'>case</strong> <a href='../S/2331.html#L272' title='Defined at 272 in src/w32image.c.'>PI_BYTE_ANY</a>:
+<a id='L288' name='L288'></a>   288       udelay = ((<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *)propertyItem[0].<a href='../S/2333.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)[<a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a>];
+<a id='L289' name='L289'></a>   289       retval = udelay;
+<a id='L290' name='L290'></a>   290       <strong class='reserved'>break</strong>;
+<a id='L291' name='L291'></a>   291     <strong class='reserved'>case</strong> <a href='../S/2331.html#L269' title='Defined at 269 in src/w32image.c.'>PI_USHORT</a>:
+<a id='L292' name='L292'></a>   292       udelay = ((<strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> *)propertyItem[0].<a href='../S/2333.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)[<a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a>];
+<a id='L293' name='L293'></a>   293       retval = udelay;
+<a id='L294' name='L294'></a>   294       <strong class='reserved'>break</strong>;
+<a id='L295' name='L295'></a>   295     <strong class='reserved'>case</strong> <a href='../S/2331.html#L270' title='Defined at 270 in src/w32image.c.'>PI_ULONG</a>:
+<a id='L296' name='L296'></a>   296     <strong class='reserved'>case</strong> <a href='../S/2331.html#L273' title='Defined at 273 in src/w32image.c.'>PI_LONG</a>:       <em class='comment'>/* delay should always be positive */</em>
+<a id='L297' name='L297'></a>   297       udelay = ((<strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> *)propertyItem[0].<a href='../S/2333.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)[<a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a>];
+<a id='L298' name='L298'></a>   298       retval = udelay;
+<a id='L299' name='L299'></a>   299       <strong class='reserved'>break</strong>;
+<a id='L300' name='L300'></a>   300     <strong class='reserved'>default</strong>:
+<a id='L301' name='L301'></a>   301       <em class='comment'>/* This negative value will cause the caller to disregard the</em>
+<a id='L302' name='L302'></a>   302 <em class='comment'>         delay if we cannot determine it reliably.  */</em>
+<a id='L303' name='L303'></a>   303       <a href='../S/2225.html#L11733' title='Defined at 11733 in src/xdisp.c.'>add_to_log</a> ("Invalid or unknown propertyItem type in w32image.c");
+<a id='L304' name='L304'></a>   304       retval = -1.0;
+<a id='L305' name='L305'></a>   305     <em class='brace'>}</em>
+<a id='L306' name='L306'></a>   306 
+<a id='L307' name='L307'></a>   307   <strong class='reserved'>return</strong> retval;
+<a id='L308' name='L308'></a>   308 <em class='brace'>}</em>
+<a id='L309' name='L309'></a>   309 
+<a id='L310' name='L310'></a>   310 <strong class='reserved'>static</strong> <strong class='reserved'>double</strong>
+<a id='L311' name='L311'></a>   311 <a href='../S/2331.html#L374' title='Referred from 374 in src/w32image.c.'>w32_frame_delay</a> (GpBitmap *pBitmap, <strong class='reserved'>int</strong> <a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a>)
+<a id='L312' name='L312'></a>   312 <em class='brace'>{</em>
+<a id='L313' name='L313'></a>   313   UINT <a href='../D/17484.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L314' name='L314'></a>   314   PropertyItem *propertyItem;
+<a id='L315' name='L315'></a>   315   <strong class='reserved'>double</strong> delay = -1.0;
+<a id='L316' name='L316'></a>   316 
+<a id='L317' name='L317'></a>   317   <em class='comment'>/* Assume that the image has a property item of type PropertyItemEquipMake.</em>
+<a id='L318' name='L318'></a>   318 <em class='comment'>     Get the size of that property item.  This can fail for multi-frame TIFF</em>
+<a id='L319' name='L319'></a>   319 <em class='comment'>     images.  */</em>
+<a id='L320' name='L320'></a>   320   GpStatus status = <a href='../D/2944.html' title='Multiple defined in 2 places.'>GdipGetPropertyItemSize</a> (pBitmap, PropertyTagFrameDelay,
+<a id='L321' name='L321'></a>   321                                              &amp;<a href='../D/17484.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L322' name='L322'></a>   322 
+<a id='L323' name='L323'></a>   323   <strong class='reserved'>if</strong> (status == Ok)
+<a id='L324' name='L324'></a>   324     <em class='brace'>{</em>
+<a id='L325' name='L325'></a>   325       <em class='comment'>/* Allocate a buffer to receive the property item.  */</em>
+<a id='L326' name='L326'></a>   326       propertyItem = <a href='../D/14202.html' title='Multiple defined in 19 places.'>malloc</a> (<a href='../D/17484.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L327' name='L327'></a>   327       <strong class='reserved'>if</strong> (propertyItem != <a href='../D/4538.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L328' name='L328'></a>   328         <em class='brace'>{</em>
+<a id='L329' name='L329'></a>   329           <em class='comment'>/* Get the property item.  */</em>
+<a id='L330' name='L330'></a>   330           <a href='../D/2943.html' title='Multiple defined in 2 places.'>GdipGetPropertyItem</a> (pBitmap, PropertyTagFrameDelay, <a href='../D/17484.html' title='Multiple defined in 5 places.'>size</a>,
+<a id='L331' name='L331'></a>   331                                propertyItem);
+<a id='L332' name='L332'></a>   332           delay = <a href='../S/2331.html#L278' title='Defined at 278 in src/w32image.c.'>decode_delay</a> (propertyItem, <a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a>);
+<a id='L333' name='L333'></a>   333           <strong class='reserved'>if</strong> (delay &lt;= 0)
+<a id='L334' name='L334'></a>   334             <em class='brace'>{</em>
+<a id='L335' name='L335'></a>   335               <em class='comment'>/* In GIF files, unfortunately, delay is only specified</em>
+<a id='L336' name='L336'></a>   336 <em class='comment'>                 for the first frame.  */</em>
+<a id='L337' name='L337'></a>   337               delay = <a href='../S/2331.html#L278' title='Defined at 278 in src/w32image.c.'>decode_delay</a> (propertyItem, 0);
+<a id='L338' name='L338'></a>   338             <em class='brace'>}</em>
+<a id='L339' name='L339'></a>   339           delay /= 100.0;
+<a id='L340' name='L340'></a>   340           <a href='../D/11714.html' title='Multiple defined in 19 places.'>free</a> (propertyItem);
+<a id='L341' name='L341'></a>   341         <em class='brace'>}</em>
+<a id='L342' name='L342'></a>   342     <em class='brace'>}</em>
+<a id='L343' name='L343'></a>   343   <strong class='reserved'>return</strong> delay;
+<a id='L344' name='L344'></a>   344 <em class='brace'>}</em>
+<a id='L345' name='L345'></a>   345 
+<a id='L346' name='L346'></a>   346 <strong class='reserved'>static</strong> GpStatus
+<a id='L347' name='L347'></a>   347 <a href='../S/2331.html#L442' title='Referred from 442 in src/w32image.c.'>w32_select_active_frame</a> (GpBitmap *pBitmap, <strong class='reserved'>int</strong> <a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a>, <strong class='reserved'>int</strong> *nframes,
+<a id='L348' name='L348'></a>   348                          <strong class='reserved'>double</strong> *delay)
+<a id='L349' name='L349'></a>   349 <em class='brace'>{</em>
+<a id='L350' name='L350'></a>   350   UINT count, frameCount;
+<a id='L351' name='L351'></a>   351   GUID pDimensionIDs[1];
+<a id='L352' name='L352'></a>   352   GpStatus status = Ok;
+<a id='L353' name='L353'></a>   353 
+<a id='L354' name='L354'></a>   354   status = <a href='../D/2946.html' title='Multiple defined in 2 places.'>GdipImageGetFrameDimensionsCount</a> (pBitmap, &amp;count);
+<a id='L355' name='L355'></a>   355   frameCount = *nframes = 0;
+<a id='L356' name='L356'></a>   356   *delay = -1.0;
+<a id='L357' name='L357'></a>   357   <strong class='reserved'>if</strong> (count)
+<a id='L358' name='L358'></a>   358     <em class='brace'>{</em>
+<a id='L359' name='L359'></a>   359       <em class='comment'>/* The following call will fill pDimensionIDs[0] with the</em>
+<a id='L360' name='L360'></a>   360 <em class='comment'>         FrameDimensionTime GUID for GIF images, and</em>
+<a id='L361' name='L361'></a>   361 <em class='comment'>         FrameDimensionPage GUID for other image types.  Multi-page</em>
+<a id='L362' name='L362'></a>   362 <em class='comment'>         GIF and TIFF images expect these values in the</em>
+<a id='L363' name='L363'></a>   363 <em class='comment'>         GdipImageSelectActiveFrame call below.  */</em>
+<a id='L364' name='L364'></a>   364       status = <a href='../D/2947.html' title='Multiple defined in 2 places.'>GdipImageGetFrameDimensionsList</a> (pBitmap, pDimensionIDs, 1);
+<a id='L365' name='L365'></a>   365       status = <a href='../D/2945.html' title='Multiple defined in 2 places.'>GdipImageGetFrameCount</a> (pBitmap, &amp;pDimensionIDs[0], &amp;frameCount);
+<a id='L366' name='L366'></a>   366       <strong class='reserved'>if</strong> (status == Ok &amp;&amp; frameCount &gt; 1)
+<a id='L367' name='L367'></a>   367         <em class='brace'>{</em>
+<a id='L368' name='L368'></a>   368           <strong class='reserved'>if</strong> (<a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a> &lt; 0 || <a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a> &gt;= frameCount)
+<a id='L369' name='L369'></a>   369             status = GenericError;
+<a id='L370' name='L370'></a>   370           <strong class='reserved'>else</strong>
+<a id='L371' name='L371'></a>   371             <em class='brace'>{</em>
+<a id='L372' name='L372'></a>   372               status = <a href='../D/2948.html' title='Multiple defined in 2 places.'>GdipImageSelectActiveFrame</a> (pBitmap, &amp;pDimensionIDs[0],
+<a id='L373' name='L373'></a>   373                                                    <a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a>);
+<a id='L374' name='L374'></a>   374               *delay = <a href='../S/2331.html#L311' title='Defined at 311 in src/w32image.c.'>w32_frame_delay</a> (pBitmap, <a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a>);
+<a id='L375' name='L375'></a>   375               *nframes = frameCount;
+<a id='L376' name='L376'></a>   376             <em class='brace'>}</em>
+<a id='L377' name='L377'></a>   377         <em class='brace'>}</em>
+<a id='L378' name='L378'></a>   378     <em class='brace'>}</em>
+<a id='L379' name='L379'></a>   379   <strong class='reserved'>return</strong> status;
 <a id='L380' name='L380'></a>   380 <em class='brace'>}</em>
 <a id='L381' name='L381'></a>   381 
-<a id='L382' name='L382'></a>   382 <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
-<a id='L383' name='L383'></a>   383 <a href='../R/11687.html' title='Multiple referred from 2 places.'>haiku_menu_show</a> (<strong class='reserved'>struct</strong> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> <a href='../S/4099.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> menuflags,
-<a id='L384' name='L384'></a>   384                  <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> title, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> **error_name)
-<a id='L385' name='L385'></a>   385 <em class='brace'>{</em>
-<a id='L386' name='L386'></a>   386   <strong class='reserved'>int</strong> i, submenu_depth, j;
-<a id='L387' name='L387'></a>   387   <strong class='reserved'>void</strong> *view, *menu;
-<a id='L388' name='L388'></a>   388   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *subprefix_stack;
-<a id='L389' name='L389'></a>   389   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> prefix, <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>;
-<a id='L390' name='L390'></a>   390 
-<a id='L391' name='L391'></a>   391   <a href='../D/6613.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
-<a id='L392' name='L392'></a>   392 
-<a id='L393' name='L393'></a>   393   view = <a href='../S/2166.html#L286' title='Defined at 286 in src/haikuterm.h.'>FRAME_HAIKU_VIEW</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L394' name='L394'></a>   394   i = 0;
-<a id='L395' name='L395'></a>   395   submenu_depth = 0;
-<a id='L396' name='L396'></a>   396   subprefix_stack
-<a id='L397' name='L397'></a>   397     = <a href='../D/5389.html' title='Multiple defined in 2 places.'>SAFE_ALLOCA</a> (menu_items_used * <strong class='reserved'>sizeof</strong> (<a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a>));
-<a id='L398' name='L398'></a>   398 
-<a id='L399' name='L399'></a>   399   <a href='../D/10871.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../D/2313.html' title='Multiple defined in 2 places.'>FRAME_HAIKU_P</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>));
-<a id='L400' name='L400'></a>   400 
-<a id='L401' name='L401'></a>   401   *error_name = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L402' name='L402'></a>   402 
-<a id='L403' name='L403'></a>   403   <strong class='reserved'>if</strong> (menu_items_used &lt;= <a href='../S/2185.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>)
-<a id='L404' name='L404'></a>   404     <em class='brace'>{</em>
-<a id='L405' name='L405'></a>   405       *error_name = "Empty menu";
-<a id='L406' name='L406'></a>   406 
-<a id='L407' name='L407'></a>   407       <a href='../D/5394.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
-<a id='L408' name='L408'></a>   408       <strong class='reserved'>return</strong> Qnil;
-<a id='L409' name='L409'></a>   409     <em class='brace'>}</em>
-<a id='L410' name='L410'></a>   410 
-<a id='L411' name='L411'></a>   411   <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L412' name='L412'></a>   412   <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (title) &amp;&amp; <a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (title))
-<a id='L413' name='L413'></a>   413     title = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (title);
-<a id='L414' name='L414'></a>   414 
-<a id='L415' name='L415'></a>   415   menu = <a href='../S/2226.html#L4013' title='Defined at 4013 in src/haiku_support.cc.'>BPopUpMenu_new</a> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (title) ? <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (title) : <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
-<a id='L416' name='L416'></a>   416   <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (title))
+<a id='L382' name='L382'></a>   382 <strong class='reserved'>static</strong> ARGB
+<a id='L383' name='L383'></a>   383 <a href='../S/2331.html#L454' title='Referred from 454 in src/w32image.c.'>w32_image_bg_color</a> (<strong class='reserved'>struct</strong> <a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11242.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>struct</strong> <a href='../S/2316.html#L3110' title='Defined at 3110 in src/dispextern.h.'>image</a> *img)
+<a id='L384' name='L384'></a>   384 <em class='brace'>{</em>
+<a id='L385' name='L385'></a>   385   <a href='../D/3835.html' title='Multiple defined in 11 places.'>Lisp_Object</a> specified_bg = <a href='../S/2321.html#L2527' title='Defined at 2527 in src/fns.c.'>plist_get</a> (<a href='../D/7023.html' title='Multiple defined in 2 places.'>XCDR</a> (img-&gt;spec), QCbackground);
+<a id='L386' name='L386'></a>   386   <a href='../D/1989.html' title='Multiple defined in 2 places.'>Emacs_Color</a> color;
+<a id='L387' name='L387'></a>   387 
+<a id='L388' name='L388'></a>   388   <em class='comment'>/* If the user specified a color, try to use it; if not, use the</em>
+<a id='L389' name='L389'></a>   389 <em class='comment'>     current frame background, ignoring any default background</em>
+<a id='L390' name='L390'></a>   390 <em class='comment'>     color set by the image.  */</em>
+<a id='L391' name='L391'></a>   391   <strong class='reserved'>if</strong> (<a href='../S/2268.html#L1604' title='Defined at 1604 in src/lisp.h.'>STRINGP</a> (specified_bg)
+<a id='L392' name='L392'></a>   392       ? <a href='../S/2182.html#L1059' title='Defined at 1059 in src/w32fns.c.'>w32_defined_color</a> (<a href='../D/11242.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/5918.html' title='Multiple defined in 2 places.'>SSDATA</a> (specified_bg), &amp;color, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>)
+<a id='L393' name='L393'></a>   393       : (<a href='../S/2216.html#L1636' title='Defined at 1636 in src/w32term.c.'>w32_query_frame_background_color</a> (<a href='../D/11242.html' title='Multiple defined in 12 places.'>f</a>, &amp;color), <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>))
+<a id='L394' name='L394'></a>   394     <em class='comment'>/* The user specified ':background', use that.  */</em>
+<a id='L395' name='L395'></a>   395     <em class='brace'>{</em>
+<a id='L396' name='L396'></a>   396       DWORD red = (((DWORD) color.red) &amp; 0xff00) &lt;&lt; 8;
+<a id='L397' name='L397'></a>   397       DWORD green = ((DWORD) color.green) &amp; 0xff00;
+<a id='L398' name='L398'></a>   398       DWORD blue = ((DWORD) color.blue) &gt;&gt; 8;
+<a id='L399' name='L399'></a>   399       <strong class='reserved'>return</strong> (ARGB) (red | green | blue);
+<a id='L400' name='L400'></a>   400     <em class='brace'>}</em>
+<a id='L401' name='L401'></a>   401   <strong class='reserved'>return</strong> (ARGB) 0xff000000;
+<a id='L402' name='L402'></a>   402 <em class='brace'>}</em>
+<a id='L403' name='L403'></a>   403 
+<a id='L404' name='L404'></a>   404 <strong class='reserved'>int</strong>
+<a id='L405' name='L405'></a>   405 <a href='../R/17695.html' title='Multiple referred from 2 places.'>w32_load_image</a> (<strong class='reserved'>struct</strong> <a href='../D/11684.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11242.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>struct</strong> <a href='../S/2316.html#L3110' title='Defined at 3110 in src/dispextern.h.'>image</a> *img,
+<a id='L406' name='L406'></a>   406                 <a href='../D/3835.html' title='Multiple defined in 11 places.'>Lisp_Object</a> spec_file, <a href='../D/3835.html' title='Multiple defined in 11 places.'>Lisp_Object</a> spec_data)
+<a id='L407' name='L407'></a>   407 <em class='brace'>{</em>
+<a id='L408' name='L408'></a>   408   GpStatus status = GenericError;
+<a id='L409' name='L409'></a>   409   GpBitmap *pBitmap;
+<a id='L410' name='L410'></a>   410   <a href='../D/3835.html' title='Multiple defined in 11 places.'>Lisp_Object</a> metadata;
+<a id='L411' name='L411'></a>   411 
+<a id='L412' name='L412'></a>   412   <a href='../D/10872.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../S/2205.html#L1252' title='Defined at 1252 in src/image.c.'>valid_image_p</a> (img-&gt;spec));
+<a id='L413' name='L413'></a>   413 
+<a id='L414' name='L414'></a>   414   <em class='comment'>/* This function only gets called if w32_gdiplus_startup was invoked</em>
+<a id='L415' name='L415'></a>   415 <em class='comment'>     and succeeded.  We have a valid token and GDI+ is active.  */</em>
+<a id='L416' name='L416'></a>   416   <strong class='reserved'>if</strong> (<a href='../S/2268.html#L1604' title='Defined at 1604 in src/lisp.h.'>STRINGP</a> (spec_file))
 <a id='L417' name='L417'></a>   417     <em class='brace'>{</em>
-<a id='L418' name='L418'></a>   418       <a href='../S/2226.html#L4024' title='Defined at 4024 in src/haiku_support.cc.'>BMenu_add_title</a> (menu, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (title));
-<a id='L419' name='L419'></a>   419       <a href='../S/2226.html#L4060' title='Defined at 4060 in src/haiku_support.cc.'>BMenu_add_separator</a> (menu);
-<a id='L420' name='L420'></a>   420     <em class='brace'>}</em>
-<a id='L421' name='L421'></a>   421   <a href='../S/2331.html#L37' title='Defined at 37 in src/haikumenu.c.'>digest_menu_items</a> (menu, 0, menu_items_used, 0);
-<a id='L422' name='L422'></a>   422   <a href='../S/2226.html#L3916' title='Defined at 3916 in src/haiku_support.cc.'>BView_convert_to_screen</a> (view, &amp;<a href='../S/4099.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, &amp;y);
-<a id='L423' name='L423'></a>   423   <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L424' name='L424'></a>   424 
-<a id='L425' name='L425'></a>   425   <a href='../S/2286.html#L840' title='Defined at 840 in src/sysdep.c.'>unrequest_sigio</a> ();
-<a id='L426' name='L426'></a>   426   popup_activated_p++;
-<a id='L427' name='L427'></a>   427   menu_item_selection = <a href='../S/2226.html#L4097' title='Defined at 4097 in src/haiku_support.cc.'>BMenu_run</a> (menu, <a href='../S/4099.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y,  <a href='../S/2331.html#L340' title='Defined at 340 in src/haikumenu.c.'>haiku_menu_show_help</a>,
-<a id='L428' name='L428'></a>   428                                    <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a>, <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a>,
-<a id='L429' name='L429'></a>   429                                    <a href='../S/2331.html#L369' title='Defined at 369 in src/haikumenu.c.'>haiku_process_pending_signals_for_menu</a>, <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>);
-<a id='L430' name='L430'></a>   430   popup_activated_p--;
-<a id='L431' name='L431'></a>   431   <a href='../S/2286.html#L816' title='Defined at 816 in src/sysdep.c.'>request_sigio</a> ();
-<a id='L432' name='L432'></a>   432 
-<a id='L433' name='L433'></a>   433   <a href='../D/2292.html' title='Multiple defined in 7 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;grabbed = 0;
-<a id='L434' name='L434'></a>   434 
-<a id='L435' name='L435'></a>   435   <em class='comment'>/* Clear the grab view manually.  There is a race condition here if</em>
-<a id='L436' name='L436'></a>   436 <em class='comment'>     the window thread receives a button press between here and the</em>
-<a id='L437' name='L437'></a>   437 <em class='comment'>     end of BMenu_run.  */</em>
-<a id='L438' name='L438'></a>   438   <a href='../S/2226.html#L5507' title='Defined at 5507 in src/haiku_support.cc.'>be_clear_grab_view</a> ();
-<a id='L439' name='L439'></a>   439 
-<a id='L440' name='L440'></a>   440   <strong class='reserved'>if</strong> (menu_item_selection)
-<a id='L441' name='L441'></a>   441     <em class='brace'>{</em>
-<a id='L442' name='L442'></a>   442       prefix = <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = Qnil;
-<a id='L443' name='L443'></a>   443       i = 0;
-<a id='L444' name='L444'></a>   444       <strong class='reserved'>while</strong> (i &lt; menu_items_used)
-<a id='L445' name='L445'></a>   445         <em class='brace'>{</em>
-<a id='L446' name='L446'></a>   446           <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i)))
-<a id='L447' name='L447'></a>   447             <em class='brace'>{</em>
-<a id='L448' name='L448'></a>   448               subprefix_stack[submenu_depth++] = prefix;
-<a id='L449' name='L449'></a>   449               prefix = <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>;
-<a id='L450' name='L450'></a>   450               i++;
-<a id='L451' name='L451'></a>   451             <em class='brace'>}</em>
-<a id='L452' name='L452'></a>   452           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qlambda))
-<a id='L453' name='L453'></a>   453             <em class='brace'>{</em>
-<a id='L454' name='L454'></a>   454               prefix = subprefix_stack[--submenu_depth];
-<a id='L455' name='L455'></a>   455               i++;
-<a id='L456' name='L456'></a>   456             <em class='brace'>}</em>
-<a id='L457' name='L457'></a>   457           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qt))
-<a id='L458' name='L458'></a>   458             <em class='brace'>{</em>
-<a id='L459' name='L459'></a>   459               prefix
-<a id='L460' name='L460'></a>   460                 = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L357' title='Defined at 357 in src/keyboard.h.'>MENU_ITEMS_PANE_PREFIX</a>);
-<a id='L461' name='L461'></a>   461               i += <a href='../S/2185.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>;
-<a id='L462' name='L462'></a>   462             <em class='brace'>}</em>
-<a id='L463' name='L463'></a>   463           <em class='comment'>/* Ignore a nil in the item list.</em>
-<a id='L464' name='L464'></a>   464 <em class='comment'>             It's meaningful only for dialog boxes.  */</em>
-<a id='L465' name='L465'></a>   465           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qquote))
-<a id='L466' name='L466'></a>   466             i += 1;
-<a id='L467' name='L467'></a>   467           <strong class='reserved'>else</strong>
-<a id='L468' name='L468'></a>   468             <em class='brace'>{</em>
-<a id='L469' name='L469'></a>   469               <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>
-<a id='L470' name='L470'></a>   470                 = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/2185.html#L364' title='Defined at 364 in src/keyboard.h.'>MENU_ITEMS_ITEM_VALUE</a>);
-<a id='L471' name='L471'></a>   471               <strong class='reserved'>if</strong> (menu_item_selection == <a href='../D/8960.html' title='Multiple defined in 2 places.'>aref_addr</a> (menu_items, i))
-<a id='L472' name='L472'></a>   472                 <em class='brace'>{</em>
-<a id='L473' name='L473'></a>   473                   <strong class='reserved'>if</strong> (menuflags &amp; <a href='../S/2285.html#L27' title='Defined at 27 in src/menu.h.'>MENU_KEYMAPS</a>)
-<a id='L474' name='L474'></a>   474                     <em class='brace'>{</em>
-<a id='L475' name='L475'></a>   475                       <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = <a href='../S/2350.html#L2919' title='Defined at 2919 in src/alloc.c.'>list1</a> (<a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>);
-<a id='L476' name='L476'></a>   476                       <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (prefix))
-<a id='L477' name='L477'></a>   477                         <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = Fcons (prefix, <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>);
-<a id='L478' name='L478'></a>   478                       <strong class='reserved'>for</strong> (j = submenu_depth - 1; j &gt;= 0; j--)
-<a id='L479' name='L479'></a>   479                         <strong class='reserved'>if</strong> (!<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (subprefix_stack[j]))
-<a id='L480' name='L480'></a>   480                           <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = Fcons (subprefix_stack[j], <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>);
-<a id='L481' name='L481'></a>   481                     <em class='brace'>}</em>
-<a id='L482' name='L482'></a>   482                   <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L483' name='L483'></a>   483                   <a href='../S/2226.html#L4216' title='Defined at 4216 in src/haiku_support.cc.'>BPopUpMenu_delete</a> (menu);
-<a id='L484' name='L484'></a>   484                   <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L485' name='L485'></a>   485 
-<a id='L486' name='L486'></a>   486                   <a href='../D/5394.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
-<a id='L487' name='L487'></a>   487                   <strong class='reserved'>return</strong> <a href='../S/17.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>;
-<a id='L488' name='L488'></a>   488                 <em class='brace'>}</em>
-<a id='L489' name='L489'></a>   489               i += <a href='../S/2185.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a>;
-<a id='L490' name='L490'></a>   490             <em class='brace'>}</em>
-<a id='L491' name='L491'></a>   491         <em class='brace'>}</em>
-<a id='L492' name='L492'></a>   492     <em class='brace'>}</em>
-<a id='L493' name='L493'></a>   493   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!(menuflags &amp; <a href='../S/2285.html#L28' title='Defined at 28 in src/menu.h.'>MENU_FOR_CLICK</a>))
-<a id='L494' name='L494'></a>   494     <em class='brace'>{</em>
-<a id='L495' name='L495'></a>   495       <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L496' name='L496'></a>   496       <a href='../S/2226.html#L4216' title='Defined at 4216 in src/haiku_support.cc.'>BPopUpMenu_delete</a> (menu);
-<a id='L497' name='L497'></a>   497       <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L498' name='L498'></a>   498       <a href='../D/15933.html' title='Multiple defined in 2 places.'>quit</a> ();
-<a id='L499' name='L499'></a>   499     <em class='brace'>}</em>
-<a id='L500' name='L500'></a>   500   <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L501' name='L501'></a>   501   <a href='../S/2226.html#L4216' title='Defined at 4216 in src/haiku_support.cc.'>BPopUpMenu_delete</a> (menu);
-<a id='L502' name='L502'></a>   502   <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L503' name='L503'></a>   503 
-<a id='L504' name='L504'></a>   504   <a href='../D/5394.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
-<a id='L505' name='L505'></a>   505   <strong class='reserved'>return</strong> Qnil;
-<a id='L506' name='L506'></a>   506 <em class='brace'>}</em>
-<a id='L507' name='L507'></a>   507 
-<a id='L508' name='L508'></a>   508 <strong class='reserved'>void</strong>
-<a id='L509' name='L509'></a>   509 <a href='../R/10723.html' title='Multiple referred from 8 places.'>free_frame_menubar</a> (<strong class='reserved'>struct</strong> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)
-<a id='L510' name='L510'></a>   510 <em class='brace'>{</em>
-<a id='L511' name='L511'></a>   511   <strong class='reserved'>void</strong> *mbar;
-<a id='L512' name='L512'></a>   512 
-<a id='L513' name='L513'></a>   513   <a href='../S/2183.html#L1071' title='Defined at 1071 in src/frame.h.'>FRAME_MENU_BAR_LINES</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>) = 0;
-<a id='L514' name='L514'></a>   514   <a href='../S/2183.html#L1072' title='Defined at 1072 in src/frame.h.'>FRAME_MENU_BAR_HEIGHT</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>) = 0;
-<a id='L515' name='L515'></a>   515   <a href='../D/2294.html' title='Multiple defined in 2 places.'>FRAME_EXTERNAL_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>) = 0;
-<a id='L516' name='L516'></a>   516 
-<a id='L517' name='L517'></a>   517   <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L518' name='L518'></a>   518   mbar = <a href='../S/2166.html#L288' title='Defined at 288 in src/haikuterm.h.'>FRAME_HAIKU_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L519' name='L519'></a>   519   <a href='../S/2166.html#L288' title='Defined at 288 in src/haikuterm.h.'>FRAME_HAIKU_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>) = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L520' name='L520'></a>   520 
-<a id='L521' name='L521'></a>   521   <strong class='reserved'>if</strong> (mbar)
-<a id='L522' name='L522'></a>   522     <a href='../S/2226.html#L4238' title='Defined at 4238 in src/haiku_support.cc.'>BMenuBar_delete</a> (mbar);
-<a id='L523' name='L523'></a>   523 
-<a id='L524' name='L524'></a>   524   <strong class='reserved'>if</strong> (<a href='../D/2368.html' title='Multiple defined in 7 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;menu_bar_open_p)
-<a id='L525' name='L525'></a>   525     --popup_activated_p;
-<a id='L526' name='L526'></a>   526   <a href='../D/2368.html' title='Multiple defined in 7 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;menu_bar_open_p = 0;
-<a id='L527' name='L527'></a>   527   <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L528' name='L528'></a>   528 
-<a id='L529' name='L529'></a>   529   <a href='../S/2247.html#L643' title='Defined at 643 in src/frame.c.'>adjust_frame_size</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, -1, -1, 2, <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, Qmenu_bar_lines);
-<a id='L530' name='L530'></a>   530 <em class='brace'>}</em>
-<a id='L531' name='L531'></a>   531 
-<a id='L532' name='L532'></a>   532 <strong class='reserved'>void</strong>
-<a id='L533' name='L533'></a>   533 <a href='../R/12236.html' title='Multiple referred from 8 places.'>initialize_frame_menubar</a> (<strong class='reserved'>struct</strong> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)
-<a id='L534' name='L534'></a>   534 <em class='brace'>{</em>
-<a id='L535' name='L535'></a>   535   <em class='comment'>/* This function is called before the first chance to redisplay</em>
-<a id='L536' name='L536'></a>   536 <em class='comment'>     the frame.  It has to be, so the frame will have the right size.  */</em>
-<a id='L537' name='L537'></a>   537   <a href='../S/2183.html#L775' title='Defined at 775 in src/frame.h.'>fset_menu_bar_items</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/14411.html' title='Multiple defined in 2 places.'>menu_bar_items</a> (<a href='../S/2183.html#L1368' title='Defined at 1368 in src/frame.h.'>FRAME_MENU_BAR_ITEMS</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)));
-<a id='L538' name='L538'></a>   538   <a href='../D/16825.html' title='Multiple defined in 4 places.'>set_frame_menubar</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
-<a id='L539' name='L539'></a>   539 <em class='brace'>}</em>
-<a id='L540' name='L540'></a>   540 
-<a id='L541' name='L541'></a>   541 <strong class='reserved'>void</strong>
-<a id='L542' name='L542'></a>   542 <a href='../R/15557.html' title='Multiple referred from 18 places.'>set_frame_menubar</a> (<strong class='reserved'>struct</strong> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/9263.html' title='Multiple defined in 11 places.'>bool</a> deep_p)
-<a id='L543' name='L543'></a>   543 <em class='brace'>{</em>
-<a id='L544' name='L544'></a>   544   <strong class='reserved'>void</strong> *mbar = <a href='../S/2166.html#L288' title='Defined at 288 in src/haikuterm.h.'>FRAME_HAIKU_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L545' name='L545'></a>   545   <strong class='reserved'>void</strong> *view = <a href='../S/2166.html#L286' title='Defined at 286 in src/haikuterm.h.'>FRAME_HAIKU_VIEW</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L546' name='L546'></a>   546   <a href='../D/9263.html' title='Multiple defined in 11 places.'>bool</a> first_time_p = <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
-<a id='L547' name='L547'></a>   547 
-<a id='L548' name='L548'></a>   548   <strong class='reserved'>if</strong> (!mbar)
-<a id='L549' name='L549'></a>   549     <em class='brace'>{</em>
-<a id='L550' name='L550'></a>   550       <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L551' name='L551'></a>   551       mbar = <a href='../S/2166.html#L288' title='Defined at 288 in src/haikuterm.h.'>FRAME_HAIKU_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>) = <a href='../S/2226.html#L4223' title='Defined at 4223 in src/haiku_support.cc.'>BMenuBar_new</a> (view);
-<a id='L552' name='L552'></a>   552       first_time_p = 1;
-<a id='L553' name='L553'></a>   553 
-<a id='L554' name='L554'></a>   554       <em class='comment'>/* Now wait for the MENU_BAR_RESIZE event informing us of the</em>
-<a id='L555' name='L555'></a>   555 <em class='comment'>         initial dimensions of that menu bar.  */</em>
-<a id='L556' name='L556'></a>   556       <strong class='reserved'>if</strong> (<a href='../S/2183.html#L1152' title='Defined at 1152 in src/frame.h.'>FRAME_VISIBLE_P</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>))
-<a id='L557' name='L557'></a>   557         <a href='../S/2279.html#L3110' title='Defined at 3110 in src/haikuterm.c.'>haiku_wait_for_event</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/2229.html#L105' title='Defined at 105 in src/haiku_support.h.'>MENU_BAR_RESIZE</a>);
-<a id='L558' name='L558'></a>   558 
-<a id='L559' name='L559'></a>   559       <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L560' name='L560'></a>   560     <em class='brace'>}</em>
-<a id='L561' name='L561'></a>   561 
-<a id='L562' name='L562'></a>   562   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> items;
-<a id='L563' name='L563'></a>   563   <strong class='reserved'>struct</strong> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *prev = <a href='../S/2352.html#L133' title='Defined at 133 in src/thread.h.'>current_buffer</a>;
-<a id='L564' name='L564'></a>   564   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>;
-<a id='L565' name='L565'></a>   565   <a href='../D/17570.html' title='Multiple defined in 2 places.'>specpdl_ref</a> specpdl_count = <a href='../D/5888.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
-<a id='L566' name='L566'></a>   566   <strong class='reserved'>int</strong> previous_menu_items_used = <a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>-&gt;menu_bar_items_used;
-<a id='L567' name='L567'></a>   567   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *previous_items
-<a id='L568' name='L568'></a>   568     = <a href='../D/8439.html' title='Multiple defined in 8 places.'>alloca</a> (previous_menu_items_used * <strong class='reserved'>sizeof</strong> *previous_items);
-<a id='L569' name='L569'></a>   569   <strong class='reserved'>int</strong> count;
-<a id='L570' name='L570'></a>   570   ptrdiff_t subitems, i;
-<a id='L571' name='L571'></a>   571   <strong class='reserved'>int</strong> *submenu_start, *submenu_end, *submenu_n_panes;
-<a id='L572' name='L572'></a>   572   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *submenu_names;
-<a id='L573' name='L573'></a>   573 
-<a id='L574' name='L574'></a>   574   <a href='../S/2183.html#L911' title='Defined at 911 in src/frame.h.'>XSETFRAME</a> (Vmenu_updating_frame, <a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L575' name='L575'></a>   575 
-<a id='L576' name='L576'></a>   576   <strong class='reserved'>if</strong> (!deep_p)
-<a id='L577' name='L577'></a>   577     <em class='brace'>{</em>
-<a id='L578' name='L578'></a>   578       items = <a href='../S/2183.html#L1368' title='Defined at 1368 in src/frame.h.'>FRAME_MENU_BAR_ITEMS</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L579' name='L579'></a>   579       <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> string;
-<a id='L580' name='L580'></a>   580 
-<a id='L581' name='L581'></a>   581       <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L582' name='L582'></a>   582       <strong class='reserved'>int</strong> count = <a href='../S/2226.html#L4273' title='Defined at 4273 in src/haiku_support.cc.'>BMenu_count_items</a> (mbar);
-<a id='L583' name='L583'></a>   583 
-<a id='L584' name='L584'></a>   584       <strong class='reserved'>int</strong> i;
-<a id='L585' name='L585'></a>   585       <strong class='reserved'>for</strong> (i = 0; i &lt; <a href='../D/223.html' title='Multiple defined in 2 places.'>ASIZE</a> (items); i += 4)
-<a id='L586' name='L586'></a>   586         <em class='brace'>{</em>
-<a id='L587' name='L587'></a>   587           string = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (items, i + 1);
-<a id='L588' name='L588'></a>   588 
-<a id='L589' name='L589'></a>   589           <strong class='reserved'>if</strong> (!<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (string))
-<a id='L590' name='L590'></a>   590             <strong class='reserved'>break</strong>;
-<a id='L591' name='L591'></a>   591 
-<a id='L592' name='L592'></a>   592           <strong class='reserved'>if</strong> (<a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (string))
-<a id='L593' name='L593'></a>   593             string = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (string);
-<a id='L594' name='L594'></a>   594 
-<a id='L595' name='L595'></a>   595           <strong class='reserved'>if</strong> (i / 4 &lt; count)
-<a id='L596' name='L596'></a>   596             <em class='brace'>{</em>
-<a id='L597' name='L597'></a>   597               <strong class='reserved'>void</strong> *<a href='../S/2315.html#L2346' title='Defined at 2346 in src/dispextern.h.'>it</a> = <a href='../S/2226.html#L4280' title='Defined at 4280 in src/haiku_support.cc.'>BMenu_item_at</a> (mbar, i / 4);
-<a id='L598' name='L598'></a>   598               <a href='../S/2226.html#L4287' title='Defined at 4287 in src/haiku_support.cc.'>BMenu_item_set_label</a> (<a href='../S/2315.html#L2346' title='Defined at 2346 in src/dispextern.h.'>it</a>, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (string));
-<a id='L599' name='L599'></a>   599             <em class='brace'>}</em>
-<a id='L600' name='L600'></a>   600           <strong class='reserved'>else</strong>
-<a id='L601' name='L601'></a>   601             <a href='../S/2226.html#L4082' title='Defined at 4082 in src/haiku_support.cc.'>BMenu_new_menu_bar_submenu</a> (mbar, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (string));
-<a id='L602' name='L602'></a>   602         <em class='brace'>}</em>
-<a id='L603' name='L603'></a>   603 
-<a id='L604' name='L604'></a>   604       <strong class='reserved'>if</strong> (i / 4 &lt; count)
-<a id='L605' name='L605'></a>   605         <a href='../S/2226.html#L4265' title='Defined at 4265 in src/haiku_support.cc.'>BMenu_delete_from</a> (mbar, i / 4, count - i / 4 + 1);
-<a id='L606' name='L606'></a>   606       <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L607' name='L607'></a>   607 
-<a id='L608' name='L608'></a>   608       <a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>-&gt;menu_bar_items_used = 0;
-<a id='L609' name='L609'></a>   609     <em class='brace'>}</em>
-<a id='L610' name='L610'></a>   610   <strong class='reserved'>else</strong>
-<a id='L611' name='L611'></a>   611     <em class='brace'>{</em>
-<a id='L612' name='L612'></a>   612       <em class='comment'>/* If we are making a new widget, its contents are empty,</em>
-<a id='L613' name='L613'></a>   613 <em class='comment'>         do always reinitialize them.  */</em>
-<a id='L614' name='L614'></a>   614       <strong class='reserved'>if</strong> (first_time_p)
-<a id='L615' name='L615'></a>   615         previous_menu_items_used = 0;
-<a id='L616' name='L616'></a>   616 
-<a id='L617' name='L617'></a>   617       <a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> = <a href='../D/7409.html' title='Multiple defined in 2 places.'>XWINDOW</a> (<a href='../S/2183.html#L1206' title='Defined at 1206 in src/frame.h.'>FRAME_SELECTED_WINDOW</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>))-&gt;contents;
-<a id='L618' name='L618'></a>   618       <a href='../S/2188.html#L3480' title='Defined at 3480 in src/eval.c.'>specbind</a> (Qinhibit_quit, Qt);
-<a id='L619' name='L619'></a>   619       <em class='comment'>/* Don't let the debugger step into this code</em>
-<a id='L620' name='L620'></a>   620 <em class='comment'>         because it is not reentrant.  */</em>
-<a id='L621' name='L621'></a>   621       <a href='../S/2188.html#L3480' title='Defined at 3480 in src/eval.c.'>specbind</a> (Qdebug_on_next_call, Qnil);
-<a id='L622' name='L622'></a>   622 
-<a id='L623' name='L623'></a>   623       <a href='../S/2345.html#L3159' title='Defined at 3159 in src/search.c.'>record_unwind_save_match_data</a> ();
-<a id='L624' name='L624'></a>   624       <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (Voverriding_local_map_menu_flag))
-<a id='L625' name='L625'></a>   625         <em class='brace'>{</em>
-<a id='L626' name='L626'></a>   626           <a href='../S/2188.html#L3480' title='Defined at 3480 in src/eval.c.'>specbind</a> (Qoverriding_terminal_local_map, Qnil);
-<a id='L627' name='L627'></a>   627           <a href='../S/2188.html#L3480' title='Defined at 3480 in src/eval.c.'>specbind</a> (Qoverriding_local_map, Qnil);
-<a id='L628' name='L628'></a>   628         <em class='brace'>}</em>
-<a id='L629' name='L629'></a>   629 
-<a id='L630' name='L630'></a>   630       <a href='../S/2151.html#L2246' title='Defined at 2246 in src/buffer.c.'>set_buffer_internal_1</a> (<a href='../D/7019.html' title='Multiple defined in 2 places.'>XBUFFER</a> (<a href='../S/2130.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a>));
-<a id='L631' name='L631'></a>   631 
-<a id='L632' name='L632'></a>   632       <em class='comment'>/* Run the Lucid hook.  */</em>
-<a id='L633' name='L633'></a>   633       <a href='../D/16563.html' title='Multiple defined in 2 places.'>safe_run_hooks</a> (Qactivate_menubar_hook);
-<a id='L634' name='L634'></a>   634 
-<a id='L635' name='L635'></a>   635       <em class='comment'>/* If it has changed current-menubar from previous value,</em>
-<a id='L636' name='L636'></a>   636 <em class='comment'>         really recompute the menubar from the value.  */</em>
-<a id='L637' name='L637'></a>   637       <a href='../D/16563.html' title='Multiple defined in 2 places.'>safe_run_hooks</a> (Qmenu_bar_update_hook);
-<a id='L638' name='L638'></a>   638       <a href='../S/2183.html#L775' title='Defined at 775 in src/frame.h.'>fset_menu_bar_items</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/14411.html' title='Multiple defined in 2 places.'>menu_bar_items</a> (<a href='../S/2183.html#L1368' title='Defined at 1368 in src/frame.h.'>FRAME_MENU_BAR_ITEMS</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)));
-<a id='L639' name='L639'></a>   639 
-<a id='L640' name='L640'></a>   640       items = <a href='../S/2183.html#L1368' title='Defined at 1368 in src/frame.h.'>FRAME_MENU_BAR_ITEMS</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L641' name='L641'></a>   641 
-<a id='L642' name='L642'></a>   642       <em class='comment'>/* Save the frame's previous menu bar contents data.  */</em>
-<a id='L643' name='L643'></a>   643       <strong class='reserved'>if</strong> (previous_menu_items_used)
-<a id='L644' name='L644'></a>   644         memcpy (previous_items, <a href='../S/2267.html#L3743' title='Defined at 3743 in src/lisp.h.'>xvector_contents</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>-&gt;menu_bar_vector),
-<a id='L645' name='L645'></a>   645                 previous_menu_items_used * <a href='../D/19352.html' title='Multiple defined in 2 places.'>word_size</a>);
-<a id='L646' name='L646'></a>   646 
-<a id='L647' name='L647'></a>   647       <em class='comment'>/* Fill in menu_items with the current menu bar contents.</em>
-<a id='L648' name='L648'></a>   648 <em class='comment'>         This can evaluate Lisp code.  */</em>
-<a id='L649' name='L649'></a>   649       <a href='../S/2366.html#L145' title='Defined at 145 in src/menu.c.'>save_menu_items</a> ();
-<a id='L650' name='L650'></a>   650 
-<a id='L651' name='L651'></a>   651       menu_items = <a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>-&gt;menu_bar_vector;
-<a id='L652' name='L652'></a>   652       menu_items_allocated = <a href='../D/6668.html' title='Multiple defined in 2 places.'>VECTORP</a> (menu_items) ? <a href='../D/223.html' title='Multiple defined in 2 places.'>ASIZE</a> (menu_items) : 0;
-<a id='L653' name='L653'></a>   653       subitems = <a href='../D/223.html' title='Multiple defined in 2 places.'>ASIZE</a> (items) / 4;
-<a id='L654' name='L654'></a>   654       submenu_start = <a href='../D/8439.html' title='Multiple defined in 8 places.'>alloca</a> ((subitems + 1) * <strong class='reserved'>sizeof</strong> *submenu_start);
-<a id='L655' name='L655'></a>   655       submenu_end = <a href='../D/8439.html' title='Multiple defined in 8 places.'>alloca</a> (subitems * <strong class='reserved'>sizeof</strong> *submenu_end);
-<a id='L656' name='L656'></a>   656       submenu_n_panes = <a href='../D/8439.html' title='Multiple defined in 8 places.'>alloca</a> (subitems * <strong class='reserved'>sizeof</strong> *submenu_n_panes);
-<a id='L657' name='L657'></a>   657       submenu_names = <a href='../D/8439.html' title='Multiple defined in 8 places.'>alloca</a> (subitems * <strong class='reserved'>sizeof</strong> (<a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a>));
-<a id='L658' name='L658'></a>   658 
-<a id='L659' name='L659'></a>   659       <a href='../S/2366.html#L78' title='Defined at 78 in src/menu.c.'>init_menu_items</a> ();
-<a id='L660' name='L660'></a>   660       <strong class='reserved'>for</strong> (i = 0; i &lt; subitems; i++)
-<a id='L661' name='L661'></a>   661         <em class='brace'>{</em>
-<a id='L662' name='L662'></a>   662           <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> key, string, maps;
-<a id='L663' name='L663'></a>   663 
-<a id='L664' name='L664'></a>   664           key = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (items, 4 * i);
-<a id='L665' name='L665'></a>   665           string = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (items, 4 * i + 1);
-<a id='L666' name='L666'></a>   666           maps = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (items, 4 * i + 2);
-<a id='L667' name='L667'></a>   667           <strong class='reserved'>if</strong> (<a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (string))
-<a id='L668' name='L668'></a>   668             <strong class='reserved'>break</strong>;
-<a id='L669' name='L669'></a>   669 
-<a id='L670' name='L670'></a>   670           <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (string) &amp;&amp; <a href='../D/5976.html' title='Multiple defined in 2 places.'>STRING_MULTIBYTE</a> (string))
-<a id='L671' name='L671'></a>   671             string = <a href='../S/2154.html#L664' title='Defined at 664 in src/coding.h.'>ENCODE_UTF_8</a> (string);
-<a id='L672' name='L672'></a>   672 
-<a id='L673' name='L673'></a>   673           submenu_start[i] = menu_items_used;
-<a id='L674' name='L674'></a>   674 
-<a id='L675' name='L675'></a>   675           menu_items_n_panes = 0;
-<a id='L676' name='L676'></a>   676           <a href='../S/2366.html#L522' title='Defined at 522 in src/menu.c.'>parse_single_submenu</a> (key, string, maps);
-<a id='L677' name='L677'></a>   677           submenu_n_panes[i] = menu_items_n_panes;
-<a id='L678' name='L678'></a>   678 
-<a id='L679' name='L679'></a>   679           submenu_end[i] = menu_items_used;
-<a id='L680' name='L680'></a>   680           submenu_names[i] = string;
-<a id='L681' name='L681'></a>   681         <em class='brace'>}</em>
-<a id='L682' name='L682'></a>   682 
-<a id='L683' name='L683'></a>   683       submenu_start[i] = -1;
-<a id='L684' name='L684'></a>   684       <a href='../S/2366.html#L98' title='Defined at 98 in src/menu.c.'>finish_menu_items</a> ();
-<a id='L685' name='L685'></a>   685 
-<a id='L686' name='L686'></a>   686       <a href='../S/2151.html#L2246' title='Defined at 2246 in src/buffer.c.'>set_buffer_internal_1</a> (prev);
-<a id='L687' name='L687'></a>   687 
-<a id='L688' name='L688'></a>   688       <em class='comment'>/* If there has been no change in the Lisp-level contents</em>
-<a id='L689' name='L689'></a>   689 <em class='comment'>         of the menu bar, skip redisplaying it.  Just exit.  */</em>
-<a id='L690' name='L690'></a>   690 
-<a id='L691' name='L691'></a>   691       <em class='comment'>/* Compare the new menu items with the ones computed last time.  */</em>
-<a id='L692' name='L692'></a>   692       <strong class='reserved'>for</strong> (i = 0; i &lt; previous_menu_items_used; i++)
-<a id='L693' name='L693'></a>   693         <strong class='reserved'>if</strong> (menu_items_used == i
-<a id='L694' name='L694'></a>   694             || (!<a href='../D/1840.html' title='Multiple defined in 3 places.'>EQ</a> (previous_items[i], <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i))))
-<a id='L695' name='L695'></a>   695           <strong class='reserved'>break</strong>;
-<a id='L696' name='L696'></a>   696       <strong class='reserved'>if</strong> (i == menu_items_used &amp;&amp; i == previous_menu_items_used &amp;&amp; i != 0)
-<a id='L697' name='L697'></a>   697         <em class='brace'>{</em>
-<a id='L698' name='L698'></a>   698           <em class='comment'>/* The menu items have not changed.  Don't bother updating</em>
-<a id='L699' name='L699'></a>   699 <em class='comment'>             the menus in any form, since it would be a no-op.  */</em>
-<a id='L700' name='L700'></a>   700           <a href='../S/2366.html#L112' title='Defined at 112 in src/menu.c.'>discard_menu_items</a> ();
-<a id='L701' name='L701'></a>   701           <a href='../S/2188.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (specpdl_count, Qnil);
-<a id='L702' name='L702'></a>   702           <strong class='reserved'>return</strong>;
-<a id='L703' name='L703'></a>   703         <em class='brace'>}</em>
-<a id='L704' name='L704'></a>   704 
-<a id='L705' name='L705'></a>   705       <em class='comment'>/* Convert menu_items into widget_value trees</em>
-<a id='L706' name='L706'></a>   706 <em class='comment'>         to display the menu.  This cannot evaluate Lisp code.  */</em>
-<a id='L707' name='L707'></a>   707 
-<a id='L708' name='L708'></a>   708       <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L709' name='L709'></a>   709       count = <a href='../S/2226.html#L4273' title='Defined at 4273 in src/haiku_support.cc.'>BMenu_count_items</a> (mbar);
-<a id='L710' name='L710'></a>   710       <strong class='reserved'>for</strong> (i = 0; submenu_start[i] &gt;= 0; ++i)
-<a id='L711' name='L711'></a>   711         <em class='brace'>{</em>
-<a id='L712' name='L712'></a>   712           <strong class='reserved'>void</strong> *mn = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L713' name='L713'></a>   713           <strong class='reserved'>if</strong> (i &lt; count)
-<a id='L714' name='L714'></a>   714             mn = <a href='../S/2226.html#L4294' title='Defined at 4294 in src/haiku_support.cc.'>BMenu_item_get_menu</a> (<a href='../S/2226.html#L4280' title='Defined at 4280 in src/haiku_support.cc.'>BMenu_item_at</a> (mbar, i));
-<a id='L715' name='L715'></a>   715           <strong class='reserved'>if</strong> (mn)
-<a id='L716' name='L716'></a>   716             <a href='../S/2226.html#L4257' title='Defined at 4257 in src/haiku_support.cc.'>BMenu_delete_all</a> (mn);
-<a id='L717' name='L717'></a>   717           <strong class='reserved'>else</strong>
-<a id='L718' name='L718'></a>   718             mn = <a href='../S/2226.html#L4082' title='Defined at 4082 in src/haiku_support.cc.'>BMenu_new_menu_bar_submenu</a> (mbar, <a href='../D/5917.html' title='Multiple defined in 2 places.'>SSDATA</a> (submenu_names[i]));
-<a id='L719' name='L719'></a>   719 
-<a id='L720' name='L720'></a>   720           menu_items_n_panes = submenu_n_panes[i];
-<a id='L721' name='L721'></a>   721           <a href='../S/2331.html#L37' title='Defined at 37 in src/haikumenu.c.'>digest_menu_items</a> (mn, submenu_start[i], submenu_end[i], 1);
-<a id='L722' name='L722'></a>   722         <em class='brace'>}</em>
-<a id='L723' name='L723'></a>   723       <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L724' name='L724'></a>   724 
-<a id='L725' name='L725'></a>   725       <em class='comment'>/* The menu items are different, so store them in the frame.  */</em>
-<a id='L726' name='L726'></a>   726       <a href='../S/2183.html#L780' title='Defined at 780 in src/frame.h.'>fset_menu_bar_vector</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, menu_items);
-<a id='L727' name='L727'></a>   727       <a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>-&gt;menu_bar_items_used = menu_items_used;
-<a id='L728' name='L728'></a>   728     <em class='brace'>}</em>
-<a id='L729' name='L729'></a>   729 
-<a id='L730' name='L730'></a>   730   <em class='comment'>/* This undoes save_menu_items.  */</em>
-<a id='L731' name='L731'></a>   731   <a href='../S/2188.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (specpdl_count, Qnil);
-<a id='L732' name='L732'></a>   732 <em class='brace'>}</em>
-<a id='L733' name='L733'></a>   733 
-<a id='L734' name='L734'></a>   734 <strong class='reserved'>void</strong>
-<a id='L735' name='L735'></a>   735 <a href='../R/15282.html' title='Multiple referred from 2 places.'>run_menu_bar_help_event</a> (<strong class='reserved'>struct</strong> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> mb_idx)
-<a id='L736' name='L736'></a>   736 <em class='brace'>{</em>
-<a id='L737' name='L737'></a>   737   <a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a>, vec, <a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>;
-<a id='L738' name='L738'></a>   738 
-<a id='L739' name='L739'></a>   739   <a href='../S/2183.html#L911' title='Defined at 911 in src/frame.h.'>XSETFRAME</a> (<a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a>, <a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>);
-<a id='L740' name='L740'></a>   740 
-<a id='L741' name='L741'></a>   741   <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L742' name='L742'></a>   742   <strong class='reserved'>if</strong> (mb_idx &lt; 0)
-<a id='L743' name='L743'></a>   743     <em class='brace'>{</em>
-<a id='L744' name='L744'></a>   744       <a href='../D/13638.html' title='Multiple defined in 2 places.'>kbd_buffer_store_help_event</a> (<a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a>, Qnil);
-<a id='L745' name='L745'></a>   745       <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L746' name='L746'></a>   746       <strong class='reserved'>return</strong>;
-<a id='L747' name='L747'></a>   747     <em class='brace'>}</em>
-<a id='L748' name='L748'></a>   748 
-<a id='L749' name='L749'></a>   749   vec = <a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>-&gt;menu_bar_vector;
-<a id='L750' name='L750'></a>   750   <strong class='reserved'>if</strong> ((mb_idx + <a href='../S/2185.html#L369' title='Defined at 369 in src/keyboard.h.'>MENU_ITEMS_ITEM_HELP</a>) &gt;= <a href='../D/223.html' title='Multiple defined in 2 places.'>ASIZE</a> (vec))
-<a id='L751' name='L751'></a>   751     <strong class='reserved'>return</strong>;
-<a id='L752' name='L752'></a>   752 
-<a id='L753' name='L753'></a>   753   <a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a> = <a href='../D/174.html' title='Multiple defined in 2 places.'>AREF</a> (vec, mb_idx + <a href='../S/2185.html#L369' title='Defined at 369 in src/keyboard.h.'>MENU_ITEMS_ITEM_HELP</a>);
-<a id='L754' name='L754'></a>   754   <strong class='reserved'>if</strong> (<a href='../S/2267.html#L1597' title='Defined at 1597 in src/lisp.h.'>STRINGP</a> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>) || <a href='../D/4349.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>))
-<a id='L755' name='L755'></a>   755     <a href='../D/13638.html' title='Multiple defined in 2 places.'>kbd_buffer_store_help_event</a> (<a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a>, <a href='../S/2226.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>);
-<a id='L756' name='L756'></a>   756   <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L757' name='L757'></a>   757 <em class='brace'>}</em>
-<a id='L758' name='L758'></a>   758 
-<a id='L759' name='L759'></a>   759 <a href='../R/1363.html' title='Multiple referred from 831 places.'>DEFUN</a> ("menu-or-popup-active-p", Fmenu_or_popup_active_p, Smenu_or_popup_active_p,
-<a id='L760' name='L760'></a>   760        0, 0, 0, doc: <em class='comment'>/* SKIP: real doc in xmenu.c. */</em>)
-<a id='L761' name='L761'></a>   761   (<strong class='reserved'>void</strong>)
-<a id='L762' name='L762'></a>   762 <em class='brace'>{</em>
-<a id='L763' name='L763'></a>   763   <strong class='reserved'>return</strong> popup_activated_p ? Qt : Qnil;
-<a id='L764' name='L764'></a>   764 <em class='brace'>}</em>
-<a id='L765' name='L765'></a>   765 
-<a id='L766' name='L766'></a>   766 <a href='../R/1363.html' title='Multiple referred from 831 places.'>DEFUN</a> ("haiku-menu-bar-open", Fhaiku_menu_bar_open, Shaiku_menu_bar_open, 0, 1, "i",
-<a id='L767' name='L767'></a>   767        doc: <em class='comment'>/* Show and start key navigation of the menu bar in FRAME.</em>
-<a id='L768' name='L768'></a>   768 <em class='comment'>This initially opens the first menu bar item and you can then navigate</em>
-<a id='L769' name='L769'></a>   769 <em class='comment'>with the arrow keys, select a menu entry with the return key, or</em>
-<a id='L770' name='L770'></a>   770 <em class='comment'>cancel with the escape key.  If FRAME is nil or not given, use the</em>
-<a id='L771' name='L771'></a>   771 <em class='comment'>selected frame.  If FRAME has no menu bar, a pop-up is displayed at</em>
-<a id='L772' name='L772'></a>   772 <em class='comment'>the position of the last non-menu event instead.  */</em>)
-<a id='L773' name='L773'></a>   773   (<a href='../D/3834.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a>)
-<a id='L774' name='L774'></a>   774 <em class='brace'>{</em>
-<a id='L775' name='L775'></a>   775   <strong class='reserved'>struct</strong> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/2247.html#L124' title='Defined at 124 in src/frame.c.'>decode_window_system_frame</a> (<a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a>);
-<a id='L776' name='L776'></a>   776   <strong class='reserved'>int</strong> rc;
-<a id='L777' name='L777'></a>   777 
-<a id='L778' name='L778'></a>   778   <strong class='reserved'>if</strong> (<a href='../D/2294.html' title='Multiple defined in 2 places.'>FRAME_EXTERNAL_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>))
-<a id='L779' name='L779'></a>   779     <em class='brace'>{</em>
-<a id='L780' name='L780'></a>   780       <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L781' name='L781'></a>   781       <a href='../D/16825.html' title='Multiple defined in 4 places.'>set_frame_menubar</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, 1);
-<a id='L782' name='L782'></a>   782       rc = <a href='../S/2226.html#L4793' title='Defined at 4793 in src/haiku_support.cc.'>BMenuBar_start_tracking</a> (<a href='../S/2166.html#L288' title='Defined at 288 in src/haikuterm.h.'>FRAME_HAIKU_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>));
-<a id='L783' name='L783'></a>   783       <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L784' name='L784'></a>   784 
-<a id='L785' name='L785'></a>   785       <strong class='reserved'>if</strong> (!rc)
-<a id='L786' name='L786'></a>   786         <strong class='reserved'>return</strong> Qnil;
-<a id='L787' name='L787'></a>   787 
-<a id='L788' name='L788'></a>   788       <a href='../D/2368.html' title='Multiple defined in 7 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;menu_bar_open_p = 1;
-<a id='L789' name='L789'></a>   789       popup_activated_p += 1;
-<a id='L790' name='L790'></a>   790     <em class='brace'>}</em>
-<a id='L791' name='L791'></a>   791   <strong class='reserved'>else</strong>
-<a id='L792' name='L792'></a>   792     <strong class='reserved'>return</strong> <a href='../S/2267.html#L3249' title='Defined at 3249 in src/lisp.h.'>call2</a> (Qpopup_menu, <a href='../S/2267.html#L3235' title='Defined at 3235 in src/lisp.h.'>call0</a> (Qmouse_menu_bar_map),
-<a id='L793' name='L793'></a>   793                   last_nonmenu_event);
-<a id='L794' name='L794'></a>   794 
-<a id='L795' name='L795'></a>   795   <strong class='reserved'>return</strong> Qnil;
-<a id='L796' name='L796'></a>   796 <em class='brace'>}</em>
-<a id='L797' name='L797'></a>   797 
-<a id='L798' name='L798'></a>   798 <strong class='reserved'>void</strong>
-<a id='L799' name='L799'></a>   799 <a href='../R/11565.html' title='Multiple referred from 2 places.'>haiku_activate_menubar</a> (<strong class='reserved'>struct</strong> <a href='../D/11683.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)
-<a id='L800' name='L800'></a>   800 <em class='brace'>{</em>
-<a id='L801' name='L801'></a>   801   <strong class='reserved'>int</strong> rc;
-<a id='L802' name='L802'></a>   802 
-<a id='L803' name='L803'></a>   803   <strong class='reserved'>if</strong> (!<a href='../S/2166.html#L288' title='Defined at 288 in src/haikuterm.h.'>FRAME_HAIKU_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>))
-<a id='L804' name='L804'></a>   804     <strong class='reserved'>return</strong>;
-<a id='L805' name='L805'></a>   805 
-<a id='L806' name='L806'></a>   806   <a href='../D/16825.html' title='Multiple defined in 4 places.'>set_frame_menubar</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
-<a id='L807' name='L807'></a>   807 
-<a id='L808' name='L808'></a>   808   <strong class='reserved'>if</strong> (<a href='../D/2368.html' title='Multiple defined in 7 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;saved_menu_event)
-<a id='L809' name='L809'></a>   809     <em class='brace'>{</em>
-<a id='L810' name='L810'></a>   810       <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L811' name='L811'></a>   811       rc = <a href='../S/2226.html#L5214' title='Defined at 5214 in src/haiku_support.cc.'>be_replay_menu_bar_event</a> (<a href='../S/2166.html#L288' title='Defined at 288 in src/haikuterm.h.'>FRAME_HAIKU_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>),
-<a id='L812' name='L812'></a>   812                                      <a href='../D/2368.html' title='Multiple defined in 7 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;saved_menu_event);
-<a id='L813' name='L813'></a>   813       <a href='../D/19814.html' title='Multiple defined in 3 places.'>xfree</a> (<a href='../D/2368.html' title='Multiple defined in 7 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;saved_menu_event);
-<a id='L814' name='L814'></a>   814       <a href='../D/2368.html' title='Multiple defined in 7 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;saved_menu_event = <a href='../D/4537.html' title='Multiple defined in 11 places.'>NULL</a>;
-<a id='L815' name='L815'></a>   815       <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L816' name='L816'></a>   816 
-<a id='L817' name='L817'></a>   817       <strong class='reserved'>if</strong> (!rc)
-<a id='L818' name='L818'></a>   818         <strong class='reserved'>return</strong>;
-<a id='L819' name='L819'></a>   819 
-<a id='L820' name='L820'></a>   820       <a href='../D/2368.html' title='Multiple defined in 7 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;menu_bar_open_p = 1;
-<a id='L821' name='L821'></a>   821       popup_activated_p += 1;
-<a id='L822' name='L822'></a>   822     <em class='brace'>}</em>
-<a id='L823' name='L823'></a>   823   <strong class='reserved'>else</strong>
-<a id='L824' name='L824'></a>   824     <em class='brace'>{</em>
-<a id='L825' name='L825'></a>   825       <a href='../S/2089.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
-<a id='L826' name='L826'></a>   826       rc = <a href='../S/2226.html#L4793' title='Defined at 4793 in src/haiku_support.cc.'>BMenuBar_start_tracking</a> (<a href='../S/2166.html#L288' title='Defined at 288 in src/haikuterm.h.'>FRAME_HAIKU_MENU_BAR</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>));
-<a id='L827' name='L827'></a>   827       <a href='../D/18612.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
-<a id='L828' name='L828'></a>   828 
-<a id='L829' name='L829'></a>   829       <strong class='reserved'>if</strong> (!rc)
-<a id='L830' name='L830'></a>   830         <strong class='reserved'>return</strong>;
-<a id='L831' name='L831'></a>   831 
-<a id='L832' name='L832'></a>   832       <a href='../D/2368.html' title='Multiple defined in 7 places.'>FRAME_OUTPUT_DATA</a> (<a href='../D/11241.html' title='Multiple defined in 12 places.'>f</a>)-&gt;menu_bar_open_p = 1;
-<a id='L833' name='L833'></a>   833       popup_activated_p += 1;
-<a id='L834' name='L834'></a>   834     <em class='brace'>}</em>
-<a id='L835' name='L835'></a>   835 <em class='brace'>}</em>
-<a id='L836' name='L836'></a>   836 
-<a id='L837' name='L837'></a>   837 <strong class='reserved'>void</strong>
-<a id='L838' name='L838'></a>   838 <a href='../R/16635.html' title='Multiple referred from 2 places.'>syms_of_haikumenu</a> (<strong class='reserved'>void</strong>)
-<a id='L839' name='L839'></a>   839 <em class='brace'>{</em>
-<a id='L840' name='L840'></a>   840   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qdebug_on_next_call, "debug-on-next-call");
-<a id='L841' name='L841'></a>   841   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qpopup_menu, "popup-menu");
-<a id='L842' name='L842'></a>   842   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qmouse_menu_bar_map, "mouse-menu-bar-map");
-<a id='L843' name='L843'></a>   843   <a href='../D/1455.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qtooltip_mode, "tooltip-mode");
-<a id='L844' name='L844'></a>   844 
-<a id='L845' name='L845'></a>   845   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Smenu_or_popup_active_p);
-<a id='L846' name='L846'></a>   846   <a href='../S/2253.html#L5312' title='Defined at 5312 in src/lread.c.'>defsubr</a> (&amp;Shaiku_menu_bar_open);
-<a id='L847' name='L847'></a>   847   <strong class='reserved'>return</strong>;
-<a id='L848' name='L848'></a>   848 <em class='brace'>}</em>
+<a id='L418' name='L418'></a>   418       <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *fn = <a href='../S/2301.html#L3519' title='Defined at 3519 in src/w32.c.'>map_w32_filename</a> (<a href='../D/5918.html' title='Multiple defined in 2 places.'>SSDATA</a> (spec_file), <a href='../D/4538.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L419' name='L419'></a>   419       <a href='../S/2827.html#L111' title='Defined at 111 in lib/stddef.in.h.'>wchar_t</a> filename_w[MAX_PATH];
+<a id='L420' name='L420'></a>   420       <a href='../S/2301.html#L1752' title='Defined at 1752 in src/w32.c.'>filename_to_utf16</a> (fn, filename_w);
+<a id='L421' name='L421'></a>   421       status = <a href='../D/2937.html' title='Multiple defined in 2 places.'>GdipCreateBitmapFromFile</a> (filename_w, &amp;pBitmap);
+<a id='L422' name='L422'></a>   422     <em class='brace'>}</em>
+<a id='L423' name='L423'></a>   423   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../S/2268.html#L1604' title='Defined at 1604 in src/lisp.h.'>STRINGP</a> (spec_data))
+<a id='L424' name='L424'></a>   424     <em class='brace'>{</em>
+<a id='L425' name='L425'></a>   425       IStream *pStream = <a href='../D/5794.html' title='Multiple defined in 2 places.'>SHCreateMemStream</a> ((BYTE *) <a href='../D/5541.html' title='Multiple defined in 2 places.'>SDATA</a> (spec_data),
+<a id='L426' name='L426'></a>   426                                             <a href='../D/5432.html' title='Multiple defined in 2 places.'>SBYTES</a> (spec_data));
+<a id='L427' name='L427'></a>   427       <strong class='reserved'>if</strong> (pStream != <a href='../D/4538.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L428' name='L428'></a>   428         <em class='brace'>{</em>
+<a id='L429' name='L429'></a>   429           status = <a href='../D/2938.html' title='Multiple defined in 2 places.'>GdipCreateBitmapFromStream</a> (pStream, &amp;pBitmap);
+<a id='L430' name='L430'></a>   430           IStream_Release (pStream);
+<a id='L431' name='L431'></a>   431         <em class='brace'>}</em>
+<a id='L432' name='L432'></a>   432     <em class='brace'>}</em>
+<a id='L433' name='L433'></a>   433 
+<a id='L434' name='L434'></a>   434   metadata = Qnil;
+<a id='L435' name='L435'></a>   435   <strong class='reserved'>if</strong> (status == Ok)
+<a id='L436' name='L436'></a>   436     <em class='brace'>{</em>
+<a id='L437' name='L437'></a>   437       <em class='comment'>/* In multiframe pictures, select the first frame.  */</em>
+<a id='L438' name='L438'></a>   438       <a href='../D/3835.html' title='Multiple defined in 11 places.'>Lisp_Object</a> lisp_index = <a href='../S/2321.html#L2527' title='Defined at 2527 in src/fns.c.'>plist_get</a> (<a href='../D/7023.html' title='Multiple defined in 2 places.'>XCDR</a> (img-&gt;spec), QCindex);
+<a id='L439' name='L439'></a>   439       <strong class='reserved'>int</strong> <a href='../S/2962.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a> = <a href='../S/2268.html#L3007' title='Defined at 3007 in src/lisp.h.'>FIXNATP</a> (lisp_index) ? <a href='../S/2268.html#L3014' title='Defined at 3014 in src/lisp.h.'>XFIXNAT</a> (lisp_index) : 0;
+<a id='L440' name='L440'></a>   440       <strong class='reserved'>int</strong> nframes;
+<a id='L441' name='L441'></a>   441       <strong class='reserved'>double</strong> delay;
+<a id='L442' name='L442'></a>   442       status = <a href='../S/2331.html#L347' title='Defined at 347 in src/w32image.c.'>w32_select_active_frame</a> (pBitmap, <a href='../S/2962.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a>, &amp;nframes, &amp;delay);
+<a id='L443' name='L443'></a>   443       <strong class='reserved'>if</strong> (status == Ok)
+<a id='L444' name='L444'></a>   444         <em class='brace'>{</em>
+<a id='L445' name='L445'></a>   445           <strong class='reserved'>if</strong> (nframes &gt; 1)
+<a id='L446' name='L446'></a>   446             metadata = Fcons (Qcount, Fcons (<a href='../D/14101.html' title='Multiple defined in 2 places.'>make_fixnum</a> (nframes), metadata));
+<a id='L447' name='L447'></a>   447           <strong class='reserved'>if</strong> (delay &gt;= 0)
+<a id='L448' name='L448'></a>   448             metadata = Fcons (Qdelay, Fcons (<a href='../S/2351.html#L2753' title='Defined at 2753 in src/alloc.c.'>make_float</a> (delay), metadata));
+<a id='L449' name='L449'></a>   449         <em class='brace'>}</em>
+<a id='L450' name='L450'></a>   450     <em class='brace'>}</em>
+<a id='L451' name='L451'></a>   451 
+<a id='L452' name='L452'></a>   452   <strong class='reserved'>if</strong> (status == Ok)
+<a id='L453' name='L453'></a>   453     <em class='brace'>{</em>
+<a id='L454' name='L454'></a>   454       ARGB bg_color = <a href='../S/2331.html#L383' title='Defined at 383 in src/w32image.c.'>w32_image_bg_color</a> (<a href='../D/11242.html' title='Multiple defined in 12 places.'>f</a>, img);
+<a id='L455' name='L455'></a>   455       <a href='../D/1994.html' title='Multiple defined in 7 places.'>Emacs_Pixmap</a> pixmap;
+<a id='L456' name='L456'></a>   456 
+<a id='L457' name='L457'></a>   457       status = <a href='../D/2939.html' title='Multiple defined in 2 places.'>GdipCreateHBITMAPFromBitmap</a> (pBitmap, &amp;pixmap, bg_color);
+<a id='L458' name='L458'></a>   458       <strong class='reserved'>if</strong> (status == Ok)
+<a id='L459' name='L459'></a>   459         <em class='brace'>{</em>
+<a id='L460' name='L460'></a>   460           UINT width, height;
+<a id='L461' name='L461'></a>   461           <a href='../D/2942.html' title='Multiple defined in 2 places.'>GdipGetImageWidth</a> (pBitmap, &amp;width);
+<a id='L462' name='L462'></a>   462           <a href='../D/2941.html' title='Multiple defined in 2 places.'>GdipGetImageHeight</a> (pBitmap, &amp;height);
+<a id='L463' name='L463'></a>   463           img-&gt;width = width;
+<a id='L464' name='L464'></a>   464           img-&gt;height = height;
+<a id='L465' name='L465'></a>   465           img-&gt;pixmap = pixmap;
+<a id='L466' name='L466'></a>   466           img-&gt;lisp_data = metadata;
+<a id='L467' name='L467'></a>   467         <em class='brace'>}</em>
+<a id='L468' name='L468'></a>   468 
+<a id='L469' name='L469'></a>   469       <a href='../D/2940.html' title='Multiple defined in 2 places.'>GdipDisposeImage</a> (pBitmap);
+<a id='L470' name='L470'></a>   470     <em class='brace'>}</em>
+<a id='L471' name='L471'></a>   471 
+<a id='L472' name='L472'></a>   472   <strong class='reserved'>if</strong> (status != Ok)
+<a id='L473' name='L473'></a>   473     <em class='brace'>{</em>
+<a id='L474' name='L474'></a>   474       <a href='../S/2225.html#L11733' title='Defined at 11733 in src/xdisp.c.'>add_to_log</a> ("Unable to load image %s", img-&gt;spec);
+<a id='L475' name='L475'></a>   475       <strong class='reserved'>return</strong> 0;
+<a id='L476' name='L476'></a>   476     <em class='brace'>}</em>
+<a id='L477' name='L477'></a>   477   <strong class='reserved'>return</strong> 1;
+<a id='L478' name='L478'></a>   478 <em class='brace'>}</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L37'>[^]</a><a href='#L838'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L86'>[^]</a><a href='#L405'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>
