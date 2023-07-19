@@ -1,383 +1,549 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>src/decompress.c</title>
+<title>src/xrdb.c</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4797.html'>src</a>/decompress.c</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L46'>[^]</a><a href='#L345'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4798.html'>src</a>/xrdb.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L58'>[^]</a><a href='#L500'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 <hr />
 <h2 class='header'>DEFINITIONS</h2>
 This source file includes following definitions.
 <ol>
-<li><a href='#L46' title='Defined at 46.'>init_zlib_functions</a></li>
-<li><a href='#L78' title='Defined at 78.'>accumulate_and_process_md5</a></li>
-<li><a href='#L94' title='Defined at 94.'>final_process_md5</a></li>
-<li><a href='#L104' title='Defined at 104.'>md5_gz_stream</a></li>
-<li><a href='#L180' title='Defined at 180.'>unwind_decompress</a></li>
-<li><a href='#L204' title='Defined at 204.'>DEFUN</a></li>
-<li><a href='#L345' title='Defined at 345.'>syms_of_decompress</a></li>
+<li><a href='#L58' title='Defined at 58.'>x_get_customization_string</a></li>
+<li><a href='#L102' title='Defined at 102.'>magic_db</a></li>
+<li><a href='#L210' title='Defined at 210.'>search_magic_path</a></li>
+<li><a href='#L244' title='Defined at 244.'>get_system_app</a></li>
+<li><a href='#L256' title='Defined at 256.'>get_fallback</a></li>
+<li><a href='#L263' title='Defined at 263.'>get_user_app</a></li>
+<li><a href='#L303' title='Defined at 303.'>get_user_db</a></li>
+<li><a href='#L340' title='Defined at 340.'>get_environ_db</a></li>
+<li><a href='#L378' title='Defined at 378.'>x_load_resources</a></li>
+<li><a href='#L475' title='Defined at 475.'>x_get_resource</a></li>
+<li><a href='#L500' title='Defined at 500.'>x_get_string_resource</a></li>
 </ol>
 <hr />
 <pre>
-<a id='L1' name='L1'></a>     1 <em class='comment'>/* Interface to zlib.</em>
-<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 2013-2023 Free Software Foundation, Inc.</em>
-<a id='L3' name='L3'></a>     3 <em class='comment'></em>
-<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
-<a id='L5' name='L5'></a>     5 <em class='comment'></em>
-<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
-<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
-<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
-<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
-<a id='L10' name='L10'></a>    10 <em class='comment'></em>
-<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
-<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
-<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
-<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
-<a id='L15' name='L15'></a>    15 <em class='comment'></em>
-<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
-<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
-<a id='L18' name='L18'></a>    18 
-<a id='L19' name='L19'></a>    19 <em class='sharp'>#include</em> &lt;config.h&gt;
-<a id='L20' name='L20'></a>    20 
-<a id='L21' name='L21'></a>    21 <em class='sharp'>#ifdef</em> HAVE_ZLIB
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Deal with the X Resource Manager.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1990, 1993-1994, 2000-2023 Free Software Foundation,</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>Author: Joseph Arceneaux</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>Created: 4/90</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'></em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'></em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>your option) any later version.</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'></em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L19' name='L19'></a>    19 <em class='comment'></em>
+<a id='L20' name='L20'></a>    20 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L21' name='L21'></a>    21 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
 <a id='L22' name='L22'></a>    22 
-<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;zlib.h&gt;
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;config.h&gt;
 <a id='L24' name='L24'></a>    24 
-<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
-<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='2131.html'>buffer.h</a>"
-<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> "<a href='2178.html'>composite.h</a>"
-<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> "<a href='2791.html'>md5.h</a>"
-<a id='L29' name='L29'></a>    29 
-<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;<a href='2792.html'>verify.h</a>&gt;
-<a id='L31' name='L31'></a>    31 
-<a id='L32' name='L32'></a>    32 <em class='sharp'>#ifdef</em> <a href='../D/6795.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
-<a id='L33' name='L33'></a>    33 <em class='sharp'># include</em> &lt;windows.h&gt;
-<a id='L34' name='L34'></a>    34 <em class='sharp'># include</em> "<a href='2372.html'>w32common.h</a>"
-<a id='L35' name='L35'></a>    35 <em class='sharp'># include</em> "<a href='2347.html'>w32.h</a>"
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> &lt;<a href='37.html'>unistd.h</a>&gt;
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;errno.h&gt;
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> &lt;epaths.h&gt;
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> &lt;stdlib.h&gt;
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L30' name='L30'></a>    30 
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
+<a id='L32' name='L32'></a>    32 
+<a id='L33' name='L33'></a>    33 <em class='comment'>/* This may include sys/types.h, and that somehow loses</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>   if this is not done before the other system files.  */</em>
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#include</em> "<a href='2214.html'>xterm.h</a>"
 <a id='L36' name='L36'></a>    36 
-<a id='L37' name='L37'></a>    37 <a href='../S/2372.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (<strong class='reserved'>int</strong>, <a href='../D/13183.html' title='Multiple defined in 2 places.'>inflateInit2_</a>,
-<a id='L38' name='L38'></a>    38             (z_streamp strm, <strong class='reserved'>int</strong> windowBits, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/2975.html#L3632' title='Defined at 3632 in lib-src/ebrowse.c.'>version</a>,
-<a id='L39' name='L39'></a>    39              <strong class='reserved'>int</strong> stream_size));
-<a id='L40' name='L40'></a>    40 <a href='../S/2372.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (<strong class='reserved'>int</strong>, <a href='../D/13181.html' title='Multiple defined in 2 places.'>inflate</a>, (z_streamp strm, <strong class='reserved'>int</strong> flush));
-<a id='L41' name='L41'></a>    41 <a href='../S/2372.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (<strong class='reserved'>int</strong>, <a href='../D/13182.html' title='Multiple defined in 2 places.'>inflateEnd</a>, (z_streamp strm));
-<a id='L42' name='L42'></a>    42 
-<a id='L43' name='L43'></a>    43 <strong class='reserved'>static</strong> <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> zlib_initialized;
-<a id='L44' name='L44'></a>    44 
-<a id='L45' name='L45'></a>    45 <strong class='reserved'>static</strong> <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a>
-<a id='L46' name='L46'></a>    46 <a href='../R/12230.html' title='Multiple referred from 3 places.'>init_zlib_functions</a> (<strong class='reserved'>void</strong>)
-<a id='L47' name='L47'></a>    47 <em class='brace'>{</em>
-<a id='L48' name='L48'></a>    48   HMODULE library = <a href='../S/2301.html#L10240' title='Defined at 10240 in src/w32.c.'>w32_delayed_load</a> (Qzlib);
-<a id='L49' name='L49'></a>    49 
-<a id='L50' name='L50'></a>    50   <strong class='reserved'>if</strong> (!library)
-<a id='L51' name='L51'></a>    51     <strong class='reserved'>return</strong> <a href='../S/52.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#include</em> &lt;X11/Xlib.h&gt;
+<a id='L38' name='L38'></a>    38 <em class='sharp'>#include</em> &lt;X11/Xatom.h&gt;
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> &lt;X11/X.h&gt;
+<a id='L40' name='L40'></a>    40 <em class='sharp'>#include</em> &lt;X11/Xutil.h&gt;
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#include</em> &lt;X11/Xresource.h&gt;
+<a id='L42' name='L42'></a>    42 <em class='sharp'>#ifdef</em> HAVE_PWD_H
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#include</em> &lt;<a href='50.html'>pwd.h</a>&gt;
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#endif</em>
+<a id='L45' name='L45'></a>    45 
+<a id='L46' name='L46'></a>    46 <em class='comment'>/* X file search path processing.  */</em>
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48 
+<a id='L49' name='L49'></a>    49 <em class='comment'>/* The string which gets substituted for the %C escape in XFILESEARCHPATH</em>
+<a id='L50' name='L50'></a>    50 <em class='comment'>   and friends, or zero if none was specified.  */</em>
+<a id='L51' name='L51'></a>    51 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *x_customization_string;
 <a id='L52' name='L52'></a>    52 
-<a id='L53' name='L53'></a>    53   <a href='../S/2372.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../D/13183.html' title='Multiple defined in 2 places.'>inflateInit2_</a>);
-<a id='L54' name='L54'></a>    54   <a href='../S/2372.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../D/13181.html' title='Multiple defined in 2 places.'>inflate</a>);
-<a id='L55' name='L55'></a>    55   <a href='../S/2372.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../D/13182.html' title='Multiple defined in 2 places.'>inflateEnd</a>);
-<a id='L56' name='L56'></a>    56   <strong class='reserved'>return</strong> <a href='../S/52.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
-<a id='L57' name='L57'></a>    57 <em class='brace'>}</em>
-<a id='L58' name='L58'></a>    58 
-<a id='L59' name='L59'></a>    59 <em class='sharp'># undef</em> <a href='../R/12102.html' title='Multiple referred from 4 places.'>inflate</a>
-<a id='L60' name='L60'></a>    60 <em class='sharp'># undef</em> <a href='../R/12103.html' title='Multiple referred from 5 places.'>inflateEnd</a>
-<a id='L61' name='L61'></a>    61 <em class='sharp'># undef</em> <a href='../R/12104.html' title='Multiple referred from 2 places.'>inflateInit2_</a>
-<a id='L62' name='L62'></a>    62 
-<a id='L63' name='L63'></a>    63 <em class='sharp'># define</em> <a href='../R/12102.html' title='Multiple referred from 4 places.'>inflate</a> fn_inflate
-<a id='L64' name='L64'></a>    64 <em class='sharp'># define</em> <a href='../R/12103.html' title='Multiple referred from 5 places.'>inflateEnd</a> fn_inflateEnd
-<a id='L65' name='L65'></a>    65 <em class='sharp'># define</em> <a href='../R/12104.html' title='Multiple referred from 2 places.'>inflateInit2_</a> fn_inflateInit2_
-<a id='L66' name='L66'></a>    66 
-<a id='L67' name='L67'></a>    67 <em class='sharp'>#endif</em>  <em class='comment'>/* WINDOWSNT */</em>
-<a id='L68' name='L68'></a>    68 
-<a id='L69' name='L69'></a>    69 
-<a id='L70' name='L70'></a>    70 <em class='sharp'>#ifdef</em> HAVE_NATIVE_COMP
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54 <em class='comment'>/* Return the value of the emacs.customization (Emacs.Customization)</em>
+<a id='L55' name='L55'></a>    55 <em class='comment'>   resource, for later use in search path decoding.  If we find no</em>
+<a id='L56' name='L56'></a>    56 <em class='comment'>   such resource, return zero.  */</em>
+<a id='L57' name='L57'></a>    57 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *
+<a id='L58' name='L58'></a>    58 <a href='../S/2140.html#L433' title='Referred from 433 in src/xrdb.c.'>x_get_customization_string</a> (<a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> db, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/14932.html' title='Multiple defined in 4 places.'>name</a>,
+<a id='L59' name='L59'></a>    59                             <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *class)
+<a id='L60' name='L60'></a>    60 <em class='brace'>{</em>
+<a id='L61' name='L61'></a>    61   <strong class='reserved'>char</strong> *full_name = <a href='../D/8443.html' title='Multiple defined in 8 places.'>alloca</a> (strlen (<a href='../D/14932.html' title='Multiple defined in 4 places.'>name</a>) + <strong class='reserved'>sizeof</strong> "customization" + 3);
+<a id='L62' name='L62'></a>    62   <strong class='reserved'>char</strong> *full_class = <a href='../D/8443.html' title='Multiple defined in 8 places.'>alloca</a> (strlen (class) + <strong class='reserved'>sizeof</strong> "Customization" + 3);
+<a id='L63' name='L63'></a>    63   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *result;
+<a id='L64' name='L64'></a>    64 
+<a id='L65' name='L65'></a>    65   <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (full_name,  "%s.%s", <a href='../D/14932.html' title='Multiple defined in 4 places.'>name</a>,  "customization");
+<a id='L66' name='L66'></a>    66   <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (full_class, "%s.%s", class, "Customization");
+<a id='L67' name='L67'></a>    67 
+<a id='L68' name='L68'></a>    68   result = <a href='../S/2140.html#L500' title='Defined at 500 in src/xrdb.c.'>x_get_string_resource</a> (&amp;db, full_name, full_class);
+<a id='L69' name='L69'></a>    69   <strong class='reserved'>return</strong> result ? <a href='../D/20127.html' title='Multiple defined in 3 places.'>xstrdup</a> (result) : <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L70' name='L70'></a>    70 <em class='brace'>}</em>
 <a id='L71' name='L71'></a>    71 
-<a id='L72' name='L72'></a>    72 <em class='sharp'># define</em> <a href='../R/3666.html' title='Multiple referred from 11 places.'>MD5_BLOCKSIZE</a> 32768 <em class='comment'>/* From md5.c  */</em>
-<a id='L73' name='L73'></a>    73 
-<a id='L74' name='L74'></a>    74 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> acc_buff[2 * <a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>];
-<a id='L75' name='L75'></a>    75 <strong class='reserved'>static</strong> size_t acc_size;
-<a id='L76' name='L76'></a>    76 
-<a id='L77' name='L77'></a>    77 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L78' name='L78'></a>    78 <a href='../S/2140.html#L153' title='Referred from 153 in src/decompress.c.'>accumulate_and_process_md5</a> (<strong class='reserved'>void</strong> *data, size_t len, <strong class='reserved'>struct</strong> <a href='../S/2791.html#L77' title='Defined at 77 in lib/md5.h.'>md5_ctx</a> *ctxt)
-<a id='L79' name='L79'></a>    79 <em class='brace'>{</em>
-<a id='L80' name='L80'></a>    80   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (len &lt;= <a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>);
-<a id='L81' name='L81'></a>    81   <em class='comment'>/* We may optimize this saving some of these memcpy/move using</em>
-<a id='L82' name='L82'></a>    82 <em class='comment'>     directly the outer buffers but so far don't bother.  */</em>
-<a id='L83' name='L83'></a>    83   memcpy (acc_buff + acc_size, data, len);
-<a id='L84' name='L84'></a>    84   acc_size += len;
-<a id='L85' name='L85'></a>    85   <strong class='reserved'>if</strong> (acc_size &gt;= <a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>)
-<a id='L86' name='L86'></a>    86     <em class='brace'>{</em>
-<a id='L87' name='L87'></a>    87       acc_size -= <a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>;
-<a id='L88' name='L88'></a>    88       <a href='../D/14378.html' title='Multiple defined in 3 places.'>md5_process_block</a> (acc_buff, <a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>, ctxt);
-<a id='L89' name='L89'></a>    89       <a href='../S/2937.html#L81' title='Defined at 81 in lib/canonicalize-lgpl.c.'>memmove</a> (acc_buff, acc_buff + <a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>, acc_size);
-<a id='L90' name='L90'></a>    90     <em class='brace'>}</em>
-<a id='L91' name='L91'></a>    91 <em class='brace'>}</em>
-<a id='L92' name='L92'></a>    92 
-<a id='L93' name='L93'></a>    93 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L94' name='L94'></a>    94 <a href='../S/2140.html#L158' title='Referred from 158 in src/decompress.c.'>final_process_md5</a> (<strong class='reserved'>struct</strong> <a href='../S/2791.html#L77' title='Defined at 77 in lib/md5.h.'>md5_ctx</a> *ctxt)
-<a id='L95' name='L95'></a>    95 <em class='brace'>{</em>
-<a id='L96' name='L96'></a>    96   <strong class='reserved'>if</strong> (acc_size)
-<a id='L97' name='L97'></a>    97     <em class='brace'>{</em>
-<a id='L98' name='L98'></a>    98       <a href='../D/14379.html' title='Multiple defined in 3 places.'>md5_process_bytes</a> (acc_buff, acc_size, ctxt);
-<a id='L99' name='L99'></a>    99       acc_size = 0;
-<a id='L100' name='L100'></a>   100     <em class='brace'>}</em>
-<a id='L101' name='L101'></a>   101 <em class='brace'>}</em>
-<a id='L102' name='L102'></a>   102 
-<a id='L103' name='L103'></a>   103 <strong class='reserved'>int</strong>
-<a id='L104' name='L104'></a>   104 <a href='../R/13251.html' title='Multiple referred from 2 places.'>md5_gz_stream</a> (FILE *source, <strong class='reserved'>void</strong> *resblock)
-<a id='L105' name='L105'></a>   105 <em class='brace'>{</em>
-<a id='L106' name='L106'></a>   106   z_stream stream;
-<a id='L107' name='L107'></a>   107   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> in[<a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>];
-<a id='L108' name='L108'></a>   108   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> out[<a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>];
-<a id='L109' name='L109'></a>   109 
-<a id='L110' name='L110'></a>   110 <em class='sharp'># ifdef</em> <a href='../D/6795.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
-<a id='L111' name='L111'></a>   111   <strong class='reserved'>if</strong> (!zlib_initialized)
-<a id='L112' name='L112'></a>   112     zlib_initialized = <a href='../S/2140.html#L46' title='Defined at 46 in src/decompress.c.'>init_zlib_functions</a> ();
-<a id='L113' name='L113'></a>   113   <strong class='reserved'>if</strong> (!zlib_initialized)
-<a id='L114' name='L114'></a>   114     <em class='brace'>{</em>
-<a id='L115' name='L115'></a>   115       <a href='../S/2225.html#L12122' title='Defined at 12122 in src/xdisp.c.'>message1</a> ("zlib library not found");
-<a id='L116' name='L116'></a>   116       <strong class='reserved'>return</strong> -1;
-<a id='L117' name='L117'></a>   117     <em class='brace'>}</em>
-<a id='L118' name='L118'></a>   118 <em class='sharp'># endif</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>/* Expand all the Xt-style %-escapes in STRING, whose length is given</em>
+<a id='L73' name='L73'></a>    73 <em class='comment'>   by STRING_LEN.  Here are the escapes we're supposed to recognize:</em>
+<a id='L74' name='L74'></a>    74 <em class='comment'></em>
+<a id='L75' name='L75'></a>    75 <em class='comment'>        %N      The value of the application's class name</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>        %T      The value of the type parameter ("app-defaults" in this</em>
+<a id='L77' name='L77'></a>    77 <em class='comment'>                context)</em>
+<a id='L78' name='L78'></a>    78 <em class='comment'>        %S      The value of the suffix parameter ("" in this context)</em>
+<a id='L79' name='L79'></a>    79 <em class='comment'>        %L      The language string associated with the specified display</em>
+<a id='L80' name='L80'></a>    80 <em class='comment'>                (We use the "LANG" environment variable here, if it's set.)</em>
+<a id='L81' name='L81'></a>    81 <em class='comment'>        %l      The language part of the display's language string</em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>                (We treat this just like %L.  If someone can tell us what</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>                 we're really supposed to do, dandy.)</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>        %t      The territory part of the display's language string</em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>                (This never gets used.)</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>        %c      The codeset part of the display's language string</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'>                (This never gets used either.)</em>
+<a id='L88' name='L88'></a>    88 <em class='comment'>        %C      The customization string retrieved from the resource</em>
+<a id='L89' name='L89'></a>    89 <em class='comment'>                database associated with display.</em>
+<a id='L90' name='L90'></a>    90 <em class='comment'>                (This is x_customization_string.)</em>
+<a id='L91' name='L91'></a>    91 <em class='comment'></em>
+<a id='L92' name='L92'></a>    92 <em class='comment'>   Return the resource database if its file was read successfully, and</em>
+<a id='L93' name='L93'></a>    93 <em class='comment'>   refers to %L only when the LANG environment variable is set, or</em>
+<a id='L94' name='L94'></a>    94 <em class='comment'>   otherwise provided by X.</em>
+<a id='L95' name='L95'></a>    95 <em class='comment'></em>
+<a id='L96' name='L96'></a>    96 <em class='comment'>   ESCAPED_SUFFIX is postpended to STRING if it is non-zero.</em>
+<a id='L97' name='L97'></a>    97 <em class='comment'>   %-escapes in ESCAPED_SUFFIX are expanded.</em>
+<a id='L98' name='L98'></a>    98 <em class='comment'></em>
+<a id='L99' name='L99'></a>    99 <em class='comment'>   Return NULL otherwise.  */</em>
+<a id='L100' name='L100'></a>   100 
+<a id='L101' name='L101'></a>   101 <strong class='reserved'>static</strong> <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a>
+<a id='L102' name='L102'></a>   102 <a href='../R/12938.html' title='Multiple referred from 2 places.'>magic_db</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *string, ptrdiff_t string_len, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *class,
+<a id='L103' name='L103'></a>   103           <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *escaped_suffix)
+<a id='L104' name='L104'></a>   104 <em class='brace'>{</em>
+<a id='L105' name='L105'></a>   105   <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> db;
+<a id='L106' name='L106'></a>   106   <strong class='reserved'>char</strong> *lang = getenv ("LANG");
+<a id='L107' name='L107'></a>   107 
+<a id='L108' name='L108'></a>   108   ptrdiff_t path_size = 100;
+<a id='L109' name='L109'></a>   109   <strong class='reserved'>char</strong> *path = <a href='../D/20074.html' title='Multiple defined in 10 places.'>xmalloc</a> (path_size);
+<a id='L110' name='L110'></a>   110   ptrdiff_t path_len = 0;
+<a id='L111' name='L111'></a>   111 
+<a id='L112' name='L112'></a>   112   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *p = string;
+<a id='L113' name='L113'></a>   113 
+<a id='L114' name='L114'></a>   114   <strong class='reserved'>while</strong> (p &lt; string + string_len)
+<a id='L115' name='L115'></a>   115     <em class='brace'>{</em>
+<a id='L116' name='L116'></a>   116       <em class='comment'>/* The chunk we're about to stick on the end of result.  */</em>
+<a id='L117' name='L117'></a>   117       <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *next = p;
+<a id='L118' name='L118'></a>   118       ptrdiff_t next_len = 1;
 <a id='L119' name='L119'></a>   119 
-<a id='L120' name='L120'></a>   120   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (!acc_size);
-<a id='L121' name='L121'></a>   121 
-<a id='L122' name='L122'></a>   122   <strong class='reserved'>struct</strong> <a href='../S/2791.html#L77' title='Defined at 77 in lib/md5.h.'>md5_ctx</a> ctx;
-<a id='L123' name='L123'></a>   123   <a href='../D/14377.html' title='Multiple defined in 3 places.'>md5_init_ctx</a> (&amp;ctx);
-<a id='L124' name='L124'></a>   124 
-<a id='L125' name='L125'></a>   125   <em class='comment'>/* allocate inflate state */</em>
-<a id='L126' name='L126'></a>   126   stream.zalloc = Z_NULL;
-<a id='L127' name='L127'></a>   127   stream.zfree = Z_NULL;
-<a id='L128' name='L128'></a>   128   stream.opaque = Z_NULL;
-<a id='L129' name='L129'></a>   129   stream.avail_in = 0;
-<a id='L130' name='L130'></a>   130   stream.next_in = Z_NULL;
-<a id='L131' name='L131'></a>   131   <strong class='reserved'>int</strong> res = inflateInit2 (&amp;stream, MAX_WBITS + 32);
-<a id='L132' name='L132'></a>   132   <strong class='reserved'>if</strong> (res != Z_OK)
-<a id='L133' name='L133'></a>   133     <strong class='reserved'>return</strong> -1;
-<a id='L134' name='L134'></a>   134 
-<a id='L135' name='L135'></a>   135   <strong class='reserved'>do</strong> <em class='brace'>{</em>
-<a id='L136' name='L136'></a>   136     stream.avail_in = <a href='../D/11715.html' title='Multiple defined in 4 places.'>fread</a> (in, 1, <a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>, source);
-<a id='L137' name='L137'></a>   137     <strong class='reserved'>if</strong> (<a href='../D/11326.html' title='Multiple defined in 2 places.'>ferror</a> (source)) <em class='brace'>{</em>
-<a id='L138' name='L138'></a>   138       <a href='../D/13182.html' title='Multiple defined in 2 places.'>inflateEnd</a> (&amp;stream);
-<a id='L139' name='L139'></a>   139       <strong class='reserved'>return</strong> -1;
-<a id='L140' name='L140'></a>   140     <em class='brace'>}</em>
-<a id='L141' name='L141'></a>   141     <strong class='reserved'>if</strong> (stream.avail_in == 0)
-<a id='L142' name='L142'></a>   142       <strong class='reserved'>break</strong>;
-<a id='L143' name='L143'></a>   143     stream.next_in = in;
-<a id='L144' name='L144'></a>   144 
-<a id='L145' name='L145'></a>   145     <strong class='reserved'>do</strong> <em class='brace'>{</em>
-<a id='L146' name='L146'></a>   146       stream.avail_out = <a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a>;
-<a id='L147' name='L147'></a>   147       stream.next_out = out;
-<a id='L148' name='L148'></a>   148       res = <a href='../D/13181.html' title='Multiple defined in 2 places.'>inflate</a> (&amp;stream, Z_NO_FLUSH);
-<a id='L149' name='L149'></a>   149 
-<a id='L150' name='L150'></a>   150       <strong class='reserved'>if</strong> (res != Z_OK &amp;&amp; res != Z_STREAM_END)
-<a id='L151' name='L151'></a>   151         <strong class='reserved'>return</strong> -1;
-<a id='L152' name='L152'></a>   152 
-<a id='L153' name='L153'></a>   153       <a href='../S/2140.html#L78' title='Defined at 78 in src/decompress.c.'>accumulate_and_process_md5</a> (out, <a href='../D/4016.html' title='Multiple defined in 2 places.'>MD5_BLOCKSIZE</a> - stream.avail_out, &amp;ctx);
-<a id='L154' name='L154'></a>   154     <em class='brace'>}</em> <strong class='reserved'>while</strong> (stream.avail_in &amp;&amp; !stream.avail_out);
-<a id='L155' name='L155'></a>   155 
-<a id='L156' name='L156'></a>   156   <em class='brace'>}</em> <strong class='reserved'>while</strong> (res != Z_STREAM_END);
-<a id='L157' name='L157'></a>   157 
-<a id='L158' name='L158'></a>   158   <a href='../S/2140.html#L94' title='Defined at 94 in src/decompress.c.'>final_process_md5</a> (&amp;ctx);
-<a id='L159' name='L159'></a>   159   <a href='../D/13182.html' title='Multiple defined in 2 places.'>inflateEnd</a> (&amp;stream);
-<a id='L160' name='L160'></a>   160 
-<a id='L161' name='L161'></a>   161   <strong class='reserved'>if</strong> (res != Z_STREAM_END)
-<a id='L162' name='L162'></a>   162     <strong class='reserved'>return</strong> -1;
-<a id='L163' name='L163'></a>   163 
-<a id='L164' name='L164'></a>   164   <a href='../D/14375.html' title='Multiple defined in 3 places.'>md5_finish_ctx</a> (&amp;ctx, resblock);
-<a id='L165' name='L165'></a>   165 
-<a id='L166' name='L166'></a>   166   <strong class='reserved'>return</strong> 0;
-<a id='L167' name='L167'></a>   167 <em class='brace'>}</em>
-<a id='L168' name='L168'></a>   168 <em class='sharp'># undef</em> <a href='../R/3666.html' title='Multiple referred from 11 places.'>MD5_BLOCKSIZE</a>
-<a id='L169' name='L169'></a>   169 <em class='sharp'>#endif</em>
+<a id='L120' name='L120'></a>   120       <strong class='reserved'>if</strong> (*p == '%')
+<a id='L121' name='L121'></a>   121         <em class='brace'>{</em>
+<a id='L122' name='L122'></a>   122           p++;
+<a id='L123' name='L123'></a>   123 
+<a id='L124' name='L124'></a>   124           <strong class='reserved'>if</strong> (p &gt;= string + string_len)
+<a id='L125' name='L125'></a>   125             next_len = 0;
+<a id='L126' name='L126'></a>   126           <strong class='reserved'>else</strong>
+<a id='L127' name='L127'></a>   127             <strong class='reserved'>switch</strong> (*p)
+<a id='L128' name='L128'></a>   128               <em class='brace'>{</em>
+<a id='L129' name='L129'></a>   129               <strong class='reserved'>case</strong> '%':
+<a id='L130' name='L130'></a>   130                 next = "%";
+<a id='L131' name='L131'></a>   131                 next_len = 1;
+<a id='L132' name='L132'></a>   132                 <strong class='reserved'>break</strong>;
+<a id='L133' name='L133'></a>   133 
+<a id='L134' name='L134'></a>   134               <strong class='reserved'>case</strong> 'C':
+<a id='L135' name='L135'></a>   135                 <strong class='reserved'>if</strong> (x_customization_string)
+<a id='L136' name='L136'></a>   136                   <em class='brace'>{</em>
+<a id='L137' name='L137'></a>   137                     next = x_customization_string;
+<a id='L138' name='L138'></a>   138                     next_len = strlen (next);
+<a id='L139' name='L139'></a>   139                   <em class='brace'>}</em>
+<a id='L140' name='L140'></a>   140                 <strong class='reserved'>else</strong>
+<a id='L141' name='L141'></a>   141                   next_len = 0;
+<a id='L142' name='L142'></a>   142                 <strong class='reserved'>break</strong>;
+<a id='L143' name='L143'></a>   143 
+<a id='L144' name='L144'></a>   144               <strong class='reserved'>case</strong> 'N':
+<a id='L145' name='L145'></a>   145                 next = class;
+<a id='L146' name='L146'></a>   146                 next_len = strlen (class);
+<a id='L147' name='L147'></a>   147                 <strong class='reserved'>break</strong>;
+<a id='L148' name='L148'></a>   148 
+<a id='L149' name='L149'></a>   149               <strong class='reserved'>case</strong> 'T':
+<a id='L150' name='L150'></a>   150                 next = "app-defaults";
+<a id='L151' name='L151'></a>   151                 next_len = strlen (next);
+<a id='L152' name='L152'></a>   152                 <strong class='reserved'>break</strong>;
+<a id='L153' name='L153'></a>   153 
+<a id='L154' name='L154'></a>   154               <strong class='reserved'>default</strong>:
+<a id='L155' name='L155'></a>   155               <strong class='reserved'>case</strong> 'S':
+<a id='L156' name='L156'></a>   156                 next_len = 0;
+<a id='L157' name='L157'></a>   157                 <strong class='reserved'>break</strong>;
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159               <strong class='reserved'>case</strong> 'L':
+<a id='L160' name='L160'></a>   160               <strong class='reserved'>case</strong> 'l':
+<a id='L161' name='L161'></a>   161                 <strong class='reserved'>if</strong> (! lang)
+<a id='L162' name='L162'></a>   162                   <em class='brace'>{</em>
+<a id='L163' name='L163'></a>   163                     <a href='../D/19819.html' title='Multiple defined in 3 places.'>xfree</a> (path);
+<a id='L164' name='L164'></a>   164                     <strong class='reserved'>return</strong> <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L165' name='L165'></a>   165                   <em class='brace'>}</em>
+<a id='L166' name='L166'></a>   166 
+<a id='L167' name='L167'></a>   167                 next = lang;
+<a id='L168' name='L168'></a>   168                 next_len = strlen (next);
+<a id='L169' name='L169'></a>   169                 <strong class='reserved'>break</strong>;
 <a id='L170' name='L170'></a>   170 
-<a id='L171' name='L171'></a>   171 
-<a id='L172' name='L172'></a>   172 
-<a id='L173' name='L173'></a>   173 <strong class='reserved'>struct</strong> <a href='../R/9372.html' title='Multiple referred from 2 places.'>decompress_unwind_data</a>
-<a id='L174' name='L174'></a>   174 <em class='brace'>{</em>
-<a id='L175' name='L175'></a>   175   ptrdiff_t old_point, orig, <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, nbytes;
-<a id='L176' name='L176'></a>   176   z_stream *stream;
-<a id='L177' name='L177'></a>   177 <em class='brace'>}</em>;
-<a id='L178' name='L178'></a>   178 
-<a id='L179' name='L179'></a>   179 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L180' name='L180'></a>   180 <a href='../S/2140.html#L287' title='Referred from 287 in src/decompress.c.'>unwind_decompress</a> (<strong class='reserved'>void</strong> *ddata)
-<a id='L181' name='L181'></a>   181 <em class='brace'>{</em>
-<a id='L182' name='L182'></a>   182   <strong class='reserved'>struct</strong> <a href='../S/2140.html#L173' title='Defined at 173 in src/decompress.c.'>decompress_unwind_data</a> *data = ddata;
-<a id='L183' name='L183'></a>   183   <a href='../D/13182.html' title='Multiple defined in 2 places.'>inflateEnd</a> (data-&gt;stream);
-<a id='L184' name='L184'></a>   184 
-<a id='L185' name='L185'></a>   185   <em class='comment'>/* Delete any uncompressed data already inserted on error, but</em>
-<a id='L186' name='L186'></a>   186 <em class='comment'>     without calling the change hooks.  */</em>
-<a id='L187' name='L187'></a>   187   <strong class='reserved'>if</strong> (data-&gt;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>)
-<a id='L188' name='L188'></a>   188     <em class='brace'>{</em>
-<a id='L189' name='L189'></a>   189       <a href='../S/2223.html#L1881' title='Defined at 1881 in src/insdel.c.'>del_range_2</a> (data-&gt;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, data-&gt;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, <em class='comment'>/* byte, char offsets the same */</em>
-<a id='L190' name='L190'></a>   190                    data-&gt;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> + data-&gt;nbytes, data-&gt;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> + data-&gt;nbytes,
-<a id='L191' name='L191'></a>   191                    0);
-<a id='L192' name='L192'></a>   192       <a href='../S/2166.html#L492' title='Defined at 492 in src/composite.c.'>update_compositions</a> (data-&gt;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, data-&gt;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, <a href='../S/2178.html#L191' title='Defined at 191 in src/composite.h.'>CHECK_HEAD</a>);
-<a id='L193' name='L193'></a>   193       <em class='comment'>/* "Balance" the before-change-functions call, which would</em>
-<a id='L194' name='L194'></a>   194 <em class='comment'>         otherwise be left "hanging".  */</em>
-<a id='L195' name='L195'></a>   195       <a href='../S/2223.html#L2261' title='Defined at 2261 in src/insdel.c.'>signal_after_change</a> (data-&gt;orig, data-&gt;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> - data-&gt;orig,
-<a id='L196' name='L196'></a>   196                            data-&gt;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> - data-&gt;orig);
-<a id='L197' name='L197'></a>   197     <em class='brace'>}</em>
-<a id='L198' name='L198'></a>   198   <em class='comment'>/* Put point where it was, or if the buffer has shrunk because the</em>
-<a id='L199' name='L199'></a>   199 <em class='comment'>     compressed data is bigger than the uncompressed, at</em>
-<a id='L200' name='L200'></a>   200 <em class='comment'>     point-max.  */</em>
-<a id='L201' name='L201'></a>   201   <a href='../S/2131.html#L170' title='Defined at 170 in src/buffer.h.'>SET_PT</a> (<a href='../D/14479.html' title='Multiple defined in 11 places.'>min</a> (data-&gt;old_point, <a href='../S/2131.html#L54' title='Defined at 54 in src/buffer.h.'>ZV</a>));
+<a id='L171' name='L171'></a>   171               <strong class='reserved'>case</strong> 't':
+<a id='L172' name='L172'></a>   172               <strong class='reserved'>case</strong> 'c':
+<a id='L173' name='L173'></a>   173                 <a href='../D/19819.html' title='Multiple defined in 3 places.'>xfree</a> (path);
+<a id='L174' name='L174'></a>   174                 <strong class='reserved'>return</strong> <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L175' name='L175'></a>   175               <em class='brace'>}</em>
+<a id='L176' name='L176'></a>   176         <em class='brace'>}</em>
+<a id='L177' name='L177'></a>   177 
+<a id='L178' name='L178'></a>   178       <em class='comment'>/* Do we have room for this component followed by a '\0'?  */</em>
+<a id='L179' name='L179'></a>   179       <strong class='reserved'>if</strong> (path_size - path_len &lt;= next_len)
+<a id='L180' name='L180'></a>   180         path = <a href='../S/2352.html#L914' title='Defined at 914 in src/alloc.c.'>xpalloc</a> (path, &amp;path_size, path_len - path_size + next_len + 1,
+<a id='L181' name='L181'></a>   181                         -1, <strong class='reserved'>sizeof</strong> *path);
+<a id='L182' name='L182'></a>   182 
+<a id='L183' name='L183'></a>   183       memcpy (path + path_len, next, next_len);
+<a id='L184' name='L184'></a>   184       path_len += next_len;
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186       p++;
+<a id='L187' name='L187'></a>   187 
+<a id='L188' name='L188'></a>   188       <em class='comment'>/* If we've reached the end of the string, append ESCAPED_SUFFIX.  */</em>
+<a id='L189' name='L189'></a>   189       <strong class='reserved'>if</strong> (p &gt;= string + string_len &amp;&amp; escaped_suffix)
+<a id='L190' name='L190'></a>   190         <em class='brace'>{</em>
+<a id='L191' name='L191'></a>   191           string = escaped_suffix;
+<a id='L192' name='L192'></a>   192           string_len = strlen (string);
+<a id='L193' name='L193'></a>   193           p = string;
+<a id='L194' name='L194'></a>   194           escaped_suffix = <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L195' name='L195'></a>   195         <em class='brace'>}</em>
+<a id='L196' name='L196'></a>   196     <em class='brace'>}</em>
+<a id='L197' name='L197'></a>   197 
+<a id='L198' name='L198'></a>   198   path[path_len] = '\0';
+<a id='L199' name='L199'></a>   199   db = XrmGetFileDatabase (path);
+<a id='L200' name='L200'></a>   200   <a href='../D/19819.html' title='Multiple defined in 3 places.'>xfree</a> (path);
+<a id='L201' name='L201'></a>   201   <strong class='reserved'>return</strong> db;
 <a id='L202' name='L202'></a>   202 <em class='brace'>}</em>
 <a id='L203' name='L203'></a>   203 
-<a id='L204' name='L204'></a>   204 <a href='../R/1363.html' title='Multiple referred from 832 places.'>DEFUN</a> ("zlib-available-p", Fzlib_available_p, Szlib_available_p, 0, 0, 0,
-<a id='L205' name='L205'></a>   205        doc: <em class='comment'>/* Return t if zlib decompression is available in this instance of Emacs.  */</em>)
-<a id='L206' name='L206'></a>   206      (<strong class='reserved'>void</strong>)
-<a id='L207' name='L207'></a>   207 <em class='brace'>{</em>
-<a id='L208' name='L208'></a>   208 <em class='sharp'>#ifdef</em> <a href='../D/6795.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
-<a id='L209' name='L209'></a>   209   <a href='../D/3836.html' title='Multiple defined in 11 places.'>Lisp_Object</a> found = Fassq (Qzlib, Vlibrary_cache);
-<a id='L210' name='L210'></a>   210   <strong class='reserved'>if</strong> (<a href='../D/1229.html' title='Multiple defined in 2 places.'>CONSP</a> (found))
-<a id='L211' name='L211'></a>   211     <strong class='reserved'>return</strong> <a href='../D/7026.html' title='Multiple defined in 2 places.'>XCDR</a> (found);
-<a id='L212' name='L212'></a>   212   <strong class='reserved'>else</strong>
-<a id='L213' name='L213'></a>   213     <em class='brace'>{</em>
-<a id='L214' name='L214'></a>   214       <a href='../D/3836.html' title='Multiple defined in 11 places.'>Lisp_Object</a> status;
-<a id='L215' name='L215'></a>   215       zlib_initialized = <a href='../S/2140.html#L46' title='Defined at 46 in src/decompress.c.'>init_zlib_functions</a> ();
-<a id='L216' name='L216'></a>   216       status = zlib_initialized ? Qt : Qnil;
-<a id='L217' name='L217'></a>   217       Vlibrary_cache = Fcons (Fcons (Qzlib, status), Vlibrary_cache);
-<a id='L218' name='L218'></a>   218       <strong class='reserved'>return</strong> status;
-<a id='L219' name='L219'></a>   219     <em class='brace'>}</em>
-<a id='L220' name='L220'></a>   220 <em class='sharp'>#else</em>
-<a id='L221' name='L221'></a>   221   <strong class='reserved'>return</strong> Qt;
-<a id='L222' name='L222'></a>   222 <em class='sharp'>#endif</em>
-<a id='L223' name='L223'></a>   223 <em class='brace'>}</em>
-<a id='L224' name='L224'></a>   224 
-<a id='L225' name='L225'></a>   225 <a href='../D/1457.html' title='Multiple defined in 1011 places.'>DEFUN</a> ("zlib-decompress-region", Fzlib_decompress_region,
-<a id='L226' name='L226'></a>   226        Szlib_decompress_region,
-<a id='L227' name='L227'></a>   227        2, 3, 0,
-<a id='L228' name='L228'></a>   228        doc: <em class='comment'>/* Decompress a gzip- or zlib-compressed region.</em>
-<a id='L229' name='L229'></a>   229 <em class='comment'>Replace the text in the region by the decompressed data.</em>
-<a id='L230' name='L230'></a>   230 <em class='comment'></em>
-<a id='L231' name='L231'></a>   231 <em class='comment'>If optional parameter ALLOW-PARTIAL is nil or omitted, then on</em>
-<a id='L232' name='L232'></a>   232 <em class='comment'>failure, return nil and leave the data in place.  Otherwise, return</em>
-<a id='L233' name='L233'></a>   233 <em class='comment'>the number of bytes that were not decompressed and replace the region</em>
-<a id='L234' name='L234'></a>   234 <em class='comment'>text by whatever data was successfully decompressed (similar to gzip).</em>
-<a id='L235' name='L235'></a>   235 <em class='comment'>If decompression is completely successful return t.</em>
-<a id='L236' name='L236'></a>   236 <em class='comment'></em>
-<a id='L237' name='L237'></a>   237 <em class='comment'>This function can be called only in unibyte buffers.  */</em>)
-<a id='L238' name='L238'></a>   238   (<a href='../D/3836.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, <a href='../D/3836.html' title='Multiple defined in 11 places.'>Lisp_Object</a> end, <a href='../D/3836.html' title='Multiple defined in 11 places.'>Lisp_Object</a> allow_partial)
-<a id='L239' name='L239'></a>   239 <em class='brace'>{</em>
-<a id='L240' name='L240'></a>   240   ptrdiff_t istart, iend, pos_byte;
-<a id='L241' name='L241'></a>   241   z_stream stream;
-<a id='L242' name='L242'></a>   242   <strong class='reserved'>int</strong> inflate_status;
-<a id='L243' name='L243'></a>   243   <strong class='reserved'>struct</strong> <a href='../S/2140.html#L173' title='Defined at 173 in src/decompress.c.'>decompress_unwind_data</a> unwind_data;
-<a id='L244' name='L244'></a>   244   <a href='../D/17575.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count = <a href='../D/5890.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
-<a id='L245' name='L245'></a>   245 
-<a id='L246' name='L246'></a>   246   <a href='../S/2152.html#L2411' title='Defined at 2411 in src/buffer.c.'>validate_region</a> (&amp;<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, &amp;end);
+<a id='L204' name='L204'></a>   204 
+<a id='L205' name='L205'></a>   205 <em class='comment'>/* Find the first element of SEARCH_PATH which exists and is readable,</em>
+<a id='L206' name='L206'></a>   206 <em class='comment'>   after expanding the %-escapes.  Return 0 if we didn't find any, and</em>
+<a id='L207' name='L207'></a>   207 <em class='comment'>   the path name of the one we found otherwise.  */</em>
+<a id='L208' name='L208'></a>   208 
+<a id='L209' name='L209'></a>   209 <strong class='reserved'>static</strong> <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a>
+<a id='L210' name='L210'></a>   210 <a href='../R/15434.html' title='Multiple referred from 6 places.'>search_magic_path</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/2976.html#L455' title='Defined at 455 in lib-src/ebrowse.c.'>search_path</a>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *class,
+<a id='L211' name='L211'></a>   211                    <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *escaped_suffix)
+<a id='L212' name='L212'></a>   212 <em class='brace'>{</em>
+<a id='L213' name='L213'></a>   213   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *s, *p;
+<a id='L214' name='L214'></a>   214 
+<a id='L215' name='L215'></a>   215   <strong class='reserved'>for</strong> (s = <a href='../S/2976.html#L455' title='Defined at 455 in lib-src/ebrowse.c.'>search_path</a>; *s; s = p)
+<a id='L216' name='L216'></a>   216     <em class='brace'>{</em>
+<a id='L217' name='L217'></a>   217       <strong class='reserved'>for</strong> (p = s; *p &amp;&amp; *p != ':'; p++)
+<a id='L218' name='L218'></a>   218         ;
+<a id='L219' name='L219'></a>   219 
+<a id='L220' name='L220'></a>   220       <strong class='reserved'>if</strong> (p &gt; s)
+<a id='L221' name='L221'></a>   221         <em class='brace'>{</em>
+<a id='L222' name='L222'></a>   222           <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> db = <a href='../S/2140.html#L102' title='Defined at 102 in src/xrdb.c.'>magic_db</a> (s, p - s, class, escaped_suffix);
+<a id='L223' name='L223'></a>   223           <strong class='reserved'>if</strong> (db)
+<a id='L224' name='L224'></a>   224             <strong class='reserved'>return</strong> db;
+<a id='L225' name='L225'></a>   225         <em class='brace'>}</em>
+<a id='L226' name='L226'></a>   226       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (*p == ':')
+<a id='L227' name='L227'></a>   227         <em class='brace'>{</em>
+<a id='L228' name='L228'></a>   228           <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> <a href='../S/2743.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>[] = "%N%S";
+<a id='L229' name='L229'></a>   229           <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> db = <a href='../S/2140.html#L102' title='Defined at 102 in src/xrdb.c.'>magic_db</a> (<a href='../S/2743.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>, strlen (<a href='../S/2743.html#L404' title='Defined at 404 in lib/nstrftime.c.'>ns</a>), class, escaped_suffix);
+<a id='L230' name='L230'></a>   230           <strong class='reserved'>if</strong> (db)
+<a id='L231' name='L231'></a>   231             <strong class='reserved'>return</strong> db;
+<a id='L232' name='L232'></a>   232         <em class='brace'>}</em>
+<a id='L233' name='L233'></a>   233 
+<a id='L234' name='L234'></a>   234       <strong class='reserved'>if</strong> (*p == ':')
+<a id='L235' name='L235'></a>   235         p++;
+<a id='L236' name='L236'></a>   236     <em class='brace'>}</em>
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238   <strong class='reserved'>return</strong> 0;
+<a id='L239' name='L239'></a>   239 <em class='brace'>}</em>
+<a id='L240' name='L240'></a>   240 
+<a id='L241' name='L241'></a>   241 <em class='comment'>/* Producing databases for individual sources.  */</em>
+<a id='L242' name='L242'></a>   242 
+<a id='L243' name='L243'></a>   243 <strong class='reserved'>static</strong> <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a>
+<a id='L244' name='L244'></a>   244 <a href='../S/2140.html#L436' title='Referred from 436 in src/xrdb.c.'>get_system_app</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *class)
+<a id='L245' name='L245'></a>   245 <em class='brace'>{</em>
+<a id='L246' name='L246'></a>   246   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *path;
 <a id='L247' name='L247'></a>   247 
-<a id='L248' name='L248'></a>   248   <strong class='reserved'>if</strong> (! <a href='../D/4351.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/2131.html#L294' title='Defined at 294 in src/buffer.h.'>BVAR</a> (<a href='../S/2353.html#L133' title='Defined at 133 in src/thread.h.'>current_buffer</a>, enable_multibyte_characters)))
-<a id='L249' name='L249'></a>   249     <a href='../D/11149.html' title='Multiple defined in 7 places.'>error</a> ("This function can be called only in unibyte buffers");
+<a id='L248' name='L248'></a>   248   path = getenv ("XFILESEARCHPATH");
+<a id='L249' name='L249'></a>   249   <strong class='reserved'>if</strong> (! path) path = PATH_X_DEFAULTS;
 <a id='L250' name='L250'></a>   250 
-<a id='L251' name='L251'></a>   251 <em class='sharp'>#ifdef</em> <a href='../D/6795.html' title='Multiple defined in 3 places.'>WINDOWSNT</a>
-<a id='L252' name='L252'></a>   252   <strong class='reserved'>if</strong> (!zlib_initialized)
-<a id='L253' name='L253'></a>   253     zlib_initialized = <a href='../S/2140.html#L46' title='Defined at 46 in src/decompress.c.'>init_zlib_functions</a> ();
-<a id='L254' name='L254'></a>   254   <strong class='reserved'>if</strong> (!zlib_initialized)
-<a id='L255' name='L255'></a>   255     <em class='brace'>{</em>
-<a id='L256' name='L256'></a>   256       <a href='../S/2225.html#L12122' title='Defined at 12122 in src/xdisp.c.'>message1</a> ("zlib library not found");
-<a id='L257' name='L257'></a>   257       <strong class='reserved'>return</strong> Qnil;
-<a id='L258' name='L258'></a>   258     <em class='brace'>}</em>
-<a id='L259' name='L259'></a>   259 <em class='sharp'>#endif</em>
+<a id='L251' name='L251'></a>   251   <strong class='reserved'>return</strong> <a href='../S/2140.html#L210' title='Defined at 210 in src/xrdb.c.'>search_magic_path</a> (path, class, 0);
+<a id='L252' name='L252'></a>   252 <em class='brace'>}</em>
+<a id='L253' name='L253'></a>   253 
+<a id='L254' name='L254'></a>   254 
+<a id='L255' name='L255'></a>   255 <strong class='reserved'>static</strong> <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a>
+<a id='L256' name='L256'></a>   256 <a href='../S/2140.html#L441' title='Referred from 441 in src/xrdb.c.'>get_fallback</a> (<a href='../D/1640.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../D/10500.html' title='Multiple defined in 3 places.'>display</a>)
+<a id='L257' name='L257'></a>   257 <em class='brace'>{</em>
+<a id='L258' name='L258'></a>   258   <strong class='reserved'>return</strong> <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L259' name='L259'></a>   259 <em class='brace'>}</em>
 <a id='L260' name='L260'></a>   260 
-<a id='L261' name='L261'></a>   261   <em class='comment'>/* This is a unibyte buffer, so character positions and bytes are</em>
-<a id='L262' name='L262'></a>   262 <em class='comment'>     the same.  */</em>
-<a id='L263' name='L263'></a>   263   istart = <a href='../S/2268.html#L1292' title='Defined at 1292 in src/lisp.h.'>XFIXNUM</a> (<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>);
-<a id='L264' name='L264'></a>   264   iend = <a href='../S/2268.html#L1292' title='Defined at 1292 in src/lisp.h.'>XFIXNUM</a> (end);
-<a id='L265' name='L265'></a>   265 
-<a id='L266' name='L266'></a>   266   <em class='comment'>/* Do the following before manipulating the gap.  */</em>
-<a id='L267' name='L267'></a>   267   <a href='../S/2223.html#L1964' title='Defined at 1964 in src/insdel.c.'>modify_text</a> (istart, iend);
-<a id='L268' name='L268'></a>   268 
-<a id='L269' name='L269'></a>   269   <a href='../S/2223.html#L94' title='Defined at 94 in src/insdel.c.'>move_gap_both</a> (iend, iend);
-<a id='L270' name='L270'></a>   270 
-<a id='L271' name='L271'></a>   271   stream.zalloc = Z_NULL;
-<a id='L272' name='L272'></a>   272   stream.zfree = Z_NULL;
-<a id='L273' name='L273'></a>   273   stream.opaque = Z_NULL;
-<a id='L274' name='L274'></a>   274   stream.avail_in = 0;
-<a id='L275' name='L275'></a>   275   stream.next_in = Z_NULL;
-<a id='L276' name='L276'></a>   276 
-<a id='L277' name='L277'></a>   277   <em class='comment'>/* The magic number 32 apparently means "autodetect both the gzip and</em>
-<a id='L278' name='L278'></a>   278 <em class='comment'>     zlib formats" according to zlib.h.  */</em>
-<a id='L279' name='L279'></a>   279   <strong class='reserved'>if</strong> (inflateInit2 (&amp;stream, MAX_WBITS + 32) != Z_OK)
-<a id='L280' name='L280'></a>   280     <strong class='reserved'>return</strong> Qnil;
-<a id='L281' name='L281'></a>   281 
-<a id='L282' name='L282'></a>   282   unwind_data.orig = istart;
-<a id='L283' name='L283'></a>   283   unwind_data.<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> = iend;
-<a id='L284' name='L284'></a>   284   unwind_data.stream = &amp;stream;
-<a id='L285' name='L285'></a>   285   unwind_data.old_point = <a href='../S/2131.html#L46' title='Defined at 46 in src/buffer.h.'>PT</a>;
-<a id='L286' name='L286'></a>   286   unwind_data.nbytes = 0;
-<a id='L287' name='L287'></a>   287   <a href='../S/2189.html#L3559' title='Defined at 3559 in src/eval.c.'>record_unwind_protect_ptr</a> (<a href='../S/2140.html#L180' title='Defined at 180 in src/decompress.c.'>unwind_decompress</a>, &amp;unwind_data);
-<a id='L288' name='L288'></a>   288 
-<a id='L289' name='L289'></a>   289   <em class='comment'>/* Insert the decompressed data at the end of the compressed data.  */</em>
-<a id='L290' name='L290'></a>   290   <a href='../S/2131.html#L170' title='Defined at 170 in src/buffer.h.'>SET_PT</a> (iend);
-<a id='L291' name='L291'></a>   291 
-<a id='L292' name='L292'></a>   292   pos_byte = istart;
-<a id='L293' name='L293'></a>   293 
-<a id='L294' name='L294'></a>   294   <em class='comment'>/* Keep calling 'inflate' until it reports an error or end-of-input.  */</em>
-<a id='L295' name='L295'></a>   295   <strong class='reserved'>do</strong>
-<a id='L296' name='L296'></a>   296     <em class='brace'>{</em>
-<a id='L297' name='L297'></a>   297       <em class='comment'>/* Maximum number of bytes that one 'inflate' call should read and write.</em>
-<a id='L298' name='L298'></a>   298 <em class='comment'>         Do not make avail_out too large, as that might unduly delay C-g.</em>
-<a id='L299' name='L299'></a>   299 <em class='comment'>         zlib requires that avail_in and avail_out not exceed UINT_MAX.  */</em>
-<a id='L300' name='L300'></a>   300       ptrdiff_t avail_in = <a href='../D/14479.html' title='Multiple defined in 11 places.'>min</a> (iend - pos_byte, UINT_MAX);
-<a id='L301' name='L301'></a>   301       <strong class='reserved'>int</strong> avail_out = 16 * 1024;
-<a id='L302' name='L302'></a>   302       <strong class='reserved'>int</strong> decompressed;
-<a id='L303' name='L303'></a>   303 
-<a id='L304' name='L304'></a>   304       <strong class='reserved'>if</strong> (<a href='../S/2131.html#L93' title='Defined at 93 in src/buffer.h.'>GAP_SIZE</a> &lt; avail_out)
-<a id='L305' name='L305'></a>   305         <a href='../S/2223.html#L571' title='Defined at 571 in src/insdel.c.'>make_gap</a> (avail_out - <a href='../S/2131.html#L93' title='Defined at 93 in src/buffer.h.'>GAP_SIZE</a>);
-<a id='L306' name='L306'></a>   306       stream.next_in = <a href='../S/2131.html#L1039' title='Defined at 1039 in src/buffer.h.'>BYTE_POS_ADDR</a> (pos_byte);
-<a id='L307' name='L307'></a>   307       stream.avail_in = avail_in;
-<a id='L308' name='L308'></a>   308       stream.next_out = <a href='../S/2131.html#L81' title='Defined at 81 in src/buffer.h.'>GPT_ADDR</a>;
-<a id='L309' name='L309'></a>   309       stream.avail_out = avail_out;
-<a id='L310' name='L310'></a>   310       inflate_status = <a href='../D/13181.html' title='Multiple defined in 2 places.'>inflate</a> (&amp;stream, Z_NO_FLUSH);
-<a id='L311' name='L311'></a>   311       pos_byte += avail_in - stream.avail_in;
-<a id='L312' name='L312'></a>   312       decompressed = avail_out - stream.avail_out;
-<a id='L313' name='L313'></a>   313       <a href='../S/2223.html#L1135' title='Defined at 1135 in src/insdel.c.'>insert_from_gap</a> (decompressed, decompressed, 0);
-<a id='L314' name='L314'></a>   314       unwind_data.nbytes += decompressed;
-<a id='L315' name='L315'></a>   315       <a href='../S/2268.html#L3684' title='Defined at 3684 in src/lisp.h.'>maybe_quit</a> ();
-<a id='L316' name='L316'></a>   316     <em class='brace'>}</em>
-<a id='L317' name='L317'></a>   317   <strong class='reserved'>while</strong> (inflate_status == Z_OK);
-<a id='L318' name='L318'></a>   318 
-<a id='L319' name='L319'></a>   319   <a href='../D/3836.html' title='Multiple defined in 11 places.'>Lisp_Object</a> ret = Qt;
-<a id='L320' name='L320'></a>   320   <strong class='reserved'>if</strong> (inflate_status != Z_STREAM_END)
-<a id='L321' name='L321'></a>   321     <em class='brace'>{</em>
-<a id='L322' name='L322'></a>   322       <strong class='reserved'>if</strong> (!<a href='../D/4351.html' title='Multiple defined in 2 places.'>NILP</a> (allow_partial))
-<a id='L323' name='L323'></a>   323         ret = <a href='../S/2268.html#L2803' title='Defined at 2803 in src/lisp.h.'>make_int</a> (iend - pos_byte);
-<a id='L324' name='L324'></a>   324       <strong class='reserved'>else</strong>
-<a id='L325' name='L325'></a>   325         <strong class='reserved'>return</strong> <a href='../S/2189.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (count, Qnil);
-<a id='L326' name='L326'></a>   326     <em class='brace'>}</em>
-<a id='L327' name='L327'></a>   327 
-<a id='L328' name='L328'></a>   328   unwind_data.<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> = 0;
-<a id='L329' name='L329'></a>   329 
-<a id='L330' name='L330'></a>   330   <em class='comment'>/* Delete the compressed data.  */</em>
-<a id='L331' name='L331'></a>   331   <a href='../S/2223.html#L1881' title='Defined at 1881 in src/insdel.c.'>del_range_2</a> (istart, istart, <em class='comment'>/* byte and char offsets are the same */</em>
-<a id='L332' name='L332'></a>   332                iend, iend, 0);
-<a id='L333' name='L333'></a>   333 
-<a id='L334' name='L334'></a>   334   <a href='../S/2223.html#L2261' title='Defined at 2261 in src/insdel.c.'>signal_after_change</a> (istart, iend - istart, unwind_data.nbytes);
-<a id='L335' name='L335'></a>   335   <a href='../S/2166.html#L492' title='Defined at 492 in src/composite.c.'>update_compositions</a> (istart, istart, <a href='../S/2178.html#L191' title='Defined at 191 in src/composite.h.'>CHECK_HEAD</a>);
-<a id='L336' name='L336'></a>   336 
-<a id='L337' name='L337'></a>   337   <strong class='reserved'>return</strong> <a href='../S/2189.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (count, ret);
-<a id='L338' name='L338'></a>   338 <em class='brace'>}</em>
-<a id='L339' name='L339'></a>   339 
-<a id='L340' name='L340'></a>   340 
-<a id='L341' name='L341'></a>   341 <em class='comment'>/***********************************************************************</em>
-<a id='L342' name='L342'></a>   342 <em class='comment'>                            Initialization</em>
-<a id='L343' name='L343'></a>   343 <em class='comment'> ***********************************************************************/</em>
-<a id='L344' name='L344'></a>   344 <strong class='reserved'>void</strong>
-<a id='L345' name='L345'></a>   345 <a href='../R/16612.html' title='Multiple referred from 3 places.'>syms_of_decompress</a> (<strong class='reserved'>void</strong>)
-<a id='L346' name='L346'></a>   346 <em class='brace'>{</em>
-<a id='L347' name='L347'></a>   347   <a href='../S/2254.html#L5327' title='Defined at 5327 in src/lread.c.'>defsubr</a> (&amp;Szlib_decompress_region);
-<a id='L348' name='L348'></a>   348   <a href='../S/2254.html#L5327' title='Defined at 5327 in src/lread.c.'>defsubr</a> (&amp;Szlib_available_p);
-<a id='L349' name='L349'></a>   349 <em class='brace'>}</em>
-<a id='L350' name='L350'></a>   350 
-<a id='L351' name='L351'></a>   351 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_ZLIB */</em>
+<a id='L261' name='L261'></a>   261 
+<a id='L262' name='L262'></a>   262 <strong class='reserved'>static</strong> <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a>
+<a id='L263' name='L263'></a>   263 <a href='../S/2140.html#L446' title='Referred from 446 in src/xrdb.c.'>get_user_app</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *class)
+<a id='L264' name='L264'></a>   264 <em class='brace'>{</em>
+<a id='L265' name='L265'></a>   265   <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> db = 0;
+<a id='L266' name='L266'></a>   266   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *path;
+<a id='L267' name='L267'></a>   267 
+<a id='L268' name='L268'></a>   268   <em class='comment'>/* Check for XUSERFILESEARCHPATH.  It is a path of complete file</em>
+<a id='L269' name='L269'></a>   269 <em class='comment'>     names, not directories.  */</em>
+<a id='L270' name='L270'></a>   270   path = getenv ("XUSERFILESEARCHPATH");
+<a id='L271' name='L271'></a>   271   <strong class='reserved'>if</strong> (path)
+<a id='L272' name='L272'></a>   272     db = <a href='../S/2140.html#L210' title='Defined at 210 in src/xrdb.c.'>search_magic_path</a> (path, class, 0);
+<a id='L273' name='L273'></a>   273 
+<a id='L274' name='L274'></a>   274   <strong class='reserved'>if</strong> (! db)
+<a id='L275' name='L275'></a>   275     <em class='brace'>{</em>
+<a id='L276' name='L276'></a>   276       <em class='comment'>/* Check for APPLRESDIR; it is a path of directories.  In each,</em>
+<a id='L277' name='L277'></a>   277 <em class='comment'>         we have to search for LANG/CLASS and then CLASS.  */</em>
+<a id='L278' name='L278'></a>   278       path = getenv ("XAPPLRESDIR");
+<a id='L279' name='L279'></a>   279       <strong class='reserved'>if</strong> (path)
+<a id='L280' name='L280'></a>   280         <em class='brace'>{</em>
+<a id='L281' name='L281'></a>   281           db = <a href='../S/2140.html#L210' title='Defined at 210 in src/xrdb.c.'>search_magic_path</a> (path, class, "/%L/%N");
+<a id='L282' name='L282'></a>   282           <strong class='reserved'>if</strong> (!db)
+<a id='L283' name='L283'></a>   283             db = <a href='../S/2140.html#L210' title='Defined at 210 in src/xrdb.c.'>search_magic_path</a> (path, class, "/%N");
+<a id='L284' name='L284'></a>   284         <em class='brace'>}</em>
+<a id='L285' name='L285'></a>   285     <em class='brace'>}</em>
+<a id='L286' name='L286'></a>   286 
+<a id='L287' name='L287'></a>   287   <strong class='reserved'>if</strong> (! db)
+<a id='L288' name='L288'></a>   288     <em class='brace'>{</em>
+<a id='L289' name='L289'></a>   289       <em class='comment'>/* Check in the home directory.  This is a bit of a hack; let's</em>
+<a id='L290' name='L290'></a>   290 <em class='comment'>         hope one's home directory doesn't contain ':' or '%'.  */</em>
+<a id='L291' name='L291'></a>   291       <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *home = <a href='../S/2318.html#L1932' title='Defined at 1932 in src/fileio.c.'>get_homedir</a> ();
+<a id='L292' name='L292'></a>   292       db = <a href='../S/2140.html#L210' title='Defined at 210 in src/xrdb.c.'>search_magic_path</a> (home, class, "/%L/%N");
+<a id='L293' name='L293'></a>   293       <strong class='reserved'>if</strong> (! db)
+<a id='L294' name='L294'></a>   294         db = <a href='../S/2140.html#L210' title='Defined at 210 in src/xrdb.c.'>search_magic_path</a> (home, class, "/%N");
+<a id='L295' name='L295'></a>   295     <em class='brace'>}</em>
+<a id='L296' name='L296'></a>   296 
+<a id='L297' name='L297'></a>   297   <strong class='reserved'>return</strong> db;
+<a id='L298' name='L298'></a>   298 <em class='brace'>}</em>
+<a id='L299' name='L299'></a>   299 
+<a id='L300' name='L300'></a>   300 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> xdefaults[] = ".Xdefaults";
+<a id='L301' name='L301'></a>   301 
+<a id='L302' name='L302'></a>   302 <strong class='reserved'>static</strong> <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a>
+<a id='L303' name='L303'></a>   303 <a href='../S/2140.html#L427' title='Referred from 427 in src/xrdb.c.'>get_user_db</a> (<a href='../D/1640.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../D/10500.html' title='Multiple defined in 3 places.'>display</a>)
+<a id='L304' name='L304'></a>   304 <em class='brace'>{</em>
+<a id='L305' name='L305'></a>   305   <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> db;
+<a id='L306' name='L306'></a>   306   <strong class='reserved'>char</strong> *xdefs;
+<a id='L307' name='L307'></a>   307 
+<a id='L308' name='L308'></a>   308 <em class='sharp'>#ifdef</em> <a href='../D/4757.html' title='Multiple defined in 5 places.'>PBaseSize</a>                <em class='comment'>/* Cheap way to test for X11R4 or later.  */</em>
+<a id='L309' name='L309'></a>   309   xdefs = XResourceManagerString (<a href='../D/10500.html' title='Multiple defined in 3 places.'>display</a>);
+<a id='L310' name='L310'></a>   310 <em class='sharp'>#else</em>
+<a id='L311' name='L311'></a>   311   xdefs = <a href='../D/10500.html' title='Multiple defined in 3 places.'>display</a>-&gt;xdefaults;
+<a id='L312' name='L312'></a>   312 <em class='sharp'>#endif</em>
+<a id='L313' name='L313'></a>   313 
+<a id='L314' name='L314'></a>   314   <strong class='reserved'>if</strong> (xdefs != <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L315' name='L315'></a>   315     db = XrmGetStringDatabase (xdefs);
+<a id='L316' name='L316'></a>   316   <strong class='reserved'>else</strong>
+<a id='L317' name='L317'></a>   317     <em class='brace'>{</em>
+<a id='L318' name='L318'></a>   318       <em class='comment'>/* Use ~/.Xdefaults.  */</em>
+<a id='L319' name='L319'></a>   319       <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *home = <a href='../S/2318.html#L1932' title='Defined at 1932 in src/fileio.c.'>get_homedir</a> ();
+<a id='L320' name='L320'></a>   320       <strong class='reserved'>char</strong> *filename = <a href='../D/20074.html' title='Multiple defined in 10 places.'>xmalloc</a> (strlen (home) + 1 + <strong class='reserved'>sizeof</strong> xdefaults);
+<a id='L321' name='L321'></a>   321       <a href='../D/17585.html' title='Multiple defined in 2 places.'>splice_dir_file</a> (filename, home, xdefaults);
+<a id='L322' name='L322'></a>   322       db = XrmGetFileDatabase (filename);
+<a id='L323' name='L323'></a>   323       <a href='../D/19819.html' title='Multiple defined in 3 places.'>xfree</a> (filename);
+<a id='L324' name='L324'></a>   324     <em class='brace'>}</em>
+<a id='L325' name='L325'></a>   325 
+<a id='L326' name='L326'></a>   326 <em class='sharp'>#ifdef</em> HAVE_XSCREENRESOURCESTRING
+<a id='L327' name='L327'></a>   327   <em class='comment'>/* Get the screen-specific resources too.  */</em>
+<a id='L328' name='L328'></a>   328   xdefs = XScreenResourceString (DefaultScreenOfDisplay (<a href='../D/10500.html' title='Multiple defined in 3 places.'>display</a>));
+<a id='L329' name='L329'></a>   329   <strong class='reserved'>if</strong> (xdefs != <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L330' name='L330'></a>   330     <em class='brace'>{</em>
+<a id='L331' name='L331'></a>   331       XrmMergeDatabases (XrmGetStringDatabase (xdefs), &amp;db);
+<a id='L332' name='L332'></a>   332       XFree (xdefs);
+<a id='L333' name='L333'></a>   333     <em class='brace'>}</em>
+<a id='L334' name='L334'></a>   334 <em class='sharp'>#endif</em>
+<a id='L335' name='L335'></a>   335 
+<a id='L336' name='L336'></a>   336   <strong class='reserved'>return</strong> db;
+<a id='L337' name='L337'></a>   337 <em class='brace'>}</em>
+<a id='L338' name='L338'></a>   338 
+<a id='L339' name='L339'></a>   339 <strong class='reserved'>static</strong> <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a>
+<a id='L340' name='L340'></a>   340 <a href='../S/2140.html#L455' title='Referred from 455 in src/xrdb.c.'>get_environ_db</a> (<strong class='reserved'>void</strong>)
+<a id='L341' name='L341'></a>   341 <em class='brace'>{</em>
+<a id='L342' name='L342'></a>   342   <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> db;
+<a id='L343' name='L343'></a>   343   <strong class='reserved'>char</strong> *p = getenv ("XENVIRONMENT");
+<a id='L344' name='L344'></a>   344   <strong class='reserved'>char</strong> *filename = 0;
+<a id='L345' name='L345'></a>   345 
+<a id='L346' name='L346'></a>   346   <strong class='reserved'>if</strong> (!p)
+<a id='L347' name='L347'></a>   347     <em class='brace'>{</em>
+<a id='L348' name='L348'></a>   348       <a href='../D/3836.html' title='Multiple defined in 11 places.'>Lisp_Object</a> system_name = Fsystem_name ();
+<a id='L349' name='L349'></a>   349       <strong class='reserved'>if</strong> (<a href='../S/2269.html#L1604' title='Defined at 1604 in src/lisp.h.'>STRINGP</a> (system_name))
+<a id='L350' name='L350'></a>   350         <em class='brace'>{</em>
+<a id='L351' name='L351'></a>   351           <em class='comment'>/* Use ~/.Xdefaults-HOSTNAME.  */</em>
+<a id='L352' name='L352'></a>   352           <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> *home = <a href='../S/2318.html#L1932' title='Defined at 1932 in src/fileio.c.'>get_homedir</a> ();
+<a id='L353' name='L353'></a>   353           p = filename = <a href='../D/20074.html' title='Multiple defined in 10 places.'>xmalloc</a> (strlen (home) + 1 + <strong class='reserved'>sizeof</strong> xdefaults
+<a id='L354' name='L354'></a>   354                                   + 1 + <a href='../D/5433.html' title='Multiple defined in 2 places.'>SBYTES</a> (system_name));
+<a id='L355' name='L355'></a>   355           <strong class='reserved'>char</strong> *<a href='../S/3354.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a> = <a href='../D/17585.html' title='Multiple defined in 2 places.'>splice_dir_file</a> (p, home, xdefaults);
+<a id='L356' name='L356'></a>   356           *<a href='../S/3354.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a>++ = '-';
+<a id='L357' name='L357'></a>   357           lispstpcpy (<a href='../S/3354.html#L148' title='Defined at 148 in test/lisp/cedet/semantic-utest-ia-resources/testdoublens.cpp.'>e</a>, system_name);
+<a id='L358' name='L358'></a>   358         <em class='brace'>}</em>
+<a id='L359' name='L359'></a>   359     <em class='brace'>}</em>
+<a id='L360' name='L360'></a>   360 
+<a id='L361' name='L361'></a>   361   db = XrmGetFileDatabase (p);
+<a id='L362' name='L362'></a>   362 
+<a id='L363' name='L363'></a>   363   <a href='../D/19819.html' title='Multiple defined in 3 places.'>xfree</a> (filename);
+<a id='L364' name='L364'></a>   364 
+<a id='L365' name='L365'></a>   365   <strong class='reserved'>return</strong> db;
+<a id='L366' name='L366'></a>   366 <em class='brace'>}</em>
+<a id='L367' name='L367'></a>   367 
+<a id='L368' name='L368'></a>   368 <em class='comment'>/* External interface.  */</em>
+<a id='L369' name='L369'></a>   369 
+<a id='L370' name='L370'></a>   370 <em class='comment'>/* Types of values that we can find in a database */</em>
+<a id='L371' name='L371'></a>   371 
+<a id='L372' name='L372'></a>   372 <em class='sharp'>#define</em> <a href='../S/2140.html#L386' title='Referred from 386 in src/xrdb.c.'>XrmStringType</a> "String"  <em class='comment'>/* String representation */</em>
+<a id='L373' name='L373'></a>   373 <strong class='reserved'>static</strong> XrmRepresentation x_rm_string;   <em class='comment'>/* Quark representation */</em>
+<a id='L374' name='L374'></a>   374 
+<a id='L375' name='L375'></a>   375 <em class='comment'>/* Load X resources based on the display and a possible -xrm option. */</em>
+<a id='L376' name='L376'></a>   376 
+<a id='L377' name='L377'></a>   377 <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a>
+<a id='L378' name='L378'></a>   378 <a href='../R/18246.html' title='Multiple referred from 2 places.'>x_load_resources</a> (<a href='../D/1640.html' title='Multiple defined in 6 places.'>Display</a> *<a href='../D/10500.html' title='Multiple defined in 3 places.'>display</a>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *xrm_string,
+<a id='L379' name='L379'></a>   379                   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *myname, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *myclass)
+<a id='L380' name='L380'></a>   380 <em class='brace'>{</em>
+<a id='L381' name='L381'></a>   381   <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> user_database;
+<a id='L382' name='L382'></a>   382   <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> rdb;
+<a id='L383' name='L383'></a>   383   <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> db;
+<a id='L384' name='L384'></a>   384   <strong class='reserved'>char</strong> line[256];
+<a id='L385' name='L385'></a>   385 
+<a id='L386' name='L386'></a>   386   x_rm_string = XrmStringToQuark (<a href='../S/2140.html#L372' title='Defined at 372 in src/xrdb.c.'>XrmStringType</a>);
+<a id='L387' name='L387'></a>   387 <em class='sharp'>#ifndef</em> USE_X_TOOLKIT
+<a id='L388' name='L388'></a>   388   <em class='comment'>/* pmr@osf.org says this shouldn't be done if USE_X_TOOLKIT.</em>
+<a id='L389' name='L389'></a>   389 <em class='comment'>     I suspect it's because the toolkit version does this elsewhere.  */</em>
+<a id='L390' name='L390'></a>   390   XrmInitialize ();
+<a id='L391' name='L391'></a>   391 <em class='sharp'>#endif</em>
+<a id='L392' name='L392'></a>   392   rdb = XrmGetStringDatabase ("");
+<a id='L393' name='L393'></a>   393 
+<a id='L394' name='L394'></a>   394 <em class='sharp'>#ifdef</em> USE_MOTIF
+<a id='L395' name='L395'></a>   395   <em class='comment'>/* Set double click time of list boxes in the file selection</em>
+<a id='L396' name='L396'></a>   396 <em class='comment'>     dialog from `double-click-time'.  */</em>
+<a id='L397' name='L397'></a>   397   <strong class='reserved'>if</strong> (<a href='../S/2269.html#L476' title='Defined at 476 in src/lisp.h.'>FIXNUMP</a> (Vdouble_click_time) &amp;&amp; <a href='../S/2269.html#L1292' title='Defined at 1292 in src/lisp.h.'>XFIXNUM</a> (Vdouble_click_time) &gt; 0)
+<a id='L398' name='L398'></a>   398     <em class='brace'>{</em>
+<a id='L399' name='L399'></a>   399       <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (line, "%s*fsb*DirList.doubleClickInterval: %"<a href='../D/15228.html' title='Multiple defined in 10 places.'>pI</a>"d",
+<a id='L400' name='L400'></a>   400                myclass, <a href='../S/2269.html#L3014' title='Defined at 3014 in src/lisp.h.'>XFIXNAT</a> (Vdouble_click_time));
+<a id='L401' name='L401'></a>   401       XrmPutLineResource (&amp;rdb, line);
+<a id='L402' name='L402'></a>   402       <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (line, "%s*fsb*ItemsList.doubleClickInterval: %"<a href='../D/15228.html' title='Multiple defined in 10 places.'>pI</a>"d",
+<a id='L403' name='L403'></a>   403                myclass, <a href='../S/2269.html#L3014' title='Defined at 3014 in src/lisp.h.'>XFIXNAT</a> (Vdouble_click_time));
+<a id='L404' name='L404'></a>   404       XrmPutLineResource (&amp;rdb, line);
+<a id='L405' name='L405'></a>   405     <em class='brace'>}</em>
+<a id='L406' name='L406'></a>   406 <em class='sharp'>#else</em> <em class='comment'>/* not USE_MOTIF */</em>
+<a id='L407' name='L407'></a>   407   <em class='comment'>/* Add some font defaults.  If the font `helv' doesn't exist,</em>
+<a id='L408' name='L408'></a>   408 <em class='comment'>     widgets will use some other default font.  */</em>
+<a id='L409' name='L409'></a>   409   <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (line, "Emacs.dialog*.background: grey75");
+<a id='L410' name='L410'></a>   410   XrmPutLineResource (&amp;rdb, line);
+<a id='L411' name='L411'></a>   411 <em class='sharp'>#if</em> !(<strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT) || !<strong class='reserved'>defined</strong> (USE_LUCID)
+<a id='L412' name='L412'></a>   412   <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (line, "Emacs.dialog*.font: %s",
+<a id='L413' name='L413'></a>   413            "-*-helvetica-medium-r-*--*-120-*-*-*-*-iso8859-1");
+<a id='L414' name='L414'></a>   414   XrmPutLineResource (&amp;rdb, line);
+<a id='L415' name='L415'></a>   415   <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (line, "*XlwMenu*font: %s",
+<a id='L416' name='L416'></a>   416            "-*-helvetica-medium-r-*--*-120-*-*-*-*-iso8859-1");
+<a id='L417' name='L417'></a>   417   XrmPutLineResource (&amp;rdb, line);
+<a id='L418' name='L418'></a>   418 <em class='sharp'>#endif</em>
+<a id='L419' name='L419'></a>   419   <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (line, "*XlwMenu*background: grey75");
+<a id='L420' name='L420'></a>   420   XrmPutLineResource (&amp;rdb, line);
+<a id='L421' name='L421'></a>   421   <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (line, "Emacs*verticalScrollBar.background: grey75");
+<a id='L422' name='L422'></a>   422   XrmPutLineResource (&amp;rdb, line);
+<a id='L423' name='L423'></a>   423   <a href='../D/17588.html' title='Multiple defined in 3 places.'>sprintf</a> (line, "Emacs*horizontalScrollBar.background: grey75");
+<a id='L424' name='L424'></a>   424   XrmPutLineResource (&amp;rdb, line);
+<a id='L425' name='L425'></a>   425 <em class='sharp'>#endif</em> <em class='comment'>/* not USE_MOTIF */</em>
+<a id='L426' name='L426'></a>   426 
+<a id='L427' name='L427'></a>   427   user_database = <a href='../S/2140.html#L303' title='Defined at 303 in src/xrdb.c.'>get_user_db</a> (<a href='../D/10500.html' title='Multiple defined in 3 places.'>display</a>);
+<a id='L428' name='L428'></a>   428 
+<a id='L429' name='L429'></a>   429   <em class='comment'>/* Figure out what the "customization string" is, so we can use it</em>
+<a id='L430' name='L430'></a>   430 <em class='comment'>     to decode paths.  */</em>
+<a id='L431' name='L431'></a>   431   <a href='../D/19819.html' title='Multiple defined in 3 places.'>xfree</a> (x_customization_string);
+<a id='L432' name='L432'></a>   432   x_customization_string
+<a id='L433' name='L433'></a>   433     = <a href='../S/2140.html#L58' title='Defined at 58 in src/xrdb.c.'>x_get_customization_string</a> (user_database, myname, myclass);
+<a id='L434' name='L434'></a>   434 
+<a id='L435' name='L435'></a>   435   <em class='comment'>/* Get application system defaults */</em>
+<a id='L436' name='L436'></a>   436   db = <a href='../S/2140.html#L244' title='Defined at 244 in src/xrdb.c.'>get_system_app</a> (myclass);
+<a id='L437' name='L437'></a>   437   <strong class='reserved'>if</strong> (db != <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L438' name='L438'></a>   438     XrmMergeDatabases (db, &amp;rdb);
+<a id='L439' name='L439'></a>   439 
+<a id='L440' name='L440'></a>   440   <em class='comment'>/* Get Fallback resources */</em>
+<a id='L441' name='L441'></a>   441   db = <a href='../S/2140.html#L256' title='Defined at 256 in src/xrdb.c.'>get_fallback</a> (<a href='../D/10500.html' title='Multiple defined in 3 places.'>display</a>);
+<a id='L442' name='L442'></a>   442   <strong class='reserved'>if</strong> (db != <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L443' name='L443'></a>   443     XrmMergeDatabases (db, &amp;rdb);
+<a id='L444' name='L444'></a>   444 
+<a id='L445' name='L445'></a>   445   <em class='comment'>/* Get application user defaults */</em>
+<a id='L446' name='L446'></a>   446   db = <a href='../S/2140.html#L263' title='Defined at 263 in src/xrdb.c.'>get_user_app</a> (myclass);
+<a id='L447' name='L447'></a>   447   <strong class='reserved'>if</strong> (db != <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L448' name='L448'></a>   448     XrmMergeDatabases (db, &amp;rdb);
+<a id='L449' name='L449'></a>   449 
+<a id='L450' name='L450'></a>   450   <em class='comment'>/* get User defaults */</em>
+<a id='L451' name='L451'></a>   451   <strong class='reserved'>if</strong> (user_database != <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L452' name='L452'></a>   452     XrmMergeDatabases (user_database, &amp;rdb);
+<a id='L453' name='L453'></a>   453 
+<a id='L454' name='L454'></a>   454   <em class='comment'>/* Get Environment defaults. */</em>
+<a id='L455' name='L455'></a>   455   db = <a href='../S/2140.html#L340' title='Defined at 340 in src/xrdb.c.'>get_environ_db</a> ();
+<a id='L456' name='L456'></a>   456   <strong class='reserved'>if</strong> (db != <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L457' name='L457'></a>   457     XrmMergeDatabases (db, &amp;rdb);
+<a id='L458' name='L458'></a>   458 
+<a id='L459' name='L459'></a>   459   <em class='comment'>/* Last, merge in any specification from the command line. */</em>
+<a id='L460' name='L460'></a>   460   <strong class='reserved'>if</strong> (xrm_string != <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L461' name='L461'></a>   461     <em class='brace'>{</em>
+<a id='L462' name='L462'></a>   462       db = XrmGetStringDatabase (xrm_string);
+<a id='L463' name='L463'></a>   463       <strong class='reserved'>if</strong> (db != <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L464' name='L464'></a>   464         XrmMergeDatabases (db, &amp;rdb);
+<a id='L465' name='L465'></a>   465     <em class='brace'>}</em>
+<a id='L466' name='L466'></a>   466 
+<a id='L467' name='L467'></a>   467   <strong class='reserved'>return</strong> rdb;
+<a id='L468' name='L468'></a>   468 <em class='brace'>}</em>
+<a id='L469' name='L469'></a>   469 
+<a id='L470' name='L470'></a>   470 
+<a id='L471' name='L471'></a>   471 <em class='comment'>/* Retrieve the value of the resource specified by NAME with class CLASS</em>
+<a id='L472' name='L472'></a>   472 <em class='comment'>   and of type TYPE from database RDB.  The value is returned in RET_VALUE. */</em>
+<a id='L473' name='L473'></a>   473 
+<a id='L474' name='L474'></a>   474 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L475' name='L475'></a>   475 <a href='../S/2140.html#L509' title='Referred from 509 in src/xrdb.c.'>x_get_resource</a> (<a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> rdb, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/14932.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *class,
+<a id='L476' name='L476'></a>   476                 XrmRepresentation expected_type, XrmValue *ret_value)
+<a id='L477' name='L477'></a>   477 <em class='brace'>{</em>
+<a id='L478' name='L478'></a>   478   XrmValue <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
+<a id='L479' name='L479'></a>   479   XrmName namelist[100];
+<a id='L480' name='L480'></a>   480   XrmClass classlist[100];
+<a id='L481' name='L481'></a>   481   XrmRepresentation type;
+<a id='L482' name='L482'></a>   482 
+<a id='L483' name='L483'></a>   483   XrmStringToNameList (<a href='../D/14932.html' title='Multiple defined in 4 places.'>name</a>, namelist);
+<a id='L484' name='L484'></a>   484   XrmStringToClassList (class, classlist);
+<a id='L485' name='L485'></a>   485 
+<a id='L486' name='L486'></a>   486   <strong class='reserved'>if</strong> (XrmQGetResource (rdb, namelist, classlist, &amp;type, &amp;<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>) == True
+<a id='L487' name='L487'></a>   487       &amp;&amp; (type == expected_type))
+<a id='L488' name='L488'></a>   488     <em class='brace'>{</em>
+<a id='L489' name='L489'></a>   489       *ret_value = <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
+<a id='L490' name='L490'></a>   490       <strong class='reserved'>return</strong> <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>.<a href='../D/17487.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L491' name='L491'></a>   491     <em class='brace'>}</em>
+<a id='L492' name='L492'></a>   492 
+<a id='L493' name='L493'></a>   493   <strong class='reserved'>return</strong> 0;
+<a id='L494' name='L494'></a>   494 <em class='brace'>}</em>
+<a id='L495' name='L495'></a>   495 
+<a id='L496' name='L496'></a>   496 <em class='comment'>/* Retrieve the string resource specified by NAME with CLASS from</em>
+<a id='L497' name='L497'></a>   497 <em class='comment'>   database RDB. */</em>
+<a id='L498' name='L498'></a>   498 
+<a id='L499' name='L499'></a>   499 <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *
+<a id='L500' name='L500'></a>   500 <a href='../R/18224.html' title='Multiple referred from 4 places.'>x_get_string_resource</a> (<strong class='reserved'>void</strong> *v_rdb, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/14932.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *class)
+<a id='L501' name='L501'></a>   501 <em class='brace'>{</em>
+<a id='L502' name='L502'></a>   502   <a href='../S/2152.html#L53' title='Defined at 53 in src/pgtkgui.h.'>XrmDatabase</a> *rdb = v_rdb;
+<a id='L503' name='L503'></a>   503   XrmValue <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
+<a id='L504' name='L504'></a>   504 
+<a id='L505' name='L505'></a>   505   <strong class='reserved'>if</strong> (inhibit_x_resources)
+<a id='L506' name='L506'></a>   506     <em class='comment'>/* --quick was passed, so this is a no-op.  */</em>
+<a id='L507' name='L507'></a>   507     <strong class='reserved'>return</strong> <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L508' name='L508'></a>   508 
+<a id='L509' name='L509'></a>   509   <strong class='reserved'>if</strong> (<a href='../S/2140.html#L475' title='Defined at 475 in src/xrdb.c.'>x_get_resource</a> (*rdb, <a href='../D/14932.html' title='Multiple defined in 4 places.'>name</a>, class, x_rm_string, &amp;<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>))
+<a id='L510' name='L510'></a>   510     <strong class='reserved'>return</strong> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *) <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>.addr;
+<a id='L511' name='L511'></a>   511 
+<a id='L512' name='L512'></a>   512   <strong class='reserved'>return</strong> <a href='../D/4539.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L513' name='L513'></a>   513 <em class='brace'>}</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L46'>[^]</a><a href='#L345'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L58'>[^]</a><a href='#L500'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>
