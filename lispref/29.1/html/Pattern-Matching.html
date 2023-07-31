@@ -1,0 +1,420 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Pattern Matching (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Pattern Matching (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Pattern Matching (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="makeinfo">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Parsing-Program-Source.html" rel="up" title="Parsing Program Source">
+<link href="Multiple-Languages.html" rel="next" title="Multiple Languages">
+<link href="Accessing-Node-Information.html" rel="prev" title="Accessing Node Information">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="ja">
+<div class="section" id="Pattern-Matching">
+<div class="header">
+<p>
+Next: <a href="Multiple-Languages.html" accesskey="n" rel="next">複数言語ののパース</a>, Previous: <a href="Accessing-Node-Information.html" accesskey="p" rel="prev">ノード情報へのアクセス</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="tree_002dsitternodonitaisurupatanmatutingu"></span><h3 class="section">37.5 tree-sitterノードにたいするパターンマッチング</h3>
+<span id="index-pattern-matching-with-tree_002dsitter-nodes"></span>
+
+<span id="index-capturing_002c-tree_002dsitter-node"></span>
+<p>tree-sitterでは小さな宣言型言語を用いてLispプログラムによるパターンのマッチングができます。このパターンマッチングは2つのステップから構成されています。まずtree-sitterが構文ツリーのノードにたいする<em>パターン(pattern)</em>のマッチを行い、その後にパターンにマッチした特定のノードを<em>キャプチャー(capture)</em>してそのノードをリターンするのです。
+</p>
+<p>まずはもっとも基本的なクエリーパターンを記述してパターン内のノードをキャプチャーする方法、それからパターンマッチング関数、そして最後により上級のパターン構文について説明していきます。
+</p>
+<span id="Ji-Ben-De-nakueriGou-Wen"></span><h3 class="heading">基本的なクエリー構文</h3>
+
+<span id="index-tree_002dsitter-query-pattern-syntax"></span>
+<span id="index-pattern-syntax_002c-tree_002dsitter-query"></span>
+<span id="index-query_002c-tree_002dsitter"></span>
+<p>A <em>query</em> consists of multiple <em>patterns</em>.  Each pattern is an
+s-expression that matches a certain node in the syntax node.  A pattern has
+the form <code>(<var>type</var>&nbsp;(<var>child</var>&hellip;))</code><!-- /@w -->.
+</p>
+<p>たとえば子ノードを含んだノード<code>binary_expression</code>にマッチするのは以下のようなパターンでしょう
+</p>
+<div class="example">
+<pre class="example">(binary_expression (number_literal))
+</pre></div>
+
+<p>上記のクエリーパターンを用いてノードを<em>キャプチャー(capture)</em>するためには、キャプチャーしたいノードパターンの後に<code>@<var>capture-name</var></code>を追加します。たとえば、
+</p>
+<div class="example">
+<pre class="example">(binary_expression (number_literal) @number-in-exp)
+</pre></div>
+
+<p>これはノード<code>binary_expression</code>にあるノード<code>number_literal</code>をキャプチャー名でキャプチャーします。
+</p>
+<p>同じようにして、たとえばキャプチャー名<code>biexp</code>でノード<code>binary_expression</code>をキャプチャーできます:
+</p>
+<div class="example">
+<pre class="example">(binary_expression
+ (number_literal) @number-in-exp) @biexp
+</pre></div>
+
+<span id="kueriGuan-Shu-"></span><h3 class="heading">クエリー関数</h3>
+
+<span id="index-query-functions_002c-tree_002dsitter"></span>
+<p>これで<em>クエリー関数(query functions)</em>を説明する準備ができました。
+</p>
+<dl class="def">
+<dt id="index-treesit_002dquery_002dcapture"><span class="category">Function: </span><span><strong>treesit-query-capture</strong> <em>node query &amp;optional beg end node-only</em><a href='#index-treesit_002dquery_002dcapture' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function matches patterns in <var>query</var> within <var>node</var>.  The
+argument <var>query</var> can be either an s-expression, a string, or a compiled
+query object.  For now, we focus on the s-expression syntax; string syntax
+and compiled queries are described at the end of the section.
+</p>
+<p>The argument <var>node</var> can also be a parser or a language symbol.  A parser
+means use its root node, a language symbol means find or create a parser for
+that language in the current buffer, and use the root node.
+</p>
+<p>The function returns all the captured nodes in an alist with elements of the
+form <code>(<var><span class="nolinebreak">capture_name</span></var>&nbsp;.&nbsp;<var>node</var>)</code><!-- /@w -->.  If <var>node-only</var> is
+non-<code>nil</code>, it returns the list of <var>node</var>s instead.  By default the
+entire text of <var>node</var> is searched, but if <var>beg</var> and <var>end</var> are
+both non-<code>nil</code>, they specify the region of buffer text where this
+function should match nodes.  Any matching node whose span overlaps with the
+region between <var>beg</var> and <var>end</var> is captured; it doesn&rsquo;t have to be
+completely contained in the region.
+</p>
+<span id="index-treesit_002dquery_002derror"></span>
+<span id="index-treesit_002dquery_002dvalidate"></span>
+<p>この関数は<var>query</var>が不正な形式であれば<code>treesit-query-error</code>エラーraiseする。シグナルデータには、その特定。エラーに関する説明が含まれている。クエリーの検証とデバッグには<code>treesit-query-validate</code>を使うことができる。
+</p></dd></dl>
+
+<p>たとえば<var>node</var>のテキストが<code>1 + 2</code>で、以下のクエリーを考えてみましょう
+</p>
+<div class="example">
+<pre class="example">(setq query
+      '((binary_expression
+         (number_literal) @number-in-exp) @biexp)
+</pre></div>
+
+<p>このクエリーをマッチングすると以下がリターンされます
+</p>
+<div class="example">
+<pre class="example">(treesit-query-capture node query)
+    &rArr; ((biexp . <var>&lt;node for &quot;1 + 2&quot;&gt;</var>)
+       (number-in-exp . <var>&lt;node for &quot;1&quot;&gt;</var>)
+       (number-in-exp . <var>&lt;node for &quot;2&quot;&gt;</var>))
+</pre></div>
+
+<p>前に言及したように、<var>query</var>に複数のパターンを含めることができます。たとえば以下のようにトップレベルのパターンを2つもつことができます:
+</p>
+<div class="example">
+<pre class="example">(setq query
+      '((binary_expression) @biexp
+        (number_literal) @number @biexp)
+</pre></div>
+
+<dl class="def">
+<dt id="index-treesit_002dquery_002dstring"><span class="category">Function: </span><span><strong>treesit-query-string</strong> <em>string query language</em><a href='#index-treesit_002dquery_002dstring' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function parses <var>string</var> as <var>language</var>, matches its root node
+with <var>query</var>, and returns the result.
+</p></dd></dl>
+
+<span id="sonoTa-nokueriGou-Wen"></span><h3 class="heading">その他のクエリー構文</h3>
+
+<p>Besides node type and capture name, tree-sitter&rsquo;s pattern syntax can express
+anonymous node, field name, wildcard, quantification, grouping, alternation,
+anchor, and predicate.
+</p>
+<span id="Wu-Ming-nodo"></span><h4 class="subheading">無名ノード</h4>
+
+<p>無名ノードはクォートで括ることで逐語的に記述されます。キーワード<code>return</code>にマッチ(してキャプチャー)するパターンは以下のようになるでしょう 
+</p>
+<div class="example">
+<pre class="example">&quot;return&quot; @keyword
+</pre></div>
+
+<span id="wairudokado"></span><h4 class="subheading">ワイルドカード</h4>
+
+<p>In a pattern, &lsquo;<samp>(_)</samp>&rsquo; matches any named node, and &lsquo;<samp>_</samp>&rsquo; matches any
+named or anonymous node.  For example, to capture any named child of a
+<code>binary_expression</code> node, the pattern would be
+</p>
+<div class="example">
+<pre class="example">(binary_expression (_) @in-biexp)
+</pre></div>
+
+<span id="huirudoMing--1"></span><h4 class="subheading">フィールド名</h4>
+
+<p>特定のフィールド名をもつ子ノードをキャプチャーすることは可能です。以下のパターンでは、フィールド名であることを示すコロンが後置されている<code>declarator</code>と<code>body</code>がフィールド名です。
+</p>
+<div class="example">
+<pre class="example">(function_definition
+  declarator: (_) @func-declarator
+  body: (_) @func-body)
+</pre></div>
+
+<p>It is also possible to capture a node that doesn&rsquo;t have a certain field,
+say, a <code>function_definition</code> without a <code>body</code> field:
+</p>
+<div class="example">
+<pre class="example">(function_definition !body) @func-no-body
+</pre></div>
+
+<span id="nodonoLiang-Hua-"></span><h4 class="subheading">ノードの量化</h4>
+
+<span id="index-quantify-node_002c-tree_002dsitter"></span>
+<p>Tree-sitter recognizes quantification operators &lsquo;<samp>:*</samp>&rsquo;, &lsquo;<samp>:+</samp>&rsquo;, and
+&lsquo;<samp>:?</samp>&rsquo;.  Their meanings are the same as in regular expressions: &lsquo;<samp>:*</samp>&rsquo;
+matches the preceding pattern zero or more times, &lsquo;<samp>:+</samp>&rsquo; matches one or
+more times, and &lsquo;<samp>:?</samp>&rsquo; matches zero or one times.
+</p>
+<p>For example, the following pattern matches <code>type_declaration</code> nodes
+that have <em>zero or more</em> <code>long</code> keywords.
+</p>
+<div class="example">
+<pre class="example">(type_declaration &quot;long&quot; :*) @long-type
+</pre></div>
+
+<p>The following pattern matches a type declaration that may or may not have a
+<code>long</code> keyword:
+</p>
+<div class="example">
+<pre class="example">(type_declaration &quot;long&quot; :?) @long-type
+</pre></div>
+
+<span id="gurupingu"></span><h4 class="subheading">グルーピング</h4>
+
+<p>Similar to groups in regular expressions, we can bundle patterns into groups
+and apply quantification operators to them.  For example, to express a
+comma-separated list of identifiers, one could write
+</p>
+<div class="example">
+<pre class="example">(identifier) (&quot;,&quot; (identifier)) :*
+</pre></div>
+
+<span id="Xuan-Ze-"></span><h4 class="subheading">選択</h4>
+
+<p>Again, similar to regular expressions, we can express &ldquo;match any one of
+these patterns&rdquo; in a pattern.  The syntax is a vector of patterns.  For
+example, to capture some keywords in C, the pattern would be
+</p>
+<div class="example">
+<pre class="example">[
+  &quot;return&quot;
+  &quot;break&quot;
+  &quot;if&quot;
+  &quot;else&quot;
+] @keyword
+</pre></div>
+
+<span id="anka"></span><h4 class="subheading">アンカー</h4>
+
+<p>The anchor operator <code>:anchor</code> can be used to enforce juxtaposition,
+i.e., to enforce two things to be directly next to each other.  The two
+&ldquo;things&rdquo; can be two nodes, or a child and the end of its parent.  For
+example, to capture the first child, the last child, or two adjacent
+children:
+</p>
+<div class="example">
+<pre class="example">;; Anchor the child with the end of its parent.
+(compound_expression (_) @last-child :anchor)
+</pre><pre class="example">
+
+</pre><pre class="example">;; Anchor the child with the beginning of its parent.
+(compound_expression :anchor (_) @first-child)
+</pre><pre class="example">
+
+</pre><pre class="example">;; Anchor two adjacent children.
+(compound_expression
+ (_) @prev-child
+ :anchor
+ (_) @next-child)
+</pre></div>
+
+<p>並置させる際には無名ノードは無視されることに注意してください。
+</p>
+<span id="Shu-Yu-"></span><h4 class="subheading">述語</h4>
+
+<p>パターンに述語による制約を追加することができます。たとえば以下のパターンでは:
+</p>
+<div class="example">
+<pre class="example">(
+ (array :anchor (_) @first (_) @last :anchor)
+ (:equal @first @last)
+)
+</pre></div>
+
+<p>tree-sitter only matches arrays where the first element is equal to the last
+element.  To attach a predicate to a pattern, we need to group them
+together.  Currently there are three predicates: <code>:equal</code>,
+<code>:match</code>, and <code>:pred</code>.
+</p>
+<dl class="def">
+<dt id="index-_003aequal"><span class="category">Predicate: </span><span><strong>:equal</strong> <em>arg1 arg2</em><a href='#index-_003aequal' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>Matches if <var>arg1</var> is equal to <var>arg2</var>.  Arguments can be either
+strings or capture names.  Capture names represent the text that the
+captured node spans in the buffer.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-_003amatch"><span class="category">Predicate: </span><span><strong>:match</strong> <em>regexp capture-name</em><a href='#index-_003amatch' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>Matches if the text that <var>capture-name</var>&rsquo;s node spans in the buffer
+matches regular expression <var>regexp</var>, given as a string literal.
+Matching is case-sensitive.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-_003apred"><span class="category">Predicate: </span><span><strong>:pred</strong> <em>fn &amp;rest nodes</em><a href='#index-_003apred' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>Matches if function <var>fn</var> returns non-<code>nil</code> when passed each node in
+<var>nodes</var> as arguments.
+</p></dd></dl>
+
+<p>述語が参照できるのは、同じパターン内に出現するキャプチャー名だけであることに注意してください。実際問題として別のパターンからキャプチャー名を参照しても、意味はほとんどありません。
+</p>
+<span id="String-patterns"></span><h3 class="heading">String patterns</h3>
+
+<span id="index-tree_002dsitter-patterns-as-strings"></span>
+<span id="index-patterns_002c-tree_002dsitter_002c-in-string-form"></span>
+<p>Besides s-expressions, Emacs allows the tree-sitter&rsquo;s native query syntax to
+be used by writing them as strings.  It largely resembles the s-expression
+syntax.  For example, the following query
+</p>
+<div class="example">
+<pre class="example">(treesit-query-capture
+ node '((addition_expression
+         left: (_) @left
+         &quot;+&quot; @plus-sign
+         right: (_) @right) @addition
+
+         [&quot;return&quot; &quot;break&quot;] @keyword))
+</pre></div>
+
+<p>以下と等価です
+</p>
+<div class="example">
+<pre class="example">(treesit-query-capture
+ node &quot;(addition_expression
+        left: (_) @left
+        \&quot;+\&quot; @plus-sign
+        right: (_) @right) @addition
+
+        [\&quot;return\&quot; \&quot;break\&quot;] @keyword&quot;)
+</pre></div>
+
+<p>Most patterns can be written directly as s-expressions inside a string.
+Only a few of them need modification:
+</p>
+<ul>
+<li> Anchor <code>:anchor</code> is written as &lsquo;<samp>.</samp>&rsquo;.
+</li><li> &lsquo;<samp>:?</samp>&rsquo; is written as &lsquo;<samp>?</samp>&rsquo;.
+</li><li> &lsquo;<samp>:*</samp>&rsquo; is written as &lsquo;<samp>*</samp>&rsquo;.
+</li><li> &lsquo;<samp>:+</samp>&rsquo; is written as &lsquo;<samp>+</samp>&rsquo;.
+</li><li> <code>:equal</code>, <code>:match</code> and <code>:pred</code> are written as <code>#equal</code>,
+<code>#match</code> and <code>#pred</code>, respectively.  In general, predicates change
+their &lsquo;<samp>:</samp>&rsquo; to &lsquo;<samp>#</samp>&rsquo;.
+</li></ul>
+
+<p>たとえば、
+</p>
+<div class="example">
+<pre class="example">'((
+   (compound_expression :anchor (_) @first (_) :* @rest)
+   (:match &quot;love&quot; @first)
+   ))
+</pre></div>
+
+<p>is written in string form as
+</p>
+<div class="example">
+<pre class="example">&quot;(
+  (compound_expression . (_) @first (_)* @rest)
+  (#match \&quot;love\&quot; @first)
+  )&quot;
+</pre></div>
+
+<span id="kuerinokonpairu"></span><h3 class="heading">クエリーのコンパイル</h3>
+
+<span id="index-compiling-tree_002dsitter-queries"></span>
+<span id="index-queries_002c-compiling"></span>
+<p>繰り返し使うことを意図したクエリー、とりわけタイトなループ(訳注
+:少ない命令を含み多数回実行されるループ)では、クエリーのコンパイルが重要になります。なぜならコンパイル済みのクエリーは、コンパイルされていないものと比較して非常に高速だからです。クエリーの使用が許されている場所ならどこでもコンパイル済みクエリーを使うことができます。
+</p>
+<dl class="def">
+<dt id="index-treesit_002dquery_002dcompile"><span class="category">Function: </span><span><strong>treesit-query-compile</strong> <em>language query</em><a href='#index-treesit_002dquery_002dcompile' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>language</var>の<var>query</var>をコンパイル済みクエリーオブジェクトにコンパイルして、それをリターンする。
+</p>
+<p>この関数は<var>query</var>が不正な形式であれば<code>treesit-query-error</code>エラーraiseする。シグナルデータには、その特定。エラーに関する説明が含まれている。クエリーの検証とデバッグには<code>treesit-query-validate</code>を使うことができる。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dquery_002dlanguage"><span class="category">Function: </span><span><strong>treesit-query-language</strong> <em>query</em><a href='#index-treesit_002dquery_002dlanguage' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function returns the language of <var>query</var>.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dquery_002dexpand"><span class="category">Function: </span><span><strong>treesit-query-expand</strong> <em>query</em><a href='#index-treesit_002dquery_002dexpand' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はS式の<var>query</var>を文字列フォーマットに変換する。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dpattern_002dexpand"><span class="category">Function: </span><span><strong>treesit-pattern-expand</strong> <em>pattern</em><a href='#index-treesit_002dpattern_002dexpand' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はS式の<var>pattern</var>を文字列フォーマットに変換する。
+</p></dd></dl>
+
+<p>パターンマッチングに関する詳細については、<a href="https://tree-sitter.github.io/tree-sitter/using-parsers#pattern-matching-with-queries">https://tree-sitter.github.io/tree-sitter/using-parsers#pattern-matching-with-queries</a>にあるtree-sitterプロジェクトのドキュメントを参照してください。
+</p>
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Multiple-Languages.html">複数言語ののパース</a>, Previous: <a href="Accessing-Node-Information.html">ノード情報へのアクセス</a>, Up: <a href="Parsing-Program-Source.html">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+
+</body>
+</html>
