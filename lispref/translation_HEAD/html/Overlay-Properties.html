@@ -4,9 +4,9 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 27.1.
+corresponding to Emacs version 29.1.
 
-Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="August 2, 2023">
+<meta name="date" content="August 3, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -97,15 +97,40 @@ Next: <a href="Finding-Overlays.html" accesskey="n" rel="next">オーバーレ�
 </p>
 <dl compact="compact">
 <dt id='index-priority-_0028overlay-property_0029'><span><code>priority</code><a href='#index-priority-_0028overlay-property_0029' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>このプロパティの値はオーバーレイの優先度を決定する。優先度にたいして値を指定したければ<code>nil</code>
-(か0)、または正の整数を使用すること。それ以外のすべての値にたいする動作は未定義。
+<dd><p>This property&rsquo;s value determines the priority of the overlay.  If you want
+to specify a priority value, use either <code>nil</code> (or zero), or a positive
+integer, or a cons of two values.  Any other value triggers undefined
+behavior.
 </p>
-<p>2つ以上のオーバーレイが同じ文字をカバーし、いずれもが同じプロパティを指定する場合には、優先度が重要になる。他より<code>priority</code>の値が大きいほうが他をオーバーライドする。(<code>face</code>プロパティにたいしては、より高い優先度のオーバーレイの値は他の値を完全にはオーバーライドしない。かわりに高い優先度のface属性がより低い優先度の<code>face</code>プロパティのface属性をオーバーライドする)。2つのオーバーレイが同じ優先値をもち、一方がもう一方にネストされている場合には、内側のオーバーレイが外側のオーバーレイより優先される。いずれのオーバーレイも他方にネストされていなければ、どちらのオーバーレイが優先するかを仮定しないこと。
+<p>The priority matters when two or more overlays cover the same character and
+both specify the same property with different values; the one whose
+<code>priority</code> value is higher overrides the other.  (For the <code>face</code>
+property, the higher priority overlay&rsquo;s value does not completely override
+the other value; instead, its individual face attributes override the
+corresponding face attributes of the <code>face</code> property whose priority is
+lower.)  If two overlays have the same priority value, and one is &ldquo;nested&rdquo;
+in the other (i.e., covers fewer buffer or string positions), then the inner
+one will prevail over the outer one.  If neither is nested in the other then
+you should not make assumptions about which overlay will prevail.
+</p>
+<p>When a Lisp program puts overlays with defined priorities on text that might
+have overlays without priorities, this could cause undesirable results,
+because any overlay with a positive priority value will override all the
+overlays without a priority.  Since most Emacs features that use overlays
+don&rsquo;t specify priorities for their overlays, integer priorities should be
+used with care.  Instead of using integer priorities and risk overriding
+other overlays, you can use priority values of the form
+<code>(<var>primary</var>&nbsp;.&nbsp;<var>secondary</var>)</code><!-- /@w -->, where the <var>primary</var> value
+is used as described above, and <var>secondary</var> is the fallback value used
+when <var>primary</var> and the nesting considerations fail to resolve the
+precedence between overlays.  In particular, priority value <code>(nil&nbsp;.&nbsp;<var>n</var>)</code><!-- /@w -->, with <var>n</var> a positive integer, allows to have the overlays
+ordered by priority when necessary without completely overriding other
+overlays.
 </p>
 <p>現在のところ、すべてのオーバーレイはテキストプロパティより優先される。
 </p>
-<p>Emacsは内部的ないくつかのオーバーレイに非数値の優先値を使用するときがあるので、(自分が作成したものでなければ)オーバーレイの優先度にたいして数値演算を試みてはならない。特にリージョンの表示に使用されるオーバーレイは<code>(<var>primary</var>&nbsp;.&nbsp;<var>secondary</var>)</code><!-- /@w -->
-(<var>primary</var>は上述のように使用されて、<var>secondary</var>は<var>primary</var>とネストを考慮したオーバーレイ間の優先度の解決が失敗した際に使用される)という形式の優先値を使用する。しかしあなたにはこの実装の詳細にもとづいてLispプログラムをデザインしないようにアドバイスした。優先順にオーバーレイを配置する必要があるなら<code>overlays-at</code>の<var>sorted</var>引数を使用すること。<a href="Finding-Overlays.html">オーバーレイにたいする検索</a>を参照のこと。
+<p>If you need to put overlays in priority order, use the <var>sorted</var> argument
+of <code>overlays-at</code>.  See <a href="Finding-Overlays.html">オーバーレイにたいする検索</a>.
 </p>
 </dd>
 <dt id='index-window-_0028overlay-property_0029'><span><code>window</code><a href='#index-window-_0028overlay-property_0029' class='copiable-anchor'> &para;</a></span></dt>
@@ -135,7 +160,11 @@ Next: <a href="Finding-Overlays.html" accesskey="n" rel="next">オーバーレ�
 
 </dd>
 <dt id='index-mouse_002dface-_0028overlay-property_0029'><span><code>mouse-face</code><a href='#index-mouse_002dface-_0028overlay-property_0029' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>このプロパティはマウスがオーバーレイ範囲内にあるときに、<code>face</code>のかわりに使用される。しかしEmacsはこのプロパティに由来するテキストのサイズを変更するようなフェイス属性(<code>:height</code>、<code>:weight</code>、<code>:slant</code>)をすべて無視する。これらの属性はハイライトされていないテキストでは常に同一である。
+<dd><p>This property is used instead of <code>face</code> when the mouse is within the
+range of the overlay.  However, Emacs ignores all face attributes from this
+property that alter the text size (e.g., <code>:height</code>, <code>:weight</code>, and
+<code>:slant</code>); those attributes are always the same as in the unhighlighted
+text.
 </p>
 </dd>
 <dt id='index-display-_0028overlay-property_0029'><span><code>display</code><a href='#index-display-_0028overlay-property_0029' class='copiable-anchor'> &para;</a></span></dt>
@@ -143,7 +172,9 @@ Next: <a href="Finding-Overlays.html" accesskey="n" rel="next">オーバーレ�
 </p>
 </dd>
 <dt id='index-help_002decho-_0028overlay-property_0029'><span><code>help-echo</code><a href='#index-help_002decho-_0028overlay-property_0029' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>あるオーバーレイが<code>help-echo</code>プロパティをもつなら、そのオーバーレイ内のテキスト上にマウスを移動した際に、Emacsはエコーエリアかツールチップウィンドウにヘルプ文字列を表示する。詳細は<a href="Special-Properties.html#Text-help_002decho">Text help-echo</a>を参照のこと。
+<dd><p>If an overlay has a <code>help-echo</code> property, then when you move the mouse
+onto the text in the overlay, Emacs displays a help string in the echo area,
+or as a tooltip.  For details see <a href="Special-Properties.html#Text-help_002decho">Text help-echo</a>.
 </p>
 </dd>
 <dt id='index-field-_0028overlay-property_0029'><span><code>field</code><a href='#index-field-_0028overlay-property_0029' class='copiable-anchor'> &para;</a></span></dt>
@@ -181,7 +212,8 @@ Next: <a href="Finding-Overlays.html" accesskey="n" rel="next">オーバーレ�
 </p>
 </dd>
 <dt><span><code>isearch-open-invisible</code></span></dt>
-<dd><p>このプロパティはインクリメンタル検索にたいして最後のマッチがそのオーバーレイに重なる場合に、不可視なオーバーレイを永続的に可視にする方法を告げる。<a href="Invisible-Text.html">不可視のテキスト</a>を参照のこと。
+<dd><p>This property tells incremental search (see <a data-manual="emacs" href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Incremental-Search.html#Incremental-Search">Incremental Search</a> in <cite>The GNU Emacs Manual</cite>) how to make an invisible overlay visible,
+permanently, if the final match overlaps it.  See <a href="Invisible-Text.html">不可視のテキスト</a>.
 </p>
 </dd>
 <dt><span><code>isearch-open-invisible-temporary</code></span></dt>
@@ -189,11 +221,17 @@ Next: <a href="Finding-Overlays.html" accesskey="n" rel="next">オーバーレ�
 </p>
 </dd>
 <dt id='index-before_002dstring-_0028overlay-property_0029'><span><code>before-string</code><a href='#index-before_002dstring-_0028overlay-property_0029' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>このプロパティの値はオーバーレイ先頭に表示するために追加する文字列。この文字列はいかなる意味においてもバッファー内には出現せずにスクリーン上にのみ表れる。
+<dd><p>This property&rsquo;s value is a string to add to the display at the beginning of
+the overlay.  The string does not appear in the buffer in any sense&mdash;only
+on the screen.  Note that if the text at the beginning of the overlay is
+made invisible, the string will not be displayed.
 </p>
 </dd>
 <dt id='index-after_002dstring-_0028overlay-property_0029'><span><code>after-string</code><a href='#index-after_002dstring-_0028overlay-property_0029' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>このプロパティの値はオーバーレイ終端に表示するために追加する文字列。この文字列はいかなる意味においてもバッファー内には出現せずにスクリーン上にのみ表れる。
+<dd><p>This property&rsquo;s value is a string to add to the display at the end of the
+overlay.  The string does not appear in the buffer in any sense&mdash;only on
+the screen.  Note that if the text at the end of the overlay is made
+invisible, the string will not be displayed.
 </p>
 </dd>
 <dt><span><code>line-prefix</code></span></dt>
@@ -231,6 +269,6 @@ Next: <a href="Finding-Overlays.html">オーバーレイにたいする検索</a
 </div>
 
 
-This page has generated for branch:master, commit:96e6bc92bddea897f4d52288d7df54cd2409a42b to check Japanese translation.
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:4386b622e6792a4f35d6631abb1e31dcbb96daa2 to check Japanese translation.
 </body>
 </html>

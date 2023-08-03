@@ -4,9 +4,9 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 27.1.
+corresponding to Emacs version 29.1.
 
-Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="August 2, 2023">
+<meta name="date" content="August 3, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -106,8 +106,21 @@ error&rarr; Wrong number of arguments.
   (capitalize-word 1))
 </pre></div>
 
+<span id="index-defining-functions-dynamically"></span>
+<p>Most Emacs functions are part of the source code of Lisp programs, and are
+defined when the Emacs Lisp reader reads the program source before executing
+it.  However, you can also define functions dynamically at run time, e.g.,
+by generating <code>defun</code> calls when your program&rsquo;s code is executed.  If
+you do this, be aware that Emacs&rsquo;s Help commands, such as <kbd>C-h f</kbd>, which
+present in the <samp>*Help*</samp> buffer a button to jump to the function&rsquo;s
+definition, might be unable to find the source code because generating a
+function dynamically usually looks very different from the usual static
+calls to <code>defun</code>.  You can make the job of finding the code which
+generates such functions easier by using the <code>definition-name</code>
+property, see <a href="Standard-Properties.html">シンボルの標準的なプロパティ</a>.
+</p>
 <span id="index-override-existing-functions"></span>
-<span id="index-Ji-Cun-noGuan-Shu-noZai-Ding-Yi-_002e-"></span>
+<span id="index-redefine-existing-functions"></span>
 <p>意図せず既存の関数を再定義しないように注意されたい。<code>defun</code>は<code>car</code>のようなプリミティブ関数でさえ、問い合わせせずに躊躇なく再定義する。Emacsがこれを妨げることはない。なぜなら関数の再定義は故意に行われることがあり、そのような意図した再定義を、意図しない再定義と見分ける方法はがないからである。
 </p></dd></dl>
 
@@ -115,34 +128,36 @@ error&rarr; Wrong number of arguments.
 <span id="index-alias_002c-for-functions"></span>
 <dl class="def">
 <dt id="index-defalias"><span class="category">Function: </span><span><strong>defalias</strong> <em>name definition &amp;optional doc</em><a href='#index-defalias' class='copiable-anchor'> &para;</a></span></dt>
-<dd><span id="Definition-of-defalias"></span><p>この関数は定義<var>definition</var>(任意の有効なLisp関数)とともに、シンボル<var>name</var>を関数として定義する。この関数のリターン値は<em>未定義</em>。
+<dd><span id="Definition-of-defalias"></span><p>This function defines the symbol <var>name</var> as a function, with definition
+<var>definition</var>.  <var>definition</var> can be any valid Lisp function or macro,
+or a special form (see <a href="Special-Forms.html">スペシャルフォーム</a>), or a keymap (see <a href="Keymaps.html">キーマップ</a>), or
+a vector or string (a keyboard macro).  The return value of <code>defalias</code>
+is <em>undefined</em>.
 </p>
 <p><var>doc</var>が非<code>nil</code>なら、それは関数<var>name</var>のドキュメントとなる。それ以外なら<var>definition</var>により提供されるドキュメントが使用される。
 </p>
 <span id="index-defalias_002dfset_002dfunction-property"></span>
 <p>内部的には<code>defalias</code>は、通常は定義のセットに<code>fset</code>を使用する。しかし<var>name</var>が<code>defalias-fset-function</code>プロパティーをもつなら、<code>fset</code>を呼び出すかわりにそれに割り当てられた値を使用する。
 </p>
-<p><code>defalias</code>を使う正しい場所は、特定の関数名が正に定義される場所 &mdash;
-特にソースファイルがロードされるとき明示的にその名前が出現する場所である。これは<code>defalias</code>が<code>defun</code>と同じように、どれが関数を定義するファイルなのか記録するからである(<a href="Unloading.html">アンロード</a>を参照)。
+<p>The proper place to use <code>defalias</code> is where a specific function or
+macro name is being defined&mdash;especially where that name appears explicitly
+in the source file being loaded.  This is because <code>defalias</code> records
+which file defined the function, just like <code>defun</code> (see <a href="Unloading.html">アンロード</a>).
 </p>
 <p>それとは対象的に他の目的のために関数を操作するプログラムでは、そのような記録を保持しない<code>fset</code>を使用するほうがよいだろう。<a href="Function-Cells.html">関数セルの内容へのアクセス</a>を参照のこと。
 </p></dd></dl>
 
 <dl class="def">
 <dt id="index-function_002dalias_002dp"><span class="category">Function: </span><span><strong>function-alias-p</strong> <em>object &amp;optional noerror</em><a href='#index-function_002dalias_002dp' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>Checks whether <var>object</var> is a function alias.  If it is, it returns a
-list of symbols representing the function alias chain, else <code>nil</code>.  For
-instance, if <code>a</code> is an alias for <code>b</code>, and <code>b</code> is an alias for
-<code>c</code>:
+<dd><p><var>object</var>が関数のエイリアス(alias: 別名)かどうかをチェックする。エイリアスならその関数のエイリアスのチェーン(chain:
+連鎖)を表すシンボルのリスト、エイリアスでなければ<code>nil</code>をリターンする。たとえば<code>a</code>が<code>b</code>のエイリアスで、<code>b</code>が<code>c</code>のエイリアスなら:
 </p>
 <div class="example">
 <pre class="example">(function-alias-p 'a)
     &rArr; (b c)
 </pre></div>
 
-<p>If there&rsquo;s a loop in the definitions, an error will be signaled.  If
-<var>noerror</var> is non-<code>nil</code>, the non-looping parts of the chain is
-returned instead.
+<p>定義中にループがあるとエラーをシグナルする。<var>noerror</var>が非<code>nil</code>の場合には、ループしていないチェーン部分をリターンする。
 </p></dd></dl>
 
 <p><code>defun</code>や<code>defalias</code>で新たなプリミティブ関数を作成することはできませんが、任意の関数定義を変更するのに使用することができ、通常の定義がプリミティブである<code>car</code>や<code>x-popup-menu</code>のような関数でさえ変更することができます。しかしこれは危険なことです。たとえばLispの完全性を損なうことなく、<code>car</code>を再定義するのはほとんど不可能だからです。それほど有名ではない<code>x-popup-menu</code>のような関数の再定義では、危険は減少しますが、それでも期待したとおりに機能しないかもしれません。Cコードにそのプリミティブの呼び出しがあれば、それは直接そのプリミティブのC定義を呼び出すので、シンボル定義を変更してもそれらに影響はありません。
@@ -152,8 +167,13 @@ returned instead.
 <p>関数名を未定義にするには<code>fmakunbound</code>を使用します。<a href="Function-Cells.html">関数セルの内容へのアクセス</a>を参照してください。
 </p>
 </div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Calling-Functions.html">関数の呼び出し</a>, Previous: <a href="Function-Names.html">関数の命名</a>, Up: <a href="Functions.html">関数</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
-This page has generated for branch:master, commit:96e6bc92bddea897f4d52288d7df54cd2409a42b to check Japanese translation.
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:4386b622e6792a4f35d6631abb1e31dcbb96daa2 to check Japanese translation.
 </body>
 </html>

@@ -4,9 +4,9 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 27.1.
+corresponding to Emacs version 29.1.
 
-Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="August 2, 2023">
+<meta name="date" content="August 3, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -120,7 +120,9 @@ Manual</cite>を参照)。保存された変数が機能するためには、Ema
 </p></dd>
 </dl>
 
-<p>その他のすべてのキーワード引数は変数<var>mode</var>にたいして生成された<code>defcustom</code>に直接渡される。
+<p>Any other keyword arguments are passed directly to the <code>defcustom</code>
+generated for the variable <var>mode</var>.  See <a href="Variable-Definitions.html">カスタマイゼーション変数の定義</a>, for the
+description of those keywords and their values.
 </p>
 <p><var>mode</var>という名前のコマンドは最初に<var>mode</var>という名前の変数をセットする等の標準的な動作を処理した後に、もしあれば<var>body</var>フォームを実行する。それからモードフック変数<code><var>mode</var>-hook</code>を実行してから<code>:after-hook</code>内のフォームを評価して終了する(フック実行を含めて、これらすべてはモードの有効化と無効化の両方で行われることに注意)。
 </p></dd></dl>
@@ -176,19 +178,15 @@ mode&rdquo;という名前のマイナーモード、モードをトグルする
 
 <dl class="def">
 <dt id="index-define_002dglobalized_002dminor_002dmode"><span class="category">Macro: </span><span><strong>define-globalized-minor-mode</strong> <em>global-mode mode turn-on keyword-args&hellip; body&hellip;</em><a href='#index-define_002dglobalized_002dminor_002dmode' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This defines a global toggle named <var>global-mode</var> whose meaning is to
-enable or disable the buffer-local minor mode <var>mode</var> in all (or some;
-see below) buffers.  It also executes the <var>body</var> forms.  To turn on the
-minor mode in a buffer, it uses the function <var>turn-on</var>; to turn off the
-minor mode, it calls <var>mode</var> with -1 as argument.  (The function
-<var>turn-on</var> is a separate function so it could determine whether to enable
-the minor mode or not when it is not a priori clear that it should always be
-enabled.)
+<dd><p>これは<var>global-mode</var>という名前をグローバルにトグルする。これは<var>mode</var>という名前のバッファーローカルなマイナーモードをすべてのバッファー(または一部のバッファー。以下参照)で有効か無効にするということを意味する。<var>body</var>フォームの実行も行う。あるバッファー内でそのマイナーモードをオンにするには関数<var>turn-on</var>を使用する。マイナーモードをオフにするには-1を引数として<var>mode</var>を呼び出す(<var>turn-on</var>は別の関数なのでそのマイナーモードを有効にすべきか先験的に明確でない場合でも有効にするかどうかを決定できる)。
 </p>
 <p>モードをグローバルに有効にすると、それ以降ファイルをvisitすることによって作成されるバッファーやFundamental以外のメジャーモードを使用するバッファーにも影響がある。しかしFundamentalで作成される新たなバッファーは検知しない。
 </p>
-<p>これはCustomizeインターフェイス内でそのマイナーモードのオン/オフを切り替えるカスタムオプション<var>global-mode</var>
-(<a href="Customization.html">カスタマイゼーション設定</a>を参照)を定義する。<code>define-minor-mode</code>と同様に、たとえば<code>:require</code>を与える等によってEmacs開始時に毎回確実に<code>define-globalized-minor-mode</code>フォームが評価されるようにすること。
+<p>This macro defines the customization option <var>global-mode</var>
+(see <a href="Customization.html">カスタマイゼーション設定</a>), which can be toggled via the Customize interface to
+turn the minor mode on and off.  As with <code>define-minor-mode</code>, you
+should ensure that the <code>define-globalized-minor-mode</code> form is evaluated
+each time Emacs starts, for example by providing a <code>:require</code> keyword.
 </p>
 <p>グローバルマイナーモードのモード変数にたいしてカスタムグループを指定するには<var>keyword-args</var>内で<code>:group
 <var>group</var></code>を使用する。
@@ -196,12 +194,22 @@ enabled.)
 <p>モードのオンかオフかを示すバッファーローカルなマイナーモード変数は、デフォルトではモード自身の名前なまと同じ。これが該当しない場合(状態情報を異なる変数に格納するいくつかのモード)には、<code>:variable
 <var>variable</var></code>を使用すること。
 </p>
-<p>一般的にはグローバル化されたマイナーモードを定義するときは、ユーザーがバッファーごとにモードを使用(または無効に)できるように非グローバル版も定義すること。これにより特定のメジャーモード内でそのモードのフックを使用すればグローバルに有効化されたマイナーモードを無効にすることができるようになる。
+<p>Generally speaking, when you define a globalized minor mode, you should also
+define a non-globalized version, so that people could use it (or disable it)
+in individual buffers.  This also allows them to disable a globally enabled
+minor mode in a specific major mode, by using that mode&rsquo;s hook.
 </p>
-<p><code>:predicate</code>キーワードが与えられた場合には、ユーザーオプションはグローバルモード変数と同様に呼び出されるが、終端が<code>-modes</code>のかわりに<code>-mode</code>のものが作成される。この変数はマイナーモードをアクティブにするべきメジャーモードが何かを指定する述語として使用される。有効な値として<code>t</code>
-(すべてのメジャーモードで使用)、<code>nil</code>
-(どのメジャーモードでも使用されない)、またはモード名要素(同様に<code>t</code>と<code>nil</code>)からなるリスト(あるいは<code>(not
-mode-name ...)</code>のような否定)。
+<p>If the macro is given a <code>:predicate</code> keyword, it will create a user
+option called the same as the global mode variable, but with <code>-modes</code>
+instead of <code>-mode</code> at the end, i.e. <code><var>global-mode</var>s</code>.  This
+variable will be used in a predicate function that determines whether the
+minor mode should be activated in a particular major mode, and users can
+customize the value of the variable to control the modes in which the minor
+mode will be switched on.  Valid values of <code>:predicate</code> (and thus valid
+values of the user option it creates) include <code>t</code> (use in all major
+modes), <code>nil</code> (don&rsquo;t use in any major modes), or a list of mode names,
+optionally preceded with <code>not</code> (as in <code>(not&nbsp;<var><span class="nolinebreak">mode-name</span></var>&nbsp;&hellip;)</code><!-- /@w -->).  These elements can be mixed, as shown in the following
+examples.
 </p>
 <div class="example">
 <pre class="example">(c-mode (not mail-mode message-mode) text-mode)
@@ -213,7 +221,8 @@ mode-name ...)</code>のような否定)。
 <pre class="example">((not c-mode) t)
 </pre></div>
 
-<p>&ldquo;<code>c-mode</code>の派生モードでは使用しないが、それ以外なら使用する&rdquo;ことを意味する。
+<p>This means &ldquo;don&rsquo;t use in modes derived from <code>c-mode</code>, but do use
+everywhere else&rdquo;.
 </p>
 <div class="example">
 <pre class="example">(text-mode)
@@ -225,12 +234,7 @@ mode-name ...)</code>のような否定)。
 <span id="index-buffer_002dlocal_002drestore_002dstate"></span>
 <dl class="def">
 <dt id="index-buffer_002dlocal_002dset_002dstate"><span class="category">Macro: </span><span><strong>buffer-local-set-state</strong> <em>variable value...</em><a href='#index-buffer_002dlocal_002dset_002dstate' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>Minor modes often set buffer-local variables that affect some features in
-Emacs.  When a minor mode is switched off, the mode is expected to restore
-the previous state of these variables.  This convenience macro helps with
-doing that: It works much like <code>setq-local</code>, but returns an object that
-can be used to restore these values back to their previous values/states
-(using the companion function <code>buffer-local-restore-state</code>).
+<dd><p>Emacsの一部機能に影響を与えるようなバッファーローカル変数をマイナーモードがセットすることがよくある。あるモードをオフに切り替えた際には、これらの変数の元の状態へのリストアがモードには求められる。これはそれらのことを行う助けとなる利便的なマクロである。これは<code>setq-local</code>と同じように機能するが、(相方となる関数<code>buffer-local-restore-state</code>を使って)これらの変数を以前の値や状態をリストアするために使用できるオブジェクトをリターンする。
 </p></dd></dl>
 
 </div>
@@ -241,6 +245,6 @@ Previous: <a href="Keymaps-and-Minor-Modes.html">キーマップとマイナー�
 </div>
 
 
-This page has generated for branch:master, commit:96e6bc92bddea897f4d52288d7df54cd2409a42b to check Japanese translation.
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:4386b622e6792a4f35d6631abb1e31dcbb96daa2 to check Japanese translation.
 </body>
 </html>

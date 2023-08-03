@@ -4,9 +4,9 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 27.1.
+corresponding to Emacs version 29.1.
 
-Copyright (C) 1990-1996, 1998-2022 Free Software Foundation, Inc.
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="August 2, 2023">
+<meta name="date" content="August 3, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -75,21 +75,67 @@ line)</em>をもつことができます。ヘッダーライン機能は、そ�
 <dl class="def">
 <dt id="index-header_002dline_002dformat"><span class="category">Variable: </span><span><strong>header-line-format</strong><a href='#index-header_002dline_002dformat' class='copiable-anchor'> &para;</a></span></dt>
 <dd><p>すべてのバッファーにたいしてローカルなこの変数は、そのバッファーを表示するバッファーにたいしてヘッダーラインを表示する方法を指定する。この変数の値のフォーマットは<code>mode-line-format</code>にたいするフォーマットと同じ(<a href="Mode-Line-Data.html">モードラインのデータ構造</a>を参照)。この変数は通常は<code>nil</code>なので、通常のバッファーはヘッダーラインをもたない。
+</p></dd></dl>
+
+<p>If <code>display-line-numbers-mode</code> is turned on in a buffer (see <a data-manual="emacs" href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Display-Custom.html#Display-Custom">display-line-numbers-mode</a> in <cite>The GNU Emacs Manual</cite>), the
+buffer text is indented on display by the amount of screen space needed to
+show the line numbers.  By contrast, text of the header line is not
+automatically indented, because a header line never displays a line number,
+and because the text of the header line is not necessarily directly related
+to buffer text below it.  If a Lisp program needs the header-line text to be
+aligned with buffer text (for example, if the buffer displays columnar data,
+like <code>tabulated-list-mode</code> does, see <a href="Tabulated-List-Mode.html">Tabulated Listモード</a>), it
+should turn on the minor mode <code>header-line-indent-mode</code>.
 </p>
-<span id="index-header_002dline_002dindent_002dmode"></span>
-<p>If <code>display-line-numbers-mode</code> is used, and you want the header line to
-be indented by the same amount as the buffer contents, you can use the
-<code>header-line-indent-mode</code> minor mode.  This minor mode keeps the
-<code>header-line-indent</code> variable updated, so that you can say something
-like:
+<dl class="def">
+<dt id="index-header_002dline_002dindent_002dmode"><span class="category">Command: </span><span><strong>header-line-indent-mode</strong><a href='#index-header_002dline_002dindent_002dmode' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This buffer-local minor mode tracks the changes of the width of the
+line-number display on screen (which may vary depending on the range of line
+numbers shown in the window), and allows Lisp programs to arrange that
+header-line text is always aligned with buffer text when the line-number
+width changes.  Such Lisp programs should turn on this mode in the buffer,
+and use the variables <code>header-line-indent</code> and
+<code>header-line-indent-width</code> in the <code>header-line-format</code> to ensure
+it is adjusted to the text indentation at all times.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-header_002dline_002dindent"><span class="category">Variable: </span><span><strong>header-line-indent</strong><a href='#index-header_002dline_002dindent' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This variable&rsquo;s value is a whitespace string whose width is kept equal to
+the current width of line-numbers on display, provided that
+<code>header-line-indent-mode</code> is turned on in the buffer shown in the
+window.  The number of spaces is calculated under the assumption that the
+face of the header-line text uses the same font, including size, as the
+frame&rsquo;s default font; if that assumption is false, use
+<code>header-line-indent-width</code>, described below, instead.  This variable is
+intended to be used in simple situations where the header-line text needs to
+be indented as a whole to be realigned with buffer text, by prepending this
+variable&rsquo;s value to the actual header-line text.  For example, the following
+definition of <code>header-line-format</code>:
 </p>
 <div class="example lisp">
 <pre class="lisp">(setq header-line-format
-      `(&quot;&quot; header-line-format ,my-header-line))
+      `(&quot;&quot; header-line-indent ,my-header-line))
 </pre></div>
 
-<p>This can be useful if you&rsquo;re displaying columnar data, and the header line
-should align with that data in the buffer.
+<p>where <code>my-header-line</code> is the format string that produces the actual
+text of the header line, will make sure the header-line text is always
+indented like the buffer text below it.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-header_002dline_002dindent_002dwidth"><span class="category">Variable: </span><span><strong>header-line-indent-width</strong><a href='#index-header_002dline_002dindent_002dwidth' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This variable&rsquo;s value is kept updated to provide the current width, in units
+of the frame&rsquo;s canonical character width, used for displaying the line
+numbers, provided that <code>header-line-indent-mode</code> is turned on in the
+buffer shown in the window.  It can be used for aligning the header-line
+text with the buffer text when <code>header-line-indent</code> is not flexible
+enough.  For example, if the header line uses a font whose metrics is
+different from the default face&rsquo;s font, your Lisp program can calculate the
+width of line-number display in pixels, by multiplying the value of this
+variable by the value returned by <code>frame-char-width</code> (see <a href="Frame-Font.html">フレームのフォント</a>), and then use the result to align header-line text using the
+<code>:align-to</code> display property spec (see <a href="Specified-Space.html">スペースの指定</a>) in pixels
+on the relevant parts of <code>header-line-frormat</code>.
 </p></dd></dl>
 
 <dl class="def">
@@ -100,8 +146,13 @@ should align with that data in the buffer.
 <p>高さが1行しかないウィンドウがヘッダーラインを表示することは決してありません。また高さが2行しかないウィンドウは、同時にモードラインとヘッダーラインを表示できません。そのようなウィンドウがモードラインをもつ場合にはヘッダーラインは表示されません。
 </p>
 </div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Emulating-Mode-Line.html">モードラインのフォーマットのエミュレート</a>, Previous: <a href="Properties-in-Mode.html">モードラインでのプロパティ</a>, Up: <a href="Mode-Line-Format.html">モードラインのフォーマット</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
-This page has generated for branch:master, commit:96e6bc92bddea897f4d52288d7df54cd2409a42b to check Japanese translation.
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:4386b622e6792a4f35d6631abb1e31dcbb96daa2 to check Japanese translation.
 </body>
 </html>
