@@ -1,0 +1,151 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 29.1.
+
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Destructuring with pcase Patterns (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Destructuring with pcase Patterns (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Destructuring with pcase Patterns (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="August 9, 2023">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Pattern_002dMatching-Conditional.html" rel="up" title="Pattern-Matching Conditional">
+<link href="Backquote-Patterns.html" rel="prev" title="Backquote Patterns">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection" id="Destructuring-with-pcase-Patterns">
+<div class="header">
+<p>
+Previous: <a href="Backquote-Patterns.html" accesskey="p" rel="prev">バッククォートスタイルパターン</a>, Up: <a href="Pattern_002dMatching-Conditional.html" accesskey="u" rel="up">パターンマッチングによる条件</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="pcasepatanniyoruFen-Jie-"></span><h4 class="subsection">11.4.4 <code>pcase</code>パターンによる分解</h4>
+<span id="index-destructuring-with-pcase-patterns"></span>
+
+<p>pcaseのパターンはあるオブジェクトがマッチ可能なフォーム上の条件を表現するだけではなく、それらのオブジェクトのサブフィールドの抽出もできます。たとえば以下のコードにより、変数<code>my-list</code>の値であるリストから2つの要素を抽出できます:
+</p>
+<div class="example">
+<pre class="example">  (pcase my-list
+    (`(add ,x ,y)  (message &quot;Contains %S and %S&quot; x y)))
+</pre></div>
+
+<p>これは<code>x</code>と<code>y</code>を抽出すだけではなく、加えて<code>my-list</code>が正確に3つの要素を含むリストであり、最初の要素がシンボル<code>add</code>かどうかをテストします。これらのテストのいずれかが失敗したら、<code>pcase</code>は<code>message</code>を呼び出さずに即座に<code>nil</code>をリターンします。
+</p>
+<p>あるオブジェクトから格納された複数の値を抽出する処理は<em>分割(destructuring)</em>という処理としても知られています。<code>pcase</code>パターンの使用により<em>バインディングの分割(destructuring
+binding)</em>を処理することが可能になります。これはローカルバインディング(<a href="Local-Variables.html">ローカル変数</a>を参照)と似ていますが、互換性のあるオブジェクトから値を抽出することにより、変数の複数要素に値を与えることができます。
+</p>
+<p>このセクションで説明したマクロはバインディングを分割するために<code>pcase</code>パターンを使用しています。オブジェクト構造に互換性があるという条件は、そのオブジェクトがパターンにマッチしなければならないことを意味しています。なぜならマッチした場合のみオブジェクトのサブフィールドが抽出可能になるからです。たとえば:
+</p>
+<div class="example">
+<pre class="example">  (pcase-let ((`(add ,x ,y) my-list))
+    (message &quot;Contains %S and %S&quot; x y))
+</pre></div>
+
+<p>これは最初に<code>my-list</code>が正しい個数の要素をもつリストであり、かつ1つ目の要素が<code>add</code>か検証せずに、<code>my-list</code>から直接<code>x</code>と<code>y</code>の抽出を行う点を除いて前の例と同じことを行います。実際にオブジェクトがパターンにマッチしない場合には、たとえbodyが暗黙にスキップされることはないとしても、その振る舞いは未定義でありエラーがシグナルされるか、あるいはいくつかの変数が<code>nil</code>のような任意の値にバインドされた状況でbodyが実行されるかもしれません。
+</p>
+<p>バインディングの分割に有用なpcaseパターンとしては、マッチされるオブジェクト構造の仕様を表現する<a href="Backquote-Patterns.html">バッククォートスタイルパターン</a>で説明したパターンが一般的です。
+</p>
+<p>バインディングの分割にたいする代替え機能については<a href="Sequence-Functions.html#seq_002dlet">seq-let</a>を参照してください。
+</p>
+<dl class="def">
+<dt id="index-pcase_002dlet"><span class="category">Macro: </span><span><strong>pcase-let</strong> <em>bindings body&hellip;</em><a href='#index-pcase_002dlet' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p><var>bindings</var>に応じて変数のバインディング分割を行い、それから<var>body</var>を評価する。
+</p>
+<p><var>bindings</var>は<code>(<var>pattern</var>&nbsp;<var>exp</var>)</code><!-- /@w -->という形式のバインディングのリスト。ここで<var>exp</var>は評価する式、<var>pattern</var>は<code>pcase</code>パターン。
+</p>
+<p><var>exp</var>はすべて最初に評価されて、その後で対応する<var>pattern</var>にマッチされて、<var>body</var>の内部で使用可能な変数バインディングが導入される。この変数バインディングは<var>pattern</var>の要素を、評価された<var>exp</var>の対応する要素の値に分割してのバインディングすることにより生成される。
+</p>
+<p>以下はその例:
+</p>
+<div class="example">
+<pre class="example">(pcase-let ((`(,major ,minor)
+	     (split-string &quot;image/png&quot; &quot;/&quot;)))
+  minor)
+     &rArr; &quot;png&quot;
+</pre></div>
+</dd></dl>
+
+<dl class="def">
+<dt id="index-pcase_002dlet_002a"><span class="category">Macro: </span><span><strong>pcase-let*</strong> <em>bindings body&hellip;</em><a href='#index-pcase_002dlet_002a' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p><var>bindings</var>に応じて変数のバインディング分割を行い、それから<var>body</var>を評価する。
+</p>
+<p><var>bindings</var>は<code>(<var>pattern</var>
+<var>exp</var>)</code>という形式のバインディングのリスト。ここで<var>exp</var>は評価する式、<var>pattern</var>は<code>pcase</code>パターン。この変数バインディングは<var>pattern</var>の要素を、評価された<var>exp</var>の対応する要素の値に分割してのバインディングすることにより生成される。
+</p>
+<p><code>pcase-let</code>とは異なり(しかし<code>let*</code>と同じように)、各<var>exp</var>は<var>bindings</var>の次要素の処理前に対応する<var>pattern</var>にたいしてマッチされるので、各<var>bindings</var>のいずれかによって導入される変数バインディングは<var>body</var>内で利用可能になるのに加えて、その後に続く<var>bindings</var>の<var>exp</var>内で利用可能になる。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-pcase_002ddolist"><span class="category">Macro: </span><span><strong>pcase-dolist</strong> <em>(pattern list) body&hellip;</em><a href='#index-pcase_002ddolist' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>繰り返しごとに<var>pattern</var>の変数を<var>list</var>の要素の対応するサブフィールドに分割バインディングしながら、<var>list</var>の各要素ごとに一度<var>body</var>を実行するこのバインディングは<code>pcase-let</code>の場合のように行われる。<var>pattern</var>が単なる変数なら<code>dolist</code>と等価(<a href="Iteration.html">繰り返し</a>を参照)。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-pcase_002dsetq"><span class="category">Macro: </span><span><strong>pcase-setq</strong> <em>pattern value&hellip;</em><a href='#index-pcase_002dsetq' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p><var>pattern</var>に応じて各<var>value</var>の分割を行い、<code>setq</code>フォーム内の変数に値を割り当てる。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-pcase_002dlambda"><span class="category">Macro: </span><span><strong>pcase-lambda</strong> <em>lambda-list &amp;rest body</em><a href='#index-pcase_002dlambda' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p><code>lambda</code>と同様だが、各引数はパターンでも良い。たとえば以下は引数としてコンスセルを受け取る単純な関数の例:
+</p>
+<div class="example">
+<pre class="example">(setq fun
+      (pcase-lambda (`(,key . ,val))
+        (vector key (* val 10))))
+(funcall fun '(foo . 2))
+    &rArr; [foo 20]
+</pre></div>
+</dd></dl>
+
+</div>
+
+
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:67cfed627beb5c376db8313a5a50aa9dd8a8e91a to check Japanese translation.
+</body>
+</html>
