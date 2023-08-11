@@ -1,0 +1,391 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 29.1.
+
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Retrieving Nodes (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Retrieving Nodes (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Retrieving Nodes (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="August 11, 2023">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Parsing-Program-Source.html" rel="up" title="Parsing Program Source">
+<link href="Accessing-Node-Information.html" rel="next" title="Accessing Node Information">
+<link href="Using-Parser.html" rel="prev" title="Using Parser">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Retrieving-Nodes">
+<div class="header">
+<p>
+Next: <a href="Accessing-Node-Information.html" accesskey="n" rel="next">ノード情報へのアクセス</a>, Previous: <a href="Using-Parser.html" accesskey="p" rel="prev">tree-sitterパーサーの使用</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="nodonoQu-De-"></span><h3 class="section">37.3 ノードの取得</h3>
+<span id="index-retrieve-node_002c-tree_002dsitter"></span>
+<span id="index-tree_002dsitter_002c-find-node"></span>
+<span id="index-get-node_002c-tree_002dsitter"></span>
+
+<span id="index-terminology_002c-for-tree_002dsitter-functions"></span>
+<p>Here are some terms and conventions we use when documenting tree-sitter
+functions.
+</p>
+<p>A node in a syntax tree spans some portion of the program text in the
+buffer.  We say that a node is &ldquo;smaller&rdquo; or &ldquo;larger&rdquo; than another if it
+spans, respectively, a smaller or larger portion of buffer text than the
+other node.  Since nodes that are deeper (&ldquo;lower&rdquo;) in the tree are
+children of the nodes that are &ldquo;higher&rdquo; in the tree, it follows that a
+lower node will always be smaller than a node that is higher in the node
+hierarchy.  A node that is higher up in the syntax tree contains one or more
+smaller nodes as its children, and therefore spans a larger portion of
+buffer text.
+</p>
+<p>関数がノードを見つけられなかった場合には<code>nil</code>をリターンします。利便性のために、引数としてノードを受け取ってノードをリターンするすべての関数も<code>nil</code>の引数を許し、そのような場合には単に<code>nil</code>をリターンするようになっています。
+</p>
+<span id="index-treesit_002dnode_002doutdated"></span>
+<p>関連付けられているバッファーが更新された際にノードが自動的に更新されることはなく、一度取得したノードを更新する術は存在しません。古くなってしまったノードを使用すると<code>treesit-node-outdated</code>エラーがシグナルされるでしょう。
+</p>
+<span id="Gou-WenturikaranonodonoQu-De-"></span><h3 class="heading">構文ツリーからのノードの取得</h3>
+<span id="index-retrieving-tree_002dsitter-nodes"></span>
+<span id="index-syntax-tree_002c-retrieving-nodes"></span>
+
+<span id="index-leaf-node_002c-of-tree_002dsitter-parse-tree"></span>
+<span id="index-tree_002dsitter-parse-tree_002c-leaf-node"></span>
+<dl class="def">
+<dt id="index-treesit_002dnode_002dat"><span class="category">Function: </span><span><strong>treesit-node-at</strong> <em>pos &amp;optional parser-or-lang named</em><a href='#index-treesit_002dnode_002dat' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はバッファー位置<var>pos</var>にある<em>葉ノード(leaf
+node)</em>をリターンする。葉ノードとは子ノードを何ももたないノードのこと。
+</p>
+<p>This function tries to return a node whose span covers <var>pos</var>: the node&rsquo;s
+beginning position is less than or equal to <var>pos</var>, and the node&rsquo;s end
+position is greater than or equal to <var>pos</var>.
+</p>
+<p><var>pos</var>を跨いで覆うような葉ノードがない(たとえば<var>pos</var>が2つの葉ノードの間にある空白にある)場合には、この関数は<var>pos</var>の後にある最初の葉ノードをリターンする。
+</p>
+<p>最後にもし<var>pos</var>の後に葉ノードがの場合には、<var>pos</var>の前にある最初の葉ノードをリターンする。
+</p>
+<p>If <var>parser-or-lang</var> is a parser object, this function uses that parser;
+if <var>parser-or-lang</var> is a language, this function uses the first parser
+for that language in the current buffer, or creates one if none exists; if
+<var>parser-or-lang</var> is <code>nil</code>, this function tries to guess the
+language at <var>pos</var> by calling <code>treesit-language-at</code> (see <a href="Multiple-Languages.html">複数言語ののパース</a>).
+</p>
+<p>リターンする適切なノードが見つけられなかった場合には、この関数は<code>nil</code>をリターンする。
+</p>
+<p><var>named</var>が非<code>nil</code>の場合には、この関数は名前つきのノードだけを探す(<a href="Language-Grammar.html#tree_002dsitter-named-node">named node</a>を参照)。
+</p>
+<p>例:
+</p>
+<div class="example">
+<pre class="example">;; Cパーサーの構文ツリーでポイント位置のノードを探す
+(treesit-node-at (point) 'c)
+  &rArr; #&lt;treesit-node (primitive_type) in 23-27&gt;
+</pre></div>
+</dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dnode_002don"><span class="category">Function: </span><span><strong>treesit-node-on</strong> <em>beg end &amp;optional parser-or-lang named</em><a href='#index-treesit_002dnode_002don' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>beg</var>と<var>end</var>の間にあるバッファーテキストのリージョンを覆うような、<em>もっとも小さい</em>ノードをリターンする。言い換えると開始が<var>beg</var>以前、かつ終了が<var>end</var>以降であるようなノードのこと。
+</p>
+<p><em>Beware:</em> calling this function on an empty line that is not inside any
+top-level construct (function definition, etc.) most probably will give
+you the root node, because the root node is the smallest node that covers
+that empty line.  Most of the time, you want to use <code>treesit-node-at</code>
+instead.
+</p>
+<p>If <var>parser-or-lang</var> is a parser object, this function uses that parser;
+if <var>parser-or-lang</var> is a language, this function uses the first parser
+for that language in the current buffer, or creates one if none exists; if
+<var>parser-or-lang</var> is <code>nil</code>, this function tries to guess the
+language at <var>beg</var> by calling <code>treesit-language-at</code>.
+</p>
+<p><var>named</var>が非<code>nil</code>の場合には、この関数は名前つきのノードだけを探す(<a href="Language-Grammar.html#tree_002dsitter-named-node">named node</a>を参照)。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dparser_002droot_002dnode"><span class="category">Function: </span><span><strong>treesit-parser-root-node</strong> <em>parser</em><a href='#index-treesit_002dparser_002droot_002dnode' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>parser</var>が生成した構文ツリーのルートノードをリターンする。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dbuffer_002droot_002dnode"><span class="category">Function: </span><span><strong>treesit-buffer-root-node</strong> <em>&amp;optional language</em><a href='#index-treesit_002dbuffer_002droot_002dnode' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function finds the first parser for <var>language</var> in the current
+buffer, or creates one if none exists, and returns the root node generated
+by that parser.  If <var>language</var> is omitted, it uses the first parser in
+the parser list.  If it cannot find an appropriate parser, it returns
+<code>nil</code>.
+</p></dd></dl>
+
+<p>Lispプログラムはノードが与えられれば、そこから始まる他のノードを取得したり、そのノードに関する情報を問い合わせることができます。
+</p>
+<span id="nodokaranoTa-nodonoQu-De-"></span><h3 class="heading">ノードからの他ノードの取得</h3>
+<span id="index-syntax-tree-nodes_002c-retrieving-from-other-nodes"></span>
+
+<span id="Qin-Zu-Guan-Xi-kara"></span><h4 class="subheading">親族関係から</h4>
+<span id="index-kinship_002c-syntax-tree-nodes"></span>
+<span id="index-nodes_002c-by-kinship"></span>
+<span id="index-syntax-tree-nodes_002c-by-kinship"></span>
+
+<dl class="def">
+<dt id="index-treesit_002dnode_002dparent"><span class="category">Function: </span><span><strong>treesit-node-parent</strong> <em>node</em><a href='#index-treesit_002dnode_002dparent' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>node</var>の直近の親をリターンする。
+</p>
+<p>If <var>node</var> is more than 1000 levels deep in a parse tree, the return
+value is undefined.  Currently it returns <code>nil</code>, but that could change
+in the future.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dnode_002dchild"><span class="category">Function: </span><span><strong>treesit-node-child</strong> <em>node n &amp;optional named</em><a href='#index-treesit_002dnode_002dchild' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>node</var>の<var>n</var>番目の子をリターンする。<var>named</var>が非<code>nil</code>なら名前つきのノードだけを考慮する(<a href="Language-Grammar.html#tree_002dsitter-named-node">named node</a>を参照)。
+</p>
+<p>たとえば文字列<code>&quot;text&quot;</code>を表すノードの場合には開クォート<code>&quot;</code>、文字列テキストの<code>text</code>、それに閉クォート<code>&quot;</code>という3つの子ノードが存在する。これら3つのノードの中で最初の子は開クォート<code>&quot;</code>、最初の名前つきの子は文字列テキストとなる。
+</p>
+<p>This function returns <code>nil</code> if there is no <var>n</var>&rsquo;th child.  <var>n</var>
+could be negative, e.g., -1 represents the last child.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dnode_002dchildren"><span class="category">Function: </span><span><strong>treesit-node-children</strong> <em>node &amp;optional named</em><a href='#index-treesit_002dnode_002dchildren' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>node</var>のすべての子をリストでリターンする。<var>named</var>が非<code>nil</code>なら名前つきのノードだけを取得する。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dnode_002dnext_002dsibling"><span class="category">Function: </span><span><strong>treesit-node-next-sibling</strong> <em>node &amp;optional named</em><a href='#index-treesit_002dnode_002dnext_002dsibling' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>node</var>の次の兄弟を探す。<var>named</var>が非<code>nil</code>なら次の名前つきの兄弟を探す。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dnode_002dprev_002dsibling"><span class="category">Function: </span><span><strong>treesit-node-prev-sibling</strong> <em>node &amp;optional named</em><a href='#index-treesit_002dnode_002dprev_002dsibling' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>node</var>の前の兄弟を探す。<var>named</var>が非<code>nil</code>なら前の名前つきの兄弟を探す。
+</p></dd></dl>
+
+<span id="huirudoMing-kara"></span><h4 class="subheading">フィールド名から</h4>
+<span id="index-nodes_002c-by-field-name"></span>
+<span id="index-syntax-tree-nodes_002c-by-field-name"></span>
+
+<p>To make the syntax tree easier to analyze, many language grammars assign
+<em>field names</em> to child nodes (see <a href="Language-Grammar.html#tree_002dsitter-node-field-name">field
+name</a>).  For example, a <code>function_definition</code> node could have a
+<code>declarator</code> node and a <code>body</code> node.
+</p>
+<dl class="def">
+<dt id="index-treesit_002dnode_002dchild_002dby_002dfield_002dname"><span class="category">Function: </span><span><strong>treesit-node-child-by-field-name</strong> <em>node field-name</em><a href='#index-treesit_002dnode_002dchild_002dby_002dfield_002dname' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はフィールド名が<var>field-name</var>(文字列)であるような<var>node</var>の子を探す。
+</p>
+<div class="example">
+<pre class="example">;; Get the child that has &quot;body&quot; as its field name.
+(treesit-node-child-by-field-name node &quot;body&quot;)
+  &rArr; #&lt;treesit-node (compound_statement) in 45-89&gt;
+</pre></div>
+</dd></dl>
+
+<span id="Wei-Zhi-kara"></span><h4 class="subheading">位置から</h4>
+<span id="index-nodes_002c-by-position"></span>
+<span id="index-syntax-tree-nodes_002c-by-position"></span>
+
+<dl class="def">
+<dt id="index-treesit_002dnode_002dfirst_002dchild_002dfor_002dpos"><span class="category">Function: </span><span><strong>treesit-node-first-child-for-pos</strong> <em>node pos &amp;optional named</em><a href='#index-treesit_002dnode_002dfirst_002dchild_002dfor_002dpos' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はバッファー位置<var>pos</var>を超えて広がるような<var>node</var>の最初の子をリターンする。&ldquo;超えて広がる(extends
+beyond)&rdquo;とは子ノードの終端が<var>pos</var>以降であることを意味する。この関数は<var>node</var>の直接の子だけを調べる(孫は調べない)。<var>named</var>が非<code>nil</code>の場合には最初の名前つきの子を探す(<a href="Language-Grammar.html#tree_002dsitter-named-node">named node</a>を参照)。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dnode_002ddescendant_002dfor_002drange"><span class="category">Function: </span><span><strong>treesit-node-descendant-for-range</strong> <em>node beg end &amp;optional named</em><a href='#index-treesit_002dnode_002ddescendant_002dfor_002drange' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function finds the <em>smallest</em> descendant node of <var>node</var> that
+spans the region of text between positions <var>beg</var> and <var>end</var>.  It is
+similar to <code>treesit-node-at</code>.  If <var>named</var> is non-<code>nil</code>, it
+looks for the smallest named child.
+</p></dd></dl>
+
+<span id="nodonoJian-Suo-"></span><h3 class="heading">ノードの検索</h3>
+
+<dl class="def">
+<dt id="index-treesit_002dsearch_002dsubtree"><span class="category">Function: </span><span><strong>treesit-search-subtree</strong> <em>node predicate &amp;optional backward all depth</em><a href='#index-treesit_002dsearch_002dsubtree' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>node</var>のサブツリー(<var>node</var>自体を含む)を横断(traverse)して、<var>predicate</var>が非<code>nil</code>をリターンするようなノードを探す。<var>predicate</var>はノードそれぞれのタイプにたいしてマッチさせるregexp、あるいはノードを受け取りそのノードがマッチしたら非<code>nil</code>をリターンするような述語関数。この関数はマッチした最初のノード、何もマッチしなければ<code>nil</code>をリターンする。
+</p>
+<p>By default, this function only traverses named nodes, but if <var>all</var> is
+non-<code>nil</code>, it traverses all the nodes.  If <var>backward</var> is
+non-<code>nil</code>, it traverses backwards (i.e., it visits the last child first
+when traversing down the tree).  If <var>depth</var> is non-<code>nil</code>, it must
+be a number that limits the tree traversal to that many levels down the
+tree.  If <var>depth</var> is <code>nil</code>, it defaults to 1000.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dsearch_002dforward"><span class="category">Function: </span><span><strong>treesit-search-forward</strong> <em>start predicate &amp;optional backward all</em><a href='#index-treesit_002dsearch_002dforward' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>Like <code>treesit-search-subtree</code>, this function also traverses the parse
+tree and matches each node with <var>predicate</var> (except for <var>start</var>),
+where <var>predicate</var> can be a regexp or a function.  For a tree like the
+one below where <var>start</var> is marked &lsquo;<samp>S</samp>&rsquo;, this function traverses as
+numbered from 1 to 12:
+</p>
+<div class="example">
+<pre class="example">              12
+              |
+     S--------3----------11
+     |        |          |
+o--o-+--o  1--+--2    6--+-----10
+|  |                  |        |
+o  o                +-+-+   +--+--+
+                    |   |   |  |  |
+                    4   5   7  8  9
+</pre></div>
+
+<p>Note that this function doesn&rsquo;t traverse the subtree of <var>start</var>, and it
+always traverses leaf nodes first, before moving upwards.
+</p>
+<p>この関数が検索するのは<code>treesit-search-subtree</code>と同じようにデフォルトでは名前つきノードだけだが、<var>all</var>が非<code>nil</code>ならすべてのノードを検索する。<var>backward</var>が非<code>nil</code>の場合には後方に検索する。
+</p>
+<p><code>treesit-search-subtree</code>はノードのサブツリーを横断するが、この関数はノード<var>start</var>から開始してバッファーの位置順でその後にあるすべてのノード(開始位置が<var>start</var>の終了位置より大きいノード)を横断する。
+</p>
+<p>In the tree shown above, <code>treesit-search-subtree</code> traverses node
+&lsquo;<samp>S</samp>&rsquo; (<var>start</var>) and nodes marked with <code>o</code>, where this function
+traverses the nodes marked with numbers.  This function is useful for
+answering questions like &ldquo;what is the first node after <var>start</var> in the
+buffer that satisfies some condition?&rdquo;
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dsearch_002dforward_002dgoto"><span class="category">Function: </span><span><strong>treesit-search-forward-goto</strong> <em>node predicate &amp;optional start backward all</em><a href='#index-treesit_002dsearch_002dforward_002dgoto' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はバッファーで<var>node</var>の後にあり<var>predicate</var>にマッチする次のノードの開始または終了にポイントを移動する。<var>start</var>が非<code>nil</code>なら、ノードの終了ではなく開始で停止する。
+</p>
+<p>この関数がリターンするマッチしたノードは、バッファー位置という点において進行方向にある(リターンされたノードの開始/終了は<var>node</var>のそれより常に大きい)ことが保証されている。
+</p>
+<p>Arguments <var>predicate</var>, <var>backward</var>, and <var>all</var> are the same as in
+<code>treesit-search-forward</code>.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dinduce_002dsparse_002dtree"><span class="category">Function: </span><span><strong>treesit-induce-sparse-tree</strong> <em>root predicate &amp;optional process-fn depth</em><a href='#index-treesit_002dinduce_002dsparse_002dtree' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>root</var>のサブツリーからsparseツリー(疎らなツリー)を作成する。
+</p>
+<p>It takes the subtree under <var>root</var>, and combs it so only the nodes that
+match <var>predicate</var> are left.  Like previous functions, the
+<var>predicate</var> can be a regexp string that matches against each node&rsquo;s
+type, or a function that takes a node and returns non-<code>nil</code> if it
+matches.
+</p>
+<p>For example, given the subtree on the left that consists of both numbers and
+letters, if <var>predicate</var> is &ldquo;letter only&rdquo;, the returned tree is the one
+on the right.
+</p>
+<div class="example">
+<pre class="example">    a                 a              a
+    |                 |              |
++---+---+         +---+---+      +---+---+
+|   |   |         |   |   |      |   |   |
+b   1   2         b   |   |      b   c   d
+    |   |     =&gt;      |   |  =&gt;      |
+    c   +--+          c   +          e
+    |   |  |          |   |
+ +--+   d  4       +--+   d
+ |  |              |
+ e  5              e
+</pre></div>
+
+<p>If <var>process-fn</var> is non-<code>nil</code>, instead of returning the matched
+nodes, this function passes each node to <var>process-fn</var> and uses the
+returned value instead.  If non-<code>nil</code>, <var>depth</var> limits the number of
+levels to go down from <var>root</var>.  If <var>depth</var> is <code>nil</code>, it
+defaults to 1000.
+</p>
+<p>Each node in the returned tree looks like <code>(<var><span class="nolinebreak">tree-sitter-node</span></var>&nbsp;.&nbsp;(<var>child</var>&nbsp;&hellip;))</code><!-- /@w -->.  The <var>tree-sitter-node</var> of the root of this
+tree will be <code>nil</code> if <var>root</var> doesn&rsquo;t match <var>predicate</var>.  If no
+node matches <var>predicate</var>, the function returns <code>nil</code>.
+</p></dd></dl>
+
+<span id="yoriBian-Li-naGuan-Shu-"></span><h3 class="heading">より便利な関数</h3>
+
+<dl class="def">
+<dt id="index-treesit_002dfilter_002dchild"><span class="category">Function: </span><span><strong>treesit-filter-child</strong> <em>node predicate &amp;optional named</em><a href='#index-treesit_002dfilter_002dchild' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>predicate</var>を満足する<var>node</var>の直接の子を探す。
+</p>
+<p>The <var>predicate</var> function takes a node as argument and should return
+non-<code>nil</code> to indicate that the node should be kept.  If <var>named</var> is
+non-<code>nil</code>, this function only examines named nodes.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dparent_002duntil"><span class="category">Function: </span><span><strong>treesit-parent-until</strong> <em>node predicate &amp;optional include-node</em><a href='#index-treesit_002dparent_002duntil' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function repeatedly finds the parents of <var>node</var>, and returns the
+parent that satisfies <var>pred</var>, a function that takes a node as argument
+and returns a boolean that indicates a match.  If no parent satisfies
+<var>pred</var>, this function returns <code>nil</code>.
+</p>
+<p>Normally this function only looks at the parents of <var>node</var> but not
+<var>node</var> itself.  But if <var>include-node</var> is non-<code>nil</code>, this
+function returns <var>node</var> if <var>node</var> satisfies <var>pred</var>.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dparent_002dwhile"><span class="category">Function: </span><span><strong>treesit-parent-while</strong> <em>node pred</em><a href='#index-treesit_002dparent_002dwhile' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function goes up the tree starting from <var>node</var>, and keeps doing so
+as long as the nodes satisfy <var>pred</var>, a function that takes a node as
+argument.  That is, this function returns the highest parent of <var>node</var>
+that still satisfies <var>pred</var>.  Note that if <var>node</var> satisfies
+<var>pred</var> but its immediate parent doesn&rsquo;t, <var>node</var> itself is returned.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dnode_002dtop_002dlevel"><span class="category">Function: </span><span><strong>treesit-node-top-level</strong> <em>node &amp;optional type</em><a href='#index-treesit_002dnode_002dtop_002dlevel' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>node</var>と同じタイプをもつ、もっとも高くにある親をリターンする。そのような親がいなければ<code>nil</code>をリターンする。したがってこの関数は<var>node</var>がトップレベルかどうかをテストするためにも役に立つ。
+</p>
+<p><var>type</var>が非<code>nil</code>の場合には、この関数は<var>node</var>のタイプではなく、regexpとして<var>type</var>を用いてそれぞれの親のタイプをマッチする。
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Accessing-Node-Information.html">ノード情報へのアクセス</a>, Previous: <a href="Using-Parser.html">tree-sitterパーサーの使用</a>, Up: <a href="Parsing-Program-Source.html">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:7dd87fe84295f1b56792eafc1a68d98cbec3b627 to check Japanese translation.
+</body>
+</html>
