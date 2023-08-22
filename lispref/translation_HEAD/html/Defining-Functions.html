@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 29.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -58,7 +58,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="section" id="Defining-Functions">
 <div class="header">
 <p>
@@ -106,6 +106,11 @@ error&rarr; Wrong number of arguments.
   (capitalize-word 1))
 </pre></div>
 
+<span id="index-defining-functions-dynamically"></span>
+<p>Emacsの関数のほとんどはLispプログラムのソースコードの一部であり、実行前にEmacs
+Lispリーダーがプログラムソースを読み込んだ際に定義される。しかし実行時にダイナミックに関数を定義することもできる(プログラムのコード実行時に<code>defun</code>呼び出しを生成する)。関数の定義にジャンプするボタンを<samp>*Help*</samp>バッファーに表示する<kbd>C-h
+f</kbd>のようなEmacsのヘルプコマンドが、ソースコードを発見できないかもしれないので、これを行う際には注意を要する。なぜなら関数のダイナミックな生成は、<code>defun</code>にたいする通常の静的な呼び出しと比べて普通は非常に異なって見えるからである。このような関数を生成するコードを見つける作業を容易にするために<code>definition-name</code>プロパティを用いることができる。<a href="Standard-Properties.html">シンボルの標準的なプロパティ</a>を参照のこと。
+</p>
 <span id="index-override-existing-functions"></span>
 <span id="index-redefine-existing-functions"></span>
 <p>意図せず既存の関数を再定義しないように注意されたい。<code>defun</code>は<code>car</code>のようなプリミティブ関数でさえ、問い合わせせずに躊躇なく再定義する。Emacsがこれを妨げることはない。なぜなら関数の再定義は故意に行われることがあり、そのような意図した再定義を、意図しない再定義と見分ける方法はがないからである。
@@ -115,17 +120,30 @@ error&rarr; Wrong number of arguments.
 <span id="index-alias_002c-for-functions"></span>
 <dl class="def">
 <dt id="index-defalias"><span class="category">Function: </span><span><strong>defalias</strong> <em>name definition &amp;optional doc</em><a href='#index-defalias' class='copiable-anchor'> &para;</a></span></dt>
-<dd><span id="Definition-of-defalias"></span><p>この関数は定義<var>definition</var>(任意の有効なLisp関数)とともに、シンボル<var>name</var>を関数として定義する。この関数のリターン値は<em>未定義</em>。
+<dd><span id="Definition-of-defalias"></span><p>この関数は定義が<var>definition</var>であるような関数としてシンボル<var>name</var>を定義する。<var>definition</var>には有効な任意のLisp関数、マクロ、スペシャルフォーム(<a href="Special-Forms.html">スペシャルフォーム</a>を参照)、キーマップ(<a href="Keymaps.html">キーマップ</a>を参照)、ベクター、文字列(キーボードマクロ)を指定できる。<code>defalias</code>のリターン値は<em>未定義</em>。
 </p>
 <p><var>doc</var>が非<code>nil</code>なら、それは関数<var>name</var>のドキュメントとなる。それ以外なら<var>definition</var>により提供されるドキュメントが使用される。
 </p>
 <span id="index-defalias_002dfset_002dfunction-property"></span>
-<p>内部的には<code>defalias</code>は、通常は定義のセットに<code>fset</code>を使用する。しかし<var>name</var>が<code>defalias-fset-function</code>プロパティーをもつなら、<code>fset</code>を呼び出すかわりにそれに割り当てられた値を使用する。
+<p>内部的には<code>defalias</code>は、通常は定義のセットに<code>fset</code>を使用する。しかし<var>name</var>が<code>defalias-fset-function</code>プロパティをもつなら、<code>fset</code>を呼び出すかわりにそれに割り当てられた値を使用する。
 </p>
-<p><code>defalias</code>を使う正しい場所は、特定の関数名が正に定義される場所 &mdash;
-特にソースファイルがロードされるとき明示的にその名前が出現する場所である。これは<code>defalias</code>が<code>defun</code>と同じように、どれが関数を定義するファイルなのか記録するからである(<a href="Unloading.html">アンロード</a>を参照)。
+<p><code>defalias</code>を使う正しい場所は、特定の関数やマクロの名前が正に定義される場所 &mdash;
+特にソースファイルがロードされるときに明示的にその名前が出現する場所である。これは<code>defalias</code>が<code>defun</code>と同じように、どれが関数を定義するファイルなのか記録するからである(<a href="Unloading.html">アンロード</a>を参照)。
 </p>
 <p>それとは対象的に他の目的のために関数を操作するプログラムでは、そのような記録を保持しない<code>fset</code>を使用するほうがよいだろう。<a href="Function-Cells.html">関数セルの内容へのアクセス</a>を参照のこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-function_002dalias_002dp"><span class="category">Function: </span><span><strong>function-alias-p</strong> <em>object &amp;optional noerror</em><a href='#index-function_002dalias_002dp' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p><var>object</var>が関数のエイリアス(alias: 別名)かどうかをチェックする。エイリアスならその関数のエイリアスのチェーン(chain:
+連鎖)を表すシンボルのリスト、エイリアスでなければ<code>nil</code>をリターンする。たとえば<code>a</code>が<code>b</code>のエイリアスで、<code>b</code>が<code>c</code>のエイリアスなら:
+</p>
+<div class="example">
+<pre class="example">(function-alias-p 'a)
+    &rArr; (b c)
+</pre></div>
+
+<p>定義中にループがあるとエラーをシグナルする。<var>noerror</var>が非<code>nil</code>の場合には、ループしていないチェーン部分をリターンする。
 </p></dd></dl>
 
 <p><code>defun</code>や<code>defalias</code>で新たなプリミティブ関数を作成することはできませんが、任意の関数定義を変更するのに使用することができ、通常の定義がプリミティブである<code>car</code>や<code>x-popup-menu</code>のような関数でさえ変更することができます。しかしこれは危険なことです。たとえばLispの完全性を損なうことなく、<code>car</code>を再定義するのはほとんど不可能だからです。それほど有名ではない<code>x-popup-menu</code>のような関数の再定義では、危険は減少しますが、それでも期待したとおりに機能しないかもしれません。Cコードにそのプリミティブの呼び出しがあれば、それは直接そのプリミティブのC定義を呼び出すので、シンボル定義を変更してもそれらに影響はありません。
@@ -137,6 +155,6 @@ error&rarr; Wrong number of arguments.
 </div>
 
 
-This page has generated for branch:emacs-28, commit:41a6e705d86fa8142cdc8f911b8315cf23de5348 to check Japanese translation.
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:87f66b885166fea369805baf9e08da313c2885bb to check Japanese translation.
 </body>
 </html>

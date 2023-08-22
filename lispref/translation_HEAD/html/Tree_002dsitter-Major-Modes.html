@@ -1,0 +1,168 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 29.1.
+
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Tree-sitter Major Modes (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Tree-sitter Major Modes (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Tree-sitter Major Modes (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="August 22, 2023">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Parsing-Program-Source.html" rel="up" title="Parsing Program Source">
+<link href="Tree_002dsitter-C-API.html" rel="next" title="Tree-sitter C API">
+<link href="Multiple-Languages.html" rel="prev" title="Multiple Languages">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Tree_002dsitter-Major-Modes">
+<div class="header">
+<p>
+Next: <a href="Tree_002dsitter-C-API.html" accesskey="n" rel="next">tree-sitterのC APIとの対応表</a>, Previous: <a href="Multiple-Languages.html" accesskey="p" rel="prev">複数言語ののパース</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="tree_002dsitterwoYong-irumeziyamodonoKai-Fa-"></span><h3 class="section">37.7 tree-sitterを用いるメジャーモードの開発</h3>
+<span id="index-major-mode_002c-developing-with-tree_002dsitter"></span>
+
+<p>このセクションではメジャーモード用にtree-sitterを統合した開発における一般的なガイドラインの一部について説明します。
+</p>
+<p>tree-sitter機能をサポートするメジャーモードは、大枠では以下のようなパターンにしたがう必要があります:
+</p>
+<div class="example">
+<pre class="example">(define-derived-mode woomy-mode prog-mode &quot;Woomy&quot;
+  &quot;A mode for Woomy programming language.&quot;
+  (when (treesit-ready-p 'woomy)
+    (setq-local treesit-variables ...)
+    ...
+    (treesit-major-mode-setup)))
+</pre></div>
+
+<p><code>treesit-ready-p</code>はtree-sitterを有効にする条件が揃っていなければ、自動的に警告を発します。
+</p>
+<p>tree-sitterを使うメジャーモードは、その&ldquo;ネイティブ&rdquo;な相手先モードとセットアップを共有する場合には、以下のように共通のセットアップを含んだ&ldquo;ベースモード&rdquo;を作成することができます:
+</p>
+<div class="example">
+<pre class="example">(define-derived-mode woomy--base-mode prog-mode &quot;Woomy&quot;
+  &quot;An internal mode for Woomy programming language.&quot;
+  (common-setup)
+  ...)
+</pre><pre class="example">
+
+</pre><pre class="example">(define-derived-mode woomy-mode woomy--base-mode &quot;Woomy&quot;
+  &quot;A mode for Woomy programming language.&quot;
+  (native-setup)
+  ...)
+</pre><pre class="example">
+
+</pre><pre class="example">(define-derived-mode woomy-ts-mode woomy--base-mode &quot;Woomy&quot;
+  &quot;A mode for Woomy programming language.&quot;
+  (when (treesit-ready-p 'woomy)
+    (setq-local treesit-variables ...)
+    ...
+    (treesit-major-mode-setup)))
+</pre></div>
+
+<dl class="def">
+<dt id="index-treesit_002dready_002dp"><span class="category">Function: </span><span><strong>treesit-ready-p</strong> <em>language &amp;optional quiet</em><a href='#index-treesit_002dready_002dp' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はtree-sitterをアクティブにするための条件をチェックする。tree-sitterとともにEmacsがビルドされているか、tree-sitterが処理するにあたってカレントバッファーのサイズが大き過ぎないか、そのシステムで<var>language</var>にたいするグラマー(<a href="Language-Grammar.html">tree-sitterの言語グラマー</a>を参照)が利用できるかどうかをチェックする。
+</p>
+<p>この関数はtree-sitterをアクティブにできなければ警告を発する。<var>quiet</var>が<code>message</code>なら、警告をメッセージに変更する。<var>quiet</var>が<code>t</code>の場合には警告やメッセージは何も表示されない。
+</p>
+<p>この関数は必要とされる条件すべてが適えば非<code>nil</code>、そうでなければ<code>nil</code>をリターンする。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dmajor_002dmode_002dsetup"><span class="category">Function: </span><span><strong>treesit-major-mode-setup</strong><a href='#index-treesit_002dmajor_002dmode_002dsetup' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はメジャーモードにたいしてtree-sitterに一部機能をアクティブにする。
+</p>
+<p>現在のところ以下の機能のセットアップを行う:
+</p><ul>
+<li> <code>treesit-font-lock-settings</code> (<a href="Parser_002dbased-Font-Lock.html">パーサーベースのFont Lock</a>を参照)が非<code>nil</code>ならフォント表示(fontification)をセットアップ。
+
+</li><li> <code>treesit-simple-indent-rules</code> (<a href="Parser_002dbased-Indentation.html">パーサーベースのインデント</a>を参照)が非<code>nil</code>ならインデントをセットアップ。
+
+</li><li> <code>treesit-defun-type-regexp</code>が非<code>nil</code>なら、<code>beginning-of-defun</code>と<code>end-of-defun</code>にたいしてナビゲーション関数をセットアップ。
+
+</li><li> <code>treesit-defun-name-function</code>が非<code>nil</code>なら、<code>add-log-current-defun</code>によって使用されるadd-log関数をセットアップ。
+
+</li><li> <code>treesit-simple-imenu-settings</code>が非<code>nil</code>ならImenuをセットアップ。
+</li></ul>
+</dd></dl>
+
+<p>これらtree-sitter組み込み機能の詳細については<a href="Parser_002dbased-Font-Lock.html">パーサーベースのFont Lock</a>、<a href="Parser_002dbased-Indentation.html">パーサーベースのインデント</a>、<a href="List-Motion.html">バランスのとれたカッコを越えた移動</a>を参照してください。
+</p>
+<p>メジャーモードにおける複数言語のミックスのサポートについては<a href="Multiple-Languages.html">複数言語ののパース</a>を参照してください。
+</p>
+<p><code>beginning-of-defun</code>や<code>end-of-defun</code>の他にも、Emacsはdefunにたいして処理を行う追加の関数をいくつか提供します。<code>treesit-defun-at-point</code>はポイント位置のdefunノード、<code>treesit-defun-name</code>はdefunノードの名前をリターンする関数です。
+</p>
+<dl class="def">
+<dt id="index-treesit_002ddefun_002dat_002dpoint"><span class="category">Function: </span><span><strong>treesit-defun-at-point</strong><a href='#index-treesit_002ddefun_002dat_002dpoint' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はポイント位置のdefunノードを、defunが見つからなければ<code>nil</code>をリターンする。この関数は<code>treesit-defun-tactic</code>に注意を払う。この変数の値が<code>top-level</code>ならトップレベルのdefunを、値が<code>nested</code>ならすぐ外側のdefunをリターンする。
+</p>
+<p>この関数が機能するためには<code>treesit-defun-type-regexp</code>が必要となる。この変数の値が<code>nil</code>であれば、この関数は単に<code>nil</code>をリターンする。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002ddefun_002dname"><span class="category">Function: </span><span><strong>treesit-defun-name</strong> <em>node</em><a href='#index-treesit_002ddefun_002dname' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>node</var>のdefun名をリターンする。<var>node</var>にたいするdefun名が存在しない、<var>node</var>がdefunノードではない、あるいは<var>node</var>が<code>nil</code>の場合は<code>nil</code>をリターンする。
+</p>
+<p>言語とメジャーモードに応じて関数、クラス、構造体等の名前がdefun名となる。
+</p>
+<p><code>treesit-defun-name-function</code>が<code>nil</code>の場合には、この関数は常に<code>nil</code>をリターンする。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002ddefun_002dname_002dfunction"><span class="category">Variable: </span><span><strong>treesit-defun-name-function</strong><a href='#index-treesit_002ddefun_002dname_002dfunction' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この変数の値が非<code>nil</code>の場合には、ノードを引数として呼び出されてそのノードの名前をリターンする関数であること。この関数は意味合いとしては<code>treesit-defun-name</code>と同じである必要がある。つまりそのノードがdefunノードではない、defunノードだが名前がない、あるいはノードが<code>nil</code>の場合には<code>nil</code>をリターンすること。
+</p></dd></dl>
+
+</div>
+
+
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:87f66b885166fea369805baf9e08da313c2885bb to check Japanese translation.
+</body>
+</html>

@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 29.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -33,7 +33,7 @@ and promoting software freedom." -->
 <link href="Index.html" rel="index" title="Index">
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
 <link href="Keymaps.html" rel="up" title="Keymaps">
-<link href="Remapping-Commands.html" rel="next" title="Remapping Commands">
+<link href="Low_002dLevel-Key-Binding.html" rel="next" title="Low-Level Key Binding">
 <link href="Functions-for-Key-Lookup.html" rel="prev" title="Functions for Key Lookup">
 <style type="text/css">
 <!--
@@ -58,11 +58,11 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="section" id="Changing-Key-Bindings">
 <div class="header">
 <p>
-Next: <a href="Remapping-Commands.html" accesskey="n" rel="next">コマンドのリマップ</a>, Previous: <a href="Functions-for-Key-Lookup.html" accesskey="p" rel="prev">キー照合のための関数</a>, Up: <a href="Keymaps.html" accesskey="u" rel="up">キーマップ</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Low_002dLevel-Key-Binding.html" accesskey="n" rel="next">低レベルなキーバインディング</a>, Previous: <a href="Functions-for-Key-Lookup.html" accesskey="p" rel="prev">キー照合のための関数</a>, Up: <a href="Keymaps.html" accesskey="u" rel="up">キーマップ</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
 <span id="kibaindeingunoBian-Geng-"></span><h3 class="section">23.12 キーバインディングの変更</h3>
@@ -70,40 +70,76 @@ Next: <a href="Remapping-Commands.html" accesskey="n" rel="next">コマンドの
 <span id="index-rebinding"></span>
 
 <p>キーのリバインド(rebind:
-再バインド、再束縛)は、キーマップ内でそのキーのバインディングエントリーを変更することによって行われます。グローバルキーマップ内のバインディングを変更すると、その変更は(たとえローカルバインディングによりグローバルバインディングをshadowしているバッファーでは直接影響しないとしても)すべてのバッファーに影響します。カレントバッファーのローカルマップを変更すると、通常は同じメジャーモードを使用するすべてのバッファーに影響します。関数<code>global-set-key</code>と<code>local-set-key</code>は、これらの操作のための使いやすいインターフェイスです(<a href="Key-Binding-Commands.html">キーのバインドのためのコマンド</a>を参照)。より汎用的な関数<code>global-set-key</code>を使用することもできます。その場合には変更するマップを明示的に指定しなければなりません。
+再バインド、再束縛)は、キーマップ内でそのキーのバインディングエントリーを変更することによって行われます。グローバルキーマップ内のバインディングを変更すると、その変更は(たとえローカルバインディングによりグローバルバインディングをshadowしているバッファーでは直接影響しないとしても)すべてのバッファーに影響します。カレントバッファーのローカルマップを変更すると、通常は同じメジャーモードを使用するすべてのバッファーに影響します。関数<code>keymap-global-set</code>と<code>keymap-local-set</code>は、これらの操作のための使いやすいインターフェイスです(<a href="Key-Binding-Commands.html">キーのバインドのためのコマンド</a>を参照)。より汎用的な関数<code>keymap-set</code>を使用することもできます。その場合には変更するマップを明示的に指定しなければなりません。
 </p>
 <p>Lispプログラムでリバインドするキーシーケンスを選択するときは、さまざまなキーの使用についてのEmacsの慣習にしたがってください(<a href="Key-Binding-Conventions.html">キーバインディング規約</a>を参照)。
 </p>
-<span id="index-meta-character-key-constants"></span>
-<span id="index-control-character-key-constants"></span>
-<p>リバインドするためのキーシーケンスを記述する際には、controlやmetaといった文字(<a href="String-Type.html">文字列型</a>を参照)にたいして特別なエスケープシーケンスを使うとよいでしょう。&lsquo;<samp>\C-</samp>&rsquo;は後続する文字がcontrol文字であること、&lsquo;<samp>\M-</samp>&rsquo;はmeta文字であることを意味する構文です。したがって文字列<code>&quot;\M-x&quot;</code>は単一の<kbd>M-x</kbd>、<code>&quot;\C-f&quot;</code>は単一の<kbd>C-f</kbd>、そして<code>&quot;\M-\C-x&quot;</code>と<code>&quot;\C-\M-x&quot;</code>はいずれも単一の<kbd>C-M-x</kbd>を含んだシーケンスとして読み取られます。このエスケープシーケンスはたとえば&lsquo;<samp>[?\C-\H-x
-home]</samp>&rsquo;のように文字列では許されないシーケンスをベクターで記述する際にも使用できます。<a href="Character-Type.html">文字型</a>を参照してください。
+<p>以下の関数は<var>keymap</var>がキーマップではない、あるいは<var>key</var>が有効なキーでなければエラーをシグナルします。
 </p>
-<p>キー定義およびルックアップ関数では、ベクターであるようなキーシーケンス内のイベントタイプにたいする代替え構文としても許容されます。たとえば<code>(control
-?a)</code>は<code>?\C-a</code>、<code>(hyper control
-left)</code>は<code>C-H-left</code>と等価です。このようなリストを用いる利点の1つとして、修飾子ビットにたいする正確な数値コードがコンパイル済みファイルに含まれなくなることが挙げられます。
+<p><var>key</var>は単一のキーを表す文字列、あるいは一連のキーストロークであり、<code>key-valid-p</code>を満足しなければなりません。キーストロークは1つのスペース文字によって区切られています。
 </p>
-<p>以下の関数では<var>keymap</var>がキーマップではない、あるいは<var>key</var>がキーシーケンスを表す文字列やベクターでなければエラーをシグナルします。リストであるようなイベントには、略記としてイベントタイプ(シンボル)を用いることができます。<code>kbd</code>関数はキーシーケンスを指定する便利な方法です(<a href="Key-Sequences.html">キーシーケンス</a>を参照)。
+<p>キーストロークはそれぞれ単一の文字、あるいは山カッコ(angle
+brackets)で括られたイベント名です。更にすべてのキーストロークにたいして1つ以上の修飾キーが前置されているかもしれません。最後に数は限られますが特別な短縮構文をもつ文字があります。以下に例としてキーシーケンスの例を示します:
 </p>
+<dl compact="compact">
+<dt><span><kbd>f</kbd></span></dt>
+<dd><p>キーの<kbd>f</kbd>。
+</p>
+</dd>
+<dt><span><kbd>S o m</kbd></span></dt>
+<dd><p><kbd>S</kbd>、<kbd>o</kbd>、<kbd>m</kbd>の3文字からなるキーシーケンス。
+</p>
+</dd>
+<dt><span><kbd>C-c o</kbd></span></dt>
+<dd><p>controlで修飾されたキー<kbd>c</kbd>、その後にキー<kbd>o</kbd>。
+</p>
+</dd>
+<dt><span><kbd>H-&lt;left&gt;</kbd></span></dt>
+<dd><p>hyperで修飾された<kbd>left</kbd>という名前のキー。
+</p>
+</dd>
+<dt><span><kbd>M-RET</kbd></span></dt>
+<dd><p>metaで修飾された<kbd>return</kbd>キー。
+</p>
+</dd>
+<dt><span><kbd>C-M-&lt;space&gt;</kbd></span></dt>
+<dd><p>controlとmetaで修飾された<kbd>space</kbd>キー。
+</p></dd>
+</dl>
+
+<p>特別な短縮構文をもつキーは<kbd>NUL</kbd>、<kbd>RET</kbd>、<kbd>TAB</kbd>、<kbd>LFD</kbd>、<kbd>ESC</kbd>、<kbd>SPC</kbd>、<kbd>DEL</kbd>だけです。
+</p>
+<p>修飾キーは&lsquo;<samp>Alt-Control-Hyper-Meta-Shift-super</samp>&rsquo;、すなわち&lsquo;<samp>A-C-H-M-S-s</samp>&rsquo;のアルファベット順に指定する必要があります。
+</p>
+<span id="index-keymap_002dset"></span>
 <dl class="def">
-<dt id="index-define_002dkey"><span class="category">Function: </span><span><strong>define-key</strong> <em>keymap key binding</em><a href='#index-define_002dkey' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数は<var>keymap</var>内で<var>key</var>にたいするバインディングをセットする(<var>key</var>が長さ2以上のイベントなら、その変更は実際は<var>keymap</var>から辿られる他のキーマップで行なわれる)。引数<var>binding</var>には任意のLispオブジェクトを指定できるが、意味があるのは特定のオブジェクトだけである(意味のある型のリストは<a href="Key-Lookup.html">キーの照合</a>を参照)。<code>define-key</code>のリターン値は<var>binding</var>である。
+<dt id="index-keymap_002dset-1"><span class="category">Function: </span><span><strong>keymap-set</strong> <em>keymap key binding</em><a href='#index-keymap_002dset-1' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>keymap</var>内で<var>key</var>にたいするバインディングをセットする(<var>key</var>が長さ2以上のイベントなら、その変更は実際は<var>keymap</var>から辿られる他のキーマップで行なわれる)。引数<var>binding</var>には任意のLispオブジェクトを指定できるが、意味があるのは特定のオブジェクトだけである(意味のある型のリストは<a href="Key-Lookup.html">キーの照合</a>を参照)。<code>keymap-set</code>のリターン値は<var>binding</var>である。
 </p>
-<p><var>key</var>が<code>[t]</code>なら、それは<var>keymap</var>内でデフォルトバインディングをセットする。イベントが自身のバインディングをもたないとき、そのキーマップ内にデフォルトバインディングが存在すればEmacsコマンドループはそれを使用する。
+<p><var>key</var>が<kbd>&lt;t&gt;</kbd>なら、それは<var>keymap</var>内でデフォルトバインディングをセットする。イベントが自身のバインディングをもたないとき、そのキーマップ内にデフォルトバインディングが存在すればEmacsコマンドループはそれを使用する。
 </p>
 <span id="index-invalid-prefix-key-error"></span>
 <span id="index-key-sequence-error"></span>
-<p><var>key</var>のすべてのプレフィクスはプレフィクスキー(キーマップにバインドされる)か未定義のいずれかでなけらばならず、それ以外ならエラーがシグナルされる。<var>key</var>のいくつかのプレフィクスが未定義なら<code>define-key</code>はそれをプレフィクスキーとして定義するので、残りの<var>key</var>は指定されたように定義できる。
+<p><var>key</var>のすべてのプレフィクスはプレフィクスキー(キーマップにバインドされる)か未定義のいずれかでなけらばならず、それ以外ならエラーがシグナルされる。<var>key</var>のいくつかのプレフィクスが未定義なら<code>keymap-set</code>はそれをプレフィクスキーとして定義するので、残りの<var>key</var>は指定されたように定義できる。
 </p>
-<p>前に<var>keymap</var>内で<var>key</var>にたいするバインディングが存在しなければ、新たなバインディングが<var>keymap</var>の先頭に追加される。キーマップ内のバインディングの順序はキーボード入力にたいし影響を与えないが、メニューキーマップにたいしては問題となる(<a href="Menu-Keymaps.html">メニューキーマップ</a>を参照)。
+<p>前に<var>keymap</var>内で<var>key</var>にたいするバインディングが存在しなければ、新たなバインディングが<var>keymap</var>の先頭に追加される。キーマップ内のバインディングの順序はキーボード入力にたいし影響を与えないが、メニューキーマップにたいしては問題となる(<a href="Menu-Keymaps.html">メニューキーアップ</a>を参照)。
 </p></dd></dl>
 
+<span id="index-keymap_002dunset"></span>
+<dl class="def">
+<dt id="index-keymap_002dunset-1"><span class="category">Function: </span><span><strong>keymap-unset</strong> <em>keymap key &amp;optional remove</em><a href='#index-keymap_002dunset-1' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これは<code>keymap-set</code>の逆バージョンの関数。<var>keymap</var>内の<var>key</var>のバインディングを解除(unset)する(<code>nil</code>にセットするのと同じ)。バインディングを完全に削除する場合には、<var>remove</var>に非<code>nil</code>を指定すればよい。これに違いが生じるのは、<var>keymap</var>に親キーマップがある場合のみ。子マップでキーのバインディングを解除しただけでは、依然としてそれが親マップの同じキーをシャドーし続けるだろう。<var>remove</var>を使うことによって、親キーマップのキーが用いられることになる。
+</p></dd></dl>
+
+<p>注意:
+<var>remove</var>に非<code>nil</code>を指定しての<code>keymap-unset</code>の使用は、ユーザーがinitファイルに記述する場合を想定したものです。Emacsパッケージは他のパッケージのキーマップを変更するべきではなく、いずれにせよ自身のキーマップにたいして完全な制御を有しているので、可能であれば使用を避けてください。
+</p>
 <p>以下はsparseキーマップを作成してその中にバインディングをいくつか作成する例:
 </p>
 <div class="example">
 <pre class="example">(setq map (make-sparse-keymap))
     &rArr; (keymap)
-</pre><pre class="example">(define-key map &quot;\C-f&quot; 'forward-char)
+</pre><pre class="example">(keymap-set map &quot;C-f&quot; 'forward-char)
     &rArr; forward-char
 </pre><pre class="example">map
     &rArr; (keymap (6 . forward-char))
@@ -111,7 +147,7 @@ left)</code>は<code>C-H-left</code>と等価です。このようなリスト�
 
 </pre><pre class="example">;; <span class="roman"><kbd>C-x</kbd>にたいしsparseサブマップを作成して
 ;; その中で<kbd>f</kbd>をバインドする</span>
-(define-key map (kbd &quot;C-x f&quot;) 'forward-word)
+(keymap-set map &quot;C-x f&quot; 'forward-word)
     &rArr; forward-word
 </pre><pre class="example">map
 &rArr; (keymap
@@ -121,13 +157,13 @@ left)</code>は<code>C-H-left</code>と等価です。このようなリスト�
 </pre><pre class="example">
 
 </pre><pre class="example">;; <span class="roman"><kbd>C-p</kbd>を<code>ctl-x-map</code>にバインド</span>
-(define-key map (kbd &quot;C-p&quot;) ctl-x-map)
+(keymap-set map &quot;C-p&quot; ctl-x-map)
 ;; <code>ctl-x-map</code>
 &rArr; [nil &hellip; find-file &hellip; backward-kill-sentence]
 </pre><pre class="example">
 
 </pre><pre class="example">;; <span class="roman"><code>ctl-x-map</code>内で<kbd>C-f</kbd>を<code>foo</code>にバインド</span>
-(define-key map (kbd &quot;C-p C-f&quot;) 'foo)
+(keymap-set map &quot;C-p C-f&quot; 'foo)
 &rArr; 'foo
 </pre><pre class="example">map
 &rArr; (keymap     ; <span class="roman"><code>ctl-x-map</code>内の<code>foo</code>に注目</span>
@@ -140,6 +176,8 @@ left)</code>は<code>C-H-left</code>と等価です。このようなリスト�
 <p><kbd>C-p
 C-f</kbd>にたいする新たなバインディングの格納は、実際には<code>ctl-x-map</code>内のエントリーを変更することによって機能し、これはデフォルトグローバルマップ内の<kbd>C-p
 C-f</kbd>と<kbd>C-x C-f</kbd>の両方のバインディングを変更する効果をもつことに注意。
+</p>
+<p>一般的にキーマップ内でキーを定義する際に主に作業を担うのが<code>keymap-set</code>です。ただしモードを記述する際には一度に大量のキーのバインドを要することが多々あり、それらすべてにたいして<code>keymap-set</code>を使うのは煩雑ですし、エラーも起こりやすくなります。かわりに<code>define-keymap</code>を使えばキーマップを作成して複数のキーのバインドを行うことができます。詳細についてはは<a href="Creating-Keymaps.html">キーマップの作成</a>を参照してください。
 </p>
 <p>関数<code>substitute-key-definition</code>はキーマップから特定のバインディングをもつキーをスキャンして、それらを異なるバインディングにリバインドする。より明快かつ多くの場合には同じ結果を生成できる他の機能として、あるコマンドから別のコマンドへのリマップがある(<a href="Remapping-Commands.html">コマンドのリマップ</a>を参照)。
 </p>
@@ -202,7 +240,7 @@ C-f</kbd>と<kbd>C-x C-f</kbd>の両方のバインディングを変更する�
 <pre class="example">(defvar special-mode-map
   (let ((map (make-sparse-keymap)))
     (suppress-keymap map)
-    (define-key map &quot;q&quot; 'quit-window)
+    (keymap-set map &quot;q&quot; 'quit-window)
     &hellip;
     map))
 </pre></div>
@@ -212,10 +250,10 @@ C-f</kbd>と<kbd>C-x C-f</kbd>の両方のバインディングを変更する�
 <hr>
 <div class="header">
 <p>
-Next: <a href="Remapping-Commands.html">コマンドのリマップ</a>, Previous: <a href="Functions-for-Key-Lookup.html">キー照合のための関数</a>, Up: <a href="Keymaps.html">キーマップ</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Low_002dLevel-Key-Binding.html">低レベルなキーバインディング</a>, Previous: <a href="Functions-for-Key-Lookup.html">キー照合のための関数</a>, Up: <a href="Keymaps.html">キーマップ</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-28, commit:41a6e705d86fa8142cdc8f911b8315cf23de5348 to check Japanese translation.
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:87f66b885166fea369805baf9e08da313c2885bb to check Japanese translation.
 </body>
 </html>

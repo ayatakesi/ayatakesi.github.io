@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 29.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -58,7 +58,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="section" id="Input-Focus">
 <div class="header">
 <p>
@@ -84,7 +84,9 @@ frame&rsquo;s display)</em>です。
 the
 focus)</em>するために、明示的なクリックやコマンドを要求します。どちらの方法でもEmacsはフォーカスをもつフレーム(複数形のframes)を自動的に追跡します。Lisp関数から別フレームに明示的に切り替えるためには、<code>select-frame-set-input-focus</code>を呼び出します。
 </p>
-<p>前のパラグラフ中の&ldquo;複数形のframes&rdquo;は意図したものです。Emacs自身は選択されたフレームを1つしかもたないのにたいして、Emacsは多くの異なる端末上にフレームをもつことができ(ウィンドウシステムへの接続は端末とみなされることを思い出してほしい)、各端末は入力フォーカスをもつフレームにたいして独自のアイデアをもっています。あるフレームに入力フォーカスをセットする際にはフレームの端末にフォーカスをセットしますが、他の端末上のフレームのフォーカスは残り続けます。
+<p>前のパラグラフ中の&ldquo;複数形のframes&rdquo;は意図したものです。Emacs自身は選択されたフレームを1つしかもたないのにたいして、Emacsは多くの異なる端末上にフレームをもつことができ(ウィンドウシステムへの接続は端末とみなされることを思い出してほしい)、各端末は入力フォーカスをもつフレームにたいして独自のアイデアをもっています。Xウィンドウシステムの下ではユーザー入力は個別に入力の&ldquo;指定席&rdquo;に組織化されていて、それらの指定席それぞれが独自に特定の入力フォーカスを順に得ることができるのです。あるフレームに入力フォーカスをセットすると、Emacsが最後に相互作用を行った指定席のフレームの端末にフォーカスがセットされますが、他の端末上のフレームや指定席に依然としてフォーカスが残るかもしれません。
+</p>
+<p>入力フォーカスをセットする前に指定された端末上でユーザーと何らかの相互作用が発生した場合には、Xサーバーが指定席をランダムに選んで(通常はもっとも小さい番号の指定席)、そこに入力フォーカスをセットします。
 </p>
 <p>関数<code>select-frame</code>を呼び出すことにより、Lispプログラムが一時的にフレームを切り替えることができます。これはそのウィンドウシステムのフォーカス概念を変更はしません。変更ではなく何らかの方法により制御が再確認(reasserted)されるまで、ウィンドウマネージャーの制御から抜け出す(escape)のです。
 </p>
@@ -154,9 +156,21 @@ focus)</em>するために、明示的なクリックやコマンドを要求し
 
 <dl class="def">
 <dt id="index-after_002dfocus_002dchange_002dfunction"><span class="category">Variable: </span><span><strong>after-focus-change-function</strong><a href='#index-after_002dfocus_002dchange_002dfunction' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>これはフォーカス変更の際にコードが通知を受けられるように拡張する場合の要所となる関数である。
+<dd><p>これはEmacsがフレームへのフォーカスを取得あるいは喪失する可能性に気づいた際に引数なしで呼び出される関数である。フォーカスイベントの配信は非同期であり、期待する順に配信されないかもしれないので、フレームのフォーカス状態に応じて何かを行いたいコードはすべてのフレームをチェックする必要がある。
 </p>
-<p>これはフォーカスをもつ一連のフレームに変更があったかもしれないことをEmacsが検知した際に、引数なしで呼び出される関数である。フレームのフォーカスが変更された際に何か行いたいコードは、<code>add-function</code>を用いて関数を追加すること。また追加される関数では、フレームそれぞれにたいして最後に把握されたフォーカス状態を取得するために<code>frame-focus-state</code>を呼び出してフォーカスをもつ一連のフレームを再スキャンすること。フォーカスイベントは非同期に配信される。更に外部システムによるフレームの入力イベントは、Emacsにおける選択されたフレームの概念に適合しないかもしれない。フォーカスイベントの配信の違いや複数のEmacs端末の存在、あるいはその他の要因により、入力フォーカスをもつフレームが同時に複数存在するように見える場合があり、このような状況に直面しても堅牢であるようコードを記述すること。
+<p>たとえばフレームへのフォーカス有無にもとづきバックグラウンドカラーをセットするシンプルな関数例を以下に示す:
+</p>
+<div class="example lisp">
+<pre class="lisp">(add-function :after after-focus-change-function
+              #'my-change-background)
+(defun my-change-background ()
+  (dolist (frame (frame-list))
+    (pcase (frame-focus-state frame)
+      (`t (set-face-background 'default &quot;black&quot; frame))
+      (`nil (set-face-background 'default &quot;#404040&quot; frame)))))
+</pre></div>
+
+<p>フォーカスイベント配信の差異や別の要因のせいで、複数フレームが入力イベントをもつように見える場合があるので、このような状況に直面しても大丈夫なように堅牢なコードを記述するべきである。
 </p>
 <p>ウィンドウシステムによってはフォーカスイベントが繰り返し配信されて、期待した値にセットする前に異なるフォーカス状態が配信されるかもしれない。フォーカス通知にもとづくコードはおそらく再表示まで処理を遅延することにより、フォーカス変更から生じるユーザーに可視の更新を&ldquo;デバウンス(debounce)&rdquo;する必要がある。
 </p>
@@ -196,6 +210,6 @@ mouse&rdquo;ポリシーを提供できる。
 </div>
 
 
-This page has generated for branch:emacs-28, commit:41a6e705d86fa8142cdc8f911b8315cf23de5348 to check Japanese translation.
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:87f66b885166fea369805baf9e08da313c2885bb to check Japanese translation.
 </body>
 </html>

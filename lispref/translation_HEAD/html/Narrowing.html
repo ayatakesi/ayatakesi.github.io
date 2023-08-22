@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 28.2.
+corresponding to Emacs version 29.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -57,7 +57,7 @@ ul.no-bullet {list-style: none}
 
 </head>
 
-<body lang="en_US">
+<body lang="en">
 <div class="section" id="Narrowing">
 <div class="header">
 <p>
@@ -83,6 +83,8 @@ portion)</em>と呼ばれます。
 <dd><p>この関数はアクセス可能範囲の開始と終了にカレントバッファーの<var>start</var>と<var>end</var>をセットする。どちらの引数も文字位置で指定すること。
 </p>
 <p>インタラクティブな呼び出しでは、<var>start</var>と<var>end</var>はカレントリージョンにセットされる(ポイントとマークで小さいほうが前者)。
+</p>
+<p>ただしlabel引数(以下参照)を指定した<code>with-restriction</code>によってナローイングがセットされている際には、そのナローイングの制限の範囲内にたいしてのみ<code>narrow-to-region</code>を使用できる。<var>start</var>か<var>end</var>がこの制限の範囲外であれば、<code>with-restriction</code>によってセットされた対応する制限がかわりに使用される。バッファーのそれ以外の部分へのアクセスを取得するには、同じlabelを指定して<code>without-restriction</code>を使えばよい。
 </p></dd></dl>
 
 <dl class="def">
@@ -100,7 +102,9 @@ portion)</em>と呼ばれます。
 <div class="example">
 <pre class="example">(narrow-to-region 1 (1+ (buffer-size)))
 </pre></div>
-</dd></dl>
+
+<p>ただしlabel引数(以下参照)を指定した<code>with-restriction</code>によってナローイングがセットされている際には、ナローイングをキャンセルするかわりに<code>with-restriction</code>でセットした制限がリストアされる。バッファーのそれ以外の部分へのアクセスを取得するには、同じlabelを指定して<code>without-restriction</code>を使えばよい。
+</p></dd></dl>
 
 <dl class="def">
 <dt id="index-buffer_002dnarrowed_002dp"><span class="category">Function: </span><span><strong>buffer-narrowed-p</strong><a href='#index-buffer_002dnarrowed_002dp' class='copiable-anchor'> &para;</a></span></dt>
@@ -110,6 +114,8 @@ portion)</em>と呼ばれます。
 <dl class="def">
 <dt id="index-save_002drestriction"><span class="category">Special Form: </span><span><strong>save-restriction</strong> <em>body&hellip;</em><a href='#index-save_002drestriction' class='copiable-anchor'> &para;</a></span></dt>
 <dd><p>このスペシャルフォームはアクセス可能範囲のカレントのバインドを保存して<var>body</var>を評価、その後に以前有効だったナローイング(またはナローイングがない状態)と同じ状態になるように、最後に保存された境界をリストアする。ナローイングの状態は、<code>throw</code>やエラーを通じたアブノーマルexit(<a href="Nonlocal-Exits.html">非ローカル脱出</a>を参照)イベント内においてもリストアされる。したがってこの構文は一時的にバッファーをナローする明快な手段である。
+</p>
+<p>この構文はlabel引数(以下参照)とともに<code>with-restriction</code>によってセットされたナローイングの保存とリストアも行う。
 </p>
 <p><code>save-restriction</code>がリターンする値は<var>body</var>内の最後のフォームのリターン値、<var>body</var>フォームが与えられなければ<code>nil</code>。
 </p>
@@ -145,9 +151,51 @@ This is the contents of foo&lowast;
 </pre></div>
 </dd></dl>
 
+<dl class="def">
+<dt id="index-with_002drestriction"><span class="category">Special Form: </span><span><strong>with-restriction</strong> <em>start end [:label label] body</em><a href='#index-with_002drestriction' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>このスペシャルフォームはバッファーのアクセス可能範囲のカレント境界を保存、<var>start</var>で始まり<var>end</var>で終わるアクセス可能範囲をセットして<var>body</var>フォームを評価、それから保存してある境界をリストアする。この場合は以下と等しい
+</p>
+<div class="example">
+<pre class="example">(save-restriction
+  (narrow-to-region start end)
+  body)
+</pre></div>
+
+<span id="index-labeled-narrowing"></span>
+<span id="index-labeled-restriction"></span>
+<p>オプション引数<var>label</var> (使用するラベルを取得するために評価される;
+非<code>nil</code>値が生成されなければならない)が与えられた場合には、そのナローイングは<em>ラベル付け(labeled)</em>される。ラベル付けされたナローイングは、ラベル付けされていないナローイングといくつかの点で異なる:
+</p>
+<ul>
+<li> <var>body</var>フォームの評価の間は、<code>narrow-to-region</code>と<code>widen</code>が使えるのは<var>start</var>から<var>end</var>までの制限の内部のみ。
+
+</li><li> <code>with-restriction</code>でセットされた制限を解除してバッファーの他の部分へのアクセスを取得するためには、同じ<var>label</var>引数を使って<code>without-restriction</code>を呼び出す(バッファーの他の部分へのアクセスを取得する別の方法としてインダイレクトバッファーの使用がある;
+<a href="Indirect-Buffers.html">インダイレクトバッファー</a>を参照)。
+
+</li><li> ラベル付けされたナローイングはネストできる。
+
+</li><li> ラベル付けされたナローイングはLispプログラムでのみ使用できる。このナローイングは表示上で可視になることはなく、ユーザーがセットしたナローイングに干渉することもない。
+</li></ul>
+
+<p>オプション引数<var>label</var>とともに<code>with-restriction</code>を使う場合には、あなたのコードを呼び出す他のLispプログラムが必要に応じてナローイングを解除できるように、これを使う関数のdoc文字列でその<var>label</var>のドキュメントを記述することを推奨する。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-without_002drestriction"><span class="category">Special Form: </span><span><strong>without-restriction</strong> <em>[:label label] body</em><a href='#index-without_002drestriction' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>このスペシャルフォームはバッファーのアクセス可能範囲のカレント境界を保存、そのバッファーをワイドニングしてから<var>body</var>フォームを評価、それから保存した境界をリストアする。この場合は以下と等しい
+</p>
+<div class="example">
+<pre class="example">(save-restriction
+  (widen)
+  body)
+</pre></div>
+
+<p>オプション引数<var>label</var>が与えられた場合には、同じ<var>label</var>引数の<code>with-restriction</code>でセットされたナローイングが解除される。
+</p></dd></dl>
+
 </div>
 
 
-This page has generated for branch:emacs-28, commit:41a6e705d86fa8142cdc8f911b8315cf23de5348 to check Japanese translation.
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:87f66b885166fea369805baf9e08da313c2885bb to check Japanese translation.
 </body>
 </html>

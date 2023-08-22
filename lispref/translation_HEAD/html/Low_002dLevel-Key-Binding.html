@@ -1,0 +1,195 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 29.1.
+
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Low-Level Key Binding (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Low-Level Key Binding (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Low-Level Key Binding (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="August 22, 2023">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Keymaps.html" rel="up" title="Keymaps">
+<link href="Remapping-Commands.html" rel="next" title="Remapping Commands">
+<link href="Changing-Key-Bindings.html" rel="prev" title="Changing Key Bindings">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Low_002dLevel-Key-Binding">
+<div class="header">
+<p>
+Next: <a href="Remapping-Commands.html" accesskey="n" rel="next">コマンドのリマップ</a>, Previous: <a href="Changing-Key-Bindings.html" accesskey="p" rel="prev">キーバインディングの変更</a>, Up: <a href="Keymaps.html" accesskey="u" rel="up">キーマップ</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Di-reberunakibaindeingu"></span><h3 class="section">23.13 低レベルなキーバインディング</h3>
+<span id="index-low_002dlevel-key-bindings"></span>
+
+<p>歴史的にEmacsはキーを定義するために、異なる複数の構文を複数サポートしてきました。現時点ではキーをバインドする方法として文書化されているのは、<code>key-valid-p</code>がサポートしている構文を使用する方法です。これは<code>keymap-set</code>や<code>keymap-lookup</code>のような関数がサポートするすべてのことを行うことができます。このセクションでは旧スタイルの構文とインターフェイス関数について記述しました。これらを新しいコードで使用するべきではありません。
+</p>
+<span id="index-meta-character-key-constants"></span>
+<span id="index-control-character-key-constants"></span>
+<p><code>define-key</code> (およびキーのリバインドに用いられるその他の低レベル関数)は、キーにたいして複数の異なる構文を理解します。
+</p>
+<dl compact="compact">
+<dt><span>キーのリストを含むベクター</span></dt>
+<dd><p>修飾名に基本イベント(文字かファンクションキー名)を1つを加えたものをリストに含めることができる。たとえば<code>[(control ?a)
+(meta b)]</code>は<kbd>C-a M-b</kbd>、<code>[(hyper control left)]</code>は<kbd>C-H-left</kbd>と等価。
+</p>
+</dd>
+<dt><span>修飾された文字列</span></dt>
+<dd><p>キーシーケンスは内部的にはshift、control、metaといった修飾キー用の特別なエスケープシーケンス(<a href="String-Type.html">文字列型</a>を参照)を用いた文字列として表現されていることがよくあるが、この表現はユーザーがキーのリバインドを行う際にも使うことができる。<code>&quot;\M-x&quot;</code>や<code>&quot;\C-f&quot;</code>のような文字列はそれぞれ単一の<kbd>M-x</kbd>や<kbd>C-f</kbd>、<code>&quot;\M-\C-x&quot;</code>と<code>&quot;\C-\M-x&quot;</code>はいずれも単一の<kbd>C-M-x</kbd>を含んだキーシーケンスとして読み取られる。
+</p>
+</dd>
+<dt><span>文字とキーシンボルのベクター</span></dt>
+<dd><p>これはキーシーケンスを表す別の内部表現である。文字列表現よりも幅広い範囲の修飾をサポートしており、ファンクションキーもサポートしている。&lsquo;<samp><span class="nolinebreak">[?\C-\H-x</span>&nbsp;home]</samp>&rsquo;<!-- /@w -->を例とすると、これは<kbd><span class="nolinebreak">C-H-x</span>&nbsp;<span class="key">home</span></kbd><!-- /@w -->というキーシーケンスを表している。<a href="Character-Type.html">文字型</a>を参照のこと。
+</p></dd>
+</dl>
+
+<dl class="def">
+<dt id="index-define_002dkey"><span class="category">Function: </span><span><strong>define-key</strong> <em>keymap key binding &amp;optional remove</em><a href='#index-define_002dkey' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これは<code>keymap-set</code> (<a href="Changing-Key-Bindings.html">キーバインディングの変更</a>を参照)と似ているが、旧来のキー構文だけを理解する。
+</p>
+<p>この関数には更に<var>remove</var>引数もある。これが非<code>nil</code>だと、その定義は削除される。これは概ね定義に<code>nil</code>をセットするのと同義だが、<var>keymap</var>に親があって<var>key</var>が親の同一バインディングをシャドーしている場合に違いが生じる。<var>remove</var>の場合にはそれ以降のルックアップで親のバインディングがリターンされるが、<code>nil</code>の定義ではルックアップにたいして<code>nil</code>がリターンされるだろう。
+</p></dd></dl>
+
+<p>他にも以下のような旧来のキー定義関数とコマンドがありますが、新しいコードでは等価な新式の関数を使用してください。
+</p>
+<dl class="def">
+<dt id="index-global_002dset_002dkey"><span class="category">Command: </span><span><strong>global-set-key</strong> <em>key binding</em><a href='#index-global_002dset_002dkey' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はカレントグローバルマップ内で<var>key</var>のバインディングを<var>binding</var>にセットする。かわりに<code>keymap-global-set</code>を使うこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-global_002dunset_002dkey"><span class="category">Command: </span><span><strong>global-unset-key</strong> <em>key</em><a href='#index-global_002dunset_002dkey' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はカレントグローバルマップから<var>key</var>のバインディングを削除する。かわりに<code>keymap-global-unset</code>を使うこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-local_002dset_002dkey"><span class="category">Command: </span><span><strong>local-set-key</strong> <em>key binding</em><a href='#index-local_002dset_002dkey' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はカレントローカルキーマップ内の<var>key</var>のバインディングを<var>binding</var>にセットする。かわりに<code>keymap-local-set</code>を使うこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-local_002dunset_002dkey"><span class="category">Command: </span><span><strong>local-unset-key</strong> <em>key</em><a href='#index-local_002dunset_002dkey' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はカレントローカルキーマップから<var>key</var>のバインディングを削除する。かわりに<code>keymap-local-unset</code>を使うこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-substitute_002dkey_002ddefinition-1"><span class="category">Function: </span><span><strong>substitute-key-definition</strong> <em>olddef newdef keymap &amp;optional oldmap</em><a href='#index-substitute_002dkey_002ddefinition-1' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>keymap</var>内で<var>olddef</var>にバインドされるすべてのキーについて<var>olddef</var>を<var>newdef</var>に置き換える。言い換えると<var>olddef</var>が出現する箇所のすべてを<var>newdef</var>に置き換える。この関数は<code>nil</code>をリターンする。かわりに<code>keymap-substitute</code>を使うこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-define_002dkey_002dafter"><span class="category">Function: </span><span><strong>define-key-after</strong> <em>map key binding &amp;optional after</em><a href='#index-define_002dkey_002dafter' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p><code>define-key</code>と同じように<var>map</var>内に<var>key</var>にたいする値<var>binding</var>のバインディングを定義するが、<var>map</var>内でのバインディング位置はイベント<var>after</var>のバインディングの後になる。引数<var>key</var>は長さ1
+&mdash; 1要素だけのベクターか文字列にすること。しかし<var>after</var>は単一のイベント型 &mdash;
+シーケンスではないシンボルか文字にすること。新たなバインディングは<var>after</var>のバインディングの後に追加される。<var>after</var>が<code>t</code>または省略された場合には、新たなバインディングはそのキーマップの最後に追加される。しかし新たなバインディングは継承されたすべてのキーマップの前に追加される。この関数ではなく<code>keymap-set-after</code>を使うこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-keyboard_002dtranslate"><span class="category">Function: </span><span><strong>keyboard-translate</strong> <em>from to</em><a href='#index-keyboard_002dtranslate' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は文字コードを<var>from</var>から<var>to</var>に変換することによって<code>keyboard-translate-table</code>話変更する。かわりに<code>key-translate</code>を使うこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-key_002dbinding"><span class="category">Function: </span><span><strong>key-binding</strong> <em>key &amp;optional accept-defaults no-remap position</em><a href='#index-key_002dbinding' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はカレントでアクティブなキーマップに応じて、<var>key</var>にたいするバインディングをリターンする。そのキーマップで<var>key</var>が未定義なら結果は<code>nil</code>になる。引数<var>accept-defaults</var>は<code>lookup-key</code>
+(<a href="Functions-for-Key-Lookup.html">キー照合のための関数</a>を参照)の場合と同じように、デフォルトのバインディングのチェックを行うかどうかを制御する。<var>no-remap</var>が非<code>nil</code>なら<code>key-binding</code>はコマンドのリマップ(<a href="Remapping-Commands.html">コマンドのリマップ</a>を参照)を無視して、<var>key</var>に直接指定されているバインディングをリターンする。オプション引数<var>position</var>はバッファー位置、あるいは<code>event-start</code>の値のようなイベント位置のいずれかであること。これにより<var>position</var>にもとづいて照会するマップを判断するように告げる。
+</p>
+<p><var>key</var>が文字列とベクターのいずれでもなければEmacsはエラーをシグナルする。
+</p>
+<p>この関数ではなくかわりに<code>keymap-lookup</code>を使うこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-lookup_002dkey"><span class="category">Function: </span><span><strong>lookup-key</strong> <em>keymap key &amp;optional accept-defaults</em><a href='#index-lookup_002dkey' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>keymap</var>から<var>key</var>の定義をリターンする。文字列かベクターの<var>key</var>が<var>keymap</var>内で指定されるプレフィクスキーとして有効なキーシーケンスでなければ、それは最後に余計なイベントをもった、単一のキーシーケンスに適合しない長過ぎるキーのはずである。その場合のリターン値は数となり、この数はコンプリートキーを構成する<var>key</var>の前にあるイベントの数である。
+</p>
+<p><var>accept-defaults</var>が非<code>nil</code>なら、<code>lookup-key</code>は<var>key</var>内の特定のイベントにたいするバインディングと同様にデフォルトバインディングも考慮する。それ以外では<code>lookup-key</code>は特定の<var>key</var>のシーケンスにたいするバインディングだけを報告して、明示的に指定したとき以外はデフォルトバインディングを無視する。
+</p>
+<p>この関数ではなくかわりに<code>keymap-lookup</code>を使うこと。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-local_002dkey_002dbinding"><span class="category">Function: </span><span><strong>local-key-binding</strong> <em>key &amp;optional accept-defaults</em><a href='#index-local_002dkey_002dbinding' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はカレントのローカルキーマップ内の<var>key</var>にたいするバインディングをリターンする。カレントのローカルキーマップ内で未定義なら<code>nil</code>をリターンする。
+</p>
+<p>引数<var>accept-defaults</var>は<code>lookup-key</code>(上記)と同じようにデフォルトバインディングのチェックを制御する。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-global_002dkey_002dbinding"><span class="category">Function: </span><span><strong>global-key-binding</strong> <em>key &amp;optional accept-defaults</em><a href='#index-global_002dkey_002dbinding' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はカレントのグローバルキーマップ内でコマンド<var>key</var>にたいするバインディングをリターンする。カレントのグローバルキーマップ内で未定義なら<code>nil</code>をリターンする。
+</p>
+<p>引数<var>accept-defaults</var>は<code>lookup-key</code>(上記)と同じようにデフォルトバインディングのチェックを制御する。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-event_002dconvert_002dlist"><span class="category">Function: </span><span><strong>event-convert-list</strong> <em>list</em><a href='#index-event_002dconvert_002dlist' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この修飾名のリストと基本的なイベントタイプを、それらすべてを指定するイベントタイプに変換する。基本的なイベントタイプはリストの最後の要素でなければならない。たとえば、
+</p>
+<div class="example">
+<pre class="example">(event-convert-list '(control ?a))
+     &rArr; 1
+(event-convert-list '(control meta ?a))
+     &rArr; -134217727
+(event-convert-list '(control super f1))
+     &rArr; C-s-f1
+</pre></div>
+</dd></dl>
+
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Remapping-Commands.html">コマンドのリマップ</a>, Previous: <a href="Changing-Key-Bindings.html">キーバインディングの変更</a>, Up: <a href="Keymaps.html">キーマップ</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/emacs-29_c2d95dd00e6cb0abaf4e7550f38c8c2c9ca22f2d, commit:87f66b885166fea369805baf9e08da313c2885bb to check Japanese translation.
+</body>
+</html>
