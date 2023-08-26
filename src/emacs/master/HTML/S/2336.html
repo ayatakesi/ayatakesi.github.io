@@ -1,0 +1,882 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>lib/set-permissions.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4747.html'>lib</a>/set-permissions.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L31'>[^]</a><a href='#L776'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L31' title='Defined at 31.'>acl_from_mode</a></li>
+<li><a href='#L56' title='Defined at 56.'>set_acls_from_mode</a></li>
+<li><a href='#L278' title='Defined at 278.'>context_acl_from_mode</a></li>
+<li><a href='#L305' title='Defined at 305.'>context_aclv_from_mode</a></li>
+<li><a href='#L332' title='Defined at 332.'>set_acls_from_mode</a></li>
+<li><a href='#L446' title='Defined at 446.'>context_acl_from_mode</a></li>
+<li><a href='#L459' title='Defined at 459.'>context_acl_from_mode</a></li>
+<li><a href='#L485' title='Defined at 485.'>set_acls</a></li>
+<li><a href='#L760' title='Defined at 760.'>chmod_or_fchmod</a></li>
+<li><a href='#L776' title='Defined at 776.'>set_permissions</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Set permissions of a file.  -*- coding: utf-8 -*-</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright (C) 2002-2003, 2005-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>   This program is free software: you can redistribute it and/or modify</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>   it under the terms of the GNU General Public License as published by</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>   the Free Software Foundation, either version 3 of the License, or</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>   (at your option) any later version.</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'></em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>   This program is distributed in the hope that it will be useful,</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>   GNU General Public License for more details.</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'></em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>   You should have received a copy of the GNU General Public License</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>   along with this program.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'></em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>   Written by Paul Eggert, Andreas Grünbacher, and Bruno Haible.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> "<a href='../I/76.html'>acl.h</a>"
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> "<a href='2243.html'>acl-internal.h</a>"
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#if</em> USE_ACL
+<a id='L27' name='L27'></a>    27 <em class='sharp'># if</em> ! <strong class='reserved'>defined</strong> HAVE_ACL_FROM_MODE &amp;&amp; <strong class='reserved'>defined</strong> HAVE_ACL_FROM_TEXT <em class='comment'>/* FreeBSD, IRIX, Tru64, Cygwin &gt;= 2.5 */</em>
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#  if</em> HAVE_ACL_GET_FILE &amp;&amp; !HAVE_ACL_TYPE_EXTENDED
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <strong class='reserved'>static</strong> <a href='../S/4113.html#L9' title='Defined at 9 in nt/inc/sys/acl.h.'>acl_t</a>
+<a id='L31' name='L31'></a>    31 <a href='../S/2336.html#L509' title='Referred from 509 in lib/set-permissions.c.'>acl_from_mode</a> (<a href='../S/4124.html#L142' title='Defined at 142 in nt/inc/ms-w32.h.'>mode_t</a> mode)
+<a id='L32' name='L32'></a>    32 <em class='brace'>{</em>
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#  if</em> HAVE_ACL_FREE_TEXT <em class='comment'>/* Tru64 */</em>
+<a id='L34' name='L34'></a>    34   <strong class='reserved'>char</strong> acl_text[] = "u::---,g::---,o::---,";
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#  else</em> <em class='comment'>/* FreeBSD, IRIX, Cygwin &gt;= 2.5 */</em>
+<a id='L36' name='L36'></a>    36   <strong class='reserved'>char</strong> acl_text[] = "u::---,g::---,o::---";
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#  endif</em>
+<a id='L38' name='L38'></a>    38 
+<a id='L39' name='L39'></a>    39   <strong class='reserved'>if</strong> (mode &amp; <a href='../D/6063.html' title='Multiple defined in 3 places.'>S_IRUSR</a>) acl_text[ 3] = 'r';
+<a id='L40' name='L40'></a>    40   <strong class='reserved'>if</strong> (mode &amp; <a href='../D/6092.html' title='Multiple defined in 3 places.'>S_IWUSR</a>) acl_text[ 4] = 'w';
+<a id='L41' name='L41'></a>    41   <strong class='reserved'>if</strong> (mode &amp; <a href='../D/6096.html' title='Multiple defined in 3 places.'>S_IXUSR</a>) acl_text[ 5] = 'x';
+<a id='L42' name='L42'></a>    42   <strong class='reserved'>if</strong> (mode &amp; <a href='../D/6061.html' title='Multiple defined in 2 places.'>S_IRGRP</a>) acl_text[10] = 'r';
+<a id='L43' name='L43'></a>    43   <strong class='reserved'>if</strong> (mode &amp; <a href='../D/6089.html' title='Multiple defined in 2 places.'>S_IWGRP</a>) acl_text[11] = 'w';
+<a id='L44' name='L44'></a>    44   <strong class='reserved'>if</strong> (mode &amp; <a href='../D/6093.html' title='Multiple defined in 2 places.'>S_IXGRP</a>) acl_text[12] = 'x';
+<a id='L45' name='L45'></a>    45   <strong class='reserved'>if</strong> (mode &amp; <a href='../D/6062.html' title='Multiple defined in 2 places.'>S_IROTH</a>) acl_text[17] = 'r';
+<a id='L46' name='L46'></a>    46   <strong class='reserved'>if</strong> (mode &amp; <a href='../D/6090.html' title='Multiple defined in 2 places.'>S_IWOTH</a>) acl_text[18] = 'w';
+<a id='L47' name='L47'></a>    47   <strong class='reserved'>if</strong> (mode &amp; <a href='../D/6094.html' title='Multiple defined in 2 places.'>S_IXOTH</a>) acl_text[19] = 'x';
+<a id='L48' name='L48'></a>    48 
+<a id='L49' name='L49'></a>    49   <strong class='reserved'>return</strong> <a href='../S/218.html#L6541' title='Defined at 6541 in src/w32.c.'>acl_from_text</a> (acl_text);
+<a id='L50' name='L50'></a>    50 <em class='brace'>}</em>
+<a id='L51' name='L51'></a>    51 <em class='sharp'>#  endif</em>
+<a id='L52' name='L52'></a>    52 <em class='sharp'># endif</em>
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54 <em class='sharp'># if</em> HAVE_FACL &amp;&amp; <strong class='reserved'>defined</strong> GETACL <em class='comment'>/* Solaris, Cygwin &lt; 2.5, not HP-UX */</em>
+<a id='L55' name='L55'></a>    55 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L56' name='L56'></a>    56 <a href='../R/15460.html' title='Multiple referred from 2 places.'>set_acls_from_mode</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>int</strong> desc, <a href='../S/4124.html#L142' title='Defined at 142 in nt/inc/ms-w32.h.'>mode_t</a> mode, <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a> *must_chmod)
+<a id='L57' name='L57'></a>    57 <em class='brace'>{</em>
+<a id='L58' name='L58'></a>    58 <em class='sharp'>#  ifdef</em> ACE_GETACL
+<a id='L59' name='L59'></a>    59   <em class='comment'>/* Solaris also has a different variant of ACLs, used in ZFS and NFSv4</em>
+<a id='L60' name='L60'></a>    60 <em class='comment'>     file systems (whereas the other ones are used in UFS file systems).  */</em>
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62   <em class='comment'>/* The flags in the ace_t structure changed in a binary incompatible way</em>
+<a id='L63' name='L63'></a>    63 <em class='comment'>     when ACL_NO_TRIVIAL etc. were introduced in &lt;sys/acl.h&gt; version 1.15.</em>
+<a id='L64' name='L64'></a>    64 <em class='comment'>     How to distinguish the two conventions at runtime?</em>
+<a id='L65' name='L65'></a>    65 <em class='comment'>     We fetch the existing ACL.  In the old convention, usually three ACEs have</em>
+<a id='L66' name='L66'></a>    66 <em class='comment'>     a_flags = ACE_OWNER / ACE_GROUP / ACE_OTHER, in the range 0x0100..0x0400.</em>
+<a id='L67' name='L67'></a>    67 <em class='comment'>     In the new convention, these values are not used.  */</em>
+<a id='L68' name='L68'></a>    68   <strong class='reserved'>int</strong> convention;
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70   <em class='brace'>{</em>
+<a id='L71' name='L71'></a>    71     <em class='comment'>/* Initially, try to read the entries into a stack-allocated buffer.</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>       Use malloc if it does not fit.  */</em>
+<a id='L73' name='L73'></a>    73     <strong class='reserved'>enum</strong>
+<a id='L74' name='L74'></a>    74       <em class='brace'>{</em>
+<a id='L75' name='L75'></a>    75         <a href='../R/7399.html' title='Multiple referred from 6 places.'>alloc_init</a> = 4000 / <strong class='reserved'>sizeof</strong> (ace_t), <em class='comment'>/* &gt;= 3 */</em>
+<a id='L76' name='L76'></a>    76         <a href='../R/7400.html' title='Multiple referred from 3 places.'>alloc_max</a> = <a href='../D/4022.html' title='Multiple defined in 4 places.'>MIN</a> (INT_MAX, <a href='../D/5788.html' title='Multiple defined in 8 places.'>SIZE_MAX</a> / <strong class='reserved'>sizeof</strong> (ace_t))
+<a id='L77' name='L77'></a>    77       <em class='brace'>}</em>;
+<a id='L78' name='L78'></a>    78     ace_t buf[<a href='../D/8327.html' title='Multiple defined in 3 places.'>alloc_init</a>];
+<a id='L79' name='L79'></a>    79     size_t alloc = <a href='../D/8327.html' title='Multiple defined in 3 places.'>alloc_init</a>;
+<a id='L80' name='L80'></a>    80     ace_t *entries = buf;
+<a id='L81' name='L81'></a>    81     ace_t *malloced = <a href='../D/4485.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L82' name='L82'></a>    82     <strong class='reserved'>int</strong> count;
+<a id='L83' name='L83'></a>    83 
+<a id='L84' name='L84'></a>    84     <strong class='reserved'>for</strong> (;;)
+<a id='L85' name='L85'></a>    85       <em class='brace'>{</em>
+<a id='L86' name='L86'></a>    86         count = (desc != -1
+<a id='L87' name='L87'></a>    87                  ? facl (desc, ACE_GETACL, alloc, entries)
+<a id='L88' name='L88'></a>    88                  : acl (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, ACE_GETACL, alloc, entries));
+<a id='L89' name='L89'></a>    89         <strong class='reserved'>if</strong> (count &lt; 0 &amp;&amp; errno == ENOSPC)
+<a id='L90' name='L90'></a>    90           <em class='brace'>{</em>
+<a id='L91' name='L91'></a>    91             <em class='comment'>/* Increase the size of the buffer.  */</em>
+<a id='L92' name='L92'></a>    92             <a href='../D/11743.html' title='Multiple defined in 19 places.'>free</a> (malloced);
+<a id='L93' name='L93'></a>    93             <strong class='reserved'>if</strong> (alloc &gt; <a href='../D/8328.html' title='Multiple defined in 3 places.'>alloc_max</a> / 2)
+<a id='L94' name='L94'></a>    94               <em class='brace'>{</em>
+<a id='L95' name='L95'></a>    95                 errno = ENOMEM;
+<a id='L96' name='L96'></a>    96                 <strong class='reserved'>return</strong> -1;
+<a id='L97' name='L97'></a>    97               <em class='brace'>}</em>
+<a id='L98' name='L98'></a>    98             alloc = 2 * alloc; <em class='comment'>/* &lt;= alloc_max */</em>
+<a id='L99' name='L99'></a>    99             entries = malloced = (ace_t *) <a href='../D/14196.html' title='Multiple defined in 19 places.'>malloc</a> (alloc * <strong class='reserved'>sizeof</strong> (ace_t));
+<a id='L100' name='L100'></a>   100             <strong class='reserved'>if</strong> (entries == <a href='../D/4485.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L101' name='L101'></a>   101               <em class='brace'>{</em>
+<a id='L102' name='L102'></a>   102                 errno = ENOMEM;
+<a id='L103' name='L103'></a>   103                 <strong class='reserved'>return</strong> -1;
+<a id='L104' name='L104'></a>   104               <em class='brace'>}</em>
+<a id='L105' name='L105'></a>   105             <strong class='reserved'>continue</strong>;
+<a id='L106' name='L106'></a>   106           <em class='brace'>}</em>
+<a id='L107' name='L107'></a>   107         <strong class='reserved'>break</strong>;
+<a id='L108' name='L108'></a>   108       <em class='brace'>}</em>
+<a id='L109' name='L109'></a>   109 
+<a id='L110' name='L110'></a>   110     <strong class='reserved'>if</strong> (count &lt;= 0)
+<a id='L111' name='L111'></a>   111       convention = -1;
+<a id='L112' name='L112'></a>   112     <strong class='reserved'>else</strong>
+<a id='L113' name='L113'></a>   113       <em class='brace'>{</em>
+<a id='L114' name='L114'></a>   114         <strong class='reserved'>int</strong> i;
+<a id='L115' name='L115'></a>   115 
+<a id='L116' name='L116'></a>   116         convention = 0;
+<a id='L117' name='L117'></a>   117         <strong class='reserved'>for</strong> (i = 0; i &lt; count; i++)
+<a id='L118' name='L118'></a>   118           <strong class='reserved'>if</strong> (entries[i].a_flags &amp; (<a href='../S/2243.html#L197' title='Defined at 197 in lib/acl-internal.h.'>OLD_ACE_OWNER</a> | <a href='../S/2243.html#L198' title='Defined at 198 in lib/acl-internal.h.'>OLD_ACE_GROUP</a> | <a href='../S/2243.html#L199' title='Defined at 199 in lib/acl-internal.h.'>OLD_ACE_OTHER</a>))
+<a id='L119' name='L119'></a>   119             <em class='brace'>{</em>
+<a id='L120' name='L120'></a>   120               convention = 1;
+<a id='L121' name='L121'></a>   121               <strong class='reserved'>break</strong>;
+<a id='L122' name='L122'></a>   122             <em class='brace'>}</em>
+<a id='L123' name='L123'></a>   123       <em class='brace'>}</em>
+<a id='L124' name='L124'></a>   124     <a href='../D/11743.html' title='Multiple defined in 19 places.'>free</a> (malloced);
+<a id='L125' name='L125'></a>   125   <em class='brace'>}</em>
+<a id='L126' name='L126'></a>   126 
+<a id='L127' name='L127'></a>   127   <strong class='reserved'>if</strong> (convention &gt;= 0)
+<a id='L128' name='L128'></a>   128     <em class='brace'>{</em>
+<a id='L129' name='L129'></a>   129       ace_t entries[6];
+<a id='L130' name='L130'></a>   130       <strong class='reserved'>int</strong> count;
+<a id='L131' name='L131'></a>   131       <strong class='reserved'>int</strong> ret;
+<a id='L132' name='L132'></a>   132 
+<a id='L133' name='L133'></a>   133       <strong class='reserved'>if</strong> (convention)
+<a id='L134' name='L134'></a>   134         <em class='brace'>{</em>
+<a id='L135' name='L135'></a>   135           <em class='comment'>/* Running on Solaris 10.  */</em>
+<a id='L136' name='L136'></a>   136           entries[0].a_type = <a href='../S/2243.html#L192' title='Defined at 192 in lib/acl-internal.h.'>OLD_ALLOW</a>;
+<a id='L137' name='L137'></a>   137           entries[0].a_flags = <a href='../S/2243.html#L197' title='Defined at 197 in lib/acl-internal.h.'>OLD_ACE_OWNER</a>;
+<a id='L138' name='L138'></a>   138           entries[0].a_who = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L139' name='L139'></a>   139           entries[0].a_access_mask = (mode &gt;&gt; 6) &amp; 7;
+<a id='L140' name='L140'></a>   140           entries[1].a_type = <a href='../S/2243.html#L192' title='Defined at 192 in lib/acl-internal.h.'>OLD_ALLOW</a>;
+<a id='L141' name='L141'></a>   141           entries[1].a_flags = <a href='../S/2243.html#L198' title='Defined at 198 in lib/acl-internal.h.'>OLD_ACE_GROUP</a>;
+<a id='L142' name='L142'></a>   142           entries[1].a_who = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L143' name='L143'></a>   143           entries[1].a_access_mask = (mode &gt;&gt; 3) &amp; 7;
+<a id='L144' name='L144'></a>   144           entries[2].a_type = <a href='../S/2243.html#L192' title='Defined at 192 in lib/acl-internal.h.'>OLD_ALLOW</a>;
+<a id='L145' name='L145'></a>   145           entries[2].a_flags = <a href='../S/2243.html#L199' title='Defined at 199 in lib/acl-internal.h.'>OLD_ACE_OTHER</a>;
+<a id='L146' name='L146'></a>   146           entries[2].a_who = 0;
+<a id='L147' name='L147'></a>   147           entries[2].a_access_mask = mode &amp; 7;
+<a id='L148' name='L148'></a>   148           count = 3;
+<a id='L149' name='L149'></a>   149         <em class='brace'>}</em>
+<a id='L150' name='L150'></a>   150       <strong class='reserved'>else</strong>
+<a id='L151' name='L151'></a>   151         <em class='brace'>{</em>
+<a id='L152' name='L152'></a>   152           <em class='comment'>/* Running on Solaris 10 (newer version) or Solaris 11.</em>
+<a id='L153' name='L153'></a>   153 <em class='comment'>             The details here were found through "/bin/ls -lvd somefiles".  */</em>
+<a id='L154' name='L154'></a>   154           entries[0].a_type = <a href='../S/2243.html#L195' title='Defined at 195 in lib/acl-internal.h.'>NEW_ACE_ACCESS_DENIED_ACE_TYPE</a>;
+<a id='L155' name='L155'></a>   155           entries[0].a_flags = <a href='../S/2243.html#L200' title='Defined at 200 in lib/acl-internal.h.'>NEW_ACE_OWNER</a>;
+<a id='L156' name='L156'></a>   156           entries[0].a_who = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L157' name='L157'></a>   157           entries[0].a_access_mask = 0;
+<a id='L158' name='L158'></a>   158           entries[1].a_type = <a href='../S/2243.html#L194' title='Defined at 194 in lib/acl-internal.h.'>NEW_ACE_ACCESS_ALLOWED_ACE_TYPE</a>;
+<a id='L159' name='L159'></a>   159           entries[1].a_flags = <a href='../S/2243.html#L200' title='Defined at 200 in lib/acl-internal.h.'>NEW_ACE_OWNER</a>;
+<a id='L160' name='L160'></a>   160           entries[1].a_who = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L161' name='L161'></a>   161           entries[1].a_access_mask = <a href='../S/2243.html#L209' title='Defined at 209 in lib/acl-internal.h.'>NEW_ACE_WRITE_NAMED_ATTRS</a>
+<a id='L162' name='L162'></a>   162                                      | <a href='../S/2243.html#L213' title='Defined at 213 in lib/acl-internal.h.'>NEW_ACE_WRITE_ATTRIBUTES</a>
+<a id='L163' name='L163'></a>   163                                      | <a href='../S/2243.html#L216' title='Defined at 216 in lib/acl-internal.h.'>NEW_ACE_WRITE_ACL</a>
+<a id='L164' name='L164'></a>   164                                      | <a href='../S/2243.html#L217' title='Defined at 217 in lib/acl-internal.h.'>NEW_ACE_WRITE_OWNER</a>;
+<a id='L165' name='L165'></a>   165           <strong class='reserved'>if</strong> (mode &amp; 0400)
+<a id='L166' name='L166'></a>   166             entries[1].a_access_mask |= <a href='../S/2243.html#L205' title='Defined at 205 in lib/acl-internal.h.'>NEW_ACE_READ_DATA</a>;
+<a id='L167' name='L167'></a>   167           <strong class='reserved'>else</strong>
+<a id='L168' name='L168'></a>   168             entries[0].a_access_mask |= <a href='../S/2243.html#L205' title='Defined at 205 in lib/acl-internal.h.'>NEW_ACE_READ_DATA</a>;
+<a id='L169' name='L169'></a>   169           <strong class='reserved'>if</strong> (mode &amp; 0200)
+<a id='L170' name='L170'></a>   170             entries[1].a_access_mask |= <a href='../S/2243.html#L206' title='Defined at 206 in lib/acl-internal.h.'>NEW_ACE_WRITE_DATA</a> | <a href='../S/2243.html#L207' title='Defined at 207 in lib/acl-internal.h.'>NEW_ACE_APPEND_DATA</a>;
+<a id='L171' name='L171'></a>   171           <strong class='reserved'>else</strong>
+<a id='L172' name='L172'></a>   172             entries[0].a_access_mask |= <a href='../S/2243.html#L206' title='Defined at 206 in lib/acl-internal.h.'>NEW_ACE_WRITE_DATA</a> | <a href='../S/2243.html#L207' title='Defined at 207 in lib/acl-internal.h.'>NEW_ACE_APPEND_DATA</a>;
+<a id='L173' name='L173'></a>   173           <strong class='reserved'>if</strong> (mode &amp; 0100)
+<a id='L174' name='L174'></a>   174             entries[1].a_access_mask |= <a href='../S/2243.html#L210' title='Defined at 210 in lib/acl-internal.h.'>NEW_ACE_EXECUTE</a>;
+<a id='L175' name='L175'></a>   175           <strong class='reserved'>else</strong>
+<a id='L176' name='L176'></a>   176             entries[0].a_access_mask |= <a href='../S/2243.html#L210' title='Defined at 210 in lib/acl-internal.h.'>NEW_ACE_EXECUTE</a>;
+<a id='L177' name='L177'></a>   177           entries[2].a_type = <a href='../S/2243.html#L195' title='Defined at 195 in lib/acl-internal.h.'>NEW_ACE_ACCESS_DENIED_ACE_TYPE</a>;
+<a id='L178' name='L178'></a>   178           entries[2].a_flags = <a href='../S/2243.html#L201' title='Defined at 201 in lib/acl-internal.h.'>NEW_ACE_GROUP</a> | <a href='../S/2243.html#L202' title='Defined at 202 in lib/acl-internal.h.'>NEW_ACE_IDENTIFIER_GROUP</a>;
+<a id='L179' name='L179'></a>   179           entries[2].a_who = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L180' name='L180'></a>   180           entries[2].a_access_mask = 0;
+<a id='L181' name='L181'></a>   181           entries[3].a_type = <a href='../S/2243.html#L194' title='Defined at 194 in lib/acl-internal.h.'>NEW_ACE_ACCESS_ALLOWED_ACE_TYPE</a>;
+<a id='L182' name='L182'></a>   182           entries[3].a_flags = <a href='../S/2243.html#L201' title='Defined at 201 in lib/acl-internal.h.'>NEW_ACE_GROUP</a> | <a href='../S/2243.html#L202' title='Defined at 202 in lib/acl-internal.h.'>NEW_ACE_IDENTIFIER_GROUP</a>;
+<a id='L183' name='L183'></a>   183           entries[3].a_who = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L184' name='L184'></a>   184           entries[3].a_access_mask = 0;
+<a id='L185' name='L185'></a>   185           <strong class='reserved'>if</strong> (mode &amp; 0040)
+<a id='L186' name='L186'></a>   186             entries[3].a_access_mask |= <a href='../S/2243.html#L205' title='Defined at 205 in lib/acl-internal.h.'>NEW_ACE_READ_DATA</a>;
+<a id='L187' name='L187'></a>   187           <strong class='reserved'>else</strong>
+<a id='L188' name='L188'></a>   188             entries[2].a_access_mask |= <a href='../S/2243.html#L205' title='Defined at 205 in lib/acl-internal.h.'>NEW_ACE_READ_DATA</a>;
+<a id='L189' name='L189'></a>   189           <strong class='reserved'>if</strong> (mode &amp; 0020)
+<a id='L190' name='L190'></a>   190             entries[3].a_access_mask |= <a href='../S/2243.html#L206' title='Defined at 206 in lib/acl-internal.h.'>NEW_ACE_WRITE_DATA</a> | <a href='../S/2243.html#L207' title='Defined at 207 in lib/acl-internal.h.'>NEW_ACE_APPEND_DATA</a>;
+<a id='L191' name='L191'></a>   191           <strong class='reserved'>else</strong>
+<a id='L192' name='L192'></a>   192             entries[2].a_access_mask |= <a href='../S/2243.html#L206' title='Defined at 206 in lib/acl-internal.h.'>NEW_ACE_WRITE_DATA</a> | <a href='../S/2243.html#L207' title='Defined at 207 in lib/acl-internal.h.'>NEW_ACE_APPEND_DATA</a>;
+<a id='L193' name='L193'></a>   193           <strong class='reserved'>if</strong> (mode &amp; 0010)
+<a id='L194' name='L194'></a>   194             entries[3].a_access_mask |= <a href='../S/2243.html#L210' title='Defined at 210 in lib/acl-internal.h.'>NEW_ACE_EXECUTE</a>;
+<a id='L195' name='L195'></a>   195           <strong class='reserved'>else</strong>
+<a id='L196' name='L196'></a>   196             entries[2].a_access_mask |= <a href='../S/2243.html#L210' title='Defined at 210 in lib/acl-internal.h.'>NEW_ACE_EXECUTE</a>;
+<a id='L197' name='L197'></a>   197           entries[4].a_type = <a href='../S/2243.html#L195' title='Defined at 195 in lib/acl-internal.h.'>NEW_ACE_ACCESS_DENIED_ACE_TYPE</a>;
+<a id='L198' name='L198'></a>   198           entries[4].a_flags = <a href='../S/2243.html#L203' title='Defined at 203 in lib/acl-internal.h.'>NEW_ACE_EVERYONE</a>;
+<a id='L199' name='L199'></a>   199           entries[4].a_who = 0;
+<a id='L200' name='L200'></a>   200           entries[4].a_access_mask = <a href='../S/2243.html#L209' title='Defined at 209 in lib/acl-internal.h.'>NEW_ACE_WRITE_NAMED_ATTRS</a>
+<a id='L201' name='L201'></a>   201                                      | <a href='../S/2243.html#L213' title='Defined at 213 in lib/acl-internal.h.'>NEW_ACE_WRITE_ATTRIBUTES</a>
+<a id='L202' name='L202'></a>   202                                      | <a href='../S/2243.html#L216' title='Defined at 216 in lib/acl-internal.h.'>NEW_ACE_WRITE_ACL</a>
+<a id='L203' name='L203'></a>   203                                      | <a href='../S/2243.html#L217' title='Defined at 217 in lib/acl-internal.h.'>NEW_ACE_WRITE_OWNER</a>;
+<a id='L204' name='L204'></a>   204           entries[5].a_type = <a href='../S/2243.html#L194' title='Defined at 194 in lib/acl-internal.h.'>NEW_ACE_ACCESS_ALLOWED_ACE_TYPE</a>;
+<a id='L205' name='L205'></a>   205           entries[5].a_flags = <a href='../S/2243.html#L203' title='Defined at 203 in lib/acl-internal.h.'>NEW_ACE_EVERYONE</a>;
+<a id='L206' name='L206'></a>   206           entries[5].a_who = 0;
+<a id='L207' name='L207'></a>   207           entries[5].a_access_mask = <a href='../S/2243.html#L208' title='Defined at 208 in lib/acl-internal.h.'>NEW_ACE_READ_NAMED_ATTRS</a>
+<a id='L208' name='L208'></a>   208                                      | <a href='../S/2243.html#L212' title='Defined at 212 in lib/acl-internal.h.'>NEW_ACE_READ_ATTRIBUTES</a>
+<a id='L209' name='L209'></a>   209                                      | <a href='../S/2243.html#L215' title='Defined at 215 in lib/acl-internal.h.'>NEW_ACE_READ_ACL</a>
+<a id='L210' name='L210'></a>   210                                      | <a href='../S/2243.html#L218' title='Defined at 218 in lib/acl-internal.h.'>NEW_ACE_SYNCHRONIZE</a>;
+<a id='L211' name='L211'></a>   211           <strong class='reserved'>if</strong> (mode &amp; 0004)
+<a id='L212' name='L212'></a>   212             entries[5].a_access_mask |= <a href='../S/2243.html#L205' title='Defined at 205 in lib/acl-internal.h.'>NEW_ACE_READ_DATA</a>;
+<a id='L213' name='L213'></a>   213           <strong class='reserved'>else</strong>
+<a id='L214' name='L214'></a>   214             entries[4].a_access_mask |= <a href='../S/2243.html#L205' title='Defined at 205 in lib/acl-internal.h.'>NEW_ACE_READ_DATA</a>;
+<a id='L215' name='L215'></a>   215           <strong class='reserved'>if</strong> (mode &amp; 0002)
+<a id='L216' name='L216'></a>   216             entries[5].a_access_mask |= <a href='../S/2243.html#L206' title='Defined at 206 in lib/acl-internal.h.'>NEW_ACE_WRITE_DATA</a> | <a href='../S/2243.html#L207' title='Defined at 207 in lib/acl-internal.h.'>NEW_ACE_APPEND_DATA</a>;
+<a id='L217' name='L217'></a>   217           <strong class='reserved'>else</strong>
+<a id='L218' name='L218'></a>   218             entries[4].a_access_mask |= <a href='../S/2243.html#L206' title='Defined at 206 in lib/acl-internal.h.'>NEW_ACE_WRITE_DATA</a> | <a href='../S/2243.html#L207' title='Defined at 207 in lib/acl-internal.h.'>NEW_ACE_APPEND_DATA</a>;
+<a id='L219' name='L219'></a>   219           <strong class='reserved'>if</strong> (mode &amp; 0001)
+<a id='L220' name='L220'></a>   220             entries[5].a_access_mask |= <a href='../S/2243.html#L210' title='Defined at 210 in lib/acl-internal.h.'>NEW_ACE_EXECUTE</a>;
+<a id='L221' name='L221'></a>   221           <strong class='reserved'>else</strong>
+<a id='L222' name='L222'></a>   222             entries[4].a_access_mask |= <a href='../S/2243.html#L210' title='Defined at 210 in lib/acl-internal.h.'>NEW_ACE_EXECUTE</a>;
+<a id='L223' name='L223'></a>   223           count = 6;
+<a id='L224' name='L224'></a>   224         <em class='brace'>}</em>
+<a id='L225' name='L225'></a>   225       <strong class='reserved'>if</strong> (desc != -1)
+<a id='L226' name='L226'></a>   226         ret = facl (desc, ACE_SETACL, count, entries);
+<a id='L227' name='L227'></a>   227       <strong class='reserved'>else</strong>
+<a id='L228' name='L228'></a>   228         ret = acl (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, ACE_SETACL, count, entries);
+<a id='L229' name='L229'></a>   229       <strong class='reserved'>if</strong> (ret &lt; 0 &amp;&amp; errno != EINVAL &amp;&amp; errno != <a href='../D/1809.html' title='Multiple defined in 5 places.'>ENOTSUP</a>)
+<a id='L230' name='L230'></a>   230         <em class='brace'>{</em>
+<a id='L231' name='L231'></a>   231           <strong class='reserved'>if</strong> (errno == ENOSYS)
+<a id='L232' name='L232'></a>   232             <em class='brace'>{</em>
+<a id='L233' name='L233'></a>   233               *must_chmod = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L234' name='L234'></a>   234               <strong class='reserved'>return</strong> 0;
+<a id='L235' name='L235'></a>   235             <em class='brace'>}</em>
+<a id='L236' name='L236'></a>   236           <strong class='reserved'>return</strong> -1;
+<a id='L237' name='L237'></a>   237         <em class='brace'>}</em>
+<a id='L238' name='L238'></a>   238       <strong class='reserved'>if</strong> (ret == 0)
+<a id='L239' name='L239'></a>   239         <strong class='reserved'>return</strong> 0;
+<a id='L240' name='L240'></a>   240     <em class='brace'>}</em>
+<a id='L241' name='L241'></a>   241 <em class='sharp'>#  endif</em>
+<a id='L242' name='L242'></a>   242 
+<a id='L243' name='L243'></a>   243   <em class='brace'>{</em>
+<a id='L244' name='L244'></a>   244     aclent_t entries[3];
+<a id='L245' name='L245'></a>   245     <strong class='reserved'>int</strong> ret;
+<a id='L246' name='L246'></a>   246 
+<a id='L247' name='L247'></a>   247     entries[0].a_type = USER_OBJ;
+<a id='L248' name='L248'></a>   248     entries[0].a_id = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L249' name='L249'></a>   249     entries[0].a_perm = (mode &gt;&gt; 6) &amp; 7;
+<a id='L250' name='L250'></a>   250     entries[1].a_type = GROUP_OBJ;
+<a id='L251' name='L251'></a>   251     entries[1].a_id = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L252' name='L252'></a>   252     entries[1].a_perm = (mode &gt;&gt; 3) &amp; 7;
+<a id='L253' name='L253'></a>   253     entries[2].a_type = OTHER_OBJ;
+<a id='L254' name='L254'></a>   254     entries[2].a_id = 0;
+<a id='L255' name='L255'></a>   255     entries[2].a_perm = mode &amp; 7;
+<a id='L256' name='L256'></a>   256 
+<a id='L257' name='L257'></a>   257     <strong class='reserved'>if</strong> (desc != -1)
+<a id='L258' name='L258'></a>   258       ret = facl (desc, SETACL,
+<a id='L259' name='L259'></a>   259                   <strong class='reserved'>sizeof</strong> (entries) / <strong class='reserved'>sizeof</strong> (aclent_t), entries);
+<a id='L260' name='L260'></a>   260     <strong class='reserved'>else</strong>
+<a id='L261' name='L261'></a>   261       ret = acl (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, SETACL,
+<a id='L262' name='L262'></a>   262                  <strong class='reserved'>sizeof</strong> (entries) / <strong class='reserved'>sizeof</strong> (aclent_t), entries);
+<a id='L263' name='L263'></a>   263     <strong class='reserved'>if</strong> (ret &lt; 0)
+<a id='L264' name='L264'></a>   264       <em class='brace'>{</em>
+<a id='L265' name='L265'></a>   265         <strong class='reserved'>if</strong> (errno == ENOSYS || errno == <a href='../D/1820.html' title='Multiple defined in 5 places.'>EOPNOTSUPP</a>)
+<a id='L266' name='L266'></a>   266           <em class='brace'>{</em>
+<a id='L267' name='L267'></a>   267             *must_chmod = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L268' name='L268'></a>   268             <strong class='reserved'>return</strong> 0;
+<a id='L269' name='L269'></a>   269           <em class='brace'>}</em>
+<a id='L270' name='L270'></a>   270         <strong class='reserved'>return</strong> -1;
+<a id='L271' name='L271'></a>   271       <em class='brace'>}</em>
+<a id='L272' name='L272'></a>   272     <strong class='reserved'>return</strong> 0;
+<a id='L273' name='L273'></a>   273   <em class='brace'>}</em>
+<a id='L274' name='L274'></a>   274 <em class='brace'>}</em>
+<a id='L275' name='L275'></a>   275 
+<a id='L276' name='L276'></a>   276 <em class='sharp'># elif</em> HAVE_GETACL <em class='comment'>/* HP-UX */</em>
+<a id='L277' name='L277'></a>   277 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L278' name='L278'></a>   278 <a href='../R/9146.html' title='Multiple referred from 3 places.'>context_acl_from_mode</a> (<strong class='reserved'>struct</strong> <a href='../S/2243.html#L261' title='Defined at 261 in lib/acl-internal.h.'>permission_context</a> *ctx, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>int</strong> desc)
+<a id='L279' name='L279'></a>   279 <em class='brace'>{</em>
+<a id='L280' name='L280'></a>   280   <strong class='reserved'>struct</strong> <a href='../D/17659.html' title='Multiple defined in 13 places.'>stat</a> statbuf;
+<a id='L281' name='L281'></a>   281   <strong class='reserved'>int</strong> ret;
+<a id='L282' name='L282'></a>   282 
+<a id='L283' name='L283'></a>   283   <strong class='reserved'>if</strong> (desc != -1)
+<a id='L284' name='L284'></a>   284     ret = <a href='../D/11849.html' title='Multiple defined in 9 places.'>fstat</a> (desc, &amp;statbuf);
+<a id='L285' name='L285'></a>   285   <strong class='reserved'>else</strong>
+<a id='L286' name='L286'></a>   286     ret = <a href='../D/17659.html' title='Multiple defined in 13 places.'>stat</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, &amp;statbuf);
+<a id='L287' name='L287'></a>   287   <strong class='reserved'>if</strong> (ret &lt; 0)
+<a id='L288' name='L288'></a>   288     <strong class='reserved'>return</strong> -1;
+<a id='L289' name='L289'></a>   289 
+<a id='L290' name='L290'></a>   290   ctx-&gt;entries[0].uid = statbuf.st_uid;
+<a id='L291' name='L291'></a>   291   ctx-&gt;entries[0].gid = ACL_NSGROUP;
+<a id='L292' name='L292'></a>   292   ctx-&gt;entries[0].mode = (ctx-&gt;mode &gt;&gt; 6) &amp; 7;
+<a id='L293' name='L293'></a>   293   ctx-&gt;entries[1].uid = ACL_NSUSER;
+<a id='L294' name='L294'></a>   294   ctx-&gt;entries[1].gid = statbuf.st_gid;
+<a id='L295' name='L295'></a>   295   ctx-&gt;entries[1].mode = (ctx-&gt;mode &gt;&gt; 3) &amp; 7;
+<a id='L296' name='L296'></a>   296   ctx-&gt;entries[2].uid = ACL_NSUSER;
+<a id='L297' name='L297'></a>   297   ctx-&gt;entries[2].gid = ACL_NSGROUP;
+<a id='L298' name='L298'></a>   298   ctx-&gt;entries[2].mode = ctx-&gt;mode &amp; 7;
+<a id='L299' name='L299'></a>   299   ctx-&gt;count = 3;
+<a id='L300' name='L300'></a>   300   <strong class='reserved'>return</strong> 0;
+<a id='L301' name='L301'></a>   301 <em class='brace'>}</em>
+<a id='L302' name='L302'></a>   302 
+<a id='L303' name='L303'></a>   303 <em class='sharp'>#  if</em> HAVE_ACLV_H <em class='comment'>/* HP-UX &gt;= 11.11 */</em>
+<a id='L304' name='L304'></a>   304 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L305' name='L305'></a>   305 <a href='../S/2336.html#L683' title='Referred from 683 in lib/set-permissions.c.'>context_aclv_from_mode</a> (<strong class='reserved'>struct</strong> <a href='../S/2243.html#L261' title='Defined at 261 in lib/acl-internal.h.'>permission_context</a> *ctx)
+<a id='L306' name='L306'></a>   306 <em class='brace'>{</em>
+<a id='L307' name='L307'></a>   307   <strong class='reserved'>int</strong> ret;
+<a id='L308' name='L308'></a>   308 
+<a id='L309' name='L309'></a>   309   ctx-&gt;aclv_entries[0].a_type = USER_OBJ;
+<a id='L310' name='L310'></a>   310   ctx-&gt;aclv_entries[0].a_id = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L311' name='L311'></a>   311   ctx-&gt;aclv_entries[0].a_perm = (ctx-&gt;mode &gt;&gt; 6) &amp; 7;
+<a id='L312' name='L312'></a>   312   ctx-&gt;aclv_entries[1].a_type = GROUP_OBJ;
+<a id='L313' name='L313'></a>   313   ctx-&gt;aclv_entries[1].a_id = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L314' name='L314'></a>   314   ctx-&gt;aclv_entries[1].a_perm = (ctx-&gt;mode &gt;&gt; 3) &amp; 7;
+<a id='L315' name='L315'></a>   315   ctx-&gt;aclv_entries[2].a_type = CLASS_OBJ;
+<a id='L316' name='L316'></a>   316   ctx-&gt;aclv_entries[2].a_id = 0;
+<a id='L317' name='L317'></a>   317   ctx-&gt;aclv_entries[2].a_perm = (ctx-&gt;mode &gt;&gt; 3) &amp; 7;
+<a id='L318' name='L318'></a>   318   ctx-&gt;aclv_entries[3].a_type = OTHER_OBJ;
+<a id='L319' name='L319'></a>   319   ctx-&gt;aclv_entries[3].a_id = 0;
+<a id='L320' name='L320'></a>   320   ctx-&gt;aclv_entries[3].a_perm = ctx-&gt;mode &amp; 7;
+<a id='L321' name='L321'></a>   321   ctx-&gt;aclv_count = 4;
+<a id='L322' name='L322'></a>   322 
+<a id='L323' name='L323'></a>   323   ret = aclsort (ctx-&gt;aclv_count, 1, ctx-&gt;aclv_entries);
+<a id='L324' name='L324'></a>   324   <strong class='reserved'>if</strong> (ret &gt; 0)
+<a id='L325' name='L325'></a>   325     abort ();
+<a id='L326' name='L326'></a>   326   <strong class='reserved'>return</strong> ret;
+<a id='L327' name='L327'></a>   327 <em class='brace'>}</em>
+<a id='L328' name='L328'></a>   328 <em class='sharp'>#  endif</em>
+<a id='L329' name='L329'></a>   329 
+<a id='L330' name='L330'></a>   330 <em class='sharp'># elif</em> HAVE_ACLX_GET &amp;&amp; <strong class='reserved'>defined</strong> ACL_AIX_WIP <em class='comment'>/* AIX */</em>
+<a id='L331' name='L331'></a>   331 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L332' name='L332'></a>   332 <a href='../R/15460.html' title='Multiple referred from 2 places.'>set_acls_from_mode</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>int</strong> desc, <a href='../S/4124.html#L142' title='Defined at 142 in nt/inc/ms-w32.h.'>mode_t</a> mode, <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a> *must_chmod)
+<a id='L333' name='L333'></a>   333 <em class='brace'>{</em>
+<a id='L334' name='L334'></a>   334   acl_type_list_t types;
+<a id='L335' name='L335'></a>   335   size_t types_size = <strong class='reserved'>sizeof</strong> (types);
+<a id='L336' name='L336'></a>   336   <a href='../S/4113.html#L10' title='Defined at 10 in nt/inc/sys/acl.h.'>acl_type_t</a> type;
+<a id='L337' name='L337'></a>   337 
+<a id='L338' name='L338'></a>   338   <strong class='reserved'>if</strong> (aclx_gettypes (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, &amp;types, &amp;types_size) &lt; 0
+<a id='L339' name='L339'></a>   339       || types.num_entries == 0)
+<a id='L340' name='L340'></a>   340     <em class='brace'>{</em>
+<a id='L341' name='L341'></a>   341       *must_chmod = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L342' name='L342'></a>   342       <strong class='reserved'>return</strong> 0;
+<a id='L343' name='L343'></a>   343     <em class='brace'>}</em>
+<a id='L344' name='L344'></a>   344 
+<a id='L345' name='L345'></a>   345   <em class='comment'>/* XXX Do we need to clear all types of ACLs for the given file, or is it</em>
+<a id='L346' name='L346'></a>   346 <em class='comment'>     sufficient to clear the first one?  */</em>
+<a id='L347' name='L347'></a>   347   type = types.entries[0];
+<a id='L348' name='L348'></a>   348   <strong class='reserved'>if</strong> (type.<a href='../D/18558.html' title='Multiple defined in 3 places.'>u64</a> == ACL_AIXC)
+<a id='L349' name='L349'></a>   349     <em class='brace'>{</em>
+<a id='L350' name='L350'></a>   350       <strong class='reserved'>union</strong> <em class='brace'>{</em> <strong class='reserved'>struct</strong> acl <a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>; <strong class='reserved'>char</strong> room[128]; <em class='brace'>}</em> u;
+<a id='L351' name='L351'></a>   351       <strong class='reserved'>int</strong> ret;
+<a id='L352' name='L352'></a>   352 
+<a id='L353' name='L353'></a>   353       u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_len = (<strong class='reserved'>char</strong> *) &amp;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_ext[0] - (<strong class='reserved'>char</strong> *) &amp;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>; <em class='comment'>/* no entries */</em>
+<a id='L354' name='L354'></a>   354       u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_mode = mode &amp; ~(S_IXACL | 0777);
+<a id='L355' name='L355'></a>   355       u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.u_access = (mode &gt;&gt; 6) &amp; 7;
+<a id='L356' name='L356'></a>   356       u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.g_access = (mode &gt;&gt; 3) &amp; 7;
+<a id='L357' name='L357'></a>   357       u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.o_access = mode &amp; 7;
+<a id='L358' name='L358'></a>   358 
+<a id='L359' name='L359'></a>   359       <strong class='reserved'>if</strong> (desc != -1)
+<a id='L360' name='L360'></a>   360         ret = aclx_fput (desc, SET_ACL | SET_MODE_S_BITS,
+<a id='L361' name='L361'></a>   361                          type, &amp;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>, u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_len, mode);
+<a id='L362' name='L362'></a>   362       <strong class='reserved'>else</strong>
+<a id='L363' name='L363'></a>   363         ret = aclx_put (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, SET_ACL | SET_MODE_S_BITS,
+<a id='L364' name='L364'></a>   364                         type, &amp;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>, u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_len, mode);
+<a id='L365' name='L365'></a>   365       <strong class='reserved'>if</strong> (!(ret &lt; 0 &amp;&amp; errno == ENOSYS))
+<a id='L366' name='L366'></a>   366         <strong class='reserved'>return</strong> ret;
+<a id='L367' name='L367'></a>   367     <em class='brace'>}</em>
+<a id='L368' name='L368'></a>   368   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (type.<a href='../D/18558.html' title='Multiple defined in 3 places.'>u64</a> == ACL_NFS4)
+<a id='L369' name='L369'></a>   369     <em class='brace'>{</em>
+<a id='L370' name='L370'></a>   370       <strong class='reserved'>union</strong> <em class='brace'>{</em> nfs4_acl_int_t <a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>; <strong class='reserved'>char</strong> room[128]; <em class='brace'>}</em> u;
+<a id='L371' name='L371'></a>   371       nfs4_ace_int_t *ace;
+<a id='L372' name='L372'></a>   372       <strong class='reserved'>int</strong> ret;
+<a id='L373' name='L373'></a>   373 
+<a id='L374' name='L374'></a>   374       u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.aclVersion = NFS4_ACL_INT_STRUCT_VERSION;
+<a id='L375' name='L375'></a>   375       u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.aclEntryN = 0;
+<a id='L376' name='L376'></a>   376       ace = &amp;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.aclEntry[0];
+<a id='L377' name='L377'></a>   377       <em class='brace'>{</em>
+<a id='L378' name='L378'></a>   378         ace-&gt;flags = ACE4_ID_SPECIAL;
+<a id='L379' name='L379'></a>   379         ace-&gt;aceWho.special_whoid = ACE4_WHO_OWNER;
+<a id='L380' name='L380'></a>   380         ace-&gt;aceType = ACE4_ACCESS_ALLOWED_ACE_TYPE;
+<a id='L381' name='L381'></a>   381         ace-&gt;aceFlags = 0;
+<a id='L382' name='L382'></a>   382         ace-&gt;aceMask =
+<a id='L383' name='L383'></a>   383           (mode &amp; 0400 ? ACE4_READ_DATA | ACE4_LIST_DIRECTORY : 0)
+<a id='L384' name='L384'></a>   384           | (mode &amp; 0200
+<a id='L385' name='L385'></a>   385              ? ACE4_WRITE_DATA | ACE4_ADD_FILE | ACE4_APPEND_DATA
+<a id='L386' name='L386'></a>   386                | ACE4_ADD_SUBDIRECTORY
+<a id='L387' name='L387'></a>   387              : 0)
+<a id='L388' name='L388'></a>   388           | (mode &amp; 0100 ? ACE4_EXECUTE : 0);
+<a id='L389' name='L389'></a>   389         ace-&gt;aceWhoString[0] = '\0';
+<a id='L390' name='L390'></a>   390         ace-&gt;entryLen = (<strong class='reserved'>char</strong> *) &amp;ace-&gt;aceWhoString[4] - (<strong class='reserved'>char</strong> *) ace;
+<a id='L391' name='L391'></a>   391         ace = (nfs4_ace_int_t *) (<strong class='reserved'>char</strong> *) &amp;ace-&gt;aceWhoString[4];
+<a id='L392' name='L392'></a>   392         u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.aclEntryN++;
+<a id='L393' name='L393'></a>   393       <em class='brace'>}</em>
+<a id='L394' name='L394'></a>   394       <em class='brace'>{</em>
+<a id='L395' name='L395'></a>   395         ace-&gt;flags = ACE4_ID_SPECIAL;
+<a id='L396' name='L396'></a>   396         ace-&gt;aceWho.special_whoid = ACE4_WHO_GROUP;
+<a id='L397' name='L397'></a>   397         ace-&gt;aceType = ACE4_ACCESS_ALLOWED_ACE_TYPE;
+<a id='L398' name='L398'></a>   398         ace-&gt;aceFlags = 0;
+<a id='L399' name='L399'></a>   399         ace-&gt;aceMask =
+<a id='L400' name='L400'></a>   400           (mode &amp; 0040 ? ACE4_READ_DATA | ACE4_LIST_DIRECTORY : 0)
+<a id='L401' name='L401'></a>   401           | (mode &amp; 0020
+<a id='L402' name='L402'></a>   402              ? ACE4_WRITE_DATA | ACE4_ADD_FILE | ACE4_APPEND_DATA
+<a id='L403' name='L403'></a>   403                | ACE4_ADD_SUBDIRECTORY
+<a id='L404' name='L404'></a>   404              : 0)
+<a id='L405' name='L405'></a>   405           | (mode &amp; 0010 ? ACE4_EXECUTE : 0);
+<a id='L406' name='L406'></a>   406         ace-&gt;aceWhoString[0] = '\0';
+<a id='L407' name='L407'></a>   407         ace-&gt;entryLen = (<strong class='reserved'>char</strong> *) &amp;ace-&gt;aceWhoString[4] - (<strong class='reserved'>char</strong> *) ace;
+<a id='L408' name='L408'></a>   408         ace = (nfs4_ace_int_t *) (<strong class='reserved'>char</strong> *) &amp;ace-&gt;aceWhoString[4];
+<a id='L409' name='L409'></a>   409         u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.aclEntryN++;
+<a id='L410' name='L410'></a>   410       <em class='brace'>}</em>
+<a id='L411' name='L411'></a>   411       <em class='brace'>{</em>
+<a id='L412' name='L412'></a>   412         ace-&gt;flags = ACE4_ID_SPECIAL;
+<a id='L413' name='L413'></a>   413         ace-&gt;aceWho.special_whoid = ACE4_WHO_EVERYONE;
+<a id='L414' name='L414'></a>   414         ace-&gt;aceType = ACE4_ACCESS_ALLOWED_ACE_TYPE;
+<a id='L415' name='L415'></a>   415         ace-&gt;aceFlags = 0;
+<a id='L416' name='L416'></a>   416         ace-&gt;aceMask =
+<a id='L417' name='L417'></a>   417           (mode &amp; 0004 ? ACE4_READ_DATA | ACE4_LIST_DIRECTORY : 0)
+<a id='L418' name='L418'></a>   418           | (mode &amp; 0002
+<a id='L419' name='L419'></a>   419              ? ACE4_WRITE_DATA | ACE4_ADD_FILE | ACE4_APPEND_DATA
+<a id='L420' name='L420'></a>   420                | ACE4_ADD_SUBDIRECTORY
+<a id='L421' name='L421'></a>   421              : 0)
+<a id='L422' name='L422'></a>   422           | (mode &amp; 0001 ? ACE4_EXECUTE : 0);
+<a id='L423' name='L423'></a>   423         ace-&gt;aceWhoString[0] = '\0';
+<a id='L424' name='L424'></a>   424         ace-&gt;entryLen = (<strong class='reserved'>char</strong> *) &amp;ace-&gt;aceWhoString[4] - (<strong class='reserved'>char</strong> *) ace;
+<a id='L425' name='L425'></a>   425         ace = (nfs4_ace_int_t *) (<strong class='reserved'>char</strong> *) &amp;ace-&gt;aceWhoString[4];
+<a id='L426' name='L426'></a>   426         u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.aclEntryN++;
+<a id='L427' name='L427'></a>   427       <em class='brace'>}</em>
+<a id='L428' name='L428'></a>   428       u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.aclLength = (<strong class='reserved'>char</strong> *) ace - (<strong class='reserved'>char</strong> *) &amp;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>;
+<a id='L429' name='L429'></a>   429 
+<a id='L430' name='L430'></a>   430       <strong class='reserved'>if</strong> (desc != -1)
+<a id='L431' name='L431'></a>   431         ret = aclx_fput (desc, SET_ACL | SET_MODE_S_BITS,
+<a id='L432' name='L432'></a>   432                          type, &amp;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>, u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.aclLength, mode);
+<a id='L433' name='L433'></a>   433       <strong class='reserved'>else</strong>
+<a id='L434' name='L434'></a>   434         ret = aclx_put (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, SET_ACL | SET_MODE_S_BITS,
+<a id='L435' name='L435'></a>   435                         type, &amp;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>, u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.aclLength, mode);
+<a id='L436' name='L436'></a>   436       <strong class='reserved'>if</strong> (!(ret &lt; 0 &amp;&amp; errno == ENOSYS))
+<a id='L437' name='L437'></a>   437         <strong class='reserved'>return</strong> ret;
+<a id='L438' name='L438'></a>   438     <em class='brace'>}</em>
+<a id='L439' name='L439'></a>   439 
+<a id='L440' name='L440'></a>   440   *must_chmod = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L441' name='L441'></a>   441   <strong class='reserved'>return</strong> 0;
+<a id='L442' name='L442'></a>   442 <em class='brace'>}</em>
+<a id='L443' name='L443'></a>   443 
+<a id='L444' name='L444'></a>   444 <em class='sharp'># elif</em> HAVE_STATACL <em class='comment'>/* older AIX */</em>
+<a id='L445' name='L445'></a>   445 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L446' name='L446'></a>   446 <a href='../R/9146.html' title='Multiple referred from 3 places.'>context_acl_from_mode</a> (<strong class='reserved'>struct</strong> <a href='../S/2243.html#L261' title='Defined at 261 in lib/acl-internal.h.'>permission_context</a> *ctx)
+<a id='L447' name='L447'></a>   447 <em class='brace'>{</em>
+<a id='L448' name='L448'></a>   448   ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_len = (<strong class='reserved'>char</strong> *) &amp;ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_ext[0] - (<strong class='reserved'>char</strong> *) &amp;ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>; <em class='comment'>/* no entries */</em>
+<a id='L449' name='L449'></a>   449   ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_mode = ctx-&gt;mode &amp; ~(S_IXACL | 0777);
+<a id='L450' name='L450'></a>   450   ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.u_access = (ctx-&gt;mode &gt;&gt; 6) &amp; 7;
+<a id='L451' name='L451'></a>   451   ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.g_access = (ctx-&gt;mode &gt;&gt; 3) &amp; 7;
+<a id='L452' name='L452'></a>   452   ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.o_access = ctx-&gt;mode &amp; 7;
+<a id='L453' name='L453'></a>   453   ctx-&gt;have_u = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L454' name='L454'></a>   454   <strong class='reserved'>return</strong> 0;
+<a id='L455' name='L455'></a>   455 <em class='brace'>}</em>
+<a id='L456' name='L456'></a>   456 
+<a id='L457' name='L457'></a>   457 <em class='sharp'># elif</em> HAVE_ACLSORT <em class='comment'>/* NonStop Kernel */</em>
+<a id='L458' name='L458'></a>   458 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L459' name='L459'></a>   459 <a href='../R/9146.html' title='Multiple referred from 3 places.'>context_acl_from_mode</a> (<strong class='reserved'>struct</strong> <a href='../S/2243.html#L261' title='Defined at 261 in lib/acl-internal.h.'>permission_context</a> *ctx)
+<a id='L460' name='L460'></a>   460 <em class='brace'>{</em>
+<a id='L461' name='L461'></a>   461   <strong class='reserved'>int</strong> ret;
+<a id='L462' name='L462'></a>   462 
+<a id='L463' name='L463'></a>   463   ctx-&gt;entries[0].a_type = USER_OBJ;
+<a id='L464' name='L464'></a>   464   ctx-&gt;entries[0].a_id = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L465' name='L465'></a>   465   ctx-&gt;entries[0].a_perm = (ctx-&gt;mode &gt;&gt; 6) &amp; 7;
+<a id='L466' name='L466'></a>   466   ctx-&gt;entries[1].a_type = GROUP_OBJ;
+<a id='L467' name='L467'></a>   467   ctx-&gt;entries[1].a_id = 0; <em class='comment'>/* irrelevant */</em>
+<a id='L468' name='L468'></a>   468   ctx-&gt;entries[1].a_perm = (ctx-&gt;mode &gt;&gt; 3) &amp; 7;
+<a id='L469' name='L469'></a>   469   ctx-&gt;entries[2].a_type = CLASS_OBJ;
+<a id='L470' name='L470'></a>   470   ctx-&gt;entries[2].a_id = 0;
+<a id='L471' name='L471'></a>   471   ctx-&gt;entries[2].a_perm = (ctx-&gt;mode &gt;&gt; 3) &amp; 7;
+<a id='L472' name='L472'></a>   472   ctx-&gt;entries[3].a_type = OTHER_OBJ;
+<a id='L473' name='L473'></a>   473   ctx-&gt;entries[3].a_id = 0;
+<a id='L474' name='L474'></a>   474   ctx-&gt;entries[3].a_perm = ctx-&gt;mode &amp; 7;
+<a id='L475' name='L475'></a>   475   ctx-&gt;count = 4;
+<a id='L476' name='L476'></a>   476 
+<a id='L477' name='L477'></a>   477   ret = aclsort (ctx-&gt;count, 1, entries);
+<a id='L478' name='L478'></a>   478   <strong class='reserved'>if</strong> (ret &gt; 0)
+<a id='L479' name='L479'></a>   479     abort ();
+<a id='L480' name='L480'></a>   480   <strong class='reserved'>return</strong> ret;
+<a id='L481' name='L481'></a>   481 <em class='brace'>}</em>
+<a id='L482' name='L482'></a>   482 <em class='sharp'># endif</em>
+<a id='L483' name='L483'></a>   483 
+<a id='L484' name='L484'></a>   484 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L485' name='L485'></a>   485 <a href='../R/15459.html' title='Multiple referred from 2 places.'>set_acls</a> (<strong class='reserved'>struct</strong> <a href='../S/2243.html#L261' title='Defined at 261 in lib/acl-internal.h.'>permission_context</a> *ctx, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>int</strong> desc,
+<a id='L486' name='L486'></a>   486           <strong class='reserved'>int</strong> from_mode, <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a> *must_chmod, <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a> *acls_set)
+<a id='L487' name='L487'></a>   487 <em class='brace'>{</em>
+<a id='L488' name='L488'></a>   488   <strong class='reserved'>int</strong> ret = 0;
+<a id='L489' name='L489'></a>   489 
+<a id='L490' name='L490'></a>   490 <em class='sharp'># if</em> HAVE_ACL_GET_FILE
+<a id='L491' name='L491'></a>   491   <em class='comment'>/* POSIX 1003.1e (draft 17 -- abandoned) specific version.  */</em>
+<a id='L492' name='L492'></a>   492   <em class='comment'>/* Linux, FreeBSD, Mac OS X, IRIX, Tru64, Cygwin &gt;= 2.5 */</em>
+<a id='L493' name='L493'></a>   493 <em class='sharp'>#  if</em> !HAVE_ACL_TYPE_EXTENDED
+<a id='L494' name='L494'></a>   494   <em class='comment'>/* Linux, FreeBSD, IRIX, Tru64, Cygwin &gt;= 2.5 */</em>
+<a id='L495' name='L495'></a>   495 
+<a id='L496' name='L496'></a>   496 <em class='sharp'>#   ifndef</em> HAVE_ACL_FROM_TEXT
+<a id='L497' name='L497'></a>   497 <em class='sharp'>#    error</em> Must have acl_from_text (see POSIX 1003.1e draft 17).
+<a id='L498' name='L498'></a>   498 <em class='sharp'>#   endif</em>
+<a id='L499' name='L499'></a>   499 <em class='sharp'>#   ifndef</em> HAVE_ACL_DELETE_DEF_FILE
+<a id='L500' name='L500'></a>   500 <em class='sharp'>#    error</em> Must have acl_delete_def_file (see POSIX 1003.1e draft 17).
+<a id='L501' name='L501'></a>   501 <em class='sharp'>#   endif</em>
+<a id='L502' name='L502'></a>   502 
+<a id='L503' name='L503'></a>   503   <strong class='reserved'>if</strong> (! ctx-&gt;acls_not_supported)
+<a id='L504' name='L504'></a>   504     <em class='brace'>{</em>
+<a id='L505' name='L505'></a>   505       <strong class='reserved'>if</strong> (ret == 0 &amp;&amp; from_mode)
+<a id='L506' name='L506'></a>   506         <em class='brace'>{</em>
+<a id='L507' name='L507'></a>   507           <strong class='reserved'>if</strong> (ctx-&gt;acl)
+<a id='L508' name='L508'></a>   508             <a href='../S/218.html#L6563' title='Defined at 6563 in src/w32.c.'>acl_free</a> (ctx-&gt;acl);
+<a id='L509' name='L509'></a>   509           ctx-&gt;acl = <a href='../D/8194.html' title='Multiple defined in 2 places.'>acl_from_mode</a> (ctx-&gt;mode);
+<a id='L510' name='L510'></a>   510           <strong class='reserved'>if</strong> (ctx-&gt;acl == <a href='../D/4485.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L511' name='L511'></a>   511             ret = -1;
+<a id='L512' name='L512'></a>   512         <em class='brace'>}</em>
+<a id='L513' name='L513'></a>   513 
+<a id='L514' name='L514'></a>   514       <strong class='reserved'>if</strong> (ret == 0 &amp;&amp; ctx-&gt;acl)
+<a id='L515' name='L515'></a>   515         <em class='brace'>{</em>
+<a id='L516' name='L516'></a>   516           <strong class='reserved'>if</strong> (<a href='../S/2243.html#L116' title='Defined at 116 in lib/acl-internal.h.'>HAVE_ACL_SET_FD</a> &amp;&amp; desc != -1)
+<a id='L517' name='L517'></a>   517             ret = <a href='../D/8201.html' title='Multiple defined in 4 places.'>acl_set_fd</a> (desc, ctx-&gt;acl);
+<a id='L518' name='L518'></a>   518           <strong class='reserved'>else</strong>
+<a id='L519' name='L519'></a>   519             ret = <a href='../S/218.html#L6642' title='Defined at 6642 in src/w32.c.'>acl_set_file</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, <a href='../S/4113.html#L13' title='Defined at 13 in nt/inc/sys/acl.h.'>ACL_TYPE_ACCESS</a>, ctx-&gt;acl);
+<a id='L520' name='L520'></a>   520           <strong class='reserved'>if</strong> (ret != 0)
+<a id='L521' name='L521'></a>   521             <em class='brace'>{</em>
+<a id='L522' name='L522'></a>   522               <strong class='reserved'>if</strong> (! <a href='../D/8189.html' title='Multiple defined in 2 places.'>acl_errno_valid</a> (errno))
+<a id='L523' name='L523'></a>   523                 <em class='brace'>{</em>
+<a id='L524' name='L524'></a>   524                   ctx-&gt;acls_not_supported = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L525' name='L525'></a>   525                   <strong class='reserved'>if</strong> (from_mode || <a href='../S/2331.html#L47' title='Defined at 47 in lib/acl-internal.c.'>acl_access_nontrivial</a> (ctx-&gt;acl) == 0)
+<a id='L526' name='L526'></a>   526                     ret = 0;
+<a id='L527' name='L527'></a>   527                 <em class='brace'>}</em>
+<a id='L528' name='L528'></a>   528             <em class='brace'>}</em>
+<a id='L529' name='L529'></a>   529           <strong class='reserved'>else</strong>
+<a id='L530' name='L530'></a>   530             <em class='brace'>{</em>
+<a id='L531' name='L531'></a>   531               *acls_set = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L532' name='L532'></a>   532               <strong class='reserved'>if</strong> (<a href='../D/6071.html' title='Multiple defined in 4 places.'>S_ISDIR</a>(ctx-&gt;mode))
+<a id='L533' name='L533'></a>   533                 <em class='brace'>{</em>
+<a id='L534' name='L534'></a>   534                   <strong class='reserved'>if</strong> (! from_mode &amp;&amp; ctx-&gt;default_acl &amp;&amp;
+<a id='L535' name='L535'></a>   535                       <a href='../S/2331.html#L119' title='Defined at 119 in lib/acl-internal.c.'>acl_default_nontrivial</a> (ctx-&gt;default_acl))
+<a id='L536' name='L536'></a>   536                     ret = <a href='../S/218.html#L6642' title='Defined at 6642 in src/w32.c.'>acl_set_file</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, <a href='../S/4113.html#L14' title='Defined at 14 in nt/inc/sys/acl.h.'>ACL_TYPE_DEFAULT</a>,
+<a id='L537' name='L537'></a>   537                                         ctx-&gt;default_acl);
+<a id='L538' name='L538'></a>   538                   <strong class='reserved'>else</strong>
+<a id='L539' name='L539'></a>   539                     ret = acl_delete_def_file (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L540' name='L540'></a>   540                 <em class='brace'>}</em>
+<a id='L541' name='L541'></a>   541             <em class='brace'>}</em>
+<a id='L542' name='L542'></a>   542         <em class='brace'>}</em>
+<a id='L543' name='L543'></a>   543     <em class='brace'>}</em>
+<a id='L544' name='L544'></a>   544 
+<a id='L545' name='L545'></a>   545 <em class='sharp'>#   if</em> HAVE_ACL_TYPE_NFS4  <em class='comment'>/* FreeBSD */</em>
+<a id='L546' name='L546'></a>   546 
+<a id='L547' name='L547'></a>   547   <em class='comment'>/* File systems either support POSIX ACLs (for example, ufs) or NFS4 ACLs</em>
+<a id='L548' name='L548'></a>   548 <em class='comment'>     (for example, zfs). */</em>
+<a id='L549' name='L549'></a>   549 
+<a id='L550' name='L550'></a>   550   <em class='comment'>/* TODO: Implement setting ACLs once get_permissions() reads them. */</em>
+<a id='L551' name='L551'></a>   551 
+<a id='L552' name='L552'></a>   552 <em class='sharp'>#   endif</em>
+<a id='L553' name='L553'></a>   553 
+<a id='L554' name='L554'></a>   554 <em class='sharp'>#  else</em> <em class='comment'>/* HAVE_ACL_TYPE_EXTENDED */</em>
+<a id='L555' name='L555'></a>   555   <em class='comment'>/* Mac OS X */</em>
+<a id='L556' name='L556'></a>   556 
+<a id='L557' name='L557'></a>   557   <em class='comment'>/* On Mac OS X,  acl_get_file (name, ACL_TYPE_ACCESS)</em>
+<a id='L558' name='L558'></a>   558 <em class='comment'>     and           acl_get_file (name, ACL_TYPE_DEFAULT)</em>
+<a id='L559' name='L559'></a>   559 <em class='comment'>     always return NULL / EINVAL.  You have to use</em>
+<a id='L560' name='L560'></a>   560 <em class='comment'>                   acl_get_file (name, ACL_TYPE_EXTENDED)</em>
+<a id='L561' name='L561'></a>   561 <em class='comment'>     or            acl_get_fd (open (name, ...))</em>
+<a id='L562' name='L562'></a>   562 <em class='comment'>     to retrieve an ACL.</em>
+<a id='L563' name='L563'></a>   563 <em class='comment'>     On the other hand,</em>
+<a id='L564' name='L564'></a>   564 <em class='comment'>                   acl_set_file (name, ACL_TYPE_ACCESS, acl)</em>
+<a id='L565' name='L565'></a>   565 <em class='comment'>     and           acl_set_file (name, ACL_TYPE_DEFAULT, acl)</em>
+<a id='L566' name='L566'></a>   566 <em class='comment'>     have the same effect as</em>
+<a id='L567' name='L567'></a>   567 <em class='comment'>                   acl_set_file (name, ACL_TYPE_EXTENDED, acl):</em>
+<a id='L568' name='L568'></a>   568 <em class='comment'>     Each of these calls sets the file's ACL.  */</em>
+<a id='L569' name='L569'></a>   569 
+<a id='L570' name='L570'></a>   570   <strong class='reserved'>if</strong> (ctx-&gt;acl == <a href='../D/4485.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L571' name='L571'></a>   571     <em class='brace'>{</em>
+<a id='L572' name='L572'></a>   572       <a href='../S/4113.html#L9' title='Defined at 9 in nt/inc/sys/acl.h.'>acl_t</a> acl;
+<a id='L573' name='L573'></a>   573 
+<a id='L574' name='L574'></a>   574       <em class='comment'>/* Remove ACLs if the file has ACLs.  */</em>
+<a id='L575' name='L575'></a>   575       <strong class='reserved'>if</strong> (<a href='../S/2243.html#L97' title='Defined at 97 in lib/acl-internal.h.'>HAVE_ACL_GET_FD</a> &amp;&amp; desc != -1)
+<a id='L576' name='L576'></a>   576         acl = <a href='../D/8196.html' title='Multiple defined in 4 places.'>acl_get_fd</a> (desc);
+<a id='L577' name='L577'></a>   577       <strong class='reserved'>else</strong>
+<a id='L578' name='L578'></a>   578         acl = <a href='../S/218.html#L6570' title='Defined at 6570 in src/w32.c.'>acl_get_file</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, ACL_TYPE_EXTENDED);
+<a id='L579' name='L579'></a>   579       <strong class='reserved'>if</strong> (acl)
+<a id='L580' name='L580'></a>   580         <em class='brace'>{</em>
+<a id='L581' name='L581'></a>   581           <a href='../S/218.html#L6563' title='Defined at 6563 in src/w32.c.'>acl_free</a> (acl);
+<a id='L582' name='L582'></a>   582 
+<a id='L583' name='L583'></a>   583           acl = acl_init (0);
+<a id='L584' name='L584'></a>   584           <strong class='reserved'>if</strong> (acl)
+<a id='L585' name='L585'></a>   585             <em class='brace'>{</em>
+<a id='L586' name='L586'></a>   586               <strong class='reserved'>if</strong> (<a href='../S/2243.html#L116' title='Defined at 116 in lib/acl-internal.h.'>HAVE_ACL_SET_FD</a> &amp;&amp; desc != -1)
+<a id='L587' name='L587'></a>   587                 ret = <a href='../D/8201.html' title='Multiple defined in 4 places.'>acl_set_fd</a> (desc, acl);
+<a id='L588' name='L588'></a>   588               <strong class='reserved'>else</strong>
+<a id='L589' name='L589'></a>   589                 ret = <a href='../S/218.html#L6642' title='Defined at 6642 in src/w32.c.'>acl_set_file</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, ACL_TYPE_EXTENDED, acl);
+<a id='L590' name='L590'></a>   590               <a href='../S/218.html#L6563' title='Defined at 6563 in src/w32.c.'>acl_free</a> (acl);
+<a id='L591' name='L591'></a>   591             <em class='brace'>}</em>
+<a id='L592' name='L592'></a>   592           <strong class='reserved'>else</strong>
+<a id='L593' name='L593'></a>   593             ret = -1;
+<a id='L594' name='L594'></a>   594         <em class='brace'>}</em>
+<a id='L595' name='L595'></a>   595     <em class='brace'>}</em>
+<a id='L596' name='L596'></a>   596   <strong class='reserved'>else</strong>
+<a id='L597' name='L597'></a>   597     <em class='brace'>{</em>
+<a id='L598' name='L598'></a>   598       <strong class='reserved'>if</strong> (<a href='../S/2243.html#L116' title='Defined at 116 in lib/acl-internal.h.'>HAVE_ACL_SET_FD</a> &amp;&amp; desc != -1)
+<a id='L599' name='L599'></a>   599         ret = <a href='../D/8201.html' title='Multiple defined in 4 places.'>acl_set_fd</a> (desc, ctx-&gt;acl);
+<a id='L600' name='L600'></a>   600       <strong class='reserved'>else</strong>
+<a id='L601' name='L601'></a>   601         ret = <a href='../S/218.html#L6642' title='Defined at 6642 in src/w32.c.'>acl_set_file</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, ACL_TYPE_EXTENDED, ctx-&gt;acl);
+<a id='L602' name='L602'></a>   602       <strong class='reserved'>if</strong> (ret != 0)
+<a id='L603' name='L603'></a>   603         <em class='brace'>{</em>
+<a id='L604' name='L604'></a>   604           <strong class='reserved'>if</strong> (! <a href='../D/8189.html' title='Multiple defined in 2 places.'>acl_errno_valid</a> (errno)
+<a id='L605' name='L605'></a>   605               &amp;&amp; ! <a href='../S/2331.html#L34' title='Defined at 34 in lib/acl-internal.c.'>acl_extended_nontrivial</a> (ctx-&gt;acl))
+<a id='L606' name='L606'></a>   606             ret = 0;
+<a id='L607' name='L607'></a>   607         <em class='brace'>}</em>
+<a id='L608' name='L608'></a>   608     <em class='brace'>}</em>
+<a id='L609' name='L609'></a>   609   *acls_set = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L610' name='L610'></a>   610 
+<a id='L611' name='L611'></a>   611 <em class='sharp'>#  endif</em>
+<a id='L612' name='L612'></a>   612 
+<a id='L613' name='L613'></a>   613 <em class='sharp'># elif</em> <strong class='reserved'>defined</strong> GETACL <em class='comment'>/* Solaris, Cygwin, not HP-UX */</em>
+<a id='L614' name='L614'></a>   614 
+<a id='L615' name='L615'></a>   615   <em class='comment'>/* Solaris 2.5 through Solaris 10, Cygwin, and contemporaneous versions</em>
+<a id='L616' name='L616'></a>   616 <em class='comment'>     of Unixware.  The acl() call returns the access and default ACL both</em>
+<a id='L617' name='L617'></a>   617 <em class='comment'>     at once.  */</em>
+<a id='L618' name='L618'></a>   618 
+<a id='L619' name='L619'></a>   619   <em class='comment'>/* If both ace_entries and entries are available, try SETACL before</em>
+<a id='L620' name='L620'></a>   620 <em class='comment'>     ACE_SETACL, because SETACL cannot fail with ENOTSUP whereas ACE_SETACL</em>
+<a id='L621' name='L621'></a>   621 <em class='comment'>     can.  */</em>
+<a id='L622' name='L622'></a>   622 
+<a id='L623' name='L623'></a>   623   <strong class='reserved'>if</strong> (from_mode)
+<a id='L624' name='L624'></a>   624     <strong class='reserved'>return</strong> <a href='../D/16766.html' title='Multiple defined in 2 places.'>set_acls_from_mode</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, desc, ctx-&gt;mode, must_chmod);
+<a id='L625' name='L625'></a>   625 
+<a id='L626' name='L626'></a>   626   <strong class='reserved'>if</strong> (ret == 0 &amp;&amp; ctx-&gt;count)
+<a id='L627' name='L627'></a>   627     <em class='brace'>{</em>
+<a id='L628' name='L628'></a>   628       <strong class='reserved'>if</strong> (desc != -1)
+<a id='L629' name='L629'></a>   629         ret = facl (desc, SETACL, ctx-&gt;count, ctx-&gt;entries);
+<a id='L630' name='L630'></a>   630       <strong class='reserved'>else</strong>
+<a id='L631' name='L631'></a>   631         ret = acl (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, SETACL, ctx-&gt;count, ctx-&gt;entries);
+<a id='L632' name='L632'></a>   632       <strong class='reserved'>if</strong> (ret &lt; 0)
+<a id='L633' name='L633'></a>   633         <em class='brace'>{</em>
+<a id='L634' name='L634'></a>   634           <strong class='reserved'>if</strong> ((errno == ENOSYS || errno == <a href='../D/1820.html' title='Multiple defined in 5 places.'>EOPNOTSUPP</a> || errno == EINVAL)
+<a id='L635' name='L635'></a>   635               &amp;&amp; <a href='../D/8199.html' title='Multiple defined in 4 places.'>acl_nontrivial</a> (ctx-&gt;count, ctx-&gt;entries) == 0)
+<a id='L636' name='L636'></a>   636             ret = 0;
+<a id='L637' name='L637'></a>   637         <em class='brace'>}</em>
+<a id='L638' name='L638'></a>   638       <strong class='reserved'>else</strong>
+<a id='L639' name='L639'></a>   639         *acls_set = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L640' name='L640'></a>   640     <em class='brace'>}</em>
+<a id='L641' name='L641'></a>   641 
+<a id='L642' name='L642'></a>   642 <em class='sharp'>#  ifdef</em> ACE_GETACL
+<a id='L643' name='L643'></a>   643   <strong class='reserved'>if</strong> (ret == 0 &amp;&amp; ctx-&gt;ace_count)
+<a id='L644' name='L644'></a>   644     <em class='brace'>{</em>
+<a id='L645' name='L645'></a>   645       <strong class='reserved'>if</strong> (desc != -1)
+<a id='L646' name='L646'></a>   646         ret = facl (desc, ACE_SETACL, ctx-&gt;ace_count, ctx-&gt;ace_entries);
+<a id='L647' name='L647'></a>   647       <strong class='reserved'>else</strong>
+<a id='L648' name='L648'></a>   648         ret = acl (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, ACE_SETACL, ctx-&gt;ace_count, ctx-&gt;ace_entries);
+<a id='L649' name='L649'></a>   649       <strong class='reserved'>if</strong> (ret &lt; 0)
+<a id='L650' name='L650'></a>   650         <em class='brace'>{</em>
+<a id='L651' name='L651'></a>   651           <strong class='reserved'>if</strong> ((errno == ENOSYS || errno == EINVAL || errno == <a href='../D/1809.html' title='Multiple defined in 5 places.'>ENOTSUP</a>)
+<a id='L652' name='L652'></a>   652               &amp;&amp; <a href='../S/2331.html#L164' title='Defined at 164 in lib/acl-internal.c.'>acl_ace_nontrivial</a> (ctx-&gt;ace_count, ctx-&gt;ace_entries) == 0)
+<a id='L653' name='L653'></a>   653             ret = 0;
+<a id='L654' name='L654'></a>   654         <em class='brace'>}</em>
+<a id='L655' name='L655'></a>   655       <strong class='reserved'>else</strong>
+<a id='L656' name='L656'></a>   656         *acls_set = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L657' name='L657'></a>   657     <em class='brace'>}</em>
+<a id='L658' name='L658'></a>   658 <em class='sharp'>#  endif</em>
+<a id='L659' name='L659'></a>   659 
+<a id='L660' name='L660'></a>   660 <em class='sharp'># elif</em> HAVE_GETACL <em class='comment'>/* HP-UX */</em>
+<a id='L661' name='L661'></a>   661 
+<a id='L662' name='L662'></a>   662   <strong class='reserved'>if</strong> (from_mode)
+<a id='L663' name='L663'></a>   663     ret = <a href='../D/10116.html' title='Multiple defined in 3 places.'>context_acl_from_mode</a> (ctx, <a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, desc);
+<a id='L664' name='L664'></a>   664 
+<a id='L665' name='L665'></a>   665   <strong class='reserved'>if</strong> (ret == 0 &amp;&amp; ctx-&gt;count &gt; 0)
+<a id='L666' name='L666'></a>   666     <em class='brace'>{</em>
+<a id='L667' name='L667'></a>   667       <strong class='reserved'>if</strong> (desc != -1)
+<a id='L668' name='L668'></a>   668         ret = fsetacl (desc, ctx-&gt;count, ctx-&gt;entries);
+<a id='L669' name='L669'></a>   669       <strong class='reserved'>else</strong>
+<a id='L670' name='L670'></a>   670         ret = setacl (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, ctx-&gt;count, ctx-&gt;entries);
+<a id='L671' name='L671'></a>   671       <strong class='reserved'>if</strong> (ret &lt; 0)
+<a id='L672' name='L672'></a>   672         <em class='brace'>{</em>
+<a id='L673' name='L673'></a>   673           <strong class='reserved'>if</strong> ((errno == ENOSYS || errno == <a href='../D/1820.html' title='Multiple defined in 5 places.'>EOPNOTSUPP</a> || errno == <a href='../D/1809.html' title='Multiple defined in 5 places.'>ENOTSUP</a>)
+<a id='L674' name='L674'></a>   674               &amp;&amp; (from_mode || !<a href='../D/8199.html' title='Multiple defined in 4 places.'>acl_nontrivial</a> (ctx-&gt;count, ctx-&gt;entries)))
+<a id='L675' name='L675'></a>   675             ret = 0;
+<a id='L676' name='L676'></a>   676         <em class='brace'>}</em>
+<a id='L677' name='L677'></a>   677       <strong class='reserved'>else</strong>
+<a id='L678' name='L678'></a>   678         *acls_set = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L679' name='L679'></a>   679     <em class='brace'>}</em>
+<a id='L680' name='L680'></a>   680 
+<a id='L681' name='L681'></a>   681 <em class='sharp'>#  if</em> HAVE_ACLV_H
+<a id='L682' name='L682'></a>   682   <strong class='reserved'>if</strong> (from_mode)
+<a id='L683' name='L683'></a>   683     ret = <a href='../S/2336.html#L305' title='Defined at 305 in lib/set-permissions.c.'>context_aclv_from_mode</a> (ctx);
+<a id='L684' name='L684'></a>   684 
+<a id='L685' name='L685'></a>   685   <strong class='reserved'>if</strong> (ret == 0 &amp;&amp; ctx-&gt;aclv_count &gt; 0)
+<a id='L686' name='L686'></a>   686     <em class='brace'>{</em>
+<a id='L687' name='L687'></a>   687       ret = acl ((<strong class='reserved'>char</strong> *) <a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, ACL_SET, ctx-&gt;aclv_count, ctx-&gt;aclv_entries);
+<a id='L688' name='L688'></a>   688       <strong class='reserved'>if</strong> (ret &lt; 0)
+<a id='L689' name='L689'></a>   689         <em class='brace'>{</em>
+<a id='L690' name='L690'></a>   690           <strong class='reserved'>if</strong> ((errno == ENOSYS || errno == <a href='../D/1820.html' title='Multiple defined in 5 places.'>EOPNOTSUPP</a> || errno == EINVAL)
+<a id='L691' name='L691'></a>   691               &amp;&amp; (from_mode || !<a href='../S/2331.html#L368' title='Defined at 368 in lib/acl-internal.c.'>aclv_nontrivial</a> (ctx-&gt;aclv_count, ctx-&gt;aclv_entries)))
+<a id='L692' name='L692'></a>   692             ret = 0;
+<a id='L693' name='L693'></a>   693         <em class='brace'>}</em>
+<a id='L694' name='L694'></a>   694       <strong class='reserved'>else</strong>
+<a id='L695' name='L695'></a>   695         *acls_set = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L696' name='L696'></a>   696     <em class='brace'>}</em>
+<a id='L697' name='L697'></a>   697 <em class='sharp'>#  endif</em>
+<a id='L698' name='L698'></a>   698 
+<a id='L699' name='L699'></a>   699 <em class='sharp'># elif</em> HAVE_ACLX_GET &amp;&amp; ACL_AIX_WIP <em class='comment'>/* AIX */</em>
+<a id='L700' name='L700'></a>   700 
+<a id='L701' name='L701'></a>   701   <em class='comment'>/* TODO: Implement setting ACLs once get_permissions() reads them. */</em>
+<a id='L702' name='L702'></a>   702 
+<a id='L703' name='L703'></a>   703   <strong class='reserved'>if</strong> (from_mode)
+<a id='L704' name='L704'></a>   704     ret = <a href='../D/16766.html' title='Multiple defined in 2 places.'>set_acls_from_mode</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, desc, mode, must_chmod);
+<a id='L705' name='L705'></a>   705 
+<a id='L706' name='L706'></a>   706 <em class='sharp'># elif</em> HAVE_STATACL <em class='comment'>/* older AIX */</em>
+<a id='L707' name='L707'></a>   707 
+<a id='L708' name='L708'></a>   708   <strong class='reserved'>if</strong> (from_mode)
+<a id='L709' name='L709'></a>   709     ret = <a href='../D/10116.html' title='Multiple defined in 3 places.'>context_acl_from_mode</a> (ctx);
+<a id='L710' name='L710'></a>   710 
+<a id='L711' name='L711'></a>   711   <strong class='reserved'>if</strong> (ret == 0 &amp;&amp; ctx-&gt;have_u)
+<a id='L712' name='L712'></a>   712     <em class='brace'>{</em>
+<a id='L713' name='L713'></a>   713       <strong class='reserved'>if</strong> (desc != -1)
+<a id='L714' name='L714'></a>   714         ret = fchacl (desc, &amp;ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>, ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_len);
+<a id='L715' name='L715'></a>   715       <strong class='reserved'>else</strong>
+<a id='L716' name='L716'></a>   716         ret = chacl ((<strong class='reserved'>char</strong> *) <a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, &amp;ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>, ctx-&gt;u.<a href='../D/8151.html' title='Multiple defined in 6 places.'>a</a>.acl_len);
+<a id='L717' name='L717'></a>   717       <strong class='reserved'>if</strong> (ret &lt; 0)
+<a id='L718' name='L718'></a>   718         <em class='brace'>{</em>
+<a id='L719' name='L719'></a>   719           <strong class='reserved'>if</strong> (errno == ENOSYS &amp;&amp; from_mode)
+<a id='L720' name='L720'></a>   720             ret = 0;
+<a id='L721' name='L721'></a>   721         <em class='brace'>}</em>
+<a id='L722' name='L722'></a>   722       <strong class='reserved'>else</strong>
+<a id='L723' name='L723'></a>   723         *acls_set = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L724' name='L724'></a>   724     <em class='brace'>}</em>
+<a id='L725' name='L725'></a>   725 
+<a id='L726' name='L726'></a>   726 <em class='sharp'># elif</em> HAVE_ACLSORT <em class='comment'>/* NonStop Kernel */</em>
+<a id='L727' name='L727'></a>   727 
+<a id='L728' name='L728'></a>   728   <strong class='reserved'>if</strong> (from_mode)
+<a id='L729' name='L729'></a>   729     ret = <a href='../D/10116.html' title='Multiple defined in 3 places.'>context_acl_from_mode</a> (ctx);
+<a id='L730' name='L730'></a>   730 
+<a id='L731' name='L731'></a>   731   <strong class='reserved'>if</strong> (ret == 0 &amp;&amp; ctx-&gt;count)
+<a id='L732' name='L732'></a>   732     <em class='brace'>{</em>
+<a id='L733' name='L733'></a>   733       ret = acl ((<strong class='reserved'>char</strong> *) <a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, ACL_SET, ctx-&gt;count, ctx-&gt;entries);
+<a id='L734' name='L734'></a>   734       <strong class='reserved'>if</strong> (ret != 0)
+<a id='L735' name='L735'></a>   735         <em class='brace'>{</em>
+<a id='L736' name='L736'></a>   736           <strong class='reserved'>if</strong> (!<a href='../D/8199.html' title='Multiple defined in 4 places.'>acl_nontrivial</a> (ctx-&gt;count, ctx-&gt;entries))
+<a id='L737' name='L737'></a>   737             ret = 0;
+<a id='L738' name='L738'></a>   738         <em class='brace'>}</em>
+<a id='L739' name='L739'></a>   739       <strong class='reserved'>else</strong>
+<a id='L740' name='L740'></a>   740         *acls_set = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L741' name='L741'></a>   741     <em class='brace'>}</em>
+<a id='L742' name='L742'></a>   742 
+<a id='L743' name='L743'></a>   743 <em class='sharp'># else</em>  <em class='comment'>/* No ACLs */</em>
+<a id='L744' name='L744'></a>   744 
+<a id='L745' name='L745'></a>   745   <em class='comment'>/* Nothing to do. */</em>
+<a id='L746' name='L746'></a>   746 
+<a id='L747' name='L747'></a>   747 <em class='sharp'># endif</em>
+<a id='L748' name='L748'></a>   748 
+<a id='L749' name='L749'></a>   749   <strong class='reserved'>return</strong> ret;
+<a id='L750' name='L750'></a>   750 <em class='brace'>}</em>
+<a id='L751' name='L751'></a>   751 <em class='sharp'>#endif</em>
+<a id='L752' name='L752'></a>   752 
+<a id='L753' name='L753'></a>   753 <em class='comment'>/* If DESC is a valid file descriptor use fchmod to change the</em>
+<a id='L754' name='L754'></a>   754 <em class='comment'>   file's mode to MODE on systems that have fchmod. On systems</em>
+<a id='L755' name='L755'></a>   755 <em class='comment'>   that don't have fchmod and if DESC is invalid, use chmod on</em>
+<a id='L756' name='L756'></a>   756 <em class='comment'>   NAME instead.</em>
+<a id='L757' name='L757'></a>   757 <em class='comment'>   Return 0 if successful.  Return -1 and set errno upon failure.  */</em>
+<a id='L758' name='L758'></a>   758 
+<a id='L759' name='L759'></a>   759 <strong class='reserved'>int</strong>
+<a id='L760' name='L760'></a>   760 <a href='../R/8819.html' title='Multiple referred from 4 places.'>chmod_or_fchmod</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>int</strong> desc, <a href='../S/4124.html#L142' title='Defined at 142 in nt/inc/ms-w32.h.'>mode_t</a> mode)
+<a id='L761' name='L761'></a>   761 <em class='brace'>{</em>
+<a id='L762' name='L762'></a>   762   <strong class='reserved'>if</strong> (<a href='../S/2243.html#L64' title='Defined at 64 in lib/acl-internal.h.'>HAVE_FCHMOD</a> &amp;&amp; desc != -1)
+<a id='L763' name='L763'></a>   763     <strong class='reserved'>return</strong> <a href='../D/11337.html' title='Multiple defined in 2 places.'>fchmod</a> (desc, mode);
+<a id='L764' name='L764'></a>   764   <strong class='reserved'>else</strong>
+<a id='L765' name='L765'></a>   765     <strong class='reserved'>return</strong> <a href='../D/9779.html' title='Multiple defined in 12 places.'>chmod</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, mode);
+<a id='L766' name='L766'></a>   766 <em class='brace'>}</em>
+<a id='L767' name='L767'></a>   767 
+<a id='L768' name='L768'></a>   768 <em class='comment'>/* Set the permissions in CTX on a file. If DESC is a valid file descriptor,</em>
+<a id='L769' name='L769'></a>   769 <em class='comment'>   use file descriptor operations, else use filename based operations on NAME.</em>
+<a id='L770' name='L770'></a>   770 <em class='comment'>   If access control lists are not available, fchmod the target file to the</em>
+<a id='L771' name='L771'></a>   771 <em class='comment'>   mode in CTX.  Also sets the non-permission bits of the destination file</em>
+<a id='L772' name='L772'></a>   772 <em class='comment'>   (S_ISUID, S_ISGID, S_ISVTX) to those from the mode in CTX if any are set.</em>
+<a id='L773' name='L773'></a>   773 <em class='comment'>   Return 0 if successful.  Return -1 and set errno upon failure.  */</em>
+<a id='L774' name='L774'></a>   774 
+<a id='L775' name='L775'></a>   775 <strong class='reserved'>int</strong>
+<a id='L776' name='L776'></a>   776 <a href='../R/15558.html' title='Multiple referred from 2 places.'>set_permissions</a> (<strong class='reserved'>struct</strong> <a href='../S/2243.html#L261' title='Defined at 261 in lib/acl-internal.h.'>permission_context</a> *ctx, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, <strong class='reserved'>int</strong> desc)
+<a id='L777' name='L777'></a>   777 <em class='brace'>{</em>
+<a id='L778' name='L778'></a>   778   _GL_UNUSED <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a> acls_set = <a href='../S/4117.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L779' name='L779'></a>   779   <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a> early_chmod;
+<a id='L780' name='L780'></a>   780   <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a> must_chmod = <a href='../S/4117.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L781' name='L781'></a>   781   <strong class='reserved'>int</strong> ret = 0;
+<a id='L782' name='L782'></a>   782 
+<a id='L783' name='L783'></a>   783 <em class='sharp'>#if</em> USE_ACL
+<a id='L784' name='L784'></a>   784 <em class='sharp'># if</em> HAVE_STATACL
+<a id='L785' name='L785'></a>   785   <em class='comment'>/* older AIX */</em>
+<a id='L786' name='L786'></a>   786   <em class='comment'>/* There is no need to call chmod_or_fchmod, since the mode</em>
+<a id='L787' name='L787'></a>   787 <em class='comment'>     bits S_ISUID, S_ISGID, S_ISVTX are also stored in the ACL.  */</em>
+<a id='L788' name='L788'></a>   788 
+<a id='L789' name='L789'></a>   789   early_chmod = <a href='../S/4117.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L790' name='L790'></a>   790 <em class='sharp'># else</em>
+<a id='L791' name='L791'></a>   791   <em class='comment'>/* All other platforms */</em>
+<a id='L792' name='L792'></a>   792   <em class='comment'>/* On Cygwin, it is necessary to call chmod before acl, because</em>
+<a id='L793' name='L793'></a>   793 <em class='comment'>     chmod can change the contents of the ACL (in ways that don't</em>
+<a id='L794' name='L794'></a>   794 <em class='comment'>     change the allowed accesses, but still visible).  */</em>
+<a id='L795' name='L795'></a>   795 
+<a id='L796' name='L796'></a>   796   early_chmod = (! <a href='../D/4069.html' title='Multiple defined in 3 places.'>MODE_INSIDE_ACL</a> || (ctx-&gt;mode &amp; (<a href='../D/6086.html' title='Multiple defined in 2 places.'>S_ISUID</a> | <a href='../D/6074.html' title='Multiple defined in 2 places.'>S_ISGID</a> | <a href='../D/6087.html' title='Multiple defined in 2 places.'>S_ISVTX</a>)));
+<a id='L797' name='L797'></a>   797 <em class='sharp'># endif</em>
+<a id='L798' name='L798'></a>   798 <em class='sharp'>#else</em>
+<a id='L799' name='L799'></a>   799   <em class='comment'>/* No ACLs */</em>
+<a id='L800' name='L800'></a>   800 
+<a id='L801' name='L801'></a>   801   early_chmod = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L802' name='L802'></a>   802 <em class='sharp'>#endif</em>
+<a id='L803' name='L803'></a>   803 
+<a id='L804' name='L804'></a>   804   <strong class='reserved'>if</strong> (early_chmod)
+<a id='L805' name='L805'></a>   805     <em class='brace'>{</em>
+<a id='L806' name='L806'></a>   806       ret = <a href='../S/2336.html#L760' title='Defined at 760 in lib/set-permissions.c.'>chmod_or_fchmod</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, desc, ctx-&gt;mode);
+<a id='L807' name='L807'></a>   807       <strong class='reserved'>if</strong> (ret != 0)
+<a id='L808' name='L808'></a>   808         <strong class='reserved'>return</strong> -1;
+<a id='L809' name='L809'></a>   809     <em class='brace'>}</em>
+<a id='L810' name='L810'></a>   810 
+<a id='L811' name='L811'></a>   811 <em class='sharp'>#if</em> USE_ACL
+<a id='L812' name='L812'></a>   812   ret = <a href='../S/2336.html#L485' title='Defined at 485 in lib/set-permissions.c.'>set_acls</a> (ctx, <a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, desc, <a href='../S/4117.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, &amp;must_chmod, &amp;acls_set);
+<a id='L813' name='L813'></a>   813   <strong class='reserved'>if</strong> (! acls_set)
+<a id='L814' name='L814'></a>   814     <em class='brace'>{</em>
+<a id='L815' name='L815'></a>   815       <strong class='reserved'>int</strong> saved_errno = ret ? errno : 0;
+<a id='L816' name='L816'></a>   816 
+<a id='L817' name='L817'></a>   817       <em class='comment'>/* If we can't set an acl which we expect to be able to set, try setting</em>
+<a id='L818' name='L818'></a>   818 <em class='comment'>         the permissions to ctx-&gt;mode. Due to possible inherited permissions,</em>
+<a id='L819' name='L819'></a>   819 <em class='comment'>         we cannot simply chmod.  */</em>
+<a id='L820' name='L820'></a>   820 
+<a id='L821' name='L821'></a>   821       ret = <a href='../S/2336.html#L485' title='Defined at 485 in lib/set-permissions.c.'>set_acls</a> (ctx, <a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, desc, <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>, &amp;must_chmod, &amp;acls_set);
+<a id='L822' name='L822'></a>   822       <strong class='reserved'>if</strong> (! acls_set)
+<a id='L823' name='L823'></a>   823         must_chmod = <a href='../S/4117.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L824' name='L824'></a>   824 
+<a id='L825' name='L825'></a>   825       <strong class='reserved'>if</strong> (saved_errno)
+<a id='L826' name='L826'></a>   826         <em class='brace'>{</em>
+<a id='L827' name='L827'></a>   827           errno = saved_errno;
+<a id='L828' name='L828'></a>   828           ret = -1;
+<a id='L829' name='L829'></a>   829         <em class='brace'>}</em>
+<a id='L830' name='L830'></a>   830     <em class='brace'>}</em>
+<a id='L831' name='L831'></a>   831 <em class='sharp'>#endif</em>
+<a id='L832' name='L832'></a>   832 
+<a id='L833' name='L833'></a>   833   <strong class='reserved'>if</strong> (must_chmod &amp;&amp; ! early_chmod)
+<a id='L834' name='L834'></a>   834     <em class='brace'>{</em>
+<a id='L835' name='L835'></a>   835       <strong class='reserved'>int</strong> saved_errno = ret ? errno : 0;
+<a id='L836' name='L836'></a>   836 
+<a id='L837' name='L837'></a>   837       ret = <a href='../S/2336.html#L760' title='Defined at 760 in lib/set-permissions.c.'>chmod_or_fchmod</a> (<a href='../D/14917.html' title='Multiple defined in 4 places.'>name</a>, desc, ctx-&gt;mode);
+<a id='L838' name='L838'></a>   838 
+<a id='L839' name='L839'></a>   839       <strong class='reserved'>if</strong> (saved_errno)
+<a id='L840' name='L840'></a>   840         <em class='brace'>{</em>
+<a id='L841' name='L841'></a>   841           errno = saved_errno;
+<a id='L842' name='L842'></a>   842           ret = -1;
+<a id='L843' name='L843'></a>   843         <em class='brace'>}</em>
+<a id='L844' name='L844'></a>   844     <em class='brace'>}</em>
+<a id='L845' name='L845'></a>   845 
+<a id='L846' name='L846'></a>   846   <strong class='reserved'>return</strong> ret;
+<a id='L847' name='L847'></a>   847 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L31'>[^]</a><a href='#L776'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

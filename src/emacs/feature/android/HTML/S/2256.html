@@ -1,819 +1,104 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>src/region-cache.c</title>
+<title>lib/regex.c</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4799.html'>src</a>/region-cache.c</h2>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L131'>[^]</a><a href='#L758'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
-<hr />
-<h2 class='header'>DEFINITIONS</h2>
-This source file includes following definitions.
-<ol>
-<li><a href='#L131' title='Defined at 131.'>new_region_cache</a></li>
-<li><a href='#L157' title='Defined at 157.'>free_region_cache</a></li>
-<li><a href='#L174' title='Defined at 174.'>find_cache_boundary</a></li>
-<li><a href='#L207' title='Defined at 207.'>move_cache_gap</a></li>
-<li><a href='#L281' title='Defined at 281.'>insert_cache_boundary</a></li>
-<li><a href='#L311' title='Defined at 311.'>delete_cache_boundaries</a></li>
-<li><a href='#L359' title='Defined at 359.'>set_cache_region</a></li>
-<li><a href='#L458' title='Defined at 458.'>invalidate_region_cache</a></li>
-<li><a href='#L537' title='Defined at 537.'>revalidate_region_cache</a></li>
-<li><a href='#L665' title='Defined at 665.'>know_region_cache</a></li>
-<li><a href='#L681' title='Defined at 681.'>region_cache_forward</a></li>
-<li><a href='#L719' title='Defined at 719.'>region_cache_backward</a></li>
-<li><a href='#L758' title='Defined at 758.'>pp_cache</a></li>
-</ol>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4734.html'>lib</a>/regex.c</h2>
+<em class='comment'>/* [&lt;][&gt;][^][v][top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 <hr />
 <pre>
-<a id='L1' name='L1'></a>     1 <em class='comment'>/* Caching facts about regions of the buffer, for optimization.</em>
-<a id='L2' name='L2'></a>     2 <em class='comment'></em>
-<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 1985-1989, 1993, 1995, 2001-2023 Free Software Foundation,</em>
-<a id='L4' name='L4'></a>     4 <em class='comment'>Inc.</em>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Extended regular expression matching and search library.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 2002-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   This file is part of the GNU C Library.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>   Contributed by Isamu Hasegawa &lt;isamu@yamato.ibm.com&gt;.</em>
 <a id='L5' name='L5'></a>     5 <em class='comment'></em>
-<a id='L6' name='L6'></a>     6 <em class='comment'>This file is part of GNU Emacs.</em>
-<a id='L7' name='L7'></a>     7 <em class='comment'></em>
-<a id='L8' name='L8'></a>     8 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
-<a id='L9' name='L9'></a>     9 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
-<a id='L10' name='L10'></a>    10 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
-<a id='L11' name='L11'></a>    11 <em class='comment'>your option) any later version.</em>
-<a id='L12' name='L12'></a>    12 <em class='comment'></em>
-<a id='L13' name='L13'></a>    13 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
-<a id='L14' name='L14'></a>    14 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
-<a id='L15' name='L15'></a>    15 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
-<a id='L16' name='L16'></a>    16 <em class='comment'>GNU General Public License for more details.</em>
-<a id='L17' name='L17'></a>    17 <em class='comment'></em>
-<a id='L18' name='L18'></a>    18 <em class='comment'>You should have received a copy of the GNU General Public License</em>
-<a id='L19' name='L19'></a>    19 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
-<a id='L20' name='L20'></a>    20 
+<a id='L6' name='L6'></a>     6 <em class='comment'>   The GNU C Library is free software; you can redistribute it and/or</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>   modify it under the terms of the GNU Lesser General Public</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>   License as published by the Free Software Foundation; either</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>   version 2.1 of the License, or (at your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>   The GNU C Library is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>   but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>   Lesser General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>   You should have received a copy of the GNU Lesser General Public</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>   License along with the GNU C Library; if not, see</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>   &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#define</em> <a href='../R/7039.html' title='Multiple referred from 2 places.'>__STDC_WANT_IEC_60559_BFP_EXT__</a>
 <a id='L21' name='L21'></a>    21 
-<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;config.h&gt;
-<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#ifndef</em> _LIBC
+<a id='L23' name='L23'></a>    23 <em class='sharp'># include</em> &lt;<a href='2317.html'>libc-config.h</a>&gt;
 <a id='L24' name='L24'></a>    24 
-<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='../I/530.html'>lisp.h</a>"
-<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='2132.html'>buffer.h</a>"
-<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> "<a href='2095.html'>region-cache.h</a>"
-<a id='L28' name='L28'></a>    28 
-<a id='L29' name='L29'></a>    29 
-<a id='L30' name='L30'></a>    30 <em class='comment'>/* Data structures.  */</em>
-<a id='L31' name='L31'></a>    31 
-<a id='L32' name='L32'></a>    32 <em class='comment'>/* The region cache.</em>
-<a id='L33' name='L33'></a>    33 <em class='comment'></em>
-<a id='L34' name='L34'></a>    34 <em class='comment'>   We want something that maps character positions in a buffer onto</em>
-<a id='L35' name='L35'></a>    35 <em class='comment'>   values.  The representation should deal well with long runs of</em>
-<a id='L36' name='L36'></a>    36 <em class='comment'>   characters with the same value.</em>
-<a id='L37' name='L37'></a>    37 <em class='comment'></em>
-<a id='L38' name='L38'></a>    38 <em class='comment'>   The tricky part: the representation should be very cheap to</em>
-<a id='L39' name='L39'></a>    39 <em class='comment'>   maintain in the presence of many insertions and deletions.  If the</em>
-<a id='L40' name='L40'></a>    40 <em class='comment'>   overhead of maintaining the cache is too high, the speedups it</em>
-<a id='L41' name='L41'></a>    41 <em class='comment'>   offers will be worthless.</em>
-<a id='L42' name='L42'></a>    42 <em class='comment'></em>
-<a id='L43' name='L43'></a>    43 <em class='comment'></em>
-<a id='L44' name='L44'></a>    44 <em class='comment'>   We represent the region cache as a sorted array of struct</em>
-<a id='L45' name='L45'></a>    45 <em class='comment'>   boundary's, each of which contains a buffer position and a value;</em>
-<a id='L46' name='L46'></a>    46 <em class='comment'>   the value applies to all the characters after the buffer position,</em>
-<a id='L47' name='L47'></a>    47 <em class='comment'>   until the position of the next boundary, or the end of the buffer.</em>
-<a id='L48' name='L48'></a>    48 <em class='comment'></em>
-<a id='L49' name='L49'></a>    49 <em class='comment'>   The cache always has a boundary whose position is BUF_BEG, so</em>
-<a id='L50' name='L50'></a>    50 <em class='comment'>   there's always a value associated with every character in the</em>
-<a id='L51' name='L51'></a>    51 <em class='comment'>   buffer.  Since the cache is sorted, this is always the first</em>
-<a id='L52' name='L52'></a>    52 <em class='comment'>   element of the cache.</em>
-<a id='L53' name='L53'></a>    53 <em class='comment'></em>
-<a id='L54' name='L54'></a>    54 <em class='comment'>   To facilitate the insertion and deletion of boundaries in the</em>
-<a id='L55' name='L55'></a>    55 <em class='comment'>   cache, the cache has a gap, just like Emacs's text buffers do.</em>
-<a id='L56' name='L56'></a>    56 <em class='comment'></em>
-<a id='L57' name='L57'></a>    57 <em class='comment'>   To help boundary positions float along with insertions and</em>
-<a id='L58' name='L58'></a>    58 <em class='comment'>   deletions, all boundary positions before the cache gap are stored</em>
-<a id='L59' name='L59'></a>    59 <em class='comment'>   relative to BUF_BEG (buf) (thus they're &gt;= 0), and all boundary</em>
-<a id='L60' name='L60'></a>    60 <em class='comment'>   positions after the gap are stored relative to BUF_Z (buf) (thus</em>
-<a id='L61' name='L61'></a>    61 <em class='comment'>   they're &lt;= 0).  Look at BOUNDARY_POS to see this in action.  See</em>
-<a id='L62' name='L62'></a>    62 <em class='comment'>   revalidate_region_cache to see how this helps.  */</em>
-<a id='L63' name='L63'></a>    63 
-<a id='L64' name='L64'></a>    64 <strong class='reserved'>struct</strong> <a href='../R/8379.html' title='Multiple referred from 3 places.'>boundary</a> <em class='brace'>{</em>
-<a id='L65' name='L65'></a>    65   ptrdiff_t pos;
-<a id='L66' name='L66'></a>    66   <strong class='reserved'>int</strong> <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
-<a id='L67' name='L67'></a>    67 <em class='brace'>}</em>;
-<a id='L68' name='L68'></a>    68 
-<a id='L69' name='L69'></a>    69 <strong class='reserved'>struct</strong> <a href='../R/15024.html' title='Multiple referred from 34 places.'>region_cache</a> <em class='brace'>{</em>
-<a id='L70' name='L70'></a>    70   <em class='comment'>/* A sorted array of locations where the known-ness of the buffer</em>
-<a id='L71' name='L71'></a>    71 <em class='comment'>     changes.  */</em>
-<a id='L72' name='L72'></a>    72   <strong class='reserved'>struct</strong> <a href='../S/2256.html#L64' title='Defined at 64 in src/region-cache.c.'>boundary</a> *boundaries;
-<a id='L73' name='L73'></a>    73 
-<a id='L74' name='L74'></a>    74   <em class='comment'>/* boundaries[gap_start ... gap_start + gap_len - 1] is the gap.  */</em>
-<a id='L75' name='L75'></a>    75   ptrdiff_t gap_start, gap_len;
+<a id='L25' name='L25'></a>    25 <em class='sharp'># if</em> <a href='../D/7839.html' title='Multiple defined in 6 places.'>__GNUC_PREREQ</a> (4, 6)
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#  pragma</em> GCC diagnostic ignored "-Wsuggest-attribute=pure"
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#  pragma</em> GCC diagnostic ignored "-Wvla"
+<a id='L28' name='L28'></a>    28 <em class='sharp'># endif</em>
+<a id='L29' name='L29'></a>    29 <em class='sharp'># if</em> <a href='../D/7839.html' title='Multiple defined in 6 places.'>__GNUC_PREREQ</a> (4, 3)
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#  pragma</em> GCC diagnostic ignored "-Wold-style-definition"
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#  pragma</em> GCC diagnostic ignored "-Wtype-limits"
+<a id='L32' name='L32'></a>    32 <em class='sharp'># endif</em>
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#endif</em>
+<a id='L34' name='L34'></a>    34 
+<a id='L35' name='L35'></a>    35 <em class='comment'>/* Make sure no one compiles this code with a C++ compiler.  */</em>
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> __cplusplus &amp;&amp; <strong class='reserved'>defined</strong> _LIBC
+<a id='L37' name='L37'></a>    37 <em class='sharp'># error</em> "This is C code, use a C compiler"
+<a id='L38' name='L38'></a>    38 <em class='sharp'>#endif</em>
+<a id='L39' name='L39'></a>    39 
+<a id='L40' name='L40'></a>    40 <em class='sharp'>#ifdef</em> _LIBC
+<a id='L41' name='L41'></a>    41 <em class='comment'>/* We have to keep the namespace clean.  */</em>
+<a id='L42' name='L42'></a>    42 <em class='sharp'># define</em> <a href='../R/14930.html' title='Multiple referred from 4 places.'>regfree</a>(preg) <a href='../S/2159.html#L146' title='Defined at 146 in lib/regex_internal.h.'>__regfree</a> (preg)
+<a id='L43' name='L43'></a>    43 <em class='sharp'># define</em> <a href='../R/14927.html' title='Multiple referred from 6 places.'>regexec</a>(pr, st, nm, pm, ef) __regexec (pr, st, nm, pm, ef)
+<a id='L44' name='L44'></a>    44 <em class='sharp'># define</em> <a href='../R/14922.html' title='Multiple referred from 3 places.'>regcomp</a>(preg, pattern, cflags) __regcomp (preg, pattern, cflags)
+<a id='L45' name='L45'></a>    45 <em class='sharp'># define</em> <a href='../R/14923.html' title='Multiple referred from 4 places.'>regerror</a>(errcode, preg, errbuf, errbuf_size) \
+<a id='L46' name='L46'></a>    46         __regerror(errcode, preg, errbuf, errbuf_size)
+<a id='L47' name='L47'></a>    47 <em class='sharp'># define</em> <a href='../R/14703.html' title='Multiple referred from 5 places.'>re_set_registers</a>(bu, re, nu, st, en) \
+<a id='L48' name='L48'></a>    48         __re_set_registers (bu, re, nu, st, en)
+<a id='L49' name='L49'></a>    49 <em class='sharp'># define</em> <a href='../R/14675.html' title='Multiple referred from 7 places.'>re_match_2</a>(bufp, string1, size1, string2, size2, pos, regs, stop) \
+<a id='L50' name='L50'></a>    50         __re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
+<a id='L51' name='L51'></a>    51 <em class='sharp'># define</em> <a href='../R/14674.html' title='Multiple referred from 5 places.'>re_match</a>(bufp, string, <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>, pos, regs) \
+<a id='L52' name='L52'></a>    52         __re_match (bufp, string, <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>, pos, regs)
+<a id='L53' name='L53'></a>    53 <em class='sharp'># define</em> <a href='../R/14699.html' title='Multiple referred from 10 places.'>re_search</a>(bufp, string, <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>, startpos, range, regs) \
+<a id='L54' name='L54'></a>    54         __re_search (bufp, string, <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>, startpos, range, regs)
+<a id='L55' name='L55'></a>    55 <em class='sharp'># define</em> <a href='../R/14659.html' title='Multiple referred from 7 places.'>re_compile_pattern</a>(pattern, length, bufp) \
+<a id='L56' name='L56'></a>    56         __re_compile_pattern (pattern, length, bufp)
+<a id='L57' name='L57'></a>    57 <em class='sharp'># define</em> <a href='../R/14704.html' title='Multiple referred from 8 places.'>re_set_syntax</a>(syntax) __re_set_syntax (syntax)
+<a id='L58' name='L58'></a>    58 <em class='sharp'># define</em> <a href='../R/14700.html' title='Multiple referred from 8 places.'>re_search_2</a>(bufp, st1, <a href='../S/3712.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>, st2, <a href='../S/3712.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>, startpos, range, regs, stop) \
+<a id='L59' name='L59'></a>    59         __re_search_2 (bufp, st1, <a href='../S/3712.html#L32' title='Defined at 32 in test/manual/etags/cp-src/c.C.'>s1</a>, st2, <a href='../S/3712.html#L35' title='Defined at 35 in test/manual/etags/cp-src/c.C.'>s2</a>, startpos, range, regs, stop)
+<a id='L60' name='L60'></a>    60 <em class='sharp'># define</em> <a href='../R/14656.html' title='Multiple referred from 9 places.'>re_compile_fastmap</a>(bufp) __re_compile_fastmap (bufp)
+<a id='L61' name='L61'></a>    61 
+<a id='L62' name='L62'></a>    62 <em class='sharp'># include</em> "../locale/localeinfo.h"
+<a id='L63' name='L63'></a>    63 <em class='sharp'>#endif</em>
+<a id='L64' name='L64'></a>    64 
+<a id='L65' name='L65'></a>    65 <em class='comment'>/* On some systems, limits.h sets RE_DUP_MAX to a lower value than</em>
+<a id='L66' name='L66'></a>    66 <em class='comment'>   GNU regex allows.  Include it before &lt;regex.h&gt;, which correctly</em>
+<a id='L67' name='L67'></a>    67 <em class='comment'>   #undefs RE_DUP_MAX and sets it to the right value.  */</em>
+<a id='L68' name='L68'></a>    68 <em class='sharp'>#include</em> &lt;limits.h&gt;
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70 <em class='sharp'>#include</em> &lt;<a href='../I/225.html'>regex.h</a>&gt;
+<a id='L71' name='L71'></a>    71 <em class='sharp'>#include</em> "<a href='2159.html'>regex_internal.h</a>"
+<a id='L72' name='L72'></a>    72 
+<a id='L73' name='L73'></a>    73 <em class='sharp'>#include</em> "regex_internal.c"
+<a id='L74' name='L74'></a>    74 <em class='sharp'>#include</em> "regcomp.c"
+<a id='L75' name='L75'></a>    75 <em class='sharp'>#include</em> "regexec.c"
 <a id='L76' name='L76'></a>    76 
-<a id='L77' name='L77'></a>    77   <em class='comment'>/* The number of elements allocated to boundaries, not including the</em>
-<a id='L78' name='L78'></a>    78 <em class='comment'>     gap.  */</em>
-<a id='L79' name='L79'></a>    79   ptrdiff_t cache_len;
-<a id='L80' name='L80'></a>    80 
-<a id='L81' name='L81'></a>    81   <em class='comment'>/* The areas that haven't changed since the last time we cleaned out</em>
-<a id='L82' name='L82'></a>    82 <em class='comment'>     invalid entries from the cache.  These overlap when the buffer is</em>
-<a id='L83' name='L83'></a>    83 <em class='comment'>     entirely unchanged.  */</em>
-<a id='L84' name='L84'></a>    84   ptrdiff_t beg_unchanged, end_unchanged;
-<a id='L85' name='L85'></a>    85 
-<a id='L86' name='L86'></a>    86   <em class='comment'>/* The first and last positions in the buffer.  Because boundaries</em>
-<a id='L87' name='L87'></a>    87 <em class='comment'>     store their positions relative to the start (BEG) and end (Z) of</em>
-<a id='L88' name='L88'></a>    88 <em class='comment'>     the buffer, knowing these positions allows us to accurately</em>
-<a id='L89' name='L89'></a>    89 <em class='comment'>     interpret positions without having to pass the buffer structure</em>
-<a id='L90' name='L90'></a>    90 <em class='comment'>     or its endpoints around all the time.</em>
-<a id='L91' name='L91'></a>    91 <em class='comment'></em>
-<a id='L92' name='L92'></a>    92 <em class='comment'>     Yes, buffer_beg is always 1.  It's there for symmetry with</em>
-<a id='L93' name='L93'></a>    93 <em class='comment'>     buffer_end and the BEG and BUF_BEG macros.  */</em>
-<a id='L94' name='L94'></a>    94   ptrdiff_t buffer_beg, buffer_end;
-<a id='L95' name='L95'></a>    95 <em class='brace'>}</em>;
-<a id='L96' name='L96'></a>    96 
-<a id='L97' name='L97'></a>    97 <em class='comment'>/* Return the position of boundary i in cache c.  */</em>
-<a id='L98' name='L98'></a>    98 <em class='sharp'>#define</em> <a href='../R/433.html' title='Multiple referred from 12 places.'>BOUNDARY_POS</a>(<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i) \
-<a id='L99' name='L99'></a>    99   ((i) &lt; (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;gap_start \
-<a id='L100' name='L100'></a>   100    ? (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;buffer_beg + (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;boundaries[(i)].pos \
-<a id='L101' name='L101'></a>   101    : (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;buffer_end + (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;boundaries[(<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;gap_len + (i)].pos)
-<a id='L102' name='L102'></a>   102 
-<a id='L103' name='L103'></a>   103 <em class='comment'>/* Return the value for text after boundary i in cache c.  */</em>
-<a id='L104' name='L104'></a>   104 <em class='sharp'>#define</em> <a href='../R/434.html' title='Multiple referred from 12 places.'>BOUNDARY_VALUE</a>(<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i) \
-<a id='L105' name='L105'></a>   105   ((i) &lt; (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;gap_start \
-<a id='L106' name='L106'></a>   106    ? (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;boundaries[(i)].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> \
-<a id='L107' name='L107'></a>   107    : (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;boundaries[(<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;gap_len + (i)].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
-<a id='L108' name='L108'></a>   108 
-<a id='L109' name='L109'></a>   109 <em class='comment'>/* Set the value for text after boundary i in cache c to v.  */</em>
-<a id='L110' name='L110'></a>   110 <em class='sharp'>#define</em> <a href='../R/5076.html' title='Multiple referred from 2 places.'>SET_BOUNDARY_VALUE</a>(<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i, v) \
-<a id='L111' name='L111'></a>   111   ((i) &lt; (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;gap_start \
-<a id='L112' name='L112'></a>   112    ? ((<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;boundaries[(i)].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = (v))\
-<a id='L113' name='L113'></a>   113    : ((<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;boundaries[(<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)-&gt;gap_len + (i)].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = (v)))
-<a id='L114' name='L114'></a>   114 
-<a id='L115' name='L115'></a>   115 
-<a id='L116' name='L116'></a>   116 <em class='comment'>/* How many elements to add to the gap when we resize the buffer.  */</em>
-<a id='L117' name='L117'></a>   117 <em class='sharp'>#define</em> <a href='../S/2256.html#L136' title='Referred from 136 in src/region-cache.c.'>NEW_CACHE_GAP</a> (40)
-<a id='L118' name='L118'></a>   118 
-<a id='L119' name='L119'></a>   119 <em class='comment'>/* See invalidate_region_cache; if an invalidation would throw away</em>
-<a id='L120' name='L120'></a>   120 <em class='comment'>   information about this many characters, call</em>
-<a id='L121' name='L121'></a>   121 <em class='comment'>   revalidate_region_cache before doing the new invalidation, to</em>
-<a id='L122' name='L122'></a>   122 <em class='comment'>   preserve that information, instead of throwing it away.  */</em>
-<a id='L123' name='L123'></a>   123 <em class='sharp'>#define</em> <a href='../R/4374.html' title='Multiple referred from 2 places.'>PRESERVE_THRESHOLD</a> (500)
-<a id='L124' name='L124'></a>   124 
-<a id='L125' name='L125'></a>   125 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/2256.html#L537' title='Defined at 537 in src/region-cache.c.'>revalidate_region_cache</a> (<strong class='reserved'>struct</strong> <a href='../S/2132.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf, <strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>);
-<a id='L126' name='L126'></a>   126 
-<a id='L127' name='L127'></a>   127 
-<a id='L128' name='L128'></a>   128 <em class='comment'>/* Interface: Allocating, initializing, and disposing of region caches.  */</em>
-<a id='L129' name='L129'></a>   129 
-<a id='L130' name='L130'></a>   130 <strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *
-<a id='L131' name='L131'></a>   131 <a href='../R/13801.html' title='Multiple referred from 4 places.'>new_region_cache</a> (<strong class='reserved'>void</strong>)
-<a id='L132' name='L132'></a>   132 <em class='brace'>{</em>
-<a id='L133' name='L133'></a>   133   <strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a> = <a href='../D/20074.html' title='Multiple defined in 10 places.'>xmalloc</a> (<strong class='reserved'>sizeof</strong> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>);
-<a id='L134' name='L134'></a>   134 
-<a id='L135' name='L135'></a>   135   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_start = 0;
-<a id='L136' name='L136'></a>   136   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_len = <a href='../S/2256.html#L117' title='Defined at 117 in src/region-cache.c.'>NEW_CACHE_GAP</a>;
-<a id='L137' name='L137'></a>   137   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len = 0;
-<a id='L138' name='L138'></a>   138   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries = <a href='../D/20074.html' title='Multiple defined in 10 places.'>xmalloc</a> ((<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_len + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len)
-<a id='L139' name='L139'></a>   139                            * <strong class='reserved'>sizeof</strong> (*<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries));
-<a id='L140' name='L140'></a>   140 
-<a id='L141' name='L141'></a>   141   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged = 0;
-<a id='L142' name='L142'></a>   142   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged = 0;
-<a id='L143' name='L143'></a>   143   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg = <a href='../S/2132.html#L38' title='Defined at 38 in src/buffer.h.'>BEG</a>;
-<a id='L144' name='L144'></a>   144   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end = <a href='../S/2132.html#L38' title='Defined at 38 in src/buffer.h.'>BEG</a>;
-<a id='L145' name='L145'></a>   145 
-<a id='L146' name='L146'></a>   146   <em class='comment'>/* Insert the boundary for the buffer start.  */</em>
-<a id='L147' name='L147'></a>   147   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len++;
-<a id='L148' name='L148'></a>   148   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_len--;
-<a id='L149' name='L149'></a>   149   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_start++;
-<a id='L150' name='L150'></a>   150   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[0].pos   = 0;  <em class='comment'>/* from buffer_beg */</em>
-<a id='L151' name='L151'></a>   151   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[0].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = 0;
-<a id='L152' name='L152'></a>   152 
-<a id='L153' name='L153'></a>   153   <strong class='reserved'>return</strong> <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>;
-<a id='L154' name='L154'></a>   154 <em class='brace'>}</em>
-<a id='L155' name='L155'></a>   155 
-<a id='L156' name='L156'></a>   156 <strong class='reserved'>void</strong>
-<a id='L157' name='L157'></a>   157 <a href='../R/10743.html' title='Multiple referred from 7 places.'>free_region_cache</a> (<strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)
-<a id='L158' name='L158'></a>   158 <em class='brace'>{</em>
-<a id='L159' name='L159'></a>   159   <a href='../D/19819.html' title='Multiple defined in 3 places.'>xfree</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries);
-<a id='L160' name='L160'></a>   160   <a href='../D/19819.html' title='Multiple defined in 3 places.'>xfree</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>);
-<a id='L161' name='L161'></a>   161 <em class='brace'>}</em>
-<a id='L162' name='L162'></a>   162 
-<a id='L163' name='L163'></a>   163 
-<a id='L164' name='L164'></a>   164 <em class='comment'>/* Finding positions in the cache.  */</em>
-<a id='L165' name='L165'></a>   165 
-<a id='L166' name='L166'></a>   166 <em class='comment'>/* Return the index of the last boundary in cache C at or before POS.</em>
-<a id='L167' name='L167'></a>   167 <em class='comment'>   In other words, return the boundary that specifies the value for</em>
-<a id='L168' name='L168'></a>   168 <em class='comment'>   the region POS..(POS + 1).</em>
-<a id='L169' name='L169'></a>   169 <em class='comment'></em>
-<a id='L170' name='L170'></a>   170 <em class='comment'>   This operation should be logarithmic in the number of cache</em>
-<a id='L171' name='L171'></a>   171 <em class='comment'>   entries.  It would be nice if it took advantage of locality of</em>
-<a id='L172' name='L172'></a>   172 <em class='comment'>   reference, too, by searching entries near the last entry found.  */</em>
-<a id='L173' name='L173'></a>   173 <strong class='reserved'>static</strong> ptrdiff_t
-<a id='L174' name='L174'></a>   174 <a href='../R/10427.html' title='Multiple referred from 6 places.'>find_cache_boundary</a> (<strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, ptrdiff_t pos)
-<a id='L175' name='L175'></a>   175 <em class='brace'>{</em>
-<a id='L176' name='L176'></a>   176   ptrdiff_t low = 0, high = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len;
-<a id='L177' name='L177'></a>   177 
-<a id='L178' name='L178'></a>   178   <strong class='reserved'>while</strong> (low + 1 &lt; high)
-<a id='L179' name='L179'></a>   179     <em class='brace'>{</em>
-<a id='L180' name='L180'></a>   180       <em class='comment'>/* mid is always a valid index, because low &lt; high and "&gt;&gt; 1"</em>
-<a id='L181' name='L181'></a>   181 <em class='comment'>         rounds down.  */</em>
-<a id='L182' name='L182'></a>   182       ptrdiff_t mid = (low &gt;&gt; 1) + (high &gt;&gt; 1) + (low &amp; high &amp; 1);
-<a id='L183' name='L183'></a>   183       ptrdiff_t <a href='../S/2256.html#L64' title='Defined at 64 in src/region-cache.c.'>boundary</a> = <a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, mid);
-<a id='L184' name='L184'></a>   184 
-<a id='L185' name='L185'></a>   185       <strong class='reserved'>if</strong> (pos &lt; <a href='../S/2256.html#L64' title='Defined at 64 in src/region-cache.c.'>boundary</a>)
-<a id='L186' name='L186'></a>   186         high = mid;
-<a id='L187' name='L187'></a>   187       <strong class='reserved'>else</strong>
-<a id='L188' name='L188'></a>   188         low = mid;
-<a id='L189' name='L189'></a>   189     <em class='brace'>}</em>
-<a id='L190' name='L190'></a>   190 
-<a id='L191' name='L191'></a>   191   <em class='comment'>/* Some testing.  */</em>
-<a id='L192' name='L192'></a>   192   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (!(<a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, low) &gt; pos
-<a id='L193' name='L193'></a>   193              || (low + 1 &lt; <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len
-<a id='L194' name='L194'></a>   194                  &amp;&amp; <a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, low + 1) &lt;= pos)));
-<a id='L195' name='L195'></a>   195 
-<a id='L196' name='L196'></a>   196   <strong class='reserved'>return</strong> low;
-<a id='L197' name='L197'></a>   197 <em class='brace'>}</em>
-<a id='L198' name='L198'></a>   198 
-<a id='L199' name='L199'></a>   199 
-<a id='L200' name='L200'></a>   200 
-<a id='L201' name='L201'></a>   201 <em class='comment'>/* Moving the cache gap around, inserting, and deleting.  */</em>
-<a id='L202' name='L202'></a>   202 
-<a id='L203' name='L203'></a>   203 
-<a id='L204' name='L204'></a>   204 <em class='comment'>/* Move the gap of cache C to index POS, and make sure it has space</em>
-<a id='L205' name='L205'></a>   205 <em class='comment'>   for at least MIN_SIZE boundaries.  */</em>
-<a id='L206' name='L206'></a>   206 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L207' name='L207'></a>   207 <a href='../R/13495.html' title='Multiple referred from 5 places.'>move_cache_gap</a> (<strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, ptrdiff_t pos, ptrdiff_t min_size)
-<a id='L208' name='L208'></a>   208 <em class='brace'>{</em>
-<a id='L209' name='L209'></a>   209   <em class='comment'>/* Copy these out of the cache and into registers.  */</em>
-<a id='L210' name='L210'></a>   210   ptrdiff_t gap_start = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_start;
-<a id='L211' name='L211'></a>   211   ptrdiff_t gap_len = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_len;
-<a id='L212' name='L212'></a>   212   ptrdiff_t buffer_beg = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg;
-<a id='L213' name='L213'></a>   213   ptrdiff_t buffer_end = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end;
-<a id='L214' name='L214'></a>   214 
-<a id='L215' name='L215'></a>   215   <em class='comment'>/* We mustn't ever try to put the gap before the dummy start</em>
-<a id='L216' name='L216'></a>   216 <em class='comment'>     boundary.  That must always be start-relative.  */</em>
-<a id='L217' name='L217'></a>   217   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (0 &lt; pos &amp;&amp; pos &lt;= <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len);
-<a id='L218' name='L218'></a>   218 
-<a id='L219' name='L219'></a>   219   <em class='comment'>/* Need we move the gap right?  */</em>
-<a id='L220' name='L220'></a>   220   <strong class='reserved'>while</strong> (gap_start &lt; pos)
-<a id='L221' name='L221'></a>   221     <em class='brace'>{</em>
-<a id='L222' name='L222'></a>   222       <em class='comment'>/* Copy one boundary from after to before the gap, and</em>
-<a id='L223' name='L223'></a>   223 <em class='comment'>         convert its position to start-relative.  */</em>
-<a id='L224' name='L224'></a>   224       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[gap_start].pos
-<a id='L225' name='L225'></a>   225         = (buffer_end
-<a id='L226' name='L226'></a>   226            + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[gap_start + gap_len].pos
-<a id='L227' name='L227'></a>   227            - buffer_beg);
-<a id='L228' name='L228'></a>   228       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[gap_start].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>
-<a id='L229' name='L229'></a>   229         = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[gap_start + gap_len].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
-<a id='L230' name='L230'></a>   230       gap_start++;
-<a id='L231' name='L231'></a>   231     <em class='brace'>}</em>
-<a id='L232' name='L232'></a>   232 
-<a id='L233' name='L233'></a>   233   <em class='comment'>/* To enlarge the gap, we need to re-allocate the boundary array, and</em>
-<a id='L234' name='L234'></a>   234 <em class='comment'>     then shift the area after the gap to the new end.  Since the cost</em>
-<a id='L235' name='L235'></a>   235 <em class='comment'>     is proportional to the amount of stuff after the gap, we do the</em>
-<a id='L236' name='L236'></a>   236 <em class='comment'>     enlargement here, after a right shift but before a left shift,</em>
-<a id='L237' name='L237'></a>   237 <em class='comment'>     when the portion after the gap is smallest.  */</em>
-<a id='L238' name='L238'></a>   238   <strong class='reserved'>if</strong> (gap_len &lt; min_size)
-<a id='L239' name='L239'></a>   239     <em class='brace'>{</em>
-<a id='L240' name='L240'></a>   240       ptrdiff_t i, nboundaries = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len;
-<a id='L241' name='L241'></a>   241 
-<a id='L242' name='L242'></a>   242       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries =
-<a id='L243' name='L243'></a>   243         <a href='../S/2352.html#L914' title='Defined at 914 in src/alloc.c.'>xpalloc</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries, &amp;nboundaries, min_size - gap_len, -1,
-<a id='L244' name='L244'></a>   244                  <strong class='reserved'>sizeof</strong> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries);
-<a id='L245' name='L245'></a>   245 
-<a id='L246' name='L246'></a>   246       <em class='comment'>/* Some systems don't provide a version of the copy routine that</em>
-<a id='L247' name='L247'></a>   247 <em class='comment'>         can be trusted to shift memory upward into an overlapping</em>
-<a id='L248' name='L248'></a>   248 <em class='comment'>         region.  memmove isn't widely available.  */</em>
-<a id='L249' name='L249'></a>   249       min_size = nboundaries - <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len - gap_len;
-<a id='L250' name='L250'></a>   250       <strong class='reserved'>for</strong> (i = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len - 1; i &gt;= gap_start; i--)
-<a id='L251' name='L251'></a>   251         <em class='brace'>{</em>
-<a id='L252' name='L252'></a>   252           <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[i + min_size].pos   = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[i + gap_len].pos;
-<a id='L253' name='L253'></a>   253           <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[i + min_size].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[i + gap_len].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
-<a id='L254' name='L254'></a>   254         <em class='brace'>}</em>
-<a id='L255' name='L255'></a>   255 
-<a id='L256' name='L256'></a>   256       gap_len = min_size;
-<a id='L257' name='L257'></a>   257     <em class='brace'>}</em>
-<a id='L258' name='L258'></a>   258 
-<a id='L259' name='L259'></a>   259   <em class='comment'>/* Need we move the gap left?  */</em>
-<a id='L260' name='L260'></a>   260   <strong class='reserved'>while</strong> (pos &lt; gap_start)
-<a id='L261' name='L261'></a>   261     <em class='brace'>{</em>
-<a id='L262' name='L262'></a>   262       gap_start--;
-<a id='L263' name='L263'></a>   263 
-<a id='L264' name='L264'></a>   264       <em class='comment'>/* Copy one region from before to after the gap, and</em>
-<a id='L265' name='L265'></a>   265 <em class='comment'>         convert its position to end-relative.  */</em>
-<a id='L266' name='L266'></a>   266       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[gap_start + gap_len].pos
-<a id='L267' name='L267'></a>   267         = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[gap_start].pos + buffer_beg - buffer_end;
-<a id='L268' name='L268'></a>   268       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[gap_start + gap_len].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>
-<a id='L269' name='L269'></a>   269         = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[gap_start].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
-<a id='L270' name='L270'></a>   270     <em class='brace'>}</em>
-<a id='L271' name='L271'></a>   271 
-<a id='L272' name='L272'></a>   272   <em class='comment'>/* Assign these back into the cache.  */</em>
-<a id='L273' name='L273'></a>   273   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_start = gap_start;
-<a id='L274' name='L274'></a>   274   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_len  = gap_len;
-<a id='L275' name='L275'></a>   275 <em class='brace'>}</em>
-<a id='L276' name='L276'></a>   276 
-<a id='L277' name='L277'></a>   277 
-<a id='L278' name='L278'></a>   278 <em class='comment'>/* Insert a new boundary in cache C; it will have cache index I,</em>
-<a id='L279' name='L279'></a>   279 <em class='comment'>   and have the specified POS and VALUE.  */</em>
-<a id='L280' name='L280'></a>   280 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L281' name='L281'></a>   281 <a href='../R/12269.html' title='Multiple referred from 2 places.'>insert_cache_boundary</a> (<strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, ptrdiff_t i, ptrdiff_t pos,
-<a id='L282' name='L282'></a>   282                        <strong class='reserved'>int</strong> <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
-<a id='L283' name='L283'></a>   283 <em class='brace'>{</em>
-<a id='L284' name='L284'></a>   284   <em class='comment'>/* I must be a valid cache index, and we must never want</em>
-<a id='L285' name='L285'></a>   285 <em class='comment'>     to insert something before the dummy first boundary.  */</em>
-<a id='L286' name='L286'></a>   286   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (0 &lt; i &amp;&amp; i &lt;= <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len);
-<a id='L287' name='L287'></a>   287 
-<a id='L288' name='L288'></a>   288   <em class='comment'>/* We must only be inserting things in order.  */</em>
-<a id='L289' name='L289'></a>   289   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> ((<a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i - 1) &lt; pos
-<a id='L290' name='L290'></a>   290             &amp;&amp; (i == <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len
-<a id='L291' name='L291'></a>   291                 || pos &lt; <a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i))));
-<a id='L292' name='L292'></a>   292 
-<a id='L293' name='L293'></a>   293   <em class='comment'>/* The value must be different from the ones around it.  However, we</em>
-<a id='L294' name='L294'></a>   294 <em class='comment'>     temporarily create boundaries that establish the same value as</em>
-<a id='L295' name='L295'></a>   295 <em class='comment'>     the subsequent boundary, so we're not going to flag that case.  */</em>
-<a id='L296' name='L296'></a>   296   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i - 1) != <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
-<a id='L297' name='L297'></a>   297 
-<a id='L298' name='L298'></a>   298   <a href='../S/2256.html#L207' title='Defined at 207 in src/region-cache.c.'>move_cache_gap</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i, 1);
-<a id='L299' name='L299'></a>   299 
-<a id='L300' name='L300'></a>   300   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[i].pos = pos - <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg;
-<a id='L301' name='L301'></a>   301   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;boundaries[i].<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>;
-<a id='L302' name='L302'></a>   302   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_start++;
-<a id='L303' name='L303'></a>   303   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_len--;
-<a id='L304' name='L304'></a>   304   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len++;
-<a id='L305' name='L305'></a>   305 <em class='brace'>}</em>
-<a id='L306' name='L306'></a>   306 
-<a id='L307' name='L307'></a>   307 
-<a id='L308' name='L308'></a>   308 <em class='comment'>/* Delete the i'th entry from cache C if START &lt;= i &lt; END.  */</em>
-<a id='L309' name='L309'></a>   309 
-<a id='L310' name='L310'></a>   310 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L311' name='L311'></a>   311 <a href='../R/9436.html' title='Multiple referred from 5 places.'>delete_cache_boundaries</a> (<strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>,
-<a id='L312' name='L312'></a>   312                          ptrdiff_t <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, ptrdiff_t end)
-<a id='L313' name='L313'></a>   313 <em class='brace'>{</em>
-<a id='L314' name='L314'></a>   314   ptrdiff_t len = end - <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>;
-<a id='L315' name='L315'></a>   315 
-<a id='L316' name='L316'></a>   316   <em class='comment'>/* Gotta be in range.  */</em>
-<a id='L317' name='L317'></a>   317   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (0 &lt;= <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> &amp;&amp; end &lt;= <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len);
-<a id='L318' name='L318'></a>   318 
-<a id='L319' name='L319'></a>   319   <em class='comment'>/* Gotta be in order.  */</em>
-<a id='L320' name='L320'></a>   320   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> &lt;= end);
-<a id='L321' name='L321'></a>   321 
-<a id='L322' name='L322'></a>   322   <em class='comment'>/* Can't delete the dummy entry.  */</em>
-<a id='L323' name='L323'></a>   323   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (!(<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> == 0 &amp;&amp; end &gt;= 1));
-<a id='L324' name='L324'></a>   324 
-<a id='L325' name='L325'></a>   325   <em class='comment'>/* Minimize gap motion.  If we're deleting nothing, do nothing.  */</em>
-<a id='L326' name='L326'></a>   326   <strong class='reserved'>if</strong> (len == 0)
-<a id='L327' name='L327'></a>   327     ;
-<a id='L328' name='L328'></a>   328   <em class='comment'>/* If the gap is before the region to delete, delete from the start</em>
-<a id='L329' name='L329'></a>   329 <em class='comment'>     forward.  */</em>
-<a id='L330' name='L330'></a>   330   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_start &lt;= <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>)
-<a id='L331' name='L331'></a>   331     <em class='brace'>{</em>
-<a id='L332' name='L332'></a>   332       <a href='../S/2256.html#L207' title='Defined at 207 in src/region-cache.c.'>move_cache_gap</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, 0);
-<a id='L333' name='L333'></a>   333       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_len += len;
-<a id='L334' name='L334'></a>   334     <em class='brace'>}</em>
-<a id='L335' name='L335'></a>   335   <em class='comment'>/* If the gap is after the region to delete, delete from the end</em>
-<a id='L336' name='L336'></a>   336 <em class='comment'>     backward.  */</em>
-<a id='L337' name='L337'></a>   337   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (end &lt;= <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_start)
-<a id='L338' name='L338'></a>   338     <em class='brace'>{</em>
-<a id='L339' name='L339'></a>   339       <a href='../S/2256.html#L207' title='Defined at 207 in src/region-cache.c.'>move_cache_gap</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, end, 0);
-<a id='L340' name='L340'></a>   340       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_start -= len;
-<a id='L341' name='L341'></a>   341       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_len   += len;
-<a id='L342' name='L342'></a>   342     <em class='brace'>}</em>
-<a id='L343' name='L343'></a>   343   <em class='comment'>/* If the gap is in the region to delete, just expand it.  */</em>
-<a id='L344' name='L344'></a>   344   <strong class='reserved'>else</strong>
-<a id='L345' name='L345'></a>   345     <em class='brace'>{</em>
-<a id='L346' name='L346'></a>   346       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_start = <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>;
-<a id='L347' name='L347'></a>   347       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;gap_len   += len;
-<a id='L348' name='L348'></a>   348     <em class='brace'>}</em>
-<a id='L349' name='L349'></a>   349 
-<a id='L350' name='L350'></a>   350   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len -= len;
-<a id='L351' name='L351'></a>   351 <em class='brace'>}</em>
-<a id='L352' name='L352'></a>   352 
-<a id='L353' name='L353'></a>   353 
-<a id='L354' name='L354'></a>   354 
-<a id='L355' name='L355'></a>   355 <em class='comment'>/* Set the value for a region.  */</em>
-<a id='L356' name='L356'></a>   356 
-<a id='L357' name='L357'></a>   357 <em class='comment'>/* Set the value in cache C for the region START..END to VALUE.  */</em>
-<a id='L358' name='L358'></a>   358 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L359' name='L359'></a>   359 <a href='../R/15528.html' title='Multiple referred from 3 places.'>set_cache_region</a> (<strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>,
-<a id='L360' name='L360'></a>   360                   ptrdiff_t <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, ptrdiff_t end, <strong class='reserved'>int</strong> <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
-<a id='L361' name='L361'></a>   361 <em class='brace'>{</em>
-<a id='L362' name='L362'></a>   362   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> &lt;= end);
-<a id='L363' name='L363'></a>   363   <a href='../D/10875.html' title='Multiple defined in 5 places.'>eassert</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg &lt;= <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> &amp;&amp; end &lt;= <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end);
-<a id='L364' name='L364'></a>   364 
-<a id='L365' name='L365'></a>   365   <em class='comment'>/* Eliminate this case; then we can assume that start and end-1 are</em>
-<a id='L366' name='L366'></a>   366 <em class='comment'>     both the locations of real characters in the buffer.  */</em>
-<a id='L367' name='L367'></a>   367   <strong class='reserved'>if</strong> (<a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a> == end)
-<a id='L368' name='L368'></a>   368     <strong class='reserved'>return</strong>;
-<a id='L369' name='L369'></a>   369 
-<a id='L370' name='L370'></a>   370   <em class='brace'>{</em>
-<a id='L371' name='L371'></a>   371     <em class='comment'>/* We need to make sure that there are no boundaries in the area</em>
-<a id='L372' name='L372'></a>   372 <em class='comment'>       between start to end; the whole area will have the same value,</em>
-<a id='L373' name='L373'></a>   373 <em class='comment'>       so those boundaries will not be necessary.</em>
-<a id='L374' name='L374'></a>   374 <em class='comment'></em>
-<a id='L375' name='L375'></a>   375 <em class='comment'>       Let start_ix be the cache index of the boundary governing the</em>
-<a id='L376' name='L376'></a>   376 <em class='comment'>       first character of start..end, and let end_ix be the cache</em>
-<a id='L377' name='L377'></a>   377 <em class='comment'>       index of the earliest boundary after the last character in</em>
-<a id='L378' name='L378'></a>   378 <em class='comment'>       start..end.  (This tortured terminology is intended to answer</em>
-<a id='L379' name='L379'></a>   379 <em class='comment'>       all the "&lt; or &lt;=?" sort of questions.)  */</em>
-<a id='L380' name='L380'></a>   380     ptrdiff_t start_ix = <a href='../S/2256.html#L174' title='Defined at 174 in src/region-cache.c.'>find_cache_boundary</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>);
-<a id='L381' name='L381'></a>   381     ptrdiff_t end_ix   = <a href='../S/2256.html#L174' title='Defined at 174 in src/region-cache.c.'>find_cache_boundary</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, end - 1) + 1;
-<a id='L382' name='L382'></a>   382 
-<a id='L383' name='L383'></a>   383     <em class='comment'>/* We must remember the value established by the last boundary</em>
-<a id='L384' name='L384'></a>   384 <em class='comment'>       before end; if that boundary's domain stretches beyond end,</em>
-<a id='L385' name='L385'></a>   385 <em class='comment'>       we'll need to create a new boundary at end, and that boundary</em>
-<a id='L386' name='L386'></a>   386 <em class='comment'>       must have that remembered value.  */</em>
-<a id='L387' name='L387'></a>   387     <strong class='reserved'>int</strong> value_at_end = <a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, end_ix - 1);
-<a id='L388' name='L388'></a>   388 
-<a id='L389' name='L389'></a>   389     <em class='comment'>/* Delete all boundaries strictly within start..end; this means</em>
-<a id='L390' name='L390'></a>   390 <em class='comment'>       those whose indices are between start_ix (exclusive) and end_ix</em>
-<a id='L391' name='L391'></a>   391 <em class='comment'>       (exclusive).  */</em>
-<a id='L392' name='L392'></a>   392     <a href='../S/2256.html#L311' title='Defined at 311 in src/region-cache.c.'>delete_cache_boundaries</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, start_ix + 1, end_ix);
-<a id='L393' name='L393'></a>   393 
-<a id='L394' name='L394'></a>   394     <em class='comment'>/* Make sure we have the right value established going in to</em>
-<a id='L395' name='L395'></a>   395 <em class='comment'>       start..end from the left, and no unnecessary boundaries.  */</em>
-<a id='L396' name='L396'></a>   396     <strong class='reserved'>if</strong> (<a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, start_ix) == <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>)
-<a id='L397' name='L397'></a>   397       <em class='brace'>{</em>
-<a id='L398' name='L398'></a>   398         <em class='comment'>/* Is this boundary necessary?  If no, remove it; if yes, set</em>
-<a id='L399' name='L399'></a>   399 <em class='comment'>           its value.  */</em>
-<a id='L400' name='L400'></a>   400         <strong class='reserved'>if</strong> (start_ix &gt; 0
-<a id='L401' name='L401'></a>   401             &amp;&amp; <a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, start_ix - 1) == <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
-<a id='L402' name='L402'></a>   402           <em class='brace'>{</em>
-<a id='L403' name='L403'></a>   403             <a href='../S/2256.html#L311' title='Defined at 311 in src/region-cache.c.'>delete_cache_boundaries</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, start_ix, start_ix + 1);
-<a id='L404' name='L404'></a>   404             start_ix--;
-<a id='L405' name='L405'></a>   405           <em class='brace'>}</em>
-<a id='L406' name='L406'></a>   406         <strong class='reserved'>else</strong>
-<a id='L407' name='L407'></a>   407           <a href='../S/2256.html#L110' title='Defined at 110 in src/region-cache.c.'>SET_BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, start_ix, <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
-<a id='L408' name='L408'></a>   408       <em class='brace'>}</em>
-<a id='L409' name='L409'></a>   409     <strong class='reserved'>else</strong>
-<a id='L410' name='L410'></a>   410       <em class='brace'>{</em>
-<a id='L411' name='L411'></a>   411         <em class='comment'>/* Do we need to add a new boundary here?  */</em>
-<a id='L412' name='L412'></a>   412         <strong class='reserved'>if</strong> (<a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, start_ix) != <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
-<a id='L413' name='L413'></a>   413           <em class='brace'>{</em>
-<a id='L414' name='L414'></a>   414             <a href='../S/2256.html#L281' title='Defined at 281 in src/region-cache.c.'>insert_cache_boundary</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, start_ix + 1, <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
-<a id='L415' name='L415'></a>   415             start_ix++;
-<a id='L416' name='L416'></a>   416           <em class='brace'>}</em>
-<a id='L417' name='L417'></a>   417       <em class='brace'>}</em>
-<a id='L418' name='L418'></a>   418 
-<a id='L419' name='L419'></a>   419     <em class='comment'>/* This is equivalent to letting end_ix float (like a buffer</em>
-<a id='L420' name='L420'></a>   420 <em class='comment'>       marker does) with the insertions and deletions we may have</em>
-<a id='L421' name='L421'></a>   421 <em class='comment'>       done.  */</em>
-<a id='L422' name='L422'></a>   422     end_ix = start_ix + 1;
-<a id='L423' name='L423'></a>   423 
-<a id='L424' name='L424'></a>   424     <em class='comment'>/* Make sure we have the correct value established as we leave</em>
-<a id='L425' name='L425'></a>   425 <em class='comment'>       start..end to the right.  */</em>
-<a id='L426' name='L426'></a>   426     <strong class='reserved'>if</strong> (end == <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end)
-<a id='L427' name='L427'></a>   427       <em class='comment'>/* There is no text after start..end; nothing to do.  */</em>
-<a id='L428' name='L428'></a>   428       ;
-<a id='L429' name='L429'></a>   429     <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (end_ix &gt;= <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len
-<a id='L430' name='L430'></a>   430              || end &lt; <a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, end_ix))
-<a id='L431' name='L431'></a>   431       <em class='brace'>{</em>
-<a id='L432' name='L432'></a>   432         <em class='comment'>/* There is no boundary at end, but we may need one.  */</em>
-<a id='L433' name='L433'></a>   433         <strong class='reserved'>if</strong> (value_at_end != <a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>)
-<a id='L434' name='L434'></a>   434           <a href='../S/2256.html#L281' title='Defined at 281 in src/region-cache.c.'>insert_cache_boundary</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, end_ix, end, value_at_end);
-<a id='L435' name='L435'></a>   435       <em class='brace'>}</em>
-<a id='L436' name='L436'></a>   436     <strong class='reserved'>else</strong>
-<a id='L437' name='L437'></a>   437       <em class='brace'>{</em>
-<a id='L438' name='L438'></a>   438         <em class='comment'>/* There is a boundary at end; should it be there?  */</em>
-<a id='L439' name='L439'></a>   439         <strong class='reserved'>if</strong> (<a href='../S/2334.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> == <a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, end_ix))
-<a id='L440' name='L440'></a>   440           <a href='../S/2256.html#L311' title='Defined at 311 in src/region-cache.c.'>delete_cache_boundaries</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, end_ix, end_ix + 1);
-<a id='L441' name='L441'></a>   441       <em class='brace'>}</em>
-<a id='L442' name='L442'></a>   442   <em class='brace'>}</em>
-<a id='L443' name='L443'></a>   443 <em class='brace'>}</em>
-<a id='L444' name='L444'></a>   444 
-<a id='L445' name='L445'></a>   445 
-<a id='L446' name='L446'></a>   446 
-<a id='L447' name='L447'></a>   447 <em class='comment'>/* Interface: Invalidating the cache.  Private: Re-validating the cache.  */</em>
-<a id='L448' name='L448'></a>   448 
-<a id='L449' name='L449'></a>   449 <em class='comment'>/* Indicate that a section of BUF has changed, to invalidate CACHE.</em>
-<a id='L450' name='L450'></a>   450 <em class='comment'>   HEAD is the number of chars unchanged at the beginning of the buffer.</em>
-<a id='L451' name='L451'></a>   451 <em class='comment'>   TAIL is the number of chars unchanged at the end of the buffer.</em>
-<a id='L452' name='L452'></a>   452 <em class='comment'>      NOTE: this is *not* the same as the ending position of modified</em>
-<a id='L453' name='L453'></a>   453 <em class='comment'>      region.</em>
-<a id='L454' name='L454'></a>   454 <em class='comment'>   (This way of specifying regions makes more sense than absolute</em>
-<a id='L455' name='L455'></a>   455 <em class='comment'>   buffer positions in the presence of insertions and deletions; the</em>
-<a id='L456' name='L456'></a>   456 <em class='comment'>   args to pass are the same before and after such an operation.)  */</em>
-<a id='L457' name='L457'></a>   457 <strong class='reserved'>void</strong>
-<a id='L458' name='L458'></a>   458 <a href='../R/12354.html' title='Multiple referred from 7 places.'>invalidate_region_cache</a> (<strong class='reserved'>struct</strong> <a href='../S/2132.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf, <strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>,
-<a id='L459' name='L459'></a>   459                          ptrdiff_t head, ptrdiff_t <a href='../S/4032.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>)
-<a id='L460' name='L460'></a>   460 <em class='brace'>{</em>
-<a id='L461' name='L461'></a>   461   <em class='comment'>/* Let chead = c-&gt;beg_unchanged, and</em>
-<a id='L462' name='L462'></a>   462 <em class='comment'>         ctail = c-&gt;end_unchanged.</em>
-<a id='L463' name='L463'></a>   463 <em class='comment'>     If z-tail &lt; beg+chead by a large amount, or</em>
-<a id='L464' name='L464'></a>   464 <em class='comment'>        z-ctail &lt; beg+head by a large amount,</em>
-<a id='L465' name='L465'></a>   465 <em class='comment'></em>
-<a id='L466' name='L466'></a>   466 <em class='comment'>     then cutting back chead and ctail to head and tail would lose a</em>
-<a id='L467' name='L467'></a>   467 <em class='comment'>     lot of information that we could preserve by revalidating the</em>
-<a id='L468' name='L468'></a>   468 <em class='comment'>     cache before processing this invalidation.  Losing that</em>
-<a id='L469' name='L469'></a>   469 <em class='comment'>     information may be more costly than revalidating the cache now.</em>
-<a id='L470' name='L470'></a>   470 <em class='comment'>     So go ahead and call revalidate_region_cache if it seems that it</em>
-<a id='L471' name='L471'></a>   471 <em class='comment'>     might be worthwhile.  */</em>
-<a id='L472' name='L472'></a>   472   <strong class='reserved'>if</strong> (((<a href='../S/2132.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (buf) + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged) - (<a href='../S/2132.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (buf) - <a href='../S/4032.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>)
-<a id='L473' name='L473'></a>   473        &gt; <a href='../S/2256.html#L123' title='Defined at 123 in src/region-cache.c.'>PRESERVE_THRESHOLD</a>)
-<a id='L474' name='L474'></a>   474       || ((<a href='../S/2132.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (buf) + head) - (<a href='../S/2132.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (buf) - <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged)
-<a id='L475' name='L475'></a>   475           &gt; <a href='../S/2256.html#L123' title='Defined at 123 in src/region-cache.c.'>PRESERVE_THRESHOLD</a>))
-<a id='L476' name='L476'></a>   476     <a href='../S/2256.html#L537' title='Defined at 537 in src/region-cache.c.'>revalidate_region_cache</a> (buf, <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>);
-<a id='L477' name='L477'></a>   477 
-<a id='L478' name='L478'></a>   478 
-<a id='L479' name='L479'></a>   479   <strong class='reserved'>if</strong> (head &lt; <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged)
-<a id='L480' name='L480'></a>   480     <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged = head;
-<a id='L481' name='L481'></a>   481   <strong class='reserved'>if</strong> (<a href='../S/4032.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> &lt; <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged)
-<a id='L482' name='L482'></a>   482     <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged = <a href='../S/4032.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>;
-<a id='L483' name='L483'></a>   483 
-<a id='L484' name='L484'></a>   484   <em class='comment'>/* We now know nothing about the region between the unchanged head</em>
-<a id='L485' name='L485'></a>   485 <em class='comment'>     and the unchanged tail (call it the "modified region"), not even</em>
-<a id='L486' name='L486'></a>   486 <em class='comment'>     its length.</em>
-<a id='L487' name='L487'></a>   487 <em class='comment'></em>
-<a id='L488' name='L488'></a>   488 <em class='comment'>     If the modified region has shrunk in size (deletions do this),</em>
-<a id='L489' name='L489'></a>   489 <em class='comment'>     then the cache may now contain boundaries originally located in</em>
-<a id='L490' name='L490'></a>   490 <em class='comment'>     text that doesn't exist any more.</em>
-<a id='L491' name='L491'></a>   491 <em class='comment'></em>
-<a id='L492' name='L492'></a>   492 <em class='comment'>     If the modified region has increased in size (insertions do</em>
-<a id='L493' name='L493'></a>   493 <em class='comment'>     this), then there may now be boundaries in the modified region</em>
-<a id='L494' name='L494'></a>   494 <em class='comment'>     whose positions are wrong.</em>
-<a id='L495' name='L495'></a>   495 <em class='comment'></em>
-<a id='L496' name='L496'></a>   496 <em class='comment'>     Even calling BOUNDARY_POS on boundaries still in the unchanged</em>
-<a id='L497' name='L497'></a>   497 <em class='comment'>     head or tail may well give incorrect answers now, since</em>
-<a id='L498' name='L498'></a>   498 <em class='comment'>     c-&gt;buffer_beg and c-&gt;buffer_end may well be wrong now.  (Well,</em>
-<a id='L499' name='L499'></a>   499 <em class='comment'>     okay, c-&gt;buffer_beg never changes, so boundaries in the unchanged</em>
-<a id='L500' name='L500'></a>   500 <em class='comment'>     head will still be okay.  But it's the principle of the thing.)</em>
-<a id='L501' name='L501'></a>   501 <em class='comment'></em>
-<a id='L502' name='L502'></a>   502 <em class='comment'>     So things are generally a mess.</em>
-<a id='L503' name='L503'></a>   503 <em class='comment'></em>
-<a id='L504' name='L504'></a>   504 <em class='comment'>     But we don't clean up this mess here; that would be expensive,</em>
-<a id='L505' name='L505'></a>   505 <em class='comment'>     and this function gets called every time any buffer modification</em>
-<a id='L506' name='L506'></a>   506 <em class='comment'>     occurs.  Rather, we can clean up everything in one swell foop,</em>
-<a id='L507' name='L507'></a>   507 <em class='comment'>     accounting for all the modifications at once, by calling</em>
-<a id='L508' name='L508'></a>   508 <em class='comment'>     revalidate_region_cache before we try to consult the cache the</em>
-<a id='L509' name='L509'></a>   509 <em class='comment'>     next time.  */</em>
-<a id='L510' name='L510'></a>   510 <em class='brace'>}</em>
-<a id='L511' name='L511'></a>   511 
-<a id='L512' name='L512'></a>   512 
-<a id='L513' name='L513'></a>   513 <em class='comment'>/* Clean out any cache entries applying to the modified region, and</em>
-<a id='L514' name='L514'></a>   514 <em class='comment'>   make the positions of the remaining entries accurate again.</em>
-<a id='L515' name='L515'></a>   515 <em class='comment'></em>
-<a id='L516' name='L516'></a>   516 <em class='comment'>   After calling this function, the mess described in the comment in</em>
-<a id='L517' name='L517'></a>   517 <em class='comment'>   invalidate_region_cache is cleaned up.</em>
-<a id='L518' name='L518'></a>   518 <em class='comment'></em>
-<a id='L519' name='L519'></a>   519 <em class='comment'>   This function operates by simply throwing away everything it knows</em>
-<a id='L520' name='L520'></a>   520 <em class='comment'>   about the modified region.  It doesn't care exactly which</em>
-<a id='L521' name='L521'></a>   521 <em class='comment'>   insertions and deletions took place; it just tosses it all.</em>
-<a id='L522' name='L522'></a>   522 <em class='comment'></em>
-<a id='L523' name='L523'></a>   523 <em class='comment'>   For example, if you insert a single character at the beginning of</em>
-<a id='L524' name='L524'></a>   524 <em class='comment'>   the buffer, and a single character at the end of the buffer (for</em>
-<a id='L525' name='L525'></a>   525 <em class='comment'>   example), without calling this function in between the two</em>
-<a id='L526' name='L526'></a>   526 <em class='comment'>   insertions, then the entire cache will be freed of useful</em>
-<a id='L527' name='L527'></a>   527 <em class='comment'>   information.  On the other hand, if you do manage to call this</em>
-<a id='L528' name='L528'></a>   528 <em class='comment'>   function in between the two insertions, then the modified regions</em>
-<a id='L529' name='L529'></a>   529 <em class='comment'>   will be small in both cases, no information will be tossed, and the</em>
-<a id='L530' name='L530'></a>   530 <em class='comment'>   cache will know that it doesn't have knowledge of the first and</em>
-<a id='L531' name='L531'></a>   531 <em class='comment'>   last characters any more.</em>
-<a id='L532' name='L532'></a>   532 <em class='comment'></em>
-<a id='L533' name='L533'></a>   533 <em class='comment'>   Calling this function may be expensive; it does binary searches in</em>
-<a id='L534' name='L534'></a>   534 <em class='comment'>   the cache, and causes cache gap motion.  */</em>
-<a id='L535' name='L535'></a>   535 
-<a id='L536' name='L536'></a>   536 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
-<a id='L537' name='L537'></a>   537 <a href='../R/15188.html' title='Multiple referred from 5 places.'>revalidate_region_cache</a> (<strong class='reserved'>struct</strong> <a href='../S/2132.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf, <strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)
-<a id='L538' name='L538'></a>   538 <em class='brace'>{</em>
-<a id='L539' name='L539'></a>   539   <em class='comment'>/* The boundaries now in the cache are expressed relative to the</em>
-<a id='L540' name='L540'></a>   540 <em class='comment'>     buffer_beg and buffer_end values stored in the cache.  Now,</em>
-<a id='L541' name='L541'></a>   541 <em class='comment'>     buffer_beg and buffer_end may not be the same as BUF_BEG (buf)</em>
-<a id='L542' name='L542'></a>   542 <em class='comment'>     and BUF_Z (buf), so we have two different "bases" to deal with</em>
-<a id='L543' name='L543'></a>   543 <em class='comment'>     --- the cache's, and the buffer's.  */</em>
-<a id='L544' name='L544'></a>   544 
-<a id='L545' name='L545'></a>   545   <em class='comment'>/* If the entire buffer is still valid, don't waste time.  Yes, this</em>
-<a id='L546' name='L546'></a>   546 <em class='comment'>     should be a &gt;, not a &gt;=; think about what beg_unchanged and</em>
-<a id='L547' name='L547'></a>   547 <em class='comment'>     end_unchanged get set to when the only change has been an</em>
-<a id='L548' name='L548'></a>   548 <em class='comment'>     insertion.  */</em>
-<a id='L549' name='L549'></a>   549   <strong class='reserved'>if</strong> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged
-<a id='L550' name='L550'></a>   550       &gt; <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end - <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged)
-<a id='L551' name='L551'></a>   551     <strong class='reserved'>return</strong>;
-<a id='L552' name='L552'></a>   552 
-<a id='L553' name='L553'></a>   553   <em class='comment'>/* If all the text we knew about as of the last cache revalidation</em>
-<a id='L554' name='L554'></a>   554 <em class='comment'>     is still there, then all of the information in the cache is still</em>
-<a id='L555' name='L555'></a>   555 <em class='comment'>     valid.  Because c-&gt;buffer_beg and c-&gt;buffer_end are out-of-date,</em>
-<a id='L556' name='L556'></a>   556 <em class='comment'>     the modified region appears from the cache's point of view to be</em>
-<a id='L557' name='L557'></a>   557 <em class='comment'>     a null region located someplace in the buffer.</em>
-<a id='L558' name='L558'></a>   558 <em class='comment'></em>
-<a id='L559' name='L559'></a>   559 <em class='comment'>     Now, invalidating that empty string will have no actual affect on</em>
-<a id='L560' name='L560'></a>   560 <em class='comment'>     the cache; instead, we need to update the cache's basis first</em>
-<a id='L561' name='L561'></a>   561 <em class='comment'>     (which will give the modified region the same size in the cache</em>
-<a id='L562' name='L562'></a>   562 <em class='comment'>     as it has in the buffer), and then invalidate the modified</em>
-<a id='L563' name='L563'></a>   563 <em class='comment'>     region. */</em>
-<a id='L564' name='L564'></a>   564   <strong class='reserved'>if</strong> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged
-<a id='L565' name='L565'></a>   565       == <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end - <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged)
-<a id='L566' name='L566'></a>   566     <em class='brace'>{</em>
-<a id='L567' name='L567'></a>   567       <em class='comment'>/* Move the gap so that all the boundaries in the unchanged head</em>
-<a id='L568' name='L568'></a>   568 <em class='comment'>         are expressed beg-relative, and all the boundaries in the</em>
-<a id='L569' name='L569'></a>   569 <em class='comment'>         unchanged tail are expressed end-relative.  That done, we can</em>
-<a id='L570' name='L570'></a>   570 <em class='comment'>         plug in the new buffer beg and end, and all the positions</em>
-<a id='L571' name='L571'></a>   571 <em class='comment'>         will be accurate.</em>
-<a id='L572' name='L572'></a>   572 <em class='comment'></em>
-<a id='L573' name='L573'></a>   573 <em class='comment'>         The boundary which has jurisdiction over the modified region</em>
-<a id='L574' name='L574'></a>   574 <em class='comment'>         should be left before the gap.  */</em>
-<a id='L575' name='L575'></a>   575       <a href='../S/2256.html#L207' title='Defined at 207 in src/region-cache.c.'>move_cache_gap</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>,
-<a id='L576' name='L576'></a>   576                       (<a href='../S/2256.html#L174' title='Defined at 174 in src/region-cache.c.'>find_cache_boundary</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg
-<a id='L577' name='L577'></a>   577                                                 + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged))
-<a id='L578' name='L578'></a>   578                        + 1),
-<a id='L579' name='L579'></a>   579                       0);
-<a id='L580' name='L580'></a>   580 
-<a id='L581' name='L581'></a>   581       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg = <a href='../S/2132.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (buf);
-<a id='L582' name='L582'></a>   582       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end = <a href='../S/2132.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a>   (buf);
-<a id='L583' name='L583'></a>   583 
-<a id='L584' name='L584'></a>   584       <em class='comment'>/* Now that the cache's basis has been changed, the modified</em>
-<a id='L585' name='L585'></a>   585 <em class='comment'>         region actually takes up some space in the cache, so we can</em>
-<a id='L586' name='L586'></a>   586 <em class='comment'>         invalidate it.  */</em>
-<a id='L587' name='L587'></a>   587       <a href='../S/2256.html#L359' title='Defined at 359 in src/region-cache.c.'>set_cache_region</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>,
-<a id='L588' name='L588'></a>   588                         <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged,
-<a id='L589' name='L589'></a>   589                         <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end - <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged,
-<a id='L590' name='L590'></a>   590                         0);
-<a id='L591' name='L591'></a>   591     <em class='brace'>}</em>
-<a id='L592' name='L592'></a>   592 
-<a id='L593' name='L593'></a>   593   <em class='comment'>/* Otherwise, there is a non-empty region in the cache which</em>
-<a id='L594' name='L594'></a>   594 <em class='comment'>     corresponds to the modified region of the buffer.  */</em>
-<a id='L595' name='L595'></a>   595   <strong class='reserved'>else</strong>
-<a id='L596' name='L596'></a>   596     <em class='brace'>{</em>
-<a id='L597' name='L597'></a>   597       ptrdiff_t modified_ix;
-<a id='L598' name='L598'></a>   598 
-<a id='L599' name='L599'></a>   599       <em class='comment'>/* These positions are correct, relative to both the cache basis</em>
-<a id='L600' name='L600'></a>   600 <em class='comment'>         and the buffer basis.  */</em>
-<a id='L601' name='L601'></a>   601       <a href='../S/2256.html#L359' title='Defined at 359 in src/region-cache.c.'>set_cache_region</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>,
-<a id='L602' name='L602'></a>   602                         <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged,
-<a id='L603' name='L603'></a>   603                         <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end - <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged,
-<a id='L604' name='L604'></a>   604                         0);
-<a id='L605' name='L605'></a>   605 
-<a id='L606' name='L606'></a>   606       <em class='comment'>/* Now the cache contains only boundaries that are in the</em>
-<a id='L607' name='L607'></a>   607 <em class='comment'>         unchanged head and tail; we've disposed of any boundaries</em>
-<a id='L608' name='L608'></a>   608 <em class='comment'>         whose positions we can't be sure of given the information</em>
-<a id='L609' name='L609'></a>   609 <em class='comment'>         we've saved.</em>
-<a id='L610' name='L610'></a>   610 <em class='comment'></em>
-<a id='L611' name='L611'></a>   611 <em class='comment'>         If we put the cache gap between the unchanged head and the</em>
-<a id='L612' name='L612'></a>   612 <em class='comment'>         unchanged tail, we can adjust all the boundary positions at</em>
-<a id='L613' name='L613'></a>   613 <em class='comment'>         once, simply by setting buffer_beg and buffer_end.</em>
-<a id='L614' name='L614'></a>   614 <em class='comment'></em>
-<a id='L615' name='L615'></a>   615 <em class='comment'>         The boundary which has jurisdiction over the modified region</em>
-<a id='L616' name='L616'></a>   616 <em class='comment'>         should be left before the gap.  */</em>
-<a id='L617' name='L617'></a>   617       modified_ix =
-<a id='L618' name='L618'></a>   618         <a href='../S/2256.html#L174' title='Defined at 174 in src/region-cache.c.'>find_cache_boundary</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged)) + 1;
-<a id='L619' name='L619'></a>   619       <a href='../S/2256.html#L207' title='Defined at 207 in src/region-cache.c.'>move_cache_gap</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, modified_ix, 0);
-<a id='L620' name='L620'></a>   620 
-<a id='L621' name='L621'></a>   621       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg = <a href='../S/2132.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (buf);
-<a id='L622' name='L622'></a>   622       <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end = <a href='../S/2132.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a>   (buf);
-<a id='L623' name='L623'></a>   623 
-<a id='L624' name='L624'></a>   624       <em class='comment'>/* Now, we may have shrunk the buffer when we changed the basis,</em>
-<a id='L625' name='L625'></a>   625 <em class='comment'>         and brought the boundaries we created for the start and end</em>
-<a id='L626' name='L626'></a>   626 <em class='comment'>         of the modified region together, giving them the same</em>
-<a id='L627' name='L627'></a>   627 <em class='comment'>         position.  If that's the case, we should collapse them into</em>
-<a id='L628' name='L628'></a>   628 <em class='comment'>         one boundary.  Or we may even delete them both, if the values</em>
-<a id='L629' name='L629'></a>   629 <em class='comment'>         before and after them are the same.  */</em>
-<a id='L630' name='L630'></a>   630       <strong class='reserved'>if</strong> (modified_ix &lt; <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len
-<a id='L631' name='L631'></a>   631           &amp;&amp; (<a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, modified_ix - 1)
-<a id='L632' name='L632'></a>   632               == <a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, modified_ix)))
-<a id='L633' name='L633'></a>   633         <em class='brace'>{</em>
-<a id='L634' name='L634'></a>   634           <strong class='reserved'>int</strong> value_after = <a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, modified_ix);
-<a id='L635' name='L635'></a>   635 
-<a id='L636' name='L636'></a>   636           <em class='comment'>/* Should we remove both of the boundaries?  Yes, if the</em>
-<a id='L637' name='L637'></a>   637 <em class='comment'>             latter boundary is now establishing the same value that</em>
-<a id='L638' name='L638'></a>   638 <em class='comment'>             the former boundary's predecessor does.  */</em>
-<a id='L639' name='L639'></a>   639           <strong class='reserved'>if</strong> (modified_ix - 1 &gt; 0
-<a id='L640' name='L640'></a>   640               &amp;&amp; value_after == <a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, modified_ix - 2))
-<a id='L641' name='L641'></a>   641             <a href='../S/2256.html#L311' title='Defined at 311 in src/region-cache.c.'>delete_cache_boundaries</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, modified_ix - 1, modified_ix + 1);
-<a id='L642' name='L642'></a>   642           <strong class='reserved'>else</strong>
-<a id='L643' name='L643'></a>   643             <em class='brace'>{</em>
-<a id='L644' name='L644'></a>   644               <em class='comment'>/* We do need a boundary here; collapse the two</em>
-<a id='L645' name='L645'></a>   645 <em class='comment'>                 boundaries into one.  */</em>
-<a id='L646' name='L646'></a>   646               <a href='../S/2256.html#L110' title='Defined at 110 in src/region-cache.c.'>SET_BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, modified_ix - 1, value_after);
-<a id='L647' name='L647'></a>   647               <a href='../S/2256.html#L311' title='Defined at 311 in src/region-cache.c.'>delete_cache_boundaries</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, modified_ix, modified_ix + 1);
-<a id='L648' name='L648'></a>   648             <em class='brace'>}</em>
-<a id='L649' name='L649'></a>   649         <em class='brace'>}</em>
-<a id='L650' name='L650'></a>   650     <em class='brace'>}</em>
-<a id='L651' name='L651'></a>   651 
-<a id='L652' name='L652'></a>   652   <em class='comment'>/* Now the entire cache is valid.  */</em>
-<a id='L653' name='L653'></a>   653   <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged
-<a id='L654' name='L654'></a>   654     = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged
-<a id='L655' name='L655'></a>   655       = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end - <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg;
-<a id='L656' name='L656'></a>   656 <em class='brace'>}</em>
-<a id='L657' name='L657'></a>   657 
-<a id='L658' name='L658'></a>   658 
-<a id='L659' name='L659'></a>   659 <em class='comment'>/* Interface: Adding information to the cache.  */</em>
-<a id='L660' name='L660'></a>   660 
-<a id='L661' name='L661'></a>   661 <em class='comment'>/* Assert that the region of BUF between START and END (absolute</em>
-<a id='L662' name='L662'></a>   662 <em class='comment'>   buffer positions) is "known," for the purposes of CACHE (e.g. "has</em>
-<a id='L663' name='L663'></a>   663 <em class='comment'>   no newlines", in the case of the line cache).  */</em>
-<a id='L664' name='L664'></a>   664 <strong class='reserved'>void</strong>
-<a id='L665' name='L665'></a>   665 <a href='../R/12570.html' title='Multiple referred from 6 places.'>know_region_cache</a> (<strong class='reserved'>struct</strong> <a href='../S/2132.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf, <strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>,
-<a id='L666' name='L666'></a>   666                    ptrdiff_t <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, ptrdiff_t end)
-<a id='L667' name='L667'></a>   667 <em class='brace'>{</em>
-<a id='L668' name='L668'></a>   668   <a href='../S/2256.html#L537' title='Defined at 537 in src/region-cache.c.'>revalidate_region_cache</a> (buf, <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>);
-<a id='L669' name='L669'></a>   669 
-<a id='L670' name='L670'></a>   670   <a href='../S/2256.html#L359' title='Defined at 359 in src/region-cache.c.'>set_cache_region</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, <a href='../D/17658.html' title='Multiple defined in 2 places.'>start</a>, end, 1);
-<a id='L671' name='L671'></a>   671 <em class='brace'>}</em>
-<a id='L672' name='L672'></a>   672 
-<a id='L673' name='L673'></a>   673 
-<a id='L674' name='L674'></a>   674 <em class='comment'>/* Interface: using the cache.  */</em>
-<a id='L675' name='L675'></a>   675 
-<a id='L676' name='L676'></a>   676 <em class='comment'>/* Return the value for the text immediately after POS in BUF if the value</em>
-<a id='L677' name='L677'></a>   677 <em class='comment'>   is known, for the purposes of CACHE, and return zero otherwise.</em>
-<a id='L678' name='L678'></a>   678 <em class='comment'>   If NEXT is non-zero, set *NEXT to the nearest</em>
-<a id='L679' name='L679'></a>   679 <em class='comment'>   position after POS where the knowledge changes.  */</em>
-<a id='L680' name='L680'></a>   680 <strong class='reserved'>int</strong>
-<a id='L681' name='L681'></a>   681 <a href='../R/15026.html' title='Multiple referred from 3 places.'>region_cache_forward</a> (<strong class='reserved'>struct</strong> <a href='../S/2132.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf, <strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>,
-<a id='L682' name='L682'></a>   682                       ptrdiff_t pos, ptrdiff_t *next)
-<a id='L683' name='L683'></a>   683 <em class='brace'>{</em>
-<a id='L684' name='L684'></a>   684   <a href='../S/2256.html#L537' title='Defined at 537 in src/region-cache.c.'>revalidate_region_cache</a> (buf, <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>);
-<a id='L685' name='L685'></a>   685 
-<a id='L686' name='L686'></a>   686   <em class='brace'>{</em>
-<a id='L687' name='L687'></a>   687     ptrdiff_t i = <a href='../S/2256.html#L174' title='Defined at 174 in src/region-cache.c.'>find_cache_boundary</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, pos);
-<a id='L688' name='L688'></a>   688     <strong class='reserved'>int</strong> i_value = <a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i);
-<a id='L689' name='L689'></a>   689     ptrdiff_t j;
-<a id='L690' name='L690'></a>   690 
-<a id='L691' name='L691'></a>   691     <em class='comment'>/* Beyond the end of the buffer is unknown, by definition.  */</em>
-<a id='L692' name='L692'></a>   692     <strong class='reserved'>if</strong> (pos &gt;= <a href='../S/2132.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (buf))
-<a id='L693' name='L693'></a>   693       <em class='brace'>{</em>
-<a id='L694' name='L694'></a>   694         <strong class='reserved'>if</strong> (next) *next = <a href='../S/2132.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (buf);
-<a id='L695' name='L695'></a>   695         i_value = 0;
-<a id='L696' name='L696'></a>   696       <em class='brace'>}</em>
-<a id='L697' name='L697'></a>   697     <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (next)
-<a id='L698' name='L698'></a>   698       <em class='brace'>{</em>
-<a id='L699' name='L699'></a>   699         <em class='comment'>/* Scan forward from i to find the next differing position.  */</em>
-<a id='L700' name='L700'></a>   700         <strong class='reserved'>for</strong> (j = i + 1; j &lt; <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len; j++)
-<a id='L701' name='L701'></a>   701           <strong class='reserved'>if</strong> (<a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, j) != i_value)
-<a id='L702' name='L702'></a>   702             <strong class='reserved'>break</strong>;
-<a id='L703' name='L703'></a>   703 
-<a id='L704' name='L704'></a>   704         <strong class='reserved'>if</strong> (j &lt; <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len)
-<a id='L705' name='L705'></a>   705           *next = <a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, j);
-<a id='L706' name='L706'></a>   706         <strong class='reserved'>else</strong>
-<a id='L707' name='L707'></a>   707           *next = <a href='../S/2132.html#L113' title='Defined at 113 in src/buffer.h.'>BUF_Z</a> (buf);
-<a id='L708' name='L708'></a>   708       <em class='brace'>}</em>
-<a id='L709' name='L709'></a>   709 
-<a id='L710' name='L710'></a>   710     <strong class='reserved'>return</strong> i_value;
-<a id='L711' name='L711'></a>   711   <em class='brace'>}</em>
-<a id='L712' name='L712'></a>   712 <em class='brace'>}</em>
-<a id='L713' name='L713'></a>   713 
-<a id='L714' name='L714'></a>   714 <em class='comment'>/* Return the value for the text immediately before POS in BUF if the</em>
-<a id='L715' name='L715'></a>   715 <em class='comment'>   value is known, for the purposes of CACHE, and return zero</em>
-<a id='L716' name='L716'></a>   716 <em class='comment'>   otherwise.  If NEXT is non-zero, set *NEXT to the nearest</em>
-<a id='L717' name='L717'></a>   717 <em class='comment'>   position before POS where the knowledge changes.  */</em>
-<a id='L718' name='L718'></a>   718 <strong class='reserved'>int</strong>
-<a id='L719' name='L719'></a>   719 <a href='../R/15025.html' title='Multiple referred from 3 places.'>region_cache_backward</a> (<strong class='reserved'>struct</strong> <a href='../S/2132.html#L305' title='Defined at 305 in src/buffer.h.'>buffer</a> *buf, <strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>,
-<a id='L720' name='L720'></a>   720                        ptrdiff_t pos, ptrdiff_t *next)
-<a id='L721' name='L721'></a>   721 <em class='brace'>{</em>
-<a id='L722' name='L722'></a>   722   <a href='../S/2256.html#L537' title='Defined at 537 in src/region-cache.c.'>revalidate_region_cache</a> (buf, <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>);
-<a id='L723' name='L723'></a>   723 
-<a id='L724' name='L724'></a>   724   <em class='comment'>/* Before the beginning of the buffer is unknown, by</em>
-<a id='L725' name='L725'></a>   725 <em class='comment'>     definition. */</em>
-<a id='L726' name='L726'></a>   726   <strong class='reserved'>if</strong> (pos &lt;= <a href='../S/2132.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (buf))
-<a id='L727' name='L727'></a>   727     <em class='brace'>{</em>
-<a id='L728' name='L728'></a>   728       <strong class='reserved'>if</strong> (next) *next = <a href='../S/2132.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (buf);
-<a id='L729' name='L729'></a>   729       <strong class='reserved'>return</strong> 0;
-<a id='L730' name='L730'></a>   730     <em class='brace'>}</em>
-<a id='L731' name='L731'></a>   731 
-<a id='L732' name='L732'></a>   732   <em class='brace'>{</em>
-<a id='L733' name='L733'></a>   733     ptrdiff_t i = <a href='../S/2256.html#L174' title='Defined at 174 in src/region-cache.c.'>find_cache_boundary</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, pos - 1);
-<a id='L734' name='L734'></a>   734     <strong class='reserved'>int</strong> i_value = <a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i);
-<a id='L735' name='L735'></a>   735     ptrdiff_t j;
-<a id='L736' name='L736'></a>   736 
-<a id='L737' name='L737'></a>   737     <strong class='reserved'>if</strong> (next)
-<a id='L738' name='L738'></a>   738       <em class='brace'>{</em>
-<a id='L739' name='L739'></a>   739         <em class='comment'>/* Scan backward from i to find the next differing position.  */</em>
-<a id='L740' name='L740'></a>   740         <strong class='reserved'>for</strong> (j = i - 1; j &gt;= 0; j--)
-<a id='L741' name='L741'></a>   741           <strong class='reserved'>if</strong> (<a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, j) != i_value)
-<a id='L742' name='L742'></a>   742             <strong class='reserved'>break</strong>;
-<a id='L743' name='L743'></a>   743 
-<a id='L744' name='L744'></a>   744         <strong class='reserved'>if</strong> (j &gt;= 0)
-<a id='L745' name='L745'></a>   745           *next = <a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, j + 1);
-<a id='L746' name='L746'></a>   746         <strong class='reserved'>else</strong>
-<a id='L747' name='L747'></a>   747           *next = <a href='../S/2132.html#L931' title='Defined at 931 in src/buffer.h.'>BUF_BEG</a> (buf);
-<a id='L748' name='L748'></a>   748       <em class='brace'>}</em>
-<a id='L749' name='L749'></a>   749 
-<a id='L750' name='L750'></a>   750     <strong class='reserved'>return</strong> i_value;
-<a id='L751' name='L751'></a>   751   <em class='brace'>}</em>
-<a id='L752' name='L752'></a>   752 <em class='brace'>}</em>
-<a id='L753' name='L753'></a>   753 
-<a id='L754' name='L754'></a>   754 <em class='sharp'>#ifdef</em> ENABLE_CHECKING
-<a id='L755' name='L755'></a>   755 
-<a id='L756' name='L756'></a>   756 <em class='comment'>/* Debugging: pretty-print a cache to the standard error output.  */</em>
-<a id='L757' name='L757'></a>   757 
-<a id='L758' name='L758'></a>   758 <strong class='reserved'>void</strong> <a href='../S/2256.html#L760' title='Referred from 760 in src/region-cache.c.'>pp_cache</a> (<strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *) <a href='../S/2376.html#L277' title='Defined at 277 in src/conf_post.h.'>EXTERNALLY_VISIBLE</a>;
-<a id='L759' name='L759'></a>   759 <strong class='reserved'>void</strong>
-<a id='L760' name='L760'></a>   760 <a href='../S/2256.html#L758' title='Defined at 758 in src/region-cache.c.'>pp_cache</a> (<strong class='reserved'>struct</strong> <a href='../S/2256.html#L69' title='Defined at 69 in src/region-cache.c.'>region_cache</a> *<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>)
-<a id='L761' name='L761'></a>   761 <em class='brace'>{</em>
-<a id='L762' name='L762'></a>   762   ptrdiff_t beg_u = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg + <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;beg_unchanged;
-<a id='L763' name='L763'></a>   763   ptrdiff_t end_u = <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end - <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;end_unchanged;
-<a id='L764' name='L764'></a>   764 
-<a id='L765' name='L765'></a>   765   <a href='../D/11679.html' title='Multiple defined in 4 places.'>fprintf</a> (<a href='../S/20.html#L50' title='Defined at 50 in nt/cmdproxy.c.'>stderr</a>,
-<a id='L766' name='L766'></a>   766            "basis: %"<a href='../D/15223.html' title='Multiple defined in 5 places.'>pD</a>"d..%"<a href='../D/15223.html' title='Multiple defined in 5 places.'>pD</a>"d    modified: %"<a href='../D/15223.html' title='Multiple defined in 5 places.'>pD</a>"d..%"<a href='../D/15223.html' title='Multiple defined in 5 places.'>pD</a>"d\n",
-<a id='L767' name='L767'></a>   767            <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_beg, <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;buffer_end,
-<a id='L768' name='L768'></a>   768            beg_u, end_u);
-<a id='L769' name='L769'></a>   769 
-<a id='L770' name='L770'></a>   770   <strong class='reserved'>for</strong> (ptrdiff_t i = 0; i &lt; <a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>-&gt;cache_len; i++)
-<a id='L771' name='L771'></a>   771     <em class='brace'>{</em>
-<a id='L772' name='L772'></a>   772       ptrdiff_t pos = <a href='../S/2256.html#L98' title='Defined at 98 in src/region-cache.c.'>BOUNDARY_POS</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i);
-<a id='L773' name='L773'></a>   773 
-<a id='L774' name='L774'></a>   774       <a href='../D/11679.html' title='Multiple defined in 4 places.'>fprintf</a> (<a href='../S/20.html#L50' title='Defined at 50 in nt/cmdproxy.c.'>stderr</a>, "%c%c%"<a href='../D/15223.html' title='Multiple defined in 5 places.'>pD</a>"d : %d\n",
-<a id='L775' name='L775'></a>   775                pos &lt; beg_u ? 'v' : pos == beg_u ? '-' : ' ',
-<a id='L776' name='L776'></a>   776                pos &gt; end_u ? '^' : pos == end_u ? '-' : ' ',
-<a id='L777' name='L777'></a>   777                pos, <a href='../S/2256.html#L104' title='Defined at 104 in src/region-cache.c.'>BOUNDARY_VALUE</a> (<a href='../D/9445.html' title='Multiple defined in 2 places.'>c</a>, i));
-<a id='L778' name='L778'></a>   778     <em class='brace'>}</em>
-<a id='L779' name='L779'></a>   779 <em class='brace'>}</em>
-<a id='L780' name='L780'></a>   780 
-<a id='L781' name='L781'></a>   781 <em class='sharp'>#endif</em> <em class='comment'>/* ENABLE_CHECKING */</em>
+<a id='L77' name='L77'></a>    77 <em class='comment'>/* Binary backward compatibility.  */</em>
+<a id='L78' name='L78'></a>    78 <em class='sharp'>#if</em> _LIBC
+<a id='L79' name='L79'></a>    79 <em class='sharp'># include</em> &lt;shlib-compat.h&gt;
+<a id='L80' name='L80'></a>    80 <em class='sharp'># if</em> <a href='../S/2317.html#L202' title='Defined at 202 in lib/libc-config.h.'>SHLIB_COMPAT</a> (libc, GLIBC_2_0, GLIBC_2_3)
+<a id='L81' name='L81'></a>    81 link_warning (re_max_failures, "the 're_max_failures' variable is obsolete and will go away.")
+<a id='L82' name='L82'></a>    82 <strong class='reserved'>int</strong> re_max_failures = 2000;
+<a id='L83' name='L83'></a>    83 <em class='sharp'># endif</em>
+<a id='L84' name='L84'></a>    84 <em class='sharp'>#endif</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;]<a href='#L131'>[^]</a><a href='#L758'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;][^][v]<a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>

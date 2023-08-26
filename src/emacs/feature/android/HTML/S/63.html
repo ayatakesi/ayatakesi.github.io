@@ -1,0 +1,884 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/androidmenu.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4744.html'>src</a>/androidmenu.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L44'>[^]</a><a href='#L841'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L44' title='Defined at 44.'>popup_activated</a></li>
+<li><a href='#L71' title='Defined at 71.'>android_init_emacs_context_menu</a></li>
+<li><a href='#L122' title='Defined at 122.'>android_unwind_local_frame</a></li>
+<li><a href='#L132' title='Defined at 132.'>android_push_local_frame</a></li>
+<li><a href='#L160' title='Defined at 160.'>android_dismiss_menu</a></li>
+<li><a href='#L177' title='Defined at 177.'>android_process_events_for_menu</a></li>
+<li><a href='#L227' title='Defined at 227.'>android_free_subprefixes</a></li>
+<li><a href='#L243' title='Defined at 243.'>android_menu_show</a></li>
+<li><a href='#L603' title='Defined at 603.'>android_init_emacs_dialog</a></li>
+<li><a href='#L644' title='Defined at 644.'>android_dialog_show</a></li>
+<li><a href='#L777' title='Defined at 777.'>android_popup_dialog</a></li>
+<li><a href='#L816' title='Defined at 816.'>popup_activated</a></li>
+<li><a href='#L823' title='Defined at 823.'>DEFUN</a></li>
+<li><a href='#L832' title='Defined at 832.'>init_androidmenu</a></li>
+<li><a href='#L841' title='Defined at 841.'>syms_of_androidmenu</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Communication module for Android terminals.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> "<a href='../I/494.html'>lisp.h</a>"
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> "<a href='278.html'>androidterm.h</a>"
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> "<a href='230.html'>android.h</a>"
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='143.html'>blockinput.h</a>"
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='275.html'>keyboard.h</a>"
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> "<a href='118.html'>menu.h</a>"
+<a id='L28' name='L28'></a>    28 
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#ifndef</em> ANDROID_STUBIFY
+<a id='L30' name='L30'></a>    30 
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;android/log.h&gt;
+<a id='L32' name='L32'></a>    32 
+<a id='L33' name='L33'></a>    33 <em class='comment'>/* Flag indicating whether or not a popup menu has been posted and not</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>   yet popped down.  */</em>
+<a id='L35' name='L35'></a>    35 
+<a id='L36' name='L36'></a>    36 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> popup_activated_flag;
+<a id='L37' name='L37'></a>    37 
+<a id='L38' name='L38'></a>    38 <em class='comment'>/* Serial number used to identify which context menu events are</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>   associated with the context menu currently being displayed.  */</em>
+<a id='L40' name='L40'></a>    40 
+<a id='L41' name='L41'></a>    41 <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> current_menu_serial;
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <strong class='reserved'>int</strong>
+<a id='L44' name='L44'></a>    44 <a href='../R/14369.html' title='Multiple referred from 34 places.'>popup_activated</a> (<strong class='reserved'>void</strong>)
+<a id='L45' name='L45'></a>    45 <em class='brace'>{</em>
+<a id='L46' name='L46'></a>    46   <strong class='reserved'>return</strong> popup_activated_flag;
+<a id='L47' name='L47'></a>    47 <em class='brace'>}</em>
+<a id='L48' name='L48'></a>    48 
+<a id='L49' name='L49'></a>    49 
+<a id='L50' name='L50'></a>    50 
+<a id='L51' name='L51'></a>    51 <em class='comment'>/* Toolkit menu implementation.  */</em>
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 <em class='comment'>/* Structure describing the EmacsContextMenu class.  */</em>
+<a id='L54' name='L54'></a>    54 
+<a id='L55' name='L55'></a>    55 <strong class='reserved'>struct</strong> <a href='../S/63.html#L68' title='Referred from 68 in src/androidmenu.c.'>android_emacs_context_menu</a>
+<a id='L56' name='L56'></a>    56 <em class='brace'>{</em>
+<a id='L57' name='L57'></a>    57   jclass class;
+<a id='L58' name='L58'></a>    58   jmethodID create_context_menu;
+<a id='L59' name='L59'></a>    59   jmethodID add_item;
+<a id='L60' name='L60'></a>    60   jmethodID add_submenu;
+<a id='L61' name='L61'></a>    61   jmethodID add_pane;
+<a id='L62' name='L62'></a>    62   jmethodID <a href='../D/15162.html' title='Multiple defined in 2 places.'>parent</a>;
+<a id='L63' name='L63'></a>    63   jmethodID <a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>;
+<a id='L64' name='L64'></a>    64   jmethodID <a href='../S/3980.html#L379' title='Defined at 379 in java/org/gnu/emacs/EmacsContextMenu.java.'>dismiss</a>;
+<a id='L65' name='L65'></a>    65 <em class='brace'>}</em>;
+<a id='L66' name='L66'></a>    66 
+<a id='L67' name='L67'></a>    67 <em class='comment'>/* Identifiers associated with the EmacsContextMenu class.  */</em>
+<a id='L68' name='L68'></a>    68 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/63.html#L55' title='Defined at 55 in src/androidmenu.c.'>android_emacs_context_menu</a> menu_class;
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L71' name='L71'></a>    71 <a href='../S/63.html#L835' title='Referred from 835 in src/androidmenu.c.'>android_init_emacs_context_menu</a> (<strong class='reserved'>void</strong>)
+<a id='L72' name='L72'></a>    72 <em class='brace'>{</em>
+<a id='L73' name='L73'></a>    73   jclass old;
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75   menu_class.class
+<a id='L76' name='L76'></a>    76     = (*android_java_env)-&gt;FindClass (android_java_env,
+<a id='L77' name='L77'></a>    77                                       "org/gnu/emacs/EmacsContextMenu");
+<a id='L78' name='L78'></a>    78   <a href='../D/10863.html' title='Multiple defined in 5 places.'>eassert</a> (menu_class.class);
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80   old = menu_class.class;
+<a id='L81' name='L81'></a>    81   menu_class.class
+<a id='L82' name='L82'></a>    82     = (jclass) (*android_java_env)-&gt;NewGlobalRef (android_java_env,
+<a id='L83' name='L83'></a>    83                                                   (jobject) old);
+<a id='L84' name='L84'></a>    84   <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (old);
+<a id='L85' name='L85'></a>    85 
+<a id='L86' name='L86'></a>    86   <strong class='reserved'>if</strong> (!menu_class.class)
+<a id='L87' name='L87'></a>    87     <a href='../D/10885.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L88' name='L88'></a>    88 
+<a id='L89' name='L89'></a>    89 <em class='sharp'>#define</em> <a href='../R/1932.html' title='Multiple referred from 90 places.'>FIND_METHOD</a>(c_name, <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, signature)                    \
+<a id='L90' name='L90'></a>    90   menu_class.c_name                                             \
+<a id='L91' name='L91'></a>    91     = (*android_java_env)-&gt;GetMethodID (android_java_env,       \
+<a id='L92' name='L92'></a>    92                                         menu_class.class,       \
+<a id='L93' name='L93'></a>    93                                         <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, signature);       \
+<a id='L94' name='L94'></a>    94   <a href='../D/10863.html' title='Multiple defined in 5 places.'>eassert</a> (menu_class.c_name);
+<a id='L95' name='L95'></a>    95 
+<a id='L96' name='L96'></a>    96 <em class='sharp'>#define</em> <a href='../R/1933.html' title='Multiple referred from 2 places.'>FIND_METHOD_STATIC</a>(c_name, <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, signature)             \
+<a id='L97' name='L97'></a>    97   menu_class.c_name                                             \
+<a id='L98' name='L98'></a>    98     = (*android_java_env)-&gt;GetStaticMethodID (android_java_env, \
+<a id='L99' name='L99'></a>    99                                               menu_class.class, \
+<a id='L100' name='L100'></a>   100                                               <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, signature); \
+<a id='L101' name='L101'></a>   101   <a href='../D/10863.html' title='Multiple defined in 5 places.'>eassert</a> (menu_class.c_name);
+<a id='L102' name='L102'></a>   102 
+<a id='L103' name='L103'></a>   103   <a href='../D/2081.html' title='Multiple defined in 4 places.'>FIND_METHOD_STATIC</a> (create_context_menu, "createContextMenu",
+<a id='L104' name='L104'></a>   104                       "(Ljava/lang/String;)"
+<a id='L105' name='L105'></a>   105                       "Lorg/gnu/emacs/EmacsContextMenu;");
+<a id='L106' name='L106'></a>   106 
+<a id='L107' name='L107'></a>   107   <a href='../D/2080.html' title='Multiple defined in 26 places.'>FIND_METHOD</a> (add_item, "addItem", "(ILjava/lang/String;ZZZ"
+<a id='L108' name='L108'></a>   108                "Ljava/lang/String;Z)V");
+<a id='L109' name='L109'></a>   109   <a href='../D/2080.html' title='Multiple defined in 26 places.'>FIND_METHOD</a> (add_submenu, "addSubmenu", "(Ljava/lang/String;"
+<a id='L110' name='L110'></a>   110                "Ljava/lang/String;)"
+<a id='L111' name='L111'></a>   111                "Lorg/gnu/emacs/EmacsContextMenu;");
+<a id='L112' name='L112'></a>   112   <a href='../D/2080.html' title='Multiple defined in 26 places.'>FIND_METHOD</a> (add_pane, "addPane", "(Ljava/lang/String;)V");
+<a id='L113' name='L113'></a>   113   <a href='../D/2080.html' title='Multiple defined in 26 places.'>FIND_METHOD</a> (<a href='../D/15162.html' title='Multiple defined in 2 places.'>parent</a>, "parent", "()Lorg/gnu/emacs/EmacsContextMenu;");
+<a id='L114' name='L114'></a>   114   <a href='../D/2080.html' title='Multiple defined in 26 places.'>FIND_METHOD</a> (<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>, "display", "(Lorg/gnu/emacs/EmacsWindow;III)Z");
+<a id='L115' name='L115'></a>   115   <a href='../D/2080.html' title='Multiple defined in 26 places.'>FIND_METHOD</a> (<a href='../S/3980.html#L379' title='Defined at 379 in java/org/gnu/emacs/EmacsContextMenu.java.'>dismiss</a>, "dismiss", "(Lorg/gnu/emacs/EmacsWindow;)V");
+<a id='L116' name='L116'></a>   116 
+<a id='L117' name='L117'></a>   117 <em class='sharp'>#undef</em> <a href='../R/1932.html' title='Multiple referred from 90 places.'>FIND_METHOD</a>
+<a id='L118' name='L118'></a>   118 <em class='sharp'>#undef</em> <a href='../R/1933.html' title='Multiple referred from 2 places.'>FIND_METHOD_STATIC</a>
+<a id='L119' name='L119'></a>   119 <em class='brace'>}</em>
+<a id='L120' name='L120'></a>   120 
+<a id='L121' name='L121'></a>   121 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L122' name='L122'></a>   122 <a href='../S/63.html#L142' title='Referred from 142 in src/androidmenu.c.'>android_unwind_local_frame</a> (<strong class='reserved'>void</strong>)
+<a id='L123' name='L123'></a>   123 <em class='brace'>{</em>
+<a id='L124' name='L124'></a>   124   (*android_java_env)-&gt;PopLocalFrame (android_java_env, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L125' name='L125'></a>   125 <em class='brace'>}</em>
+<a id='L126' name='L126'></a>   126 
+<a id='L127' name='L127'></a>   127 <em class='comment'>/* Push a local reference frame to the JVM stack and record it on the</em>
+<a id='L128' name='L128'></a>   128 <em class='comment'>   specpdl.  Release local references created within that frame when</em>
+<a id='L129' name='L129'></a>   129 <em class='comment'>   the specpdl is unwound past where it is after returning.  */</em>
+<a id='L130' name='L130'></a>   130 
+<a id='L131' name='L131'></a>   131 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L132' name='L132'></a>   132 <a href='../R/7797.html' title='Multiple referred from 3 places.'>android_push_local_frame</a> (<strong class='reserved'>void</strong>)
+<a id='L133' name='L133'></a>   133 <em class='brace'>{</em>
+<a id='L134' name='L134'></a>   134   <strong class='reserved'>int</strong> rc;
+<a id='L135' name='L135'></a>   135 
+<a id='L136' name='L136'></a>   136   rc = (*android_java_env)-&gt;PushLocalFrame (android_java_env, 30);
+<a id='L137' name='L137'></a>   137 
+<a id='L138' name='L138'></a>   138   <em class='comment'>/* This means the JVM ran out of memory.  */</em>
+<a id='L139' name='L139'></a>   139   <strong class='reserved'>if</strong> (rc &lt; 1)
+<a id='L140' name='L140'></a>   140     <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L141' name='L141'></a>   141 
+<a id='L142' name='L142'></a>   142   <a href='../S/122.html#L3608' title='Defined at 3608 in src/eval.c.'>record_unwind_protect_void</a> (<a href='../S/63.html#L122' title='Defined at 122 in src/androidmenu.c.'>android_unwind_local_frame</a>);
+<a id='L143' name='L143'></a>   143 <em class='brace'>}</em>
+<a id='L144' name='L144'></a>   144 
+<a id='L145' name='L145'></a>   145 <em class='comment'>/* Data for android_dismiss_menu.  */</em>
+<a id='L146' name='L146'></a>   146 
+<a id='L147' name='L147'></a>   147 <strong class='reserved'>struct</strong> <a href='../R/7581.html' title='Multiple referred from 2 places.'>android_dismiss_menu_data</a>
+<a id='L148' name='L148'></a>   148 <em class='brace'>{</em>
+<a id='L149' name='L149'></a>   149   <em class='comment'>/* The menu object.  */</em>
+<a id='L150' name='L150'></a>   150   jobject menu;
+<a id='L151' name='L151'></a>   151 
+<a id='L152' name='L152'></a>   152   <em class='comment'>/* The window object.  */</em>
+<a id='L153' name='L153'></a>   153   jobject <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
+<a id='L154' name='L154'></a>   154 <em class='brace'>}</em>;
+<a id='L155' name='L155'></a>   155 
+<a id='L156' name='L156'></a>   156 <em class='comment'>/* Cancel the context menu passed in POINTER.  Also, clear</em>
+<a id='L157' name='L157'></a>   157 <em class='comment'>   popup_activated_flag.  */</em>
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L160' name='L160'></a>   160 <a href='../S/63.html#L497' title='Referred from 497 in src/androidmenu.c.'>android_dismiss_menu</a> (<strong class='reserved'>void</strong> *pointer)
+<a id='L161' name='L161'></a>   161 <em class='brace'>{</em>
+<a id='L162' name='L162'></a>   162   <strong class='reserved'>struct</strong> <a href='../S/63.html#L147' title='Defined at 147 in src/androidmenu.c.'>android_dismiss_menu_data</a> *data;
+<a id='L163' name='L163'></a>   163 
+<a id='L164' name='L164'></a>   164   data = pointer;
+<a id='L165' name='L165'></a>   165   (*android_java_env)-&gt;CallVoidMethod (android_java_env,
+<a id='L166' name='L166'></a>   166                                        data-&gt;menu,
+<a id='L167' name='L167'></a>   167                                        menu_class.<a href='../S/3980.html#L379' title='Defined at 379 in java/org/gnu/emacs/EmacsContextMenu.java.'>dismiss</a>,
+<a id='L168' name='L168'></a>   168                                        data-&gt;<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L169' name='L169'></a>   169   popup_activated_flag = 0;
+<a id='L170' name='L170'></a>   170 <em class='brace'>}</em>
+<a id='L171' name='L171'></a>   171 
+<a id='L172' name='L172'></a>   172 <em class='comment'>/* Recursively process events until a ANDROID_CONTEXT_MENU event</em>
+<a id='L173' name='L173'></a>   173 <em class='comment'>   arrives.  Then, return the item ID specified in the event in</em>
+<a id='L174' name='L174'></a>   174 <em class='comment'>   *ID.  */</em>
+<a id='L175' name='L175'></a>   175 
+<a id='L176' name='L176'></a>   176 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L177' name='L177'></a>   177 <a href='../R/7794.html' title='Multiple referred from 2 places.'>android_process_events_for_menu</a> (<strong class='reserved'>int</strong> *id)
+<a id='L178' name='L178'></a>   178 <em class='brace'>{</em>
+<a id='L179' name='L179'></a>   179   <strong class='reserved'>int</strong> blocked;
+<a id='L180' name='L180'></a>   180 
+<a id='L181' name='L181'></a>   181   <em class='comment'>/* Set menu_event_id to -1; handle_one_android_event will set it to</em>
+<a id='L182' name='L182'></a>   182 <em class='comment'>     the event ID upon receiving a context menu event.  This can cause</em>
+<a id='L183' name='L183'></a>   183 <em class='comment'>     a non-local exit.  */</em>
+<a id='L184' name='L184'></a>   184   x_display_list-&gt;menu_event_id = -1;
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186   <em class='comment'>/* Unblock input completely.  */</em>
+<a id='L187' name='L187'></a>   187   blocked = interrupt_input_blocked;
+<a id='L188' name='L188'></a>   188   <a href='../D/18241.html' title='Multiple defined in 2 places.'>totally_unblock_input</a> ();
+<a id='L189' name='L189'></a>   189 
+<a id='L190' name='L190'></a>   190   <em class='comment'>/* Now wait for the menu event ID to change.  */</em>
+<a id='L191' name='L191'></a>   191   <strong class='reserved'>while</strong> (x_display_list-&gt;menu_event_id == -1)
+<a id='L192' name='L192'></a>   192     <em class='brace'>{</em>
+<a id='L193' name='L193'></a>   193       <em class='comment'>/* Wait for events to become available.  */</em>
+<a id='L194' name='L194'></a>   194       <a href='../S/165.html#L541' title='Defined at 541 in src/android.c.'>android_wait_event</a> ();
+<a id='L195' name='L195'></a>   195 
+<a id='L196' name='L196'></a>   196       <em class='comment'>/* Process pending signals.  */</em>
+<a id='L197' name='L197'></a>   197       <a href='../D/15727.html' title='Multiple defined in 2 places.'>process_pending_signals</a> ();
+<a id='L198' name='L198'></a>   198 
+<a id='L199' name='L199'></a>   199       <em class='comment'>/* Maybe quit.  This is important because the framework (on</em>
+<a id='L200' name='L200'></a>   200 <em class='comment'>         Android 4.0.3) can sometimes fail to deliver context menu</em>
+<a id='L201' name='L201'></a>   201 <em class='comment'>         closed events if a submenu was opened, and the user still</em>
+<a id='L202' name='L202'></a>   202 <em class='comment'>         needs to be able to quit.  */</em>
+<a id='L203' name='L203'></a>   203       <a href='../S/131.html#L3684' title='Defined at 3684 in src/lisp.h.'>maybe_quit</a> ();
+<a id='L204' name='L204'></a>   204     <em class='brace'>}</em>
+<a id='L205' name='L205'></a>   205 
+<a id='L206' name='L206'></a>   206   <em class='comment'>/* Restore the input block.  */</em>
+<a id='L207' name='L207'></a>   207   interrupt_input_blocked = blocked;
+<a id='L208' name='L208'></a>   208 
+<a id='L209' name='L209'></a>   209   <em class='comment'>/* Return the ID.  */</em>
+<a id='L210' name='L210'></a>   210   *id = x_display_list-&gt;menu_event_id;
+<a id='L211' name='L211'></a>   211 <em class='brace'>}</em>
+<a id='L212' name='L212'></a>   212 
+<a id='L213' name='L213'></a>   213 <em class='comment'>/* Structure describing a ``subprefix'' in the menu.  */</em>
+<a id='L214' name='L214'></a>   214 
+<a id='L215' name='L215'></a>   215 <strong class='reserved'>struct</strong> <a href='../R/7768.html' title='Multiple referred from 4 places.'>android_menu_subprefix</a>
+<a id='L216' name='L216'></a>   216 <em class='brace'>{</em>
+<a id='L217' name='L217'></a>   217   <em class='comment'>/* The subprefix above.  */</em>
+<a id='L218' name='L218'></a>   218   <strong class='reserved'>struct</strong> <a href='../S/63.html#L215' title='Defined at 215 in src/androidmenu.c.'>android_menu_subprefix</a> *last;
+<a id='L219' name='L219'></a>   219 
+<a id='L220' name='L220'></a>   220   <em class='comment'>/* The subprefix itself.  */</em>
+<a id='L221' name='L221'></a>   221   <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> subprefix;
+<a id='L222' name='L222'></a>   222 <em class='brace'>}</em>;
+<a id='L223' name='L223'></a>   223 
+<a id='L224' name='L224'></a>   224 <em class='comment'>/* Free the subprefixes starting from *DATA.  */</em>
+<a id='L225' name='L225'></a>   225 
+<a id='L226' name='L226'></a>   226 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L227' name='L227'></a>   227 <a href='../S/63.html#L514' title='Referred from 514 in src/androidmenu.c.'>android_free_subprefixes</a> (<strong class='reserved'>void</strong> *data)
+<a id='L228' name='L228'></a>   228 <em class='brace'>{</em>
+<a id='L229' name='L229'></a>   229   <strong class='reserved'>struct</strong> <a href='../S/63.html#L215' title='Defined at 215 in src/androidmenu.c.'>android_menu_subprefix</a> **head, *subprefix;
+<a id='L230' name='L230'></a>   230 
+<a id='L231' name='L231'></a>   231   head = data;
+<a id='L232' name='L232'></a>   232 
+<a id='L233' name='L233'></a>   233   <strong class='reserved'>while</strong> (*head)
+<a id='L234' name='L234'></a>   234     <em class='brace'>{</em>
+<a id='L235' name='L235'></a>   235       subprefix = *head;
+<a id='L236' name='L236'></a>   236       *head = subprefix-&gt;last;
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238       <a href='../D/19723.html' title='Multiple defined in 3 places.'>xfree</a> (subprefix);
+<a id='L239' name='L239'></a>   239     <em class='brace'>}</em>
+<a id='L240' name='L240'></a>   240 <em class='brace'>}</em>
+<a id='L241' name='L241'></a>   241 
+<a id='L242' name='L242'></a>   242 <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L243' name='L243'></a>   243 <a href='../R/7767.html' title='Multiple referred from 2 places.'>android_menu_show</a> (<strong class='reserved'>struct</strong> <a href='../D/11661.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> <a href='../S/3715.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> menuflags,
+<a id='L244' name='L244'></a>   244                    <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> title, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> **error_name)
+<a id='L245' name='L245'></a>   245 <em class='brace'>{</em>
+<a id='L246' name='L246'></a>   246   jobject context_menu, current_context_menu;
+<a id='L247' name='L247'></a>   247   jobject title_string, help_string, temp;
+<a id='L248' name='L248'></a>   248   size_t i;
+<a id='L249' name='L249'></a>   249   <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> pane_name, prefix;
+<a id='L250' name='L250'></a>   250   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *pane_string;
+<a id='L251' name='L251'></a>   251   <a href='../D/17491.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count, count1;
+<a id='L252' name='L252'></a>   252   <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> item_name, enable, def, tem, <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>, type, selected;
+<a id='L253' name='L253'></a>   253   <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/235.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>;
+<a id='L254' name='L254'></a>   254   jmethodID method;
+<a id='L255' name='L255'></a>   255   jobject store;
+<a id='L256' name='L256'></a>   256   <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> rc;
+<a id='L257' name='L257'></a>   257   jobject <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
+<a id='L258' name='L258'></a>   258   <strong class='reserved'>int</strong> id, item_id, submenu_depth;
+<a id='L259' name='L259'></a>   259   <strong class='reserved'>struct</strong> <a href='../S/63.html#L147' title='Defined at 147 in src/androidmenu.c.'>android_dismiss_menu_data</a> data;
+<a id='L260' name='L260'></a>   260   <strong class='reserved'>struct</strong> <a href='../S/63.html#L215' title='Defined at 215 in src/androidmenu.c.'>android_menu_subprefix</a> *subprefix, *temp_subprefix;
+<a id='L261' name='L261'></a>   261   <strong class='reserved'>struct</strong> <a href='../S/63.html#L215' title='Defined at 215 in src/androidmenu.c.'>android_menu_subprefix</a> *subprefix_1;
+<a id='L262' name='L262'></a>   262   <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> checkmark;
+<a id='L263' name='L263'></a>   263   <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> serial;
+<a id='L264' name='L264'></a>   264 
+<a id='L265' name='L265'></a>   265   count = <a href='../D/5813.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L266' name='L266'></a>   266   serial = ++current_menu_serial;
+<a id='L267' name='L267'></a>   267 
+<a id='L268' name='L268'></a>   268   <a href='../S/143.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L269' name='L269'></a>   269 
+<a id='L270' name='L270'></a>   270   <em class='comment'>/* Push the first local frame.  */</em>
+<a id='L271' name='L271'></a>   271   <a href='../S/63.html#L132' title='Defined at 132 in src/androidmenu.c.'>android_push_local_frame</a> ();
+<a id='L272' name='L272'></a>   272 
+<a id='L273' name='L273'></a>   273   <em class='comment'>/* Set title_string to a Java string containing TITLE if non-nil.</em>
+<a id='L274' name='L274'></a>   274 <em class='comment'>     If the menu consists of more than one pane, replace the title</em>
+<a id='L275' name='L275'></a>   275 <em class='comment'>     with the pane header item so that the menu looks consistent.  */</em>
+<a id='L276' name='L276'></a>   276 
+<a id='L277' name='L277'></a>   277   title_string = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L278' name='L278'></a>   278   <strong class='reserved'>if</strong> (<a href='../S/131.html#L1604' title='Defined at 1604 in src/lisp.h.'>STRINGP</a> (title) &amp;&amp; menu_items_n_panes &lt; 2)
+<a id='L279' name='L279'></a>   279     title_string = <a href='../S/165.html#L5550' title='Defined at 5550 in src/android.c.'>android_build_string</a> (title);
+<a id='L280' name='L280'></a>   280 
+<a id='L281' name='L281'></a>   281   <em class='comment'>/* Push the first local frame for the context menu.  */</em>
+<a id='L282' name='L282'></a>   282   method = menu_class.create_context_menu;
+<a id='L283' name='L283'></a>   283   current_context_menu = context_menu
+<a id='L284' name='L284'></a>   284     = (*android_java_env)-&gt;CallStaticObjectMethod (android_java_env,
+<a id='L285' name='L285'></a>   285                                                    menu_class.class,
+<a id='L286' name='L286'></a>   286                                                    method,
+<a id='L287' name='L287'></a>   287                                                    title_string);
+<a id='L288' name='L288'></a>   288 
+<a id='L289' name='L289'></a>   289   <em class='comment'>/* Delete the unused title reference.  */</em>
+<a id='L290' name='L290'></a>   290 
+<a id='L291' name='L291'></a>   291   <strong class='reserved'>if</strong> (title_string)
+<a id='L292' name='L292'></a>   292     <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (title_string);
+<a id='L293' name='L293'></a>   293 
+<a id='L294' name='L294'></a>   294   <em class='comment'>/* Push the second local frame for temporaries.  */</em>
+<a id='L295' name='L295'></a>   295   count1 = <a href='../D/5813.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L296' name='L296'></a>   296   <a href='../S/63.html#L132' title='Defined at 132 in src/androidmenu.c.'>android_push_local_frame</a> ();
+<a id='L297' name='L297'></a>   297 
+<a id='L298' name='L298'></a>   298   <em class='comment'>/* Iterate over the menu.  */</em>
+<a id='L299' name='L299'></a>   299   i = 0, submenu_depth = 0;
+<a id='L300' name='L300'></a>   300 
+<a id='L301' name='L301'></a>   301   <strong class='reserved'>while</strong> (i &lt; menu_items_used)
+<a id='L302' name='L302'></a>   302     <em class='brace'>{</em>
+<a id='L303' name='L303'></a>   303       <strong class='reserved'>if</strong> (<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i)))
+<a id='L304' name='L304'></a>   304         <em class='brace'>{</em>
+<a id='L305' name='L305'></a>   305           <em class='comment'>/* This is the start of a new submenu.  However, it can be</em>
+<a id='L306' name='L306'></a>   306 <em class='comment'>             ignored here.  */</em>
+<a id='L307' name='L307'></a>   307           i += 1;
+<a id='L308' name='L308'></a>   308           submenu_depth += 1;
+<a id='L309' name='L309'></a>   309         <em class='brace'>}</em>
+<a id='L310' name='L310'></a>   310       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qlambda))
+<a id='L311' name='L311'></a>   311         <em class='brace'>{</em>
+<a id='L312' name='L312'></a>   312           <em class='comment'>/* This is the end of a submenu.  Go back to the previous</em>
+<a id='L313' name='L313'></a>   313 <em class='comment'>             context menu.  */</em>
+<a id='L314' name='L314'></a>   314           store = current_context_menu;
+<a id='L315' name='L315'></a>   315           current_context_menu
+<a id='L316' name='L316'></a>   316             = (*android_java_env)-&gt;CallObjectMethod (android_java_env,
+<a id='L317' name='L317'></a>   317                                                      current_context_menu,
+<a id='L318' name='L318'></a>   318                                                      menu_class.<a href='../D/15162.html' title='Multiple defined in 2 places.'>parent</a>);
+<a id='L319' name='L319'></a>   319           <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L320' name='L320'></a>   320 
+<a id='L321' name='L321'></a>   321           <strong class='reserved'>if</strong> (store != context_menu)
+<a id='L322' name='L322'></a>   322             <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (store);
+<a id='L323' name='L323'></a>   323           i += 1;
+<a id='L324' name='L324'></a>   324           submenu_depth -= 1;
+<a id='L325' name='L325'></a>   325 
+<a id='L326' name='L326'></a>   326           <strong class='reserved'>if</strong> (!current_context_menu || submenu_depth &lt; 0)
+<a id='L327' name='L327'></a>   327             <em class='brace'>{</em>
+<a id='L328' name='L328'></a>   328               __android_log_print (ANDROID_LOG_FATAL, __func__,
+<a id='L329' name='L329'></a>   329                                    "unbalanced submenu pop in menu_items");
+<a id='L330' name='L330'></a>   330               <a href='../D/10885.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L331' name='L331'></a>   331             <em class='brace'>}</em>
+<a id='L332' name='L332'></a>   332         <em class='brace'>}</em>
+<a id='L333' name='L333'></a>   333       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qt)
+<a id='L334' name='L334'></a>   334                &amp;&amp; submenu_depth != 0)
+<a id='L335' name='L335'></a>   335         i += <a href='../S/275.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>;
+<a id='L336' name='L336'></a>   336       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qquote))
+<a id='L337' name='L337'></a>   337         i += 1;
+<a id='L338' name='L338'></a>   338       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qt))
+<a id='L339' name='L339'></a>   339         <em class='brace'>{</em>
+<a id='L340' name='L340'></a>   340           <em class='comment'>/* If the menu contains a single pane, then the pane is</em>
+<a id='L341' name='L341'></a>   341 <em class='comment'>             actually TITLE.  Don't duplicate the text within the</em>
+<a id='L342' name='L342'></a>   342 <em class='comment'>             context menu title.  */</em>
+<a id='L343' name='L343'></a>   343 
+<a id='L344' name='L344'></a>   344           <strong class='reserved'>if</strong> (menu_items_n_panes &lt; 2)
+<a id='L345' name='L345'></a>   345             <strong class='reserved'>goto</strong> next_item;
+<a id='L346' name='L346'></a>   346 
+<a id='L347' name='L347'></a>   347           <em class='comment'>/* This is a new pane.  Switch back to the topmost context</em>
+<a id='L348' name='L348'></a>   348 <em class='comment'>             menu.  */</em>
+<a id='L349' name='L349'></a>   349           <strong class='reserved'>if</strong> (current_context_menu != context_menu)
+<a id='L350' name='L350'></a>   350             <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (current_context_menu);
+<a id='L351' name='L351'></a>   351           current_context_menu = context_menu;
+<a id='L352' name='L352'></a>   352 
+<a id='L353' name='L353'></a>   353           <em class='comment'>/* Now figure out the title of this pane.  */</em>
+<a id='L354' name='L354'></a>   354           pane_name = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L356' title='Defined at 356 in src/keyboard.h.'>MENU_ITEMS_PANE_NAME</a>);
+<a id='L355' name='L355'></a>   355           prefix = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L357' title='Defined at 357 in src/keyboard.h.'>MENU_ITEMS_PANE_PREFIX</a>);
+<a id='L356' name='L356'></a>   356           pane_string = (<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (pane_name)
+<a id='L357' name='L357'></a>   357                          ? "" : <a href='../D/5842.html' title='Multiple defined in 2 places.'>SSDATA</a> (pane_name));
+<a id='L358' name='L358'></a>   358           <strong class='reserved'>if</strong> ((menuflags &amp; <a href='../S/118.html#L27' title='Defined at 27 in src/menu.h.'>MENU_KEYMAPS</a>) &amp;&amp; !<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (prefix))
+<a id='L359' name='L359'></a>   359             pane_string++;
+<a id='L360' name='L360'></a>   360 
+<a id='L361' name='L361'></a>   361           <em class='comment'>/* Add the pane.  */</em>
+<a id='L362' name='L362'></a>   362           temp = (*android_java_env)-&gt;NewStringUTF (android_java_env,
+<a id='L363' name='L363'></a>   363                                                     pane_string);
+<a id='L364' name='L364'></a>   364           <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L365' name='L365'></a>   365 
+<a id='L366' name='L366'></a>   366           (*android_java_env)-&gt;CallVoidMethod (android_java_env,
+<a id='L367' name='L367'></a>   367                                                current_context_menu,
+<a id='L368' name='L368'></a>   368                                                menu_class.add_pane,
+<a id='L369' name='L369'></a>   369                                                temp);
+<a id='L370' name='L370'></a>   370           <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L371' name='L371'></a>   371           <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (temp);
+<a id='L372' name='L372'></a>   372 
+<a id='L373' name='L373'></a>   373         next_item:
+<a id='L374' name='L374'></a>   374           i += <a href='../S/275.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>;
+<a id='L375' name='L375'></a>   375         <em class='brace'>}</em>
+<a id='L376' name='L376'></a>   376       <strong class='reserved'>else</strong>
+<a id='L377' name='L377'></a>   377         <em class='brace'>{</em>
+<a id='L378' name='L378'></a>   378           item_name = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L362' title='Defined at 362 in src/keyboard.h.'>MENU_ITEMS_ITEM_NAME</a>);
+<a id='L379' name='L379'></a>   379           enable = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L363' title='Defined at 363 in src/keyboard.h.'>MENU_ITEMS_ITEM_ENABLE</a>);
+<a id='L380' name='L380'></a>   380           def = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L366' title='Defined at 366 in src/keyboard.h.'>MENU_ITEMS_ITEM_DEFINITION</a>);
+<a id='L381' name='L381'></a>   381           type = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L367' title='Defined at 367 in src/keyboard.h.'>MENU_ITEMS_ITEM_TYPE</a>);
+<a id='L382' name='L382'></a>   382           selected = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L368' title='Defined at 368 in src/keyboard.h.'>MENU_ITEMS_ITEM_SELECTED</a>);
+<a id='L383' name='L383'></a>   383           <a href='../S/235.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a> = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L369' title='Defined at 369 in src/keyboard.h.'>MENU_ITEMS_ITEM_HELP</a>);
+<a id='L384' name='L384'></a>   384 
+<a id='L385' name='L385'></a>   385           <em class='comment'>/* This is an actual menu item (or submenu).  Add it to the</em>
+<a id='L386' name='L386'></a>   386 <em class='comment'>             menu.  */</em>
+<a id='L387' name='L387'></a>   387 
+<a id='L388' name='L388'></a>   388           <strong class='reserved'>if</strong> (i + <a href='../S/275.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a> &lt; menu_items_used
+<a id='L389' name='L389'></a>   389               &amp;&amp; <a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a>)))
+<a id='L390' name='L390'></a>   390             <em class='brace'>{</em>
+<a id='L391' name='L391'></a>   391               <em class='comment'>/* This is a submenu.  Add it.  */</em>
+<a id='L392' name='L392'></a>   392               title_string = (!<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (item_name)
+<a id='L393' name='L393'></a>   393                               ? <a href='../S/165.html#L5550' title='Defined at 5550 in src/android.c.'>android_build_string</a> (item_name)
+<a id='L394' name='L394'></a>   394                               : <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L395' name='L395'></a>   395               help_string = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L396' name='L396'></a>   396 
+<a id='L397' name='L397'></a>   397               <em class='comment'>/* Menu items can have tool tips on Android 26 and</em>
+<a id='L398' name='L398'></a>   398 <em class='comment'>                 later.  In this case, set it to the help string.  */</em>
+<a id='L399' name='L399'></a>   399 
+<a id='L400' name='L400'></a>   400               <strong class='reserved'>if</strong> (<a href='../S/230.html#L130' title='Defined at 130 in src/android.h.'>android_get_current_api_level</a> () &gt;= 26
+<a id='L401' name='L401'></a>   401                   &amp;&amp; <a href='../S/131.html#L1604' title='Defined at 1604 in src/lisp.h.'>STRINGP</a> (<a href='../S/235.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>))
+<a id='L402' name='L402'></a>   402                 help_string = <a href='../S/165.html#L5550' title='Defined at 5550 in src/android.c.'>android_build_string</a> (<a href='../S/235.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>);
+<a id='L403' name='L403'></a>   403 
+<a id='L404' name='L404'></a>   404               store = current_context_menu;
+<a id='L405' name='L405'></a>   405               current_context_menu
+<a id='L406' name='L406'></a>   406                 = (*android_java_env)-&gt;CallObjectMethod (android_java_env,
+<a id='L407' name='L407'></a>   407                                                          current_context_menu,
+<a id='L408' name='L408'></a>   408                                                          menu_class.add_submenu,
+<a id='L409' name='L409'></a>   409                                                          title_string,
+<a id='L410' name='L410'></a>   410                                                          help_string);
+<a id='L411' name='L411'></a>   411               <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L412' name='L412'></a>   412 
+<a id='L413' name='L413'></a>   413               <strong class='reserved'>if</strong> (store != context_menu)
+<a id='L414' name='L414'></a>   414                 <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (store);
+<a id='L415' name='L415'></a>   415 
+<a id='L416' name='L416'></a>   416               <strong class='reserved'>if</strong> (title_string)
+<a id='L417' name='L417'></a>   417                 <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (title_string);
+<a id='L418' name='L418'></a>   418 
+<a id='L419' name='L419'></a>   419               <strong class='reserved'>if</strong> (help_string)
+<a id='L420' name='L420'></a>   420                 <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (help_string);
+<a id='L421' name='L421'></a>   421             <em class='brace'>}</em>
+<a id='L422' name='L422'></a>   422           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (def) &amp;&amp; <a href='../D/14349.html' title='Multiple defined in 2 places.'>menu_separator_name_p</a> (<a href='../D/5842.html' title='Multiple defined in 2 places.'>SSDATA</a> (item_name)))
+<a id='L423' name='L423'></a>   423             <em class='comment'>/* Ignore this separator item.  */</em>
+<a id='L424' name='L424'></a>   424             ;
+<a id='L425' name='L425'></a>   425           <strong class='reserved'>else</strong>
+<a id='L426' name='L426'></a>   426             <em class='brace'>{</em>
+<a id='L427' name='L427'></a>   427               <em class='comment'>/* Compute the item ID.  This is the index of value.</em>
+<a id='L428' name='L428'></a>   428 <em class='comment'>                 Make sure it doesn't overflow.  */</em>
+<a id='L429' name='L429'></a>   429 
+<a id='L430' name='L430'></a>   430               <strong class='reserved'>if</strong> (!<a href='../S/2171.html#L331' title='Defined at 331 in lib/intprops.h.'>INT_ADD_OK</a> (0, i + <a href='../S/275.html#L364' title='Defined at 364 in src/keyboard.h.'>MENU_ITEMS_ITEM_VALUE</a>, &amp;item_id))
+<a id='L431' name='L431'></a>   431                 <a href='../D/14327.html' title='Multiple defined in 3 places.'>memory_full</a> (i + <a href='../S/275.html#L364' title='Defined at 364 in src/keyboard.h.'>MENU_ITEMS_ITEM_VALUE</a> * <strong class='reserved'>sizeof</strong> (<a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a>));
+<a id='L432' name='L432'></a>   432 
+<a id='L433' name='L433'></a>   433               <em class='comment'>/* Add this menu item with the appropriate state.  */</em>
+<a id='L434' name='L434'></a>   434 
+<a id='L435' name='L435'></a>   435               title_string = (!<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (item_name)
+<a id='L436' name='L436'></a>   436                               ? <a href='../S/165.html#L5550' title='Defined at 5550 in src/android.c.'>android_build_string</a> (item_name)
+<a id='L437' name='L437'></a>   437                               : <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L438' name='L438'></a>   438               help_string = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L439' name='L439'></a>   439 
+<a id='L440' name='L440'></a>   440               <em class='comment'>/* Menu items can have tool tips on Android 26 and</em>
+<a id='L441' name='L441'></a>   441 <em class='comment'>                 later.  In this case, set it to the help string.  */</em>
+<a id='L442' name='L442'></a>   442 
+<a id='L443' name='L443'></a>   443               <strong class='reserved'>if</strong> (<a href='../S/230.html#L130' title='Defined at 130 in src/android.h.'>android_get_current_api_level</a> () &gt;= 26
+<a id='L444' name='L444'></a>   444                   &amp;&amp; <a href='../S/131.html#L1604' title='Defined at 1604 in src/lisp.h.'>STRINGP</a> (<a href='../S/235.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>))
+<a id='L445' name='L445'></a>   445                 help_string = <a href='../S/165.html#L5550' title='Defined at 5550 in src/android.c.'>android_build_string</a> (<a href='../S/235.html#L2509' title='Defined at 2509 in src/haiku_support.cc.'>help</a>);
+<a id='L446' name='L446'></a>   446 
+<a id='L447' name='L447'></a>   447               <em class='comment'>/* Determine whether or not to display a check box.  */</em>
+<a id='L448' name='L448'></a>   448 
+<a id='L449' name='L449'></a>   449               checkmark = (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (type, QCtoggle)
+<a id='L450' name='L450'></a>   450                            || <a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (type, QCradio));
+<a id='L451' name='L451'></a>   451 
+<a id='L452' name='L452'></a>   452               (*android_java_env)-&gt;CallVoidMethod (android_java_env,
+<a id='L453' name='L453'></a>   453                                                    current_context_menu,
+<a id='L454' name='L454'></a>   454                                                    menu_class.add_item,
+<a id='L455' name='L455'></a>   455                                                    (jint) item_id,
+<a id='L456' name='L456'></a>   456                                                    title_string,
+<a id='L457' name='L457'></a>   457                                                    (jboolean) !<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (enable),
+<a id='L458' name='L458'></a>   458                                                    (jboolean) checkmark,
+<a id='L459' name='L459'></a>   459                                                    (jboolean) !<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (selected),
+<a id='L460' name='L460'></a>   460                                                    help_string,
+<a id='L461' name='L461'></a>   461                                                    (jboolean) (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (type,
+<a id='L462' name='L462'></a>   462                                                                    QCradio)));
+<a id='L463' name='L463'></a>   463               <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L464' name='L464'></a>   464 
+<a id='L465' name='L465'></a>   465               <strong class='reserved'>if</strong> (title_string)
+<a id='L466' name='L466'></a>   466                 <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (title_string);
+<a id='L467' name='L467'></a>   467 
+<a id='L468' name='L468'></a>   468               <strong class='reserved'>if</strong> (help_string)
+<a id='L469' name='L469'></a>   469                 <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (help_string);
+<a id='L470' name='L470'></a>   470             <em class='brace'>}</em>
+<a id='L471' name='L471'></a>   471 
+<a id='L472' name='L472'></a>   472           i += <a href='../S/275.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a>;
+<a id='L473' name='L473'></a>   473         <em class='brace'>}</em>
+<a id='L474' name='L474'></a>   474     <em class='brace'>}</em>
+<a id='L475' name='L475'></a>   475 
+<a id='L476' name='L476'></a>   476   <em class='comment'>/* The menu has now been built.  Pop the second local frame.  */</em>
+<a id='L477' name='L477'></a>   477   <a href='../S/122.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (count1, Qnil);
+<a id='L478' name='L478'></a>   478 
+<a id='L479' name='L479'></a>   479   <em class='comment'>/* Now, display the context menu.  */</em>
+<a id='L480' name='L480'></a>   480   <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> = <a href='../S/165.html#L2596' title='Defined at 2596 in src/android.c.'>android_resolve_handle</a> (<a href='../S/278.html#L289' title='Defined at 289 in src/androidterm.h.'>FRAME_ANDROID_WINDOW</a> (<a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a>),
+<a id='L481' name='L481'></a>   481                                    <a href='../S/230.html#L86' title='Defined at 86 in src/android.h.'>ANDROID_HANDLE_WINDOW</a>);
+<a id='L482' name='L482'></a>   482   rc = (*android_java_env)-&gt;CallBooleanMethod (android_java_env,
+<a id='L483' name='L483'></a>   483                                                context_menu,
+<a id='L484' name='L484'></a>   484                                                menu_class.<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>,
+<a id='L485' name='L485'></a>   485                                                <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>, (jint) <a href='../S/3715.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>,
+<a id='L486' name='L486'></a>   486                                                (jint) y,
+<a id='L487' name='L487'></a>   487                                                (jint) serial);
+<a id='L488' name='L488'></a>   488   <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L489' name='L489'></a>   489 
+<a id='L490' name='L490'></a>   490   <strong class='reserved'>if</strong> (!rc)
+<a id='L491' name='L491'></a>   491     <em class='comment'>/* This means displaying the menu failed.  */</em>
+<a id='L492' name='L492'></a>   492     <strong class='reserved'>goto</strong> finish;
+<a id='L493' name='L493'></a>   493 
+<a id='L494' name='L494'></a>   494   <em class='comment'>/* Make sure the context menu is always dismissed.  */</em>
+<a id='L495' name='L495'></a>   495   data.menu = context_menu;
+<a id='L496' name='L496'></a>   496   data.<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> = <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
+<a id='L497' name='L497'></a>   497   <a href='../S/122.html#L3559' title='Defined at 3559 in src/eval.c.'>record_unwind_protect_ptr</a> (<a href='../S/63.html#L160' title='Defined at 160 in src/androidmenu.c.'>android_dismiss_menu</a>, &amp;data);
+<a id='L498' name='L498'></a>   498 
+<a id='L499' name='L499'></a>   499   <em class='comment'>/* Next, process events waiting for something to be selected.  */</em>
+<a id='L500' name='L500'></a>   500   popup_activated_flag = 1;
+<a id='L501' name='L501'></a>   501   <a href='../S/63.html#L177' title='Defined at 177 in src/androidmenu.c.'>android_process_events_for_menu</a> (&amp;id);
+<a id='L502' name='L502'></a>   502 
+<a id='L503' name='L503'></a>   503   <strong class='reserved'>if</strong> (!id)
+<a id='L504' name='L504'></a>   504     <em class='comment'>/* This means no menu item was selected.  */</em>
+<a id='L505' name='L505'></a>   505     <strong class='reserved'>goto</strong> finish;
+<a id='L506' name='L506'></a>   506 
+<a id='L507' name='L507'></a>   507   <em class='comment'>/* This means the id is invalid.  */</em>
+<a id='L508' name='L508'></a>   508   <strong class='reserved'>if</strong> (id &gt;= <a href='../D/229.html' title='Multiple defined in 2 places.'>ASIZE</a> (menu_items))
+<a id='L509' name='L509'></a>   509     <strong class='reserved'>goto</strong> finish;
+<a id='L510' name='L510'></a>   510 
+<a id='L511' name='L511'></a>   511   <em class='comment'>/* Now return the menu item at that location.  */</em>
+<a id='L512' name='L512'></a>   512   tem = Qnil;
+<a id='L513' name='L513'></a>   513   subprefix = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L514' name='L514'></a>   514   <a href='../S/122.html#L3559' title='Defined at 3559 in src/eval.c.'>record_unwind_protect_ptr</a> (<a href='../S/63.html#L227' title='Defined at 227 in src/androidmenu.c.'>android_free_subprefixes</a>, &amp;subprefix);
+<a id='L515' name='L515'></a>   515 
+<a id='L516' name='L516'></a>   516   <em class='comment'>/* Find the selected item, and its pane, to return</em>
+<a id='L517' name='L517'></a>   517 <em class='comment'>     the proper value.  */</em>
+<a id='L518' name='L518'></a>   518 
+<a id='L519' name='L519'></a>   519   prefix = <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = Qnil;
+<a id='L520' name='L520'></a>   520   i = 0;
+<a id='L521' name='L521'></a>   521   <strong class='reserved'>while</strong> (i &lt; menu_items_used)
+<a id='L522' name='L522'></a>   522     <em class='brace'>{</em>
+<a id='L523' name='L523'></a>   523       <strong class='reserved'>if</strong> (<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i)))
+<a id='L524' name='L524'></a>   524         <em class='brace'>{</em>
+<a id='L525' name='L525'></a>   525           temp_subprefix = <a href='../D/19978.html' title='Multiple defined in 10 places.'>xmalloc</a> (<strong class='reserved'>sizeof</strong> *temp_subprefix);
+<a id='L526' name='L526'></a>   526           temp_subprefix-&gt;last = subprefix;
+<a id='L527' name='L527'></a>   527           subprefix = temp_subprefix;
+<a id='L528' name='L528'></a>   528           subprefix-&gt;subprefix = prefix;
+<a id='L529' name='L529'></a>   529 
+<a id='L530' name='L530'></a>   530           prefix = <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>;
+<a id='L531' name='L531'></a>   531           i++;
+<a id='L532' name='L532'></a>   532         <em class='brace'>}</em>
+<a id='L533' name='L533'></a>   533       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qlambda))
+<a id='L534' name='L534'></a>   534         <em class='brace'>{</em>
+<a id='L535' name='L535'></a>   535           prefix = subprefix-&gt;subprefix;
+<a id='L536' name='L536'></a>   536           temp_subprefix = subprefix-&gt;last;
+<a id='L537' name='L537'></a>   537           <a href='../D/19723.html' title='Multiple defined in 3 places.'>xfree</a> (subprefix);
+<a id='L538' name='L538'></a>   538           subprefix = temp_subprefix;
+<a id='L539' name='L539'></a>   539 
+<a id='L540' name='L540'></a>   540           i++;
+<a id='L541' name='L541'></a>   541         <em class='brace'>}</em>
+<a id='L542' name='L542'></a>   542       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qt))
+<a id='L543' name='L543'></a>   543         <em class='brace'>{</em>
+<a id='L544' name='L544'></a>   544           prefix
+<a id='L545' name='L545'></a>   545             = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L357' title='Defined at 357 in src/keyboard.h.'>MENU_ITEMS_PANE_PREFIX</a>);
+<a id='L546' name='L546'></a>   546           i += <a href='../S/275.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>;
+<a id='L547' name='L547'></a>   547         <em class='brace'>}</em>
+<a id='L548' name='L548'></a>   548       <em class='comment'>/* Ignore a nil in the item list.</em>
+<a id='L549' name='L549'></a>   549 <em class='comment'>         It's meaningful only for dialog boxes.  */</em>
+<a id='L550' name='L550'></a>   550       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qquote))
+<a id='L551' name='L551'></a>   551         i += 1;
+<a id='L552' name='L552'></a>   552       <strong class='reserved'>else</strong>
+<a id='L553' name='L553'></a>   553         <em class='brace'>{</em>
+<a id='L554' name='L554'></a>   554           <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L364' title='Defined at 364 in src/keyboard.h.'>MENU_ITEMS_ITEM_VALUE</a>);
+<a id='L555' name='L555'></a>   555 
+<a id='L556' name='L556'></a>   556           <strong class='reserved'>if</strong> (i + <a href='../S/275.html#L364' title='Defined at 364 in src/keyboard.h.'>MENU_ITEMS_ITEM_VALUE</a> == id)
+<a id='L557' name='L557'></a>   557             <em class='brace'>{</em>
+<a id='L558' name='L558'></a>   558               <strong class='reserved'>if</strong> (menuflags &amp; <a href='../S/118.html#L27' title='Defined at 27 in src/menu.h.'>MENU_KEYMAPS</a>)
+<a id='L559' name='L559'></a>   559                 <em class='brace'>{</em>
+<a id='L560' name='L560'></a>   560                   <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = <a href='../S/111.html#L2919' title='Defined at 2919 in src/alloc.c.'>list1</a> (<a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>);
+<a id='L561' name='L561'></a>   561 
+<a id='L562' name='L562'></a>   562                   <strong class='reserved'>if</strong> (!<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (prefix))
+<a id='L563' name='L563'></a>   563                     <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = Fcons (prefix, <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>);
+<a id='L564' name='L564'></a>   564 
+<a id='L565' name='L565'></a>   565                   <strong class='reserved'>for</strong> (subprefix_1 = subprefix; subprefix_1;
+<a id='L566' name='L566'></a>   566                        subprefix_1 = subprefix_1-&gt;last)
+<a id='L567' name='L567'></a>   567                     <strong class='reserved'>if</strong> (!<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (subprefix_1-&gt;subprefix))
+<a id='L568' name='L568'></a>   568                       <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = Fcons (subprefix_1-&gt;subprefix, <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>);
+<a id='L569' name='L569'></a>   569                 <em class='brace'>}</em>
+<a id='L570' name='L570'></a>   570 
+<a id='L571' name='L571'></a>   571               tem = <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>;
+<a id='L572' name='L572'></a>   572             <em class='brace'>}</em>
+<a id='L573' name='L573'></a>   573           i += <a href='../S/275.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a>;
+<a id='L574' name='L574'></a>   574         <em class='brace'>}</em>
+<a id='L575' name='L575'></a>   575     <em class='brace'>}</em>
+<a id='L576' name='L576'></a>   576 
+<a id='L577' name='L577'></a>   577   <a href='../D/18523.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L578' name='L578'></a>   578   <strong class='reserved'>return</strong> <a href='../S/122.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (count, tem);
+<a id='L579' name='L579'></a>   579 
+<a id='L580' name='L580'></a>   580  finish:
+<a id='L581' name='L581'></a>   581   <a href='../D/18523.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L582' name='L582'></a>   582   <strong class='reserved'>return</strong> <a href='../S/122.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (count, Qnil);
+<a id='L583' name='L583'></a>   583 <em class='brace'>}</em>
+<a id='L584' name='L584'></a>   584 
+<a id='L585' name='L585'></a>   585 
+<a id='L586' name='L586'></a>   586 
+<a id='L587' name='L587'></a>   587 <em class='comment'>/* Toolkit dialog implementation.  */</em>
+<a id='L588' name='L588'></a>   588 
+<a id='L589' name='L589'></a>   589 <em class='comment'>/* Structure describing the EmacsDialog class.  */</em>
+<a id='L590' name='L590'></a>   590 
+<a id='L591' name='L591'></a>   591 <strong class='reserved'>struct</strong> <a href='../S/63.html#L600' title='Referred from 600 in src/androidmenu.c.'>android_emacs_dialog</a>
+<a id='L592' name='L592'></a>   592 <em class='brace'>{</em>
+<a id='L593' name='L593'></a>   593   jclass class;
+<a id='L594' name='L594'></a>   594   jmethodID <a href='../S/47.html#L2274' title='Defined at 2274 in src/gtkutil.c.'>create_dialog</a>;
+<a id='L595' name='L595'></a>   595   jmethodID add_button;
+<a id='L596' name='L596'></a>   596   jmethodID <a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>;
+<a id='L597' name='L597'></a>   597 <em class='brace'>}</em>;
+<a id='L598' name='L598'></a>   598 
+<a id='L599' name='L599'></a>   599 <em class='comment'>/* Identifiers associated with the EmacsDialog class.  */</em>
+<a id='L600' name='L600'></a>   600 <strong class='reserved'>static</strong> <strong class='reserved'>struct</strong> <a href='../S/63.html#L591' title='Defined at 591 in src/androidmenu.c.'>android_emacs_dialog</a> dialog_class;
+<a id='L601' name='L601'></a>   601 
+<a id='L602' name='L602'></a>   602 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L603' name='L603'></a>   603 <a href='../S/63.html#L836' title='Referred from 836 in src/androidmenu.c.'>android_init_emacs_dialog</a> (<strong class='reserved'>void</strong>)
+<a id='L604' name='L604'></a>   604 <em class='brace'>{</em>
+<a id='L605' name='L605'></a>   605   jclass old;
+<a id='L606' name='L606'></a>   606 
+<a id='L607' name='L607'></a>   607   dialog_class.class
+<a id='L608' name='L608'></a>   608     = (*android_java_env)-&gt;FindClass (android_java_env,
+<a id='L609' name='L609'></a>   609                                       "org/gnu/emacs/EmacsDialog");
+<a id='L610' name='L610'></a>   610   <a href='../D/10863.html' title='Multiple defined in 5 places.'>eassert</a> (dialog_class.class);
+<a id='L611' name='L611'></a>   611 
+<a id='L612' name='L612'></a>   612   old = dialog_class.class;
+<a id='L613' name='L613'></a>   613   dialog_class.class
+<a id='L614' name='L614'></a>   614     = (jclass) (*android_java_env)-&gt;NewGlobalRef (android_java_env,
+<a id='L615' name='L615'></a>   615                                                   (jobject) old);
+<a id='L616' name='L616'></a>   616   <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (old);
+<a id='L617' name='L617'></a>   617 
+<a id='L618' name='L618'></a>   618   <strong class='reserved'>if</strong> (!dialog_class.class)
+<a id='L619' name='L619'></a>   619     <a href='../D/10885.html' title='Multiple defined in 6 places.'>emacs_abort</a> ();
+<a id='L620' name='L620'></a>   620 
+<a id='L621' name='L621'></a>   621 <em class='sharp'>#define</em> <a href='../R/1932.html' title='Multiple referred from 90 places.'>FIND_METHOD</a>(c_name, <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, signature)                    \
+<a id='L622' name='L622'></a>   622   dialog_class.c_name                                           \
+<a id='L623' name='L623'></a>   623     = (*android_java_env)-&gt;GetMethodID (android_java_env,       \
+<a id='L624' name='L624'></a>   624                                         dialog_class.class,     \
+<a id='L625' name='L625'></a>   625                                         <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, signature);       \
+<a id='L626' name='L626'></a>   626   <a href='../D/10863.html' title='Multiple defined in 5 places.'>eassert</a> (dialog_class.c_name);
+<a id='L627' name='L627'></a>   627 
+<a id='L628' name='L628'></a>   628 <em class='sharp'>#define</em> <a href='../R/1933.html' title='Multiple referred from 2 places.'>FIND_METHOD_STATIC</a>(c_name, <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, signature)                     \
+<a id='L629' name='L629'></a>   629   dialog_class.c_name                                                   \
+<a id='L630' name='L630'></a>   630     = (*android_java_env)-&gt;GetStaticMethodID (android_java_env,         \
+<a id='L631' name='L631'></a>   631                                               dialog_class.class,       \
+<a id='L632' name='L632'></a>   632                                               <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, signature);         \
+<a id='L633' name='L633'></a>   633 
+<a id='L634' name='L634'></a>   634   <a href='../D/2081.html' title='Multiple defined in 4 places.'>FIND_METHOD_STATIC</a> (<a href='../S/47.html#L2274' title='Defined at 2274 in src/gtkutil.c.'>create_dialog</a>, "createDialog", "(Ljava/lang/String;"
+<a id='L635' name='L635'></a>   635                       "Ljava/lang/String;I)Lorg/gnu/emacs/EmacsDialog;");
+<a id='L636' name='L636'></a>   636   <a href='../D/2080.html' title='Multiple defined in 26 places.'>FIND_METHOD</a> (add_button, "addButton", "(Ljava/lang/String;IZ)V");
+<a id='L637' name='L637'></a>   637   <a href='../D/2080.html' title='Multiple defined in 26 places.'>FIND_METHOD</a> (<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>, "display", "()Z");
+<a id='L638' name='L638'></a>   638 
+<a id='L639' name='L639'></a>   639 <em class='sharp'>#undef</em> <a href='../R/1932.html' title='Multiple referred from 90 places.'>FIND_METHOD</a>
+<a id='L640' name='L640'></a>   640 <em class='sharp'>#undef</em> <a href='../R/1933.html' title='Multiple referred from 2 places.'>FIND_METHOD_STATIC</a>
+<a id='L641' name='L641'></a>   641 <em class='brace'>}</em>
+<a id='L642' name='L642'></a>   642 
+<a id='L643' name='L643'></a>   643 <strong class='reserved'>static</strong> <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L644' name='L644'></a>   644 <a href='../S/63.html#L801' title='Referred from 801 in src/androidmenu.c.'>android_dialog_show</a> (<strong class='reserved'>struct</strong> <a href='../D/11661.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> title,
+<a id='L645' name='L645'></a>   645                      <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> header, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> **error_name)
+<a id='L646' name='L646'></a>   646 <em class='brace'>{</em>
+<a id='L647' name='L647'></a>   647   <a href='../D/17491.html' title='Multiple defined in 2 places.'>specpdl_ref</a> count;
+<a id='L648' name='L648'></a>   648   jobject dialog, java_header, java_title, temp;
+<a id='L649' name='L649'></a>   649   size_t i;
+<a id='L650' name='L650'></a>   650   <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> item_name, enable, <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>;
+<a id='L651' name='L651'></a>   651   <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> rc;
+<a id='L652' name='L652'></a>   652   <strong class='reserved'>int</strong> id;
+<a id='L653' name='L653'></a>   653   jmethodID method;
+<a id='L654' name='L654'></a>   654   <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> serial;
+<a id='L655' name='L655'></a>   655 
+<a id='L656' name='L656'></a>   656   <em class='comment'>/* Generate a unique ID for events from this dialog box.  */</em>
+<a id='L657' name='L657'></a>   657   serial = ++current_menu_serial;
+<a id='L658' name='L658'></a>   658 
+<a id='L659' name='L659'></a>   659   <strong class='reserved'>if</strong> (menu_items_n_panes &gt; 1)
+<a id='L660' name='L660'></a>   660     <em class='brace'>{</em>
+<a id='L661' name='L661'></a>   661       *error_name = "Multiple panes in dialog box";
+<a id='L662' name='L662'></a>   662       <strong class='reserved'>return</strong> Qnil;
+<a id='L663' name='L663'></a>   663     <em class='brace'>}</em>
+<a id='L664' name='L664'></a>   664 
+<a id='L665' name='L665'></a>   665   <em class='comment'>/* Do the initial setup.  */</em>
+<a id='L666' name='L666'></a>   666   count = <a href='../D/5813.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L667' name='L667'></a>   667   *error_name = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L668' name='L668'></a>   668 
+<a id='L669' name='L669'></a>   669   <a href='../S/63.html#L132' title='Defined at 132 in src/androidmenu.c.'>android_push_local_frame</a> ();
+<a id='L670' name='L670'></a>   670 
+<a id='L671' name='L671'></a>   671   <em class='comment'>/* Figure out what header to use.  */</em>
+<a id='L672' name='L672'></a>   672   java_header = (!<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (header)
+<a id='L673' name='L673'></a>   673                  ? <a href='../S/165.html#L5605' title='Defined at 5605 in src/android.c.'>android_build_jstring</a> ("Information")
+<a id='L674' name='L674'></a>   674                  : <a href='../S/165.html#L5605' title='Defined at 5605 in src/android.c.'>android_build_jstring</a> ("Question"));
+<a id='L675' name='L675'></a>   675 
+<a id='L676' name='L676'></a>   676   <em class='comment'>/* And the title.  */</em>
+<a id='L677' name='L677'></a>   677   java_title = <a href='../S/165.html#L5550' title='Defined at 5550 in src/android.c.'>android_build_string</a> (title);
+<a id='L678' name='L678'></a>   678 
+<a id='L679' name='L679'></a>   679   <em class='comment'>/* Now create the dialog.  */</em>
+<a id='L680' name='L680'></a>   680   method = dialog_class.<a href='../S/47.html#L2274' title='Defined at 2274 in src/gtkutil.c.'>create_dialog</a>;
+<a id='L681' name='L681'></a>   681   dialog = (*android_java_env)-&gt;CallStaticObjectMethod (android_java_env,
+<a id='L682' name='L682'></a>   682                                                         dialog_class.class,
+<a id='L683' name='L683'></a>   683                                                         method, java_header,
+<a id='L684' name='L684'></a>   684                                                         java_title,
+<a id='L685' name='L685'></a>   685                                                         (jint) serial);
+<a id='L686' name='L686'></a>   686   <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L687' name='L687'></a>   687 
+<a id='L688' name='L688'></a>   688   <em class='comment'>/* Delete now unused local references.  */</em>
+<a id='L689' name='L689'></a>   689   <strong class='reserved'>if</strong> (java_header)
+<a id='L690' name='L690'></a>   690     <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (java_header);
+<a id='L691' name='L691'></a>   691   <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (java_title);
+<a id='L692' name='L692'></a>   692 
+<a id='L693' name='L693'></a>   693   <em class='comment'>/* Create the buttons.  */</em>
+<a id='L694' name='L694'></a>   694   i = <a href='../S/275.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>;
+<a id='L695' name='L695'></a>   695   <strong class='reserved'>while</strong> (i &lt; menu_items_used)
+<a id='L696' name='L696'></a>   696     <em class='brace'>{</em>
+<a id='L697' name='L697'></a>   697       item_name = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L362' title='Defined at 362 in src/keyboard.h.'>MENU_ITEMS_ITEM_NAME</a>);
+<a id='L698' name='L698'></a>   698       enable = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L363' title='Defined at 363 in src/keyboard.h.'>MENU_ITEMS_ITEM_ENABLE</a>);
+<a id='L699' name='L699'></a>   699 
+<a id='L700' name='L700'></a>   700       <em class='comment'>/* Verify that there is no submenu here.  */</em>
+<a id='L701' name='L701'></a>   701 
+<a id='L702' name='L702'></a>   702       <strong class='reserved'>if</strong> (<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (item_name))
+<a id='L703' name='L703'></a>   703         <em class='brace'>{</em>
+<a id='L704' name='L704'></a>   704           *error_name = "Submenu in dialog items";
+<a id='L705' name='L705'></a>   705           <strong class='reserved'>return</strong> <a href='../S/122.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (count, Qnil);
+<a id='L706' name='L706'></a>   706         <em class='brace'>}</em>
+<a id='L707' name='L707'></a>   707 
+<a id='L708' name='L708'></a>   708       <em class='comment'>/* Skip past boundaries between buttons on different sides.  The</em>
+<a id='L709' name='L709'></a>   709 <em class='comment'>         Android toolkit is too silly to understand this</em>
+<a id='L710' name='L710'></a>   710 <em class='comment'>         distinction.  */</em>
+<a id='L711' name='L711'></a>   711 
+<a id='L712' name='L712'></a>   712       <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (item_name, Qquote))
+<a id='L713' name='L713'></a>   713         ++i;
+<a id='L714' name='L714'></a>   714       <strong class='reserved'>else</strong>
+<a id='L715' name='L715'></a>   715         <em class='brace'>{</em>
+<a id='L716' name='L716'></a>   716           <em class='comment'>/* Make sure i is within bounds.  */</em>
+<a id='L717' name='L717'></a>   717           <strong class='reserved'>if</strong> (i &gt; <a href='../S/2171.html#L47' title='Defined at 47 in lib/intprops.h.'>TYPE_MAXIMUM</a> (jint))
+<a id='L718' name='L718'></a>   718             <em class='brace'>{</em>
+<a id='L719' name='L719'></a>   719               *error_name = "Dialog box too big";
+<a id='L720' name='L720'></a>   720               <strong class='reserved'>return</strong> <a href='../S/122.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (count, Qnil);
+<a id='L721' name='L721'></a>   721             <em class='brace'>}</em>
+<a id='L722' name='L722'></a>   722 
+<a id='L723' name='L723'></a>   723           <em class='comment'>/* Add the button.  */</em>
+<a id='L724' name='L724'></a>   724           temp = <a href='../S/165.html#L5550' title='Defined at 5550 in src/android.c.'>android_build_string</a> (item_name);
+<a id='L725' name='L725'></a>   725           (*android_java_env)-&gt;CallVoidMethod (android_java_env,
+<a id='L726' name='L726'></a>   726                                                dialog,
+<a id='L727' name='L727'></a>   727                                                dialog_class.add_button,
+<a id='L728' name='L728'></a>   728                                                temp, (jint) i,
+<a id='L729' name='L729'></a>   729                                                (jboolean) <a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (enable));
+<a id='L730' name='L730'></a>   730           <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L731' name='L731'></a>   731           <a href='../S/230.html#L300' title='Defined at 300 in src/android.h.'>ANDROID_DELETE_LOCAL_REF</a> (temp);
+<a id='L732' name='L732'></a>   732           i += <a href='../S/275.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a>;
+<a id='L733' name='L733'></a>   733         <em class='brace'>}</em>
+<a id='L734' name='L734'></a>   734     <em class='brace'>}</em>
+<a id='L735' name='L735'></a>   735 
+<a id='L736' name='L736'></a>   736   <em class='comment'>/* The dialog is now built.  Run it.  */</em>
+<a id='L737' name='L737'></a>   737   rc = (*android_java_env)-&gt;CallBooleanMethod (android_java_env,
+<a id='L738' name='L738'></a>   738                                                dialog,
+<a id='L739' name='L739'></a>   739                                                dialog_class.<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>);
+<a id='L740' name='L740'></a>   740   <a href='../S/165.html#L5668' title='Defined at 5668 in src/android.c.'>android_exception_check</a> ();
+<a id='L741' name='L741'></a>   741 
+<a id='L742' name='L742'></a>   742   <strong class='reserved'>if</strong> (!rc)
+<a id='L743' name='L743'></a>   743     <a href='../D/15862.html' title='Multiple defined in 2 places.'>quit</a> ();
+<a id='L744' name='L744'></a>   744 
+<a id='L745' name='L745'></a>   745   <em class='comment'>/* Wait for the menu ID to arrive.  */</em>
+<a id='L746' name='L746'></a>   746   <a href='../S/63.html#L177' title='Defined at 177 in src/androidmenu.c.'>android_process_events_for_menu</a> (&amp;id);
+<a id='L747' name='L747'></a>   747 
+<a id='L748' name='L748'></a>   748   <strong class='reserved'>if</strong> (!id)
+<a id='L749' name='L749'></a>   749     <a href='../D/15862.html' title='Multiple defined in 2 places.'>quit</a> ();
+<a id='L750' name='L750'></a>   750 
+<a id='L751' name='L751'></a>   751   <em class='comment'>/* Find the selected item, and its pane, to return</em>
+<a id='L752' name='L752'></a>   752 <em class='comment'>     the proper value.  */</em>
+<a id='L753' name='L753'></a>   753   i = 0;
+<a id='L754' name='L754'></a>   754   <strong class='reserved'>while</strong> (i &lt; menu_items_used)
+<a id='L755' name='L755'></a>   755     <em class='brace'>{</em>
+<a id='L756' name='L756'></a>   756       <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qt))
+<a id='L757' name='L757'></a>   757         i += <a href='../S/275.html#L358' title='Defined at 358 in src/keyboard.h.'>MENU_ITEMS_PANE_LENGTH</a>;
+<a id='L758' name='L758'></a>   758       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (<a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i), Qquote))
+<a id='L759' name='L759'></a>   759         <em class='comment'>/* This is the boundary between left-side elts and right-side</em>
+<a id='L760' name='L760'></a>   760 <em class='comment'>           elts.  */</em>
+<a id='L761' name='L761'></a>   761         ++i;
+<a id='L762' name='L762'></a>   762       <strong class='reserved'>else</strong>
+<a id='L763' name='L763'></a>   763         <em class='brace'>{</em>
+<a id='L764' name='L764'></a>   764           <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a> = <a href='../D/181.html' title='Multiple defined in 2 places.'>AREF</a> (menu_items, i + <a href='../S/275.html#L364' title='Defined at 364 in src/keyboard.h.'>MENU_ITEMS_ITEM_VALUE</a>);
+<a id='L765' name='L765'></a>   765 
+<a id='L766' name='L766'></a>   766           <strong class='reserved'>if</strong> (id == i)
+<a id='L767' name='L767'></a>   767             <strong class='reserved'>return</strong> <a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>;
+<a id='L768' name='L768'></a>   768 
+<a id='L769' name='L769'></a>   769           i += <a href='../S/275.html#L370' title='Defined at 370 in src/keyboard.h.'>MENU_ITEMS_ITEM_LENGTH</a>;
+<a id='L770' name='L770'></a>   770         <em class='brace'>}</em>
+<a id='L771' name='L771'></a>   771     <em class='brace'>}</em>
+<a id='L772' name='L772'></a>   772 
+<a id='L773' name='L773'></a>   773   <strong class='reserved'>return</strong> Qnil;
+<a id='L774' name='L774'></a>   774 <em class='brace'>}</em>
+<a id='L775' name='L775'></a>   775 
+<a id='L776' name='L776'></a>   776 <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L777' name='L777'></a>   777 <a href='../R/7792.html' title='Multiple referred from 2 places.'>android_popup_dialog</a> (<strong class='reserved'>struct</strong> <a href='../D/11661.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> header,
+<a id='L778' name='L778'></a>   778                       <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> contents)
+<a id='L779' name='L779'></a>   779 <em class='brace'>{</em>
+<a id='L780' name='L780'></a>   780   <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> title;
+<a id='L781' name='L781'></a>   781   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *error_name;
+<a id='L782' name='L782'></a>   782   <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/4010.html#L63' title='Defined at 63 in lwlib/lwlib-Xm.c.'>selection</a>;
+<a id='L783' name='L783'></a>   783   <a href='../D/17491.html' title='Multiple defined in 2 places.'>specpdl_ref</a> specpdl_count = <a href='../D/5813.html' title='Multiple defined in 2 places.'>SPECPDL_INDEX</a> ();
+<a id='L784' name='L784'></a>   784 
+<a id='L785' name='L785'></a>   785   <a href='../S/317.html#L134' title='Defined at 134 in src/frame.c.'>check_window_system</a> (<a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L786' name='L786'></a>   786 
+<a id='L787' name='L787'></a>   787   <em class='comment'>/* Decode the dialog items from what was specified.  */</em>
+<a id='L788' name='L788'></a>   788   title = Fcar (contents);
+<a id='L789' name='L789'></a>   789   <a href='../S/131.html#L1610' title='Defined at 1610 in src/lisp.h.'>CHECK_STRING</a> (title);
+<a id='L790' name='L790'></a>   790   <a href='../S/122.html#L3608' title='Defined at 3608 in src/eval.c.'>record_unwind_protect_void</a> (<a href='../S/154.html#L103' title='Defined at 103 in src/menu.c.'>unuse_menu_items</a>);
+<a id='L791' name='L791'></a>   791 
+<a id='L792' name='L792'></a>   792   <strong class='reserved'>if</strong> (<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (Fcar (Fcdr (contents))))
+<a id='L793' name='L793'></a>   793     <em class='comment'>/* No buttons specified, add an "Ok" button so users can pop down</em>
+<a id='L794' name='L794'></a>   794 <em class='comment'>       the dialog.  */</em>
+<a id='L795' name='L795'></a>   795     contents = <a href='../S/111.html#L2925' title='Defined at 2925 in src/alloc.c.'>list2</a> (title, Fcons (<a href='../D/9426.html' title='Multiple defined in 2 places.'>build_string</a> ("Ok"), Qt));
+<a id='L796' name='L796'></a>   796 
+<a id='L797' name='L797'></a>   797   <a href='../S/154.html#L497' title='Defined at 497 in src/menu.c.'>list_of_panes</a> (<a href='../S/111.html#L2919' title='Defined at 2919 in src/alloc.c.'>list1</a> (contents));
+<a id='L798' name='L798'></a>   798 
+<a id='L799' name='L799'></a>   799   <em class='comment'>/* Display them in a dialog box.  */</em>
+<a id='L800' name='L800'></a>   800   <a href='../S/143.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L801' name='L801'></a>   801   <a href='../S/4010.html#L63' title='Defined at 63 in lwlib/lwlib-Xm.c.'>selection</a> = <a href='../S/63.html#L644' title='Defined at 644 in src/androidmenu.c.'>android_dialog_show</a> (<a href='../D/11233.html' title='Multiple defined in 12 places.'>f</a>, title, header, &amp;error_name);
+<a id='L802' name='L802'></a>   802   <a href='../D/18523.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L803' name='L803'></a>   803 
+<a id='L804' name='L804'></a>   804   <a href='../S/122.html#L3757' title='Defined at 3757 in src/eval.c.'>unbind_to</a> (specpdl_count, Qnil);
+<a id='L805' name='L805'></a>   805   <a href='../S/154.html#L112' title='Defined at 112 in src/menu.c.'>discard_menu_items</a> ();
+<a id='L806' name='L806'></a>   806 
+<a id='L807' name='L807'></a>   807   <strong class='reserved'>if</strong> (error_name)
+<a id='L808' name='L808'></a>   808     <a href='../D/11146.html' title='Multiple defined in 7 places.'>error</a> ("%s", error_name);
+<a id='L809' name='L809'></a>   809 
+<a id='L810' name='L810'></a>   810   <strong class='reserved'>return</strong> <a href='../S/4010.html#L63' title='Defined at 63 in lwlib/lwlib-Xm.c.'>selection</a>;
+<a id='L811' name='L811'></a>   811 <em class='brace'>}</em>
+<a id='L812' name='L812'></a>   812 
+<a id='L813' name='L813'></a>   813 <em class='sharp'>#else</em>
+<a id='L814' name='L814'></a>   814 
+<a id='L815' name='L815'></a>   815 <strong class='reserved'>int</strong>
+<a id='L816' name='L816'></a>   816 <a href='../R/14369.html' title='Multiple referred from 34 places.'>popup_activated</a> (<strong class='reserved'>void</strong>)
+<a id='L817' name='L817'></a>   817 <em class='brace'>{</em>
+<a id='L818' name='L818'></a>   818   <strong class='reserved'>return</strong> 0;
+<a id='L819' name='L819'></a>   819 <em class='brace'>}</em>
+<a id='L820' name='L820'></a>   820 
+<a id='L821' name='L821'></a>   821 <em class='sharp'>#endif</em>
+<a id='L822' name='L822'></a>   822 
+<a id='L823' name='L823'></a>   823 <a href='../R/1357.html' title='Multiple referred from 831 places.'>DEFUN</a> ("menu-or-popup-active-p", Fmenu_or_popup_active_p,
+<a id='L824' name='L824'></a>   824        Smenu_or_popup_active_p, 0, 0, 0,
+<a id='L825' name='L825'></a>   825        doc: <em class='comment'>/* SKIP: real doc in xfns.c.  */</em>)
+<a id='L826' name='L826'></a>   826   (<strong class='reserved'>void</strong>)
+<a id='L827' name='L827'></a>   827 <em class='brace'>{</em>
+<a id='L828' name='L828'></a>   828   <strong class='reserved'>return</strong> (<a href='../D/15598.html' title='Multiple defined in 5 places.'>popup_activated</a> ()) ? Qt : Qnil;
+<a id='L829' name='L829'></a>   829 <em class='brace'>}</em>
+<a id='L830' name='L830'></a>   830 
+<a id='L831' name='L831'></a>   831 <strong class='reserved'>void</strong>
+<a id='L832' name='L832'></a>   832 <a href='../R/12063.html' title='Multiple referred from 2 places.'>init_androidmenu</a> (<strong class='reserved'>void</strong>)
+<a id='L833' name='L833'></a>   833 <em class='brace'>{</em>
+<a id='L834' name='L834'></a>   834 <em class='sharp'>#ifndef</em> ANDROID_STUBIFY
+<a id='L835' name='L835'></a>   835   <a href='../S/63.html#L71' title='Defined at 71 in src/androidmenu.c.'>android_init_emacs_context_menu</a> ();
+<a id='L836' name='L836'></a>   836   <a href='../S/63.html#L603' title='Defined at 603 in src/androidmenu.c.'>android_init_emacs_dialog</a> ();
+<a id='L837' name='L837'></a>   837 <em class='sharp'>#endif</em>
+<a id='L838' name='L838'></a>   838 <em class='brace'>}</em>
+<a id='L839' name='L839'></a>   839 
+<a id='L840' name='L840'></a>   840 <strong class='reserved'>void</strong>
+<a id='L841' name='L841'></a>   841 <a href='../R/16489.html' title='Multiple referred from 2 places.'>syms_of_androidmenu</a> (<strong class='reserved'>void</strong>)
+<a id='L842' name='L842'></a>   842 <em class='brace'>{</em>
+<a id='L843' name='L843'></a>   843   <a href='../S/174.html#L5327' title='Defined at 5327 in src/lread.c.'>defsubr</a> (&amp;Smenu_or_popup_active_p);
+<a id='L844' name='L844'></a>   844 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L44'>[^]</a><a href='#L841'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

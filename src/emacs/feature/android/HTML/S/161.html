@@ -1,0 +1,1401 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/xsettings.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4744.html'>src</a>/xsettings.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L76'>[^]</a><a href='#L1292'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L76' title='Defined at 76.'>store_config_changed_event</a></li>
+<li><a href='#L88' title='Defined at 88.'>dpyinfo_valid</a></li>
+<li><a href='#L108' title='Defined at 108.'>store_monospaced_changed</a></li>
+<li><a href='#L127' title='Defined at 127.'>store_font_name_changed</a></li>
+<li><a href='#L146' title='Defined at 146.'>map_tool_bar_style</a></li>
+<li><a href='#L167' title='Defined at 167.'>store_tool_bar_style_changed</a></li>
+<li><a href='#L239' title='Defined at 239.'>xg_settings_key_valid_p</a></li>
+<li><a href='#L266' title='Defined at 266.'>store_font_options_changed</a></li>
+<li><a href='#L275' title='Defined at 275.'>apply_gsettings_font_hinting</a></li>
+<li><a href='#L312' title='Defined at 312.'>apply_gsettings_font_antialias</a></li>
+<li><a href='#L345' title='Defined at 345.'>apply_gsettings_font_rgba_order</a></li>
+<li><a href='#L385' title='Defined at 385.'>something_changed_gsettingsCB</a></li>
+<li><a href='#L470' title='Defined at 470.'>something_changed_gconfCB</a></li>
+<li><a href='#L519' title='Defined at 519.'>get_prop_window</a></li>
+<li><a href='#L591' title='Defined at 591.'>parse_settings</a></li>
+<li><a href='#L772' title='Defined at 772.'>read_settings</a></li>
+<li><a href='#L807' title='Defined at 807.'>apply_xft_settings</a></li>
+<li><a href='#L966' title='Defined at 966.'>read_and_apply_settings</a></li>
+<li><a href='#L1000' title='Defined at 1000.'>xft_settings_event</a></li>
+<li><a href='#L1045' title='Defined at 1045.'>init_gsettings</a></li>
+<li><a href='#L1126' title='Defined at 1126.'>init_gconf</a></li>
+<li><a href='#L1190' title='Defined at 1190.'>init_xsettings</a></li>
+<li><a href='#L1209' title='Defined at 1209.'>xsettings_initialize</a></li>
+<li><a href='#L1223' title='Defined at 1223.'>xsettings_get_system_font</a></li>
+<li><a href='#L1233' title='Defined at 1233.'>xsettings_get_system_normal_font</a></li>
+<li><a href='#L1244' title='Defined at 1244.'>xsettings_get_font_options</a></li>
+<li><a href='#L1254' title='Defined at 1254.'>DEFUN</a></li>
+<li><a href='#L1264' title='Defined at 1264.'>DEFUN</a></li>
+<li><a href='#L1273' title='Defined at 1273.'>DEFUN</a></li>
+<li><a href='#L1292' title='Defined at 1292.'>syms_of_xsettings</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Functions for handling font and other changes dynamically.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2009-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;float.h&gt;
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;limits.h&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> &lt;byteswap.h&gt;
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <em class='sharp'>#include</em> "<a href='../I/494.html'>lisp.h</a>"
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> "<a href='61.html'>xterm.h</a>"
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#else</em>
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> "<a href='120.html'>gtkutil.h</a>"
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#endif</em>
+<a id='L34' name='L34'></a>    34 <em class='sharp'>#include</em> "<a href='350.html'>xsettings.h</a>"
+<a id='L35' name='L35'></a>    35 <em class='sharp'>#include</em> "<a href='69.html'>frame.h</a>"
+<a id='L36' name='L36'></a>    36 <em class='sharp'>#include</em> "<a href='275.html'>keyboard.h</a>"
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#include</em> "<a href='143.html'>blockinput.h</a>"
+<a id='L38' name='L38'></a>    38 <em class='sharp'>#include</em> "<a href='228.html'>termhooks.h</a>"
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#include</em> "<a href='231.html'>pdumper.h</a>"
+<a id='L40' name='L40'></a>    40 
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L42' name='L42'></a>    42 <em class='sharp'>#include</em> &lt;X11/Xproto.h&gt;
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#else</em>
+<a id='L44' name='L44'></a>    44 <strong class='reserved'>typedef</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> <a href='../S/161.html#L616' title='Referred from 616 in src/xsettings.c.'>CARD16</a>;
+<a id='L45' name='L45'></a>    45 <strong class='reserved'>typedef</strong> <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong> <a href='../R/634.html' title='Multiple referred from 3 places.'>CARD32</a>;
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#endif</em>
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#ifdef</em> HAVE_GSETTINGS
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#include</em> &lt;glib-object.h&gt;
+<a id='L50' name='L50'></a>    50 <em class='sharp'>#include</em> &lt;gio/gio.h&gt;
+<a id='L51' name='L51'></a>    51 <em class='sharp'>#endif</em>
+<a id='L52' name='L52'></a>    52 
+<a id='L53' name='L53'></a>    53 <em class='sharp'>#ifdef</em> HAVE_GCONF
+<a id='L54' name='L54'></a>    54 <em class='sharp'>#include</em> &lt;gconf/gconf-client.h&gt;
+<a id='L55' name='L55'></a>    55 <em class='sharp'>#endif</em>
+<a id='L56' name='L56'></a>    56 
+<a id='L57' name='L57'></a>    57 <em class='sharp'>#ifdef</em> USE_CAIRO
+<a id='L58' name='L58'></a>    58 <em class='sharp'>#include</em> &lt;fontconfig/fontconfig.h&gt;
+<a id='L59' name='L59'></a>    59 <em class='sharp'>#include</em> "<a href='254.html'>ftfont.h</a>"
+<a id='L60' name='L60'></a>    60 <em class='sharp'>#elif</em> <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L61' name='L61'></a>    61 <em class='sharp'>#include</em> &lt;X11/Xft/Xft.h&gt;
+<a id='L62' name='L62'></a>    62 <em class='sharp'>#endif</em>
+<a id='L63' name='L63'></a>    63 
+<a id='L64' name='L64'></a>    64 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO &amp;&amp; <strong class='reserved'>defined</strong> CAIRO_HAS_FT_FONT
+<a id='L65' name='L65'></a>    65 <em class='sharp'>#include</em> &lt;cairo/cairo-ft.h&gt;
+<a id='L66' name='L66'></a>    66 <em class='sharp'>#endif</em>
+<a id='L67' name='L67'></a>    67 
+<a id='L68' name='L68'></a>    68 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *current_mono_font;
+<a id='L69' name='L69'></a>    69 <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> *<a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a>;
+<a id='L70' name='L70'></a>    70 <strong class='reserved'>static</strong> <a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *first_dpyinfo;
+<a id='L71' name='L71'></a>    71 <strong class='reserved'>static</strong> <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> current_tool_bar_style;
+<a id='L72' name='L72'></a>    72 
+<a id='L73' name='L73'></a>    73 <em class='comment'>/* Store a config changed event in to the event queue.  */</em>
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L76' name='L76'></a>    76 <a href='../R/16297.html' title='Multiple referred from 5 places.'>store_config_changed_event</a> (<a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> arg, <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> display_name)
+<a id='L77' name='L77'></a>    77 <em class='brace'>{</em>
+<a id='L78' name='L78'></a>    78   <strong class='reserved'>struct</strong> <a href='../S/228.html#L354' title='Defined at 354 in src/termhooks.h.'>input_event</a> event;
+<a id='L79' name='L79'></a>    79   <a href='../S/228.html#L397' title='Defined at 397 in src/termhooks.h.'>EVENT_INIT</a> (event);
+<a id='L80' name='L80'></a>    80   event.kind = <a href='../S/228.html#L256' title='Defined at 256 in src/termhooks.h.'>CONFIG_CHANGED_EVENT</a>;
+<a id='L81' name='L81'></a>    81   event.frame_or_window = display_name;
+<a id='L82' name='L82'></a>    82   event.arg = arg;
+<a id='L83' name='L83'></a>    83   <a href='../D/13589.html' title='Multiple defined in 2 places.'>kbd_buffer_store_event</a> (&amp;event);
+<a id='L84' name='L84'></a>    84 <em class='brace'>}</em>
+<a id='L85' name='L85'></a>    85 
+<a id='L86' name='L86'></a>    86 <em class='comment'>/* Return true if DPYINFO is still valid.  */</em>
+<a id='L87' name='L87'></a>    87 <strong class='reserved'>static</strong> <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L88' name='L88'></a>    88 <a href='../R/9614.html' title='Multiple referred from 4 places.'>dpyinfo_valid</a> (<a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *dpyinfo)
+<a id='L89' name='L89'></a>    89 <em class='brace'>{</em>
+<a id='L90' name='L90'></a>    90   <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> found = <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L91' name='L91'></a>    91   <strong class='reserved'>if</strong> (dpyinfo != <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L92' name='L92'></a>    92     <em class='brace'>{</em>
+<a id='L93' name='L93'></a>    93       <a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a>;
+<a id='L94' name='L94'></a>    94       <strong class='reserved'>for</strong> (<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> = x_display_list; !found &amp;&amp; <a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a>; <a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> = <a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a>-&gt;next)
+<a id='L95' name='L95'></a>    95 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L96' name='L96'></a>    96         found = <a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> == dpyinfo &amp;&amp; <a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a>-&gt;<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a> == dpyinfo-&gt;<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>;
+<a id='L97' name='L97'></a>    97 <em class='sharp'>#else</em>
+<a id='L98' name='L98'></a>    98         found = <a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> == dpyinfo &amp;&amp; <a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a>-&gt;gdpy == dpyinfo-&gt;gdpy;
+<a id='L99' name='L99'></a>    99 <em class='sharp'>#endif</em>
+<a id='L100' name='L100'></a>   100     <em class='brace'>}</em>
+<a id='L101' name='L101'></a>   101   <strong class='reserved'>return</strong> found;
+<a id='L102' name='L102'></a>   102 <em class='brace'>}</em>
+<a id='L103' name='L103'></a>   103 
+<a id='L104' name='L104'></a>   104 <em class='comment'>/* Store a monospace font change event if the monospaced font changed.  */</em>
+<a id='L105' name='L105'></a>   105 
+<a id='L106' name='L106'></a>   106 <em class='sharp'>#if</em> (<strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT) &amp;&amp; (<strong class='reserved'>defined</strong> HAVE_GSETTINGS || <strong class='reserved'>defined</strong> HAVE_GCONF)
+<a id='L107' name='L107'></a>   107 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L108' name='L108'></a>   108 <a href='../R/16308.html' title='Multiple referred from 2 places.'>store_monospaced_changed</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *newfont)
+<a id='L109' name='L109'></a>   109 <em class='brace'>{</em>
+<a id='L110' name='L110'></a>   110   <strong class='reserved'>if</strong> (current_mono_font != <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a> &amp;&amp; strcmp (newfont, current_mono_font) == 0)
+<a id='L111' name='L111'></a>   111     <strong class='reserved'>return</strong>; <em class='comment'>/* No change. */</em>
+<a id='L112' name='L112'></a>   112 
+<a id='L113' name='L113'></a>   113   <a href='../S/111.html#L985' title='Defined at 985 in src/alloc.c.'>dupstring</a> (&amp;current_mono_font, newfont);
+<a id='L114' name='L114'></a>   114 
+<a id='L115' name='L115'></a>   115   <strong class='reserved'>if</strong> (<a href='../S/161.html#L88' title='Defined at 88 in src/xsettings.c.'>dpyinfo_valid</a> (first_dpyinfo) &amp;&amp; use_system_font)
+<a id='L116' name='L116'></a>   116     <em class='brace'>{</em>
+<a id='L117' name='L117'></a>   117       <a href='../S/161.html#L76' title='Defined at 76 in src/xsettings.c.'>store_config_changed_event</a> (Qmonospace_font_name,
+<a id='L118' name='L118'></a>   118                                   <a href='../D/6892.html' title='Multiple defined in 2 places.'>XCAR</a> (first_dpyinfo-&gt;name_list_element));
+<a id='L119' name='L119'></a>   119     <em class='brace'>}</em>
+<a id='L120' name='L120'></a>   120 <em class='brace'>}</em>
+<a id='L121' name='L121'></a>   121 <em class='sharp'>#endif</em>
+<a id='L122' name='L122'></a>   122 
+<a id='L123' name='L123'></a>   123 <em class='comment'>/* Store a font name change event if the font name changed.  */</em>
+<a id='L124' name='L124'></a>   124 
+<a id='L125' name='L125'></a>   125 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L126' name='L126'></a>   126 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L127' name='L127'></a>   127 <a href='../R/16298.html' title='Multiple referred from 3 places.'>store_font_name_changed</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *newfont)
+<a id='L128' name='L128'></a>   128 <em class='brace'>{</em>
+<a id='L129' name='L129'></a>   129   <strong class='reserved'>if</strong> (<a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a> != <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a> &amp;&amp; strcmp (newfont, <a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a>) == 0)
+<a id='L130' name='L130'></a>   130     <strong class='reserved'>return</strong>; <em class='comment'>/* No change. */</em>
+<a id='L131' name='L131'></a>   131 
+<a id='L132' name='L132'></a>   132   <a href='../S/111.html#L985' title='Defined at 985 in src/alloc.c.'>dupstring</a> (&amp;<a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a>, newfont);
+<a id='L133' name='L133'></a>   133 
+<a id='L134' name='L134'></a>   134   <strong class='reserved'>if</strong> (<a href='../S/161.html#L88' title='Defined at 88 in src/xsettings.c.'>dpyinfo_valid</a> (first_dpyinfo))
+<a id='L135' name='L135'></a>   135     <em class='brace'>{</em>
+<a id='L136' name='L136'></a>   136       <a href='../S/161.html#L76' title='Defined at 76 in src/xsettings.c.'>store_config_changed_event</a> (Qfont_name,
+<a id='L137' name='L137'></a>   137                                   <a href='../D/6892.html' title='Multiple defined in 2 places.'>XCAR</a> (first_dpyinfo-&gt;name_list_element));
+<a id='L138' name='L138'></a>   138     <em class='brace'>}</em>
+<a id='L139' name='L139'></a>   139 <em class='brace'>}</em>
+<a id='L140' name='L140'></a>   140 <em class='sharp'>#endif</em> <em class='comment'>/* USE_CAIRO || HAVE_XFT */</em>
+<a id='L141' name='L141'></a>   141 
+<a id='L142' name='L142'></a>   142 <em class='comment'>/* Map TOOL_BAR_STYLE from a string to its corresponding Lisp value.</em>
+<a id='L143' name='L143'></a>   143 <em class='comment'>   Return Qnil if TOOL_BAR_STYLE is not known.  */</em>
+<a id='L144' name='L144'></a>   144 
+<a id='L145' name='L145'></a>   145 <strong class='reserved'>static</strong> <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L146' name='L146'></a>   146 <a href='../R/13027.html' title='Multiple referred from 4 places.'>map_tool_bar_style</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *tool_bar_style)
+<a id='L147' name='L147'></a>   147 <em class='brace'>{</em>
+<a id='L148' name='L148'></a>   148   <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> style = Qnil;
+<a id='L149' name='L149'></a>   149   <strong class='reserved'>if</strong> (tool_bar_style)
+<a id='L150' name='L150'></a>   150     <em class='brace'>{</em>
+<a id='L151' name='L151'></a>   151       <strong class='reserved'>if</strong> (strcmp (tool_bar_style, "both") == 0)
+<a id='L152' name='L152'></a>   152         style = Qboth;
+<a id='L153' name='L153'></a>   153       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (tool_bar_style, "both-horiz") == 0)
+<a id='L154' name='L154'></a>   154         style = Qboth_horiz;
+<a id='L155' name='L155'></a>   155       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (tool_bar_style, "icons") == 0)
+<a id='L156' name='L156'></a>   156         style = Qimage;
+<a id='L157' name='L157'></a>   157       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (tool_bar_style, "text") == 0)
+<a id='L158' name='L158'></a>   158         style = Qtext;
+<a id='L159' name='L159'></a>   159     <em class='brace'>}</em>
+<a id='L160' name='L160'></a>   160 
+<a id='L161' name='L161'></a>   161   <strong class='reserved'>return</strong> style;
+<a id='L162' name='L162'></a>   162 <em class='brace'>}</em>
+<a id='L163' name='L163'></a>   163 
+<a id='L164' name='L164'></a>   164 <em class='comment'>/* Store a tool bar style change event if the tool bar style changed.  */</em>
+<a id='L165' name='L165'></a>   165 
+<a id='L166' name='L166'></a>   166 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L167' name='L167'></a>   167 <a href='../R/16314.html' title='Multiple referred from 3 places.'>store_tool_bar_style_changed</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *newstyle,
+<a id='L168' name='L168'></a>   168                               <a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *dpyinfo)
+<a id='L169' name='L169'></a>   169 <em class='brace'>{</em>
+<a id='L170' name='L170'></a>   170   <a href='../D/3776.html' title='Multiple defined in 11 places.'>Lisp_Object</a> style = <a href='../S/161.html#L146' title='Defined at 146 in src/xsettings.c.'>map_tool_bar_style</a> (newstyle);
+<a id='L171' name='L171'></a>   171   <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (current_tool_bar_style, style))
+<a id='L172' name='L172'></a>   172     <strong class='reserved'>return</strong>; <em class='comment'>/* No change. */</em>
+<a id='L173' name='L173'></a>   173 
+<a id='L174' name='L174'></a>   174   current_tool_bar_style = style;
+<a id='L175' name='L175'></a>   175   <strong class='reserved'>if</strong> (<a href='../S/161.html#L88' title='Defined at 88 in src/xsettings.c.'>dpyinfo_valid</a> (dpyinfo))
+<a id='L176' name='L176'></a>   176     <a href='../S/161.html#L76' title='Defined at 76 in src/xsettings.c.'>store_config_changed_event</a> (Qtool_bar_style,
+<a id='L177' name='L177'></a>   177                                 <a href='../D/6892.html' title='Multiple defined in 2 places.'>XCAR</a> (dpyinfo-&gt;name_list_element));
+<a id='L178' name='L178'></a>   178 <em class='brace'>}</em>
+<a id='L179' name='L179'></a>   179 
+<a id='L180' name='L180'></a>   180 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L181' name='L181'></a>   181 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L182' name='L182'></a>   182 <em class='sharp'>#define</em> <a href='../R/6470.html' title='Multiple referred from 2 places.'>XSETTINGS_FONT_NAME</a>       "Gtk/FontName"
+<a id='L183' name='L183'></a>   183 <em class='sharp'>#endif</em>
+<a id='L184' name='L184'></a>   184 <em class='sharp'>#define</em> <a href='../R/6472.html' title='Multiple referred from 2 places.'>XSETTINGS_TOOL_BAR_STYLE</a>  "Gtk/ToolbarStyle"
+<a id='L185' name='L185'></a>   185 <em class='sharp'>#endif</em>
+<a id='L186' name='L186'></a>   186 
+<a id='L187' name='L187'></a>   187 <strong class='reserved'>enum</strong> <em class='brace'>{</em>
+<a id='L188' name='L188'></a>   188   <a href='../R/4951.html' title='Multiple referred from 2 places.'>SEEN_AA</a>         = 0x01,
+<a id='L189' name='L189'></a>   189   <a href='../R/4954.html' title='Multiple referred from 2 places.'>SEEN_HINTING</a>    = 0x02,
+<a id='L190' name='L190'></a>   190   <a href='../R/4957.html' title='Multiple referred from 3 places.'>SEEN_RGBA</a>       = 0x04,
+<a id='L191' name='L191'></a>   191   <a href='../R/4956.html' title='Multiple referred from 3 places.'>SEEN_LCDFILTER</a>  = 0x08,
+<a id='L192' name='L192'></a>   192   <a href='../R/4955.html' title='Multiple referred from 3 places.'>SEEN_HINTSTYLE</a>  = 0x10,
+<a id='L193' name='L193'></a>   193   <a href='../R/4952.html' title='Multiple referred from 2 places.'>SEEN_DPI</a>        = 0x20,
+<a id='L194' name='L194'></a>   194   <a href='../R/4953.html' title='Multiple referred from 2 places.'>SEEN_FONT</a>       = 0x40,
+<a id='L195' name='L195'></a>   195   <a href='../R/4958.html' title='Multiple referred from 2 places.'>SEEN_TB_STYLE</a>   = 0x80
+<a id='L196' name='L196'></a>   196 <em class='brace'>}</em>;
+<a id='L197' name='L197'></a>   197 <strong class='reserved'>struct</strong> <a href='../R/18612.html' title='Multiple referred from 5 places.'>xsettings</a>
+<a id='L198' name='L198'></a>   198 <em class='brace'>{</em>
+<a id='L199' name='L199'></a>   199 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L200' name='L200'></a>   200   FcBool <a href='../D/8118.html' title='Multiple defined in 2 places.'>aa</a>, hinting;
+<a id='L201' name='L201'></a>   201   <strong class='reserved'>int</strong> rgba, lcdfilter, hintstyle;
+<a id='L202' name='L202'></a>   202   <strong class='reserved'>double</strong> dpi;
+<a id='L203' name='L203'></a>   203 
+<a id='L204' name='L204'></a>   204   <strong class='reserved'>char</strong> *<a href='../S/140.html#L277' title='Defined at 277 in src/font.h.'>font</a>;
+<a id='L205' name='L205'></a>   205 <em class='sharp'>#endif</em>
+<a id='L206' name='L206'></a>   206 
+<a id='L207' name='L207'></a>   207   <strong class='reserved'>char</strong> *tb_style;
+<a id='L208' name='L208'></a>   208 
+<a id='L209' name='L209'></a>   209   <strong class='reserved'>unsigned</strong> seen;
+<a id='L210' name='L210'></a>   210 <em class='brace'>}</em>;
+<a id='L211' name='L211'></a>   211 
+<a id='L212' name='L212'></a>   212 <em class='sharp'>#ifdef</em> HAVE_PGTK
+<a id='L213' name='L213'></a>   213 <em class='comment'>/* The cairo font_options as obtained using gsettings.  */</em>
+<a id='L214' name='L214'></a>   214 <strong class='reserved'>static</strong> cairo_font_options_t *font_options;
+<a id='L215' name='L215'></a>   215 <em class='sharp'>#endif</em>
+<a id='L216' name='L216'></a>   216 
+<a id='L217' name='L217'></a>   217 <em class='sharp'>#ifdef</em> HAVE_GSETTINGS
+<a id='L218' name='L218'></a>   218 <em class='sharp'>#define</em> <a href='../R/2630.html' title='Multiple referred from 3 places.'>GSETTINGS_SCHEMA</a>         "org.gnome.desktop.interface"
+<a id='L219' name='L219'></a>   219 <em class='sharp'>#define</em> <a href='../R/2631.html' title='Multiple referred from 3 places.'>GSETTINGS_TOOL_BAR_STYLE</a> "toolbar-style"
+<a id='L220' name='L220'></a>   220 
+<a id='L221' name='L221'></a>   221 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L222' name='L222'></a>   222 <em class='sharp'>#define</em> <a href='../R/2629.html' title='Multiple referred from 3 places.'>GSETTINGS_MONO_FONT</a>  "monospace-font-name"
+<a id='L223' name='L223'></a>   223 <em class='sharp'>#define</em> <a href='../R/2627.html' title='Multiple referred from 3 places.'>GSETTINGS_FONT_NAME</a>  "font-name"
+<a id='L224' name='L224'></a>   224 <em class='sharp'>#endif</em>
+<a id='L225' name='L225'></a>   225 
+<a id='L226' name='L226'></a>   226 <em class='sharp'>#ifdef</em> HAVE_PGTK
+<a id='L227' name='L227'></a>   227 <em class='sharp'>#define</em> <a href='../R/2625.html' title='Multiple referred from 3 places.'>GSETTINGS_FONT_ANTIALIASING</a>  "font-antialiasing"
+<a id='L228' name='L228'></a>   228 <em class='sharp'>#define</em> <a href='../R/2628.html' title='Multiple referred from 3 places.'>GSETTINGS_FONT_RGBA_ORDER</a>    "font-rgba-order"
+<a id='L229' name='L229'></a>   229 <em class='sharp'>#define</em> <a href='../R/2626.html' title='Multiple referred from 3 places.'>GSETTINGS_FONT_HINTING</a>       "font-hinting"
+<a id='L230' name='L230'></a>   230 <em class='sharp'>#endif</em>
+<a id='L231' name='L231'></a>   231 
+<a id='L232' name='L232'></a>   232 <em class='comment'>/* The single GSettings instance, or NULL if not connected to GSettings.  */</em>
+<a id='L233' name='L233'></a>   233 
+<a id='L234' name='L234'></a>   234 <strong class='reserved'>static</strong> GSettings *gsettings_client;
+<a id='L235' name='L235'></a>   235 
+<a id='L236' name='L236'></a>   236 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> HAVE_PGTK &amp;&amp; <strong class='reserved'>defined</strong> HAVE_GSETTINGS
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238 <strong class='reserved'>static</strong> <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L239' name='L239'></a>   239 <a href='../R/18444.html' title='Multiple referred from 3 places.'>xg_settings_key_valid_p</a> (GSettings *settings, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *key)
+<a id='L240' name='L240'></a>   240 <em class='brace'>{</em>
+<a id='L241' name='L241'></a>   241 <em class='sharp'>#ifdef</em> GLIB_VERSION_2_32
+<a id='L242' name='L242'></a>   242   GSettingsSchema *schema;
+<a id='L243' name='L243'></a>   243   <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> rc;
+<a id='L244' name='L244'></a>   244 
+<a id='L245' name='L245'></a>   245   g_object_get (G_OBJECT (settings),
+<a id='L246' name='L246'></a>   246                 "settings-schema", &amp;schema,
+<a id='L247' name='L247'></a>   247                 <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L248' name='L248'></a>   248 
+<a id='L249' name='L249'></a>   249   <strong class='reserved'>if</strong> (!schema)
+<a id='L250' name='L250'></a>   250     <strong class='reserved'>return</strong> <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L251' name='L251'></a>   251 
+<a id='L252' name='L252'></a>   252   rc = g_settings_schema_has_key (schema, key);
+<a id='L253' name='L253'></a>   253   g_settings_schema_unref (schema);
+<a id='L254' name='L254'></a>   254 
+<a id='L255' name='L255'></a>   255   <strong class='reserved'>return</strong> rc;
+<a id='L256' name='L256'></a>   256 <em class='sharp'>#else</em>
+<a id='L257' name='L257'></a>   257   <strong class='reserved'>return</strong> <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L258' name='L258'></a>   258 <em class='sharp'>#endif</em>
+<a id='L259' name='L259'></a>   259 <em class='brace'>}</em>
+<a id='L260' name='L260'></a>   260 
+<a id='L261' name='L261'></a>   261 <em class='sharp'>#endif</em>
+<a id='L262' name='L262'></a>   262 
+<a id='L263' name='L263'></a>   263 <em class='sharp'>#ifdef</em> HAVE_PGTK
+<a id='L264' name='L264'></a>   264 <em class='comment'>/* Store an event for re-rendering of the fonts.  */</em>
+<a id='L265' name='L265'></a>   265 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L266' name='L266'></a>   266 <a href='../R/16299.html' title='Multiple referred from 3 places.'>store_font_options_changed</a> (<strong class='reserved'>void</strong>)
+<a id='L267' name='L267'></a>   267 <em class='brace'>{</em>
+<a id='L268' name='L268'></a>   268   <strong class='reserved'>if</strong> (<a href='../S/161.html#L88' title='Defined at 88 in src/xsettings.c.'>dpyinfo_valid</a> (first_dpyinfo))
+<a id='L269' name='L269'></a>   269     <a href='../S/161.html#L76' title='Defined at 76 in src/xsettings.c.'>store_config_changed_event</a> (Qfont_render,
+<a id='L270' name='L270'></a>   270                                 <a href='../D/6892.html' title='Multiple defined in 2 places.'>XCAR</a> (first_dpyinfo-&gt;name_list_element));
+<a id='L271' name='L271'></a>   271 <em class='brace'>}</em>
+<a id='L272' name='L272'></a>   272 
+<a id='L273' name='L273'></a>   273 <em class='comment'>/* Apply changes in the hinting system setting.  */</em>
+<a id='L274' name='L274'></a>   274 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L275' name='L275'></a>   275 <a href='../R/8049.html' title='Multiple referred from 2 places.'>apply_gsettings_font_hinting</a> (GSettings *settings)
+<a id='L276' name='L276'></a>   276 <em class='brace'>{</em>
+<a id='L277' name='L277'></a>   277   GVariant *val;
+<a id='L278' name='L278'></a>   278   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *hinting;
+<a id='L279' name='L279'></a>   279 
+<a id='L280' name='L280'></a>   280   <strong class='reserved'>if</strong> (!<a href='../S/161.html#L239' title='Defined at 239 in src/xsettings.c.'>xg_settings_key_valid_p</a> (settings, <a href='../S/161.html#L229' title='Defined at 229 in src/xsettings.c.'>GSETTINGS_FONT_HINTING</a>))
+<a id='L281' name='L281'></a>   281     <strong class='reserved'>return</strong>;
+<a id='L282' name='L282'></a>   282 
+<a id='L283' name='L283'></a>   283   val = g_settings_get_value (settings, <a href='../S/161.html#L229' title='Defined at 229 in src/xsettings.c.'>GSETTINGS_FONT_HINTING</a>);
+<a id='L284' name='L284'></a>   284 
+<a id='L285' name='L285'></a>   285   <strong class='reserved'>if</strong> (val)
+<a id='L286' name='L286'></a>   286     <em class='brace'>{</em>
+<a id='L287' name='L287'></a>   287       g_variant_ref_sink (val);
+<a id='L288' name='L288'></a>   288 
+<a id='L289' name='L289'></a>   289       <strong class='reserved'>if</strong> (g_variant_is_of_type (val, G_VARIANT_TYPE_STRING))
+<a id='L290' name='L290'></a>   290         <em class='brace'>{</em>
+<a id='L291' name='L291'></a>   291           hinting = g_variant_get_string (val, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L292' name='L292'></a>   292 
+<a id='L293' name='L293'></a>   293           <strong class='reserved'>if</strong> (!strcmp (hinting, "full"))
+<a id='L294' name='L294'></a>   294             cairo_font_options_set_hint_style (font_options,
+<a id='L295' name='L295'></a>   295                                                CAIRO_HINT_STYLE_FULL);
+<a id='L296' name='L296'></a>   296           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (hinting, "medium"))
+<a id='L297' name='L297'></a>   297             cairo_font_options_set_hint_style (font_options,
+<a id='L298' name='L298'></a>   298                                                CAIRO_HINT_STYLE_MEDIUM);
+<a id='L299' name='L299'></a>   299           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (hinting, "slight"))
+<a id='L300' name='L300'></a>   300             cairo_font_options_set_hint_style (font_options,
+<a id='L301' name='L301'></a>   301                                                CAIRO_HINT_STYLE_SLIGHT);
+<a id='L302' name='L302'></a>   302           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (hinting, "none"))
+<a id='L303' name='L303'></a>   303             cairo_font_options_set_hint_style (font_options,
+<a id='L304' name='L304'></a>   304                                                CAIRO_HINT_STYLE_NONE);
+<a id='L305' name='L305'></a>   305         <em class='brace'>}</em>
+<a id='L306' name='L306'></a>   306       g_variant_unref (val);
+<a id='L307' name='L307'></a>   307     <em class='brace'>}</em>
+<a id='L308' name='L308'></a>   308 <em class='brace'>}</em>
+<a id='L309' name='L309'></a>   309 
+<a id='L310' name='L310'></a>   310 <em class='comment'>/* Apply changes in the antialiasing system setting.  */</em>
+<a id='L311' name='L311'></a>   311 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L312' name='L312'></a>   312 <a href='../R/8048.html' title='Multiple referred from 2 places.'>apply_gsettings_font_antialias</a> (GSettings *settings)
+<a id='L313' name='L313'></a>   313 <em class='brace'>{</em>
+<a id='L314' name='L314'></a>   314   GVariant *val;
+<a id='L315' name='L315'></a>   315   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *antialias;
+<a id='L316' name='L316'></a>   316 
+<a id='L317' name='L317'></a>   317   <strong class='reserved'>if</strong> (!<a href='../S/161.html#L239' title='Defined at 239 in src/xsettings.c.'>xg_settings_key_valid_p</a> (settings, <a href='../S/161.html#L227' title='Defined at 227 in src/xsettings.c.'>GSETTINGS_FONT_ANTIALIASING</a>))
+<a id='L318' name='L318'></a>   318     <strong class='reserved'>return</strong>;
+<a id='L319' name='L319'></a>   319 
+<a id='L320' name='L320'></a>   320   val = g_settings_get_value (settings, <a href='../S/161.html#L227' title='Defined at 227 in src/xsettings.c.'>GSETTINGS_FONT_ANTIALIASING</a>);
+<a id='L321' name='L321'></a>   321 
+<a id='L322' name='L322'></a>   322   <strong class='reserved'>if</strong> (val)
+<a id='L323' name='L323'></a>   323     <em class='brace'>{</em>
+<a id='L324' name='L324'></a>   324       g_variant_ref_sink (val);
+<a id='L325' name='L325'></a>   325       <strong class='reserved'>if</strong> (g_variant_is_of_type (val, G_VARIANT_TYPE_STRING))
+<a id='L326' name='L326'></a>   326         <em class='brace'>{</em>
+<a id='L327' name='L327'></a>   327           antialias = g_variant_get_string (val, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L328' name='L328'></a>   328 
+<a id='L329' name='L329'></a>   329           <strong class='reserved'>if</strong> (!strcmp (antialias, "none"))
+<a id='L330' name='L330'></a>   330             cairo_font_options_set_antialias (font_options,
+<a id='L331' name='L331'></a>   331                                               CAIRO_ANTIALIAS_NONE);
+<a id='L332' name='L332'></a>   332           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (antialias, "grayscale"))
+<a id='L333' name='L333'></a>   333             cairo_font_options_set_antialias (font_options,
+<a id='L334' name='L334'></a>   334                                               CAIRO_ANTIALIAS_GRAY);
+<a id='L335' name='L335'></a>   335           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (antialias, "rgba"))
+<a id='L336' name='L336'></a>   336             cairo_font_options_set_antialias (font_options,
+<a id='L337' name='L337'></a>   337                                               CAIRO_ANTIALIAS_SUBPIXEL);
+<a id='L338' name='L338'></a>   338         <em class='brace'>}</em>
+<a id='L339' name='L339'></a>   339       g_variant_unref (val);
+<a id='L340' name='L340'></a>   340     <em class='brace'>}</em>
+<a id='L341' name='L341'></a>   341 <em class='brace'>}</em>
+<a id='L342' name='L342'></a>   342 
+<a id='L343' name='L343'></a>   343 <em class='comment'>/* Apply the settings for the rgb element ordering.  */</em>
+<a id='L344' name='L344'></a>   344 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L345' name='L345'></a>   345 <a href='../R/8050.html' title='Multiple referred from 2 places.'>apply_gsettings_font_rgba_order</a> (GSettings *settings)
+<a id='L346' name='L346'></a>   346 <em class='brace'>{</em>
+<a id='L347' name='L347'></a>   347   GVariant *val;
+<a id='L348' name='L348'></a>   348   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *rgba_order;
+<a id='L349' name='L349'></a>   349 
+<a id='L350' name='L350'></a>   350   <strong class='reserved'>if</strong> (!<a href='../S/161.html#L239' title='Defined at 239 in src/xsettings.c.'>xg_settings_key_valid_p</a> (settings, <a href='../S/161.html#L228' title='Defined at 228 in src/xsettings.c.'>GSETTINGS_FONT_RGBA_ORDER</a>))
+<a id='L351' name='L351'></a>   351     <strong class='reserved'>return</strong>;
+<a id='L352' name='L352'></a>   352 
+<a id='L353' name='L353'></a>   353   val = g_settings_get_value (settings,
+<a id='L354' name='L354'></a>   354                               <a href='../S/161.html#L228' title='Defined at 228 in src/xsettings.c.'>GSETTINGS_FONT_RGBA_ORDER</a>);
+<a id='L355' name='L355'></a>   355 
+<a id='L356' name='L356'></a>   356   <strong class='reserved'>if</strong> (val)
+<a id='L357' name='L357'></a>   357     <em class='brace'>{</em>
+<a id='L358' name='L358'></a>   358       g_variant_ref_sink (val);
+<a id='L359' name='L359'></a>   359 
+<a id='L360' name='L360'></a>   360       <strong class='reserved'>if</strong> (g_variant_is_of_type (val, G_VARIANT_TYPE_STRING))
+<a id='L361' name='L361'></a>   361         <em class='brace'>{</em>
+<a id='L362' name='L362'></a>   362           rgba_order = g_variant_get_string (val, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L363' name='L363'></a>   363 
+<a id='L364' name='L364'></a>   364           <strong class='reserved'>if</strong> (!strcmp (rgba_order, "rgb"))
+<a id='L365' name='L365'></a>   365             cairo_font_options_set_subpixel_order (font_options,
+<a id='L366' name='L366'></a>   366                                                    CAIRO_SUBPIXEL_ORDER_RGB);
+<a id='L367' name='L367'></a>   367           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (rgba_order, "bgr"))
+<a id='L368' name='L368'></a>   368             cairo_font_options_set_subpixel_order (font_options,
+<a id='L369' name='L369'></a>   369                                                    CAIRO_SUBPIXEL_ORDER_BGR);
+<a id='L370' name='L370'></a>   370           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (rgba_order, "vrgb"))
+<a id='L371' name='L371'></a>   371             cairo_font_options_set_subpixel_order (font_options,
+<a id='L372' name='L372'></a>   372                                                    CAIRO_SUBPIXEL_ORDER_VRGB);
+<a id='L373' name='L373'></a>   373           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (rgba_order, "vbgr"))
+<a id='L374' name='L374'></a>   374             cairo_font_options_set_subpixel_order (font_options,
+<a id='L375' name='L375'></a>   375                                                    CAIRO_SUBPIXEL_ORDER_VBGR);
+<a id='L376' name='L376'></a>   376         <em class='brace'>}</em>
+<a id='L377' name='L377'></a>   377       g_variant_unref (val);
+<a id='L378' name='L378'></a>   378     <em class='brace'>}</em>
+<a id='L379' name='L379'></a>   379 <em class='brace'>}</em>
+<a id='L380' name='L380'></a>   380 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_PGTK */</em>
+<a id='L381' name='L381'></a>   381 
+<a id='L382' name='L382'></a>   382 <em class='comment'>/* Callback called when something changed in GSettings.  */</em>
+<a id='L383' name='L383'></a>   383 
+<a id='L384' name='L384'></a>   384 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L385' name='L385'></a>   385 <a href='../S/161.html#L1078' title='Referred from 1078 in src/xsettings.c.'>something_changed_gsettingsCB</a> (GSettings *settings,
+<a id='L386' name='L386'></a>   386                                gchar *key,
+<a id='L387' name='L387'></a>   387                                gpointer user_data)
+<a id='L388' name='L388'></a>   388 <em class='brace'>{</em>
+<a id='L389' name='L389'></a>   389   GVariant *val;
+<a id='L390' name='L390'></a>   390 
+<a id='L391' name='L391'></a>   391   <strong class='reserved'>if</strong> (strcmp (key, <a href='../S/161.html#L219' title='Defined at 219 in src/xsettings.c.'>GSETTINGS_TOOL_BAR_STYLE</a>) == 0)
+<a id='L392' name='L392'></a>   392     <em class='brace'>{</em>
+<a id='L393' name='L393'></a>   393       val = g_settings_get_value (settings, <a href='../S/161.html#L219' title='Defined at 219 in src/xsettings.c.'>GSETTINGS_TOOL_BAR_STYLE</a>);
+<a id='L394' name='L394'></a>   394       <strong class='reserved'>if</strong> (val)
+<a id='L395' name='L395'></a>   395         <em class='brace'>{</em>
+<a id='L396' name='L396'></a>   396           g_variant_ref_sink (val);
+<a id='L397' name='L397'></a>   397           <strong class='reserved'>if</strong> (g_variant_is_of_type (val, G_VARIANT_TYPE_STRING))
+<a id='L398' name='L398'></a>   398             <em class='brace'>{</em>
+<a id='L399' name='L399'></a>   399               <strong class='reserved'>const</strong> gchar *newstyle = g_variant_get_string (val, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L400' name='L400'></a>   400               <a href='../S/161.html#L167' title='Defined at 167 in src/xsettings.c.'>store_tool_bar_style_changed</a> (newstyle, first_dpyinfo);
+<a id='L401' name='L401'></a>   401             <em class='brace'>}</em>
+<a id='L402' name='L402'></a>   402           g_variant_unref (val);
+<a id='L403' name='L403'></a>   403         <em class='brace'>}</em>
+<a id='L404' name='L404'></a>   404     <em class='brace'>}</em>
+<a id='L405' name='L405'></a>   405 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L406' name='L406'></a>   406   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (key, <a href='../S/161.html#L222' title='Defined at 222 in src/xsettings.c.'>GSETTINGS_MONO_FONT</a>) == 0)
+<a id='L407' name='L407'></a>   407     <em class='brace'>{</em>
+<a id='L408' name='L408'></a>   408       val = g_settings_get_value (settings, <a href='../S/161.html#L222' title='Defined at 222 in src/xsettings.c.'>GSETTINGS_MONO_FONT</a>);
+<a id='L409' name='L409'></a>   409       <strong class='reserved'>if</strong> (val)
+<a id='L410' name='L410'></a>   410         <em class='brace'>{</em>
+<a id='L411' name='L411'></a>   411           g_variant_ref_sink (val);
+<a id='L412' name='L412'></a>   412           <strong class='reserved'>if</strong> (g_variant_is_of_type (val, G_VARIANT_TYPE_STRING))
+<a id='L413' name='L413'></a>   413             <em class='brace'>{</em>
+<a id='L414' name='L414'></a>   414               <strong class='reserved'>const</strong> gchar *newfont = g_variant_get_string (val, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L415' name='L415'></a>   415               <a href='../S/161.html#L108' title='Defined at 108 in src/xsettings.c.'>store_monospaced_changed</a> (newfont);
+<a id='L416' name='L416'></a>   416             <em class='brace'>}</em>
+<a id='L417' name='L417'></a>   417           g_variant_unref (val);
+<a id='L418' name='L418'></a>   418         <em class='brace'>}</em>
+<a id='L419' name='L419'></a>   419     <em class='brace'>}</em>
+<a id='L420' name='L420'></a>   420   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (key, <a href='../S/161.html#L223' title='Defined at 223 in src/xsettings.c.'>GSETTINGS_FONT_NAME</a>) == 0)
+<a id='L421' name='L421'></a>   421     <em class='brace'>{</em>
+<a id='L422' name='L422'></a>   422       val = g_settings_get_value (settings, <a href='../S/161.html#L223' title='Defined at 223 in src/xsettings.c.'>GSETTINGS_FONT_NAME</a>);
+<a id='L423' name='L423'></a>   423       <strong class='reserved'>if</strong> (val)
+<a id='L424' name='L424'></a>   424         <em class='brace'>{</em>
+<a id='L425' name='L425'></a>   425           g_variant_ref_sink (val);
+<a id='L426' name='L426'></a>   426           <strong class='reserved'>if</strong> (g_variant_is_of_type (val, G_VARIANT_TYPE_STRING))
+<a id='L427' name='L427'></a>   427             <em class='brace'>{</em>
+<a id='L428' name='L428'></a>   428               <strong class='reserved'>const</strong> gchar *newfont = g_variant_get_string (val, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L429' name='L429'></a>   429               <a href='../S/161.html#L127' title='Defined at 127 in src/xsettings.c.'>store_font_name_changed</a> (newfont);
+<a id='L430' name='L430'></a>   430             <em class='brace'>}</em>
+<a id='L431' name='L431'></a>   431           g_variant_unref (val);
+<a id='L432' name='L432'></a>   432         <em class='brace'>}</em>
+<a id='L433' name='L433'></a>   433     <em class='brace'>}</em>
+<a id='L434' name='L434'></a>   434 <em class='sharp'>#endif</em> <em class='comment'>/* USE_CAIRO || HAVE_XFT */</em>
+<a id='L435' name='L435'></a>   435 <em class='sharp'>#ifdef</em> HAVE_PGTK
+<a id='L436' name='L436'></a>   436   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (key, <a href='../S/161.html#L227' title='Defined at 227 in src/xsettings.c.'>GSETTINGS_FONT_ANTIALIASING</a>))
+<a id='L437' name='L437'></a>   437     <em class='brace'>{</em>
+<a id='L438' name='L438'></a>   438       <a href='../S/161.html#L312' title='Defined at 312 in src/xsettings.c.'>apply_gsettings_font_antialias</a> (settings);
+<a id='L439' name='L439'></a>   439       <a href='../S/161.html#L266' title='Defined at 266 in src/xsettings.c.'>store_font_options_changed</a> ();
+<a id='L440' name='L440'></a>   440     <em class='brace'>}</em>
+<a id='L441' name='L441'></a>   441   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (key, <a href='../S/161.html#L229' title='Defined at 229 in src/xsettings.c.'>GSETTINGS_FONT_HINTING</a>))
+<a id='L442' name='L442'></a>   442     <em class='brace'>{</em>
+<a id='L443' name='L443'></a>   443       <a href='../S/161.html#L275' title='Defined at 275 in src/xsettings.c.'>apply_gsettings_font_hinting</a> (settings);
+<a id='L444' name='L444'></a>   444       <a href='../S/161.html#L266' title='Defined at 266 in src/xsettings.c.'>store_font_options_changed</a> ();
+<a id='L445' name='L445'></a>   445     <em class='brace'>}</em>
+<a id='L446' name='L446'></a>   446   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (!strcmp (key, <a href='../S/161.html#L228' title='Defined at 228 in src/xsettings.c.'>GSETTINGS_FONT_RGBA_ORDER</a>))
+<a id='L447' name='L447'></a>   447     <em class='brace'>{</em>
+<a id='L448' name='L448'></a>   448       <a href='../S/161.html#L345' title='Defined at 345 in src/xsettings.c.'>apply_gsettings_font_rgba_order</a> (settings);
+<a id='L449' name='L449'></a>   449       <a href='../S/161.html#L266' title='Defined at 266 in src/xsettings.c.'>store_font_options_changed</a> ();
+<a id='L450' name='L450'></a>   450     <em class='brace'>}</em>
+<a id='L451' name='L451'></a>   451 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_PGTK */</em>
+<a id='L452' name='L452'></a>   452 <em class='brace'>}</em>
+<a id='L453' name='L453'></a>   453 
+<a id='L454' name='L454'></a>   454 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_GSETTINGS */</em>
+<a id='L455' name='L455'></a>   455 
+<a id='L456' name='L456'></a>   456 <em class='sharp'>#ifdef</em> HAVE_GCONF
+<a id='L457' name='L457'></a>   457 <em class='sharp'>#define</em> <a href='../R/2424.html' title='Multiple referred from 4 places.'>GCONF_TOOL_BAR_STYLE</a> "/desktop/gnome/interface/toolbar_style"
+<a id='L458' name='L458'></a>   458 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L459' name='L459'></a>   459 <em class='sharp'>#define</em> <a href='../R/2423.html' title='Multiple referred from 4 places.'>GCONF_MONO_FONT</a>  "/desktop/gnome/interface/monospace_font_name"
+<a id='L460' name='L460'></a>   460 <em class='sharp'>#define</em> <a href='../R/2422.html' title='Multiple referred from 4 places.'>GCONF_FONT_NAME</a>  "/desktop/gnome/interface/font_name"
+<a id='L461' name='L461'></a>   461 <em class='sharp'>#endif</em>
+<a id='L462' name='L462'></a>   462 
+<a id='L463' name='L463'></a>   463 <em class='comment'>/* The single GConf instance, or NULL if not connected to GConf.  */</em>
+<a id='L464' name='L464'></a>   464 
+<a id='L465' name='L465'></a>   465 <strong class='reserved'>static</strong> GConfClient *gconf_client;
+<a id='L466' name='L466'></a>   466 
+<a id='L467' name='L467'></a>   467 <em class='comment'>/* Callback called when something changed in GConf that we care about.  */</em>
+<a id='L468' name='L468'></a>   468 
+<a id='L469' name='L469'></a>   469 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L470' name='L470'></a>   470 <a href='../R/16149.html' title='Multiple referred from 3 places.'>something_changed_gconfCB</a> (GConfClient *client,
+<a id='L471' name='L471'></a>   471                            guint cnxn_id,
+<a id='L472' name='L472'></a>   472                            GConfEntry *<a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>,
+<a id='L473' name='L473'></a>   473                            gpointer user_data)
+<a id='L474' name='L474'></a>   474 <em class='brace'>{</em>
+<a id='L475' name='L475'></a>   475   GConfValue *v = gconf_entry_get_value (<a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>);
+<a id='L476' name='L476'></a>   476   <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *key = gconf_entry_get_key (<a href='../S/4087.html#L82' title='Defined at 82 in nt/addpm.c.'>entry</a>);
+<a id='L477' name='L477'></a>   477 
+<a id='L478' name='L478'></a>   478   <strong class='reserved'>if</strong> (!v || v-&gt;type != GCONF_VALUE_STRING || ! key) <strong class='reserved'>return</strong>;
+<a id='L479' name='L479'></a>   479   <strong class='reserved'>if</strong> (strcmp (key, <a href='../S/161.html#L457' title='Defined at 457 in src/xsettings.c.'>GCONF_TOOL_BAR_STYLE</a>) == 0)
+<a id='L480' name='L480'></a>   480     <em class='brace'>{</em>
+<a id='L481' name='L481'></a>   481       <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/64.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = gconf_value_get_string (v);
+<a id='L482' name='L482'></a>   482       <a href='../S/161.html#L167' title='Defined at 167 in src/xsettings.c.'>store_tool_bar_style_changed</a> (<a href='../S/64.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>, first_dpyinfo);
+<a id='L483' name='L483'></a>   483     <em class='brace'>}</em>
+<a id='L484' name='L484'></a>   484 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L485' name='L485'></a>   485   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (key, <a href='../S/161.html#L459' title='Defined at 459 in src/xsettings.c.'>GCONF_MONO_FONT</a>) == 0)
+<a id='L486' name='L486'></a>   486     <em class='brace'>{</em>
+<a id='L487' name='L487'></a>   487       <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/64.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = gconf_value_get_string (v);
+<a id='L488' name='L488'></a>   488       <a href='../S/161.html#L108' title='Defined at 108 in src/xsettings.c.'>store_monospaced_changed</a> (<a href='../S/64.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
+<a id='L489' name='L489'></a>   489     <em class='brace'>}</em>
+<a id='L490' name='L490'></a>   490   <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (key, <a href='../S/161.html#L460' title='Defined at 460 in src/xsettings.c.'>GCONF_FONT_NAME</a>) == 0)
+<a id='L491' name='L491'></a>   491     <em class='brace'>{</em>
+<a id='L492' name='L492'></a>   492       <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *<a href='../S/64.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> = gconf_value_get_string (v);
+<a id='L493' name='L493'></a>   493       <a href='../S/161.html#L127' title='Defined at 127 in src/xsettings.c.'>store_font_name_changed</a> (<a href='../S/64.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a>);
+<a id='L494' name='L494'></a>   494     <em class='brace'>}</em>
+<a id='L495' name='L495'></a>   495 <em class='sharp'>#endif</em> <em class='comment'>/* USE_CAIRO || HAVE_XFT */</em>
+<a id='L496' name='L496'></a>   496 <em class='brace'>}</em>
+<a id='L497' name='L497'></a>   497 
+<a id='L498' name='L498'></a>   498 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_GCONF */</em>
+<a id='L499' name='L499'></a>   499 
+<a id='L500' name='L500'></a>   500 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L501' name='L501'></a>   501 
+<a id='L502' name='L502'></a>   502 <em class='comment'>/* Older fontconfig versions don't have FC_LCD_*.  */</em>
+<a id='L503' name='L503'></a>   503 <em class='sharp'>#ifndef</em> <a href='../S/161.html#L504' title='Defined at 504 in src/xsettings.c.'>FC_LCD_NONE</a>
+<a id='L504' name='L504'></a>   504 <em class='sharp'>#define</em> <a href='../R/1879.html' title='Multiple referred from 2 places.'>FC_LCD_NONE</a> 0
+<a id='L505' name='L505'></a>   505 <em class='sharp'>#endif</em>
+<a id='L506' name='L506'></a>   506 <em class='sharp'>#ifndef</em> <a href='../S/161.html#L507' title='Defined at 507 in src/xsettings.c.'>FC_LCD_DEFAULT</a>
+<a id='L507' name='L507'></a>   507 <em class='sharp'>#define</em> <a href='../R/1877.html' title='Multiple referred from 2 places.'>FC_LCD_DEFAULT</a> 1
+<a id='L508' name='L508'></a>   508 <em class='sharp'>#endif</em>
+<a id='L509' name='L509'></a>   509 <em class='sharp'>#ifndef</em> <a href='../D/2025.html' title='Multiple defined in 3 places.'>FC_LCD_FILTER</a>
+<a id='L510' name='L510'></a>   510 <em class='sharp'>#define</em> <a href='../R/1878.html' title='Multiple referred from 13 places.'>FC_LCD_FILTER</a> "lcdfilter"
+<a id='L511' name='L511'></a>   511 <em class='sharp'>#endif</em>
+<a id='L512' name='L512'></a>   512 
+<a id='L513' name='L513'></a>   513 <em class='sharp'>#endif</em> <em class='comment'>/* USE_CAIRO || HAVE_XFT */</em>
+<a id='L514' name='L514'></a>   514 
+<a id='L515' name='L515'></a>   515 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L516' name='L516'></a>   516 <em class='comment'>/* Find the window that contains the XSETTINGS property values.  */</em>
+<a id='L517' name='L517'></a>   517 
+<a id='L518' name='L518'></a>   518 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L519' name='L519'></a>   519 <a href='../R/11111.html' title='Multiple referred from 2 places.'>get_prop_window</a> (<a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *dpyinfo)
+<a id='L520' name='L520'></a>   520 <em class='brace'>{</em>
+<a id='L521' name='L521'></a>   521   <a href='../D/1632.html' title='Multiple defined in 6 places.'>Display</a> *dpy = dpyinfo-&gt;<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>;
+<a id='L522' name='L522'></a>   522 
+<a id='L523' name='L523'></a>   523   XGrabServer (dpy);
+<a id='L524' name='L524'></a>   524   dpyinfo-&gt;xsettings_window = XGetSelectionOwner (dpy,
+<a id='L525' name='L525'></a>   525                                                   dpyinfo-&gt;Xatom_xsettings_sel);
+<a id='L526' name='L526'></a>   526   <strong class='reserved'>if</strong> (dpyinfo-&gt;xsettings_window != None)
+<a id='L527' name='L527'></a>   527     <em class='comment'>/* Select events so we can detect if window is deleted or if settings</em>
+<a id='L528' name='L528'></a>   528 <em class='comment'>       are changed.  */</em>
+<a id='L529' name='L529'></a>   529     XSelectInput (dpy, dpyinfo-&gt;xsettings_window,
+<a id='L530' name='L530'></a>   530                   PropertyChangeMask|StructureNotifyMask);
+<a id='L531' name='L531'></a>   531 
+<a id='L532' name='L532'></a>   532   XUngrabServer (dpy);
+<a id='L533' name='L533'></a>   533 <em class='brace'>}</em>
+<a id='L534' name='L534'></a>   534 <em class='sharp'>#endif</em>
+<a id='L535' name='L535'></a>   535 
+<a id='L536' name='L536'></a>   536 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L537' name='L537'></a>   537 
+<a id='L538' name='L538'></a>   538 <em class='sharp'>#define</em> <a href='../R/4187.html' title='Multiple referred from 2 places.'>PAD</a>(nr)    (((nr) + 3) &amp; ~3)
+<a id='L539' name='L539'></a>   539 
+<a id='L540' name='L540'></a>   540 <em class='comment'>/* Parse xsettings and extract those that deal with Xft.</em>
+<a id='L541' name='L541'></a>   541 <em class='comment'>   See https://freedesktop.org/wiki/Specifications/XSettingsRegistry/</em>
+<a id='L542' name='L542'></a>   542 <em class='comment'>   and https://specifications.freedesktop.org/xsettings-spec/xsettings-spec-0.5.html.</em>
+<a id='L543' name='L543'></a>   543 <em class='comment'></em>
+<a id='L544' name='L544'></a>   544 <em class='comment'>   Layout of prop.  First is a header:</em>
+<a id='L545' name='L545'></a>   545 <em class='comment'></em>
+<a id='L546' name='L546'></a>   546 <em class='comment'>   bytes   type     what</em>
+<a id='L547' name='L547'></a>   547 <em class='comment'>   ------------------------------------</em>
+<a id='L548' name='L548'></a>   548 <em class='comment'>   1      CARD8    byte-order</em>
+<a id='L549' name='L549'></a>   549 <em class='comment'>   3               unused</em>
+<a id='L550' name='L550'></a>   550 <em class='comment'>   4      CARD32   SERIAL</em>
+<a id='L551' name='L551'></a>   551 <em class='comment'>   4      CARD32   N_SETTINGS</em>
+<a id='L552' name='L552'></a>   552 <em class='comment'></em>
+<a id='L553' name='L553'></a>   553 <em class='comment'>   Then N_SETTINGS records, with header:</em>
+<a id='L554' name='L554'></a>   554 <em class='comment'></em>
+<a id='L555' name='L555'></a>   555 <em class='comment'>   bytes   type          what</em>
+<a id='L556' name='L556'></a>   556 <em class='comment'>   ------------------------------------</em>
+<a id='L557' name='L557'></a>   557 <em class='comment'>   1      SETTING_TYPE  type (0 = integer, 1 = string, 2 RGB color).</em>
+<a id='L558' name='L558'></a>   558 <em class='comment'>   1                    unused</em>
+<a id='L559' name='L559'></a>   559 <em class='comment'>   2      CARD16        n == name-length</em>
+<a id='L560' name='L560'></a>   560 <em class='comment'>   n      STRING8       name</em>
+<a id='L561' name='L561'></a>   561 <em class='comment'>   p                    unused, p=pad_to_even_4(n)</em>
+<a id='L562' name='L562'></a>   562 <em class='comment'>   4      CARD32        last-change-serial</em>
+<a id='L563' name='L563'></a>   563 <em class='comment'></em>
+<a id='L564' name='L564'></a>   564 <em class='comment'>   and then the value, For string:</em>
+<a id='L565' name='L565'></a>   565 <em class='comment'></em>
+<a id='L566' name='L566'></a>   566 <em class='comment'>   bytes   type          what</em>
+<a id='L567' name='L567'></a>   567 <em class='comment'>   ------------------------------------</em>
+<a id='L568' name='L568'></a>   568 <em class='comment'>   4      CARD32        n = value-length</em>
+<a id='L569' name='L569'></a>   569 <em class='comment'>   n      STRING8       value</em>
+<a id='L570' name='L570'></a>   570 <em class='comment'>   p                    unused, p=pad_to_even_4(n)</em>
+<a id='L571' name='L571'></a>   571 <em class='comment'></em>
+<a id='L572' name='L572'></a>   572 <em class='comment'>   For integer:</em>
+<a id='L573' name='L573'></a>   573 <em class='comment'></em>
+<a id='L574' name='L574'></a>   574 <em class='comment'>   bytes   type          what</em>
+<a id='L575' name='L575'></a>   575 <em class='comment'>   ------------------------------------</em>
+<a id='L576' name='L576'></a>   576 <em class='comment'>   4      INT32         value</em>
+<a id='L577' name='L577'></a>   577 <em class='comment'></em>
+<a id='L578' name='L578'></a>   578 <em class='comment'>   For RGB color:</em>
+<a id='L579' name='L579'></a>   579 <em class='comment'></em>
+<a id='L580' name='L580'></a>   580 <em class='comment'>   bytes   type          what</em>
+<a id='L581' name='L581'></a>   581 <em class='comment'>   ------------------------------------</em>
+<a id='L582' name='L582'></a>   582 <em class='comment'>   2      CARD16        red</em>
+<a id='L583' name='L583'></a>   583 <em class='comment'>   2      CARD16        blue</em>
+<a id='L584' name='L584'></a>   584 <em class='comment'>   2      CARD16        green</em>
+<a id='L585' name='L585'></a>   585 <em class='comment'>   2      CARD16        alpha</em>
+<a id='L586' name='L586'></a>   586 <em class='comment'></em>
+<a id='L587' name='L587'></a>   587 <em class='comment'>   Returns non-zero if some Xft settings was seen, zero otherwise.</em>
+<a id='L588' name='L588'></a>   588 <em class='comment'>*/</em>
+<a id='L589' name='L589'></a>   589 
+<a id='L590' name='L590'></a>   590 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L591' name='L591'></a>   591 <a href='../S/161.html#L792' title='Referred from 792 in src/xsettings.c.'>parse_settings</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *prop,
+<a id='L592' name='L592'></a>   592                 <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> bytes,
+<a id='L593' name='L593'></a>   593                 <strong class='reserved'>struct</strong> <a href='../S/161.html#L197' title='Defined at 197 in src/xsettings.c.'>xsettings</a> *settings)
+<a id='L594' name='L594'></a>   594 <em class='brace'>{</em>
+<a id='L595' name='L595'></a>   595   <strong class='reserved'>int</strong> int1 = 1;
+<a id='L596' name='L596'></a>   596   <strong class='reserved'>int</strong> my_bo = *(<strong class='reserved'>char</strong> *) &amp;int1 == 1 ? LSBFirst : MSBFirst;
+<a id='L597' name='L597'></a>   597   <strong class='reserved'>int</strong> that_bo = prop[0];
+<a id='L598' name='L598'></a>   598   <a href='../S/161.html#L45' title='Defined at 45 in src/xsettings.c.'>CARD32</a> n_settings;
+<a id='L599' name='L599'></a>   599   <strong class='reserved'>int</strong> bytes_parsed = 0;
+<a id='L600' name='L600'></a>   600   <strong class='reserved'>int</strong> settings_seen = 0;
+<a id='L601' name='L601'></a>   601   <strong class='reserved'>int</strong> i = 0;
+<a id='L602' name='L602'></a>   602 
+<a id='L603' name='L603'></a>   603   <em class='comment'>/* First 4 bytes is a serial number, skip that.  */</em>
+<a id='L604' name='L604'></a>   604 
+<a id='L605' name='L605'></a>   605   <strong class='reserved'>if</strong> (bytes &lt; 12) <strong class='reserved'>return</strong> settings_seen;
+<a id='L606' name='L606'></a>   606   memcpy (&amp;n_settings, prop+8, 4);
+<a id='L607' name='L607'></a>   607   <strong class='reserved'>if</strong> (my_bo != that_bo) n_settings = <a href='../D/9379.html' title='Multiple defined in 2 places.'>bswap_32</a> (n_settings);
+<a id='L608' name='L608'></a>   608   bytes_parsed = 12;
+<a id='L609' name='L609'></a>   609 
+<a id='L610' name='L610'></a>   610   memset (settings, 0, <strong class='reserved'>sizeof</strong> (*settings));
+<a id='L611' name='L611'></a>   611 
+<a id='L612' name='L612'></a>   612   <strong class='reserved'>while</strong> (bytes_parsed+4 &lt; bytes &amp;&amp; settings_seen &lt; 7
+<a id='L613' name='L613'></a>   613          &amp;&amp; i &lt; n_settings)
+<a id='L614' name='L614'></a>   614     <em class='brace'>{</em>
+<a id='L615' name='L615'></a>   615       <strong class='reserved'>int</strong> type = prop[bytes_parsed++];
+<a id='L616' name='L616'></a>   616       <a href='../S/161.html#L44' title='Defined at 44 in src/xsettings.c.'>CARD16</a> nlen;
+<a id='L617' name='L617'></a>   617       <a href='../S/161.html#L45' title='Defined at 45 in src/xsettings.c.'>CARD32</a> vlen, ival = 0;
+<a id='L618' name='L618'></a>   618       <strong class='reserved'>char</strong> <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>[128]; <em class='comment'>/* The names we are looking for are not this long.  */</em>
+<a id='L619' name='L619'></a>   619       <strong class='reserved'>char</strong> sval[128]; <em class='comment'>/* The values we are looking for are not this long.  */</em>
+<a id='L620' name='L620'></a>   620       <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> want_this;
+<a id='L621' name='L621'></a>   621       <strong class='reserved'>int</strong> to_cpy;
+<a id='L622' name='L622'></a>   622 
+<a id='L623' name='L623'></a>   623       sval[0] = '\0';
+<a id='L624' name='L624'></a>   624       ++i;
+<a id='L625' name='L625'></a>   625       ++bytes_parsed; <em class='comment'>/* Padding */</em>
+<a id='L626' name='L626'></a>   626 
+<a id='L627' name='L627'></a>   627       memcpy (&amp;nlen, prop+bytes_parsed, 2);
+<a id='L628' name='L628'></a>   628       bytes_parsed += 2;
+<a id='L629' name='L629'></a>   629       <strong class='reserved'>if</strong> (my_bo != that_bo) nlen = <a href='../S/2291.html#L23' title='Defined at 23 in lib/byteswap.in.h.'>bswap_16</a> (nlen);
+<a id='L630' name='L630'></a>   630       <strong class='reserved'>if</strong> (bytes_parsed + nlen &gt; bytes) <strong class='reserved'>return</strong> settings_seen;
+<a id='L631' name='L631'></a>   631       to_cpy = <a href='../D/14403.html' title='Multiple defined in 11 places.'>min</a> (nlen, <strong class='reserved'>sizeof</strong> <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a> - 1);
+<a id='L632' name='L632'></a>   632       memcpy (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, prop+bytes_parsed, to_cpy);
+<a id='L633' name='L633'></a>   633       <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>[to_cpy] = '\0';
+<a id='L634' name='L634'></a>   634 
+<a id='L635' name='L635'></a>   635       bytes_parsed += nlen;
+<a id='L636' name='L636'></a>   636       bytes_parsed = <a href='../S/161.html#L538' title='Defined at 538 in src/xsettings.c.'>PAD</a> (bytes_parsed);
+<a id='L637' name='L637'></a>   637 
+<a id='L638' name='L638'></a>   638       bytes_parsed += 4; <em class='comment'>/* Skip serial for this value */</em>
+<a id='L639' name='L639'></a>   639       <strong class='reserved'>if</strong> (bytes_parsed &gt; bytes) <strong class='reserved'>return</strong> settings_seen;
+<a id='L640' name='L640'></a>   640 
+<a id='L641' name='L641'></a>   641       want_this = strcmp (<a href='../S/161.html#L184' title='Defined at 184 in src/xsettings.c.'>XSETTINGS_TOOL_BAR_STYLE</a>, <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>) == 0;
+<a id='L642' name='L642'></a>   642 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L643' name='L643'></a>   643       <strong class='reserved'>if</strong> ((nlen &gt; 6 &amp;&amp; memcmp (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, "Xft/", 4) == 0)
+<a id='L644' name='L644'></a>   644           || strcmp (<a href='../S/161.html#L182' title='Defined at 182 in src/xsettings.c.'>XSETTINGS_FONT_NAME</a>, <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>) == 0)
+<a id='L645' name='L645'></a>   645         want_this = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L646' name='L646'></a>   646 <em class='sharp'>#endif</em>
+<a id='L647' name='L647'></a>   647 
+<a id='L648' name='L648'></a>   648       <strong class='reserved'>switch</strong> (type)
+<a id='L649' name='L649'></a>   649         <em class='brace'>{</em>
+<a id='L650' name='L650'></a>   650         <strong class='reserved'>case</strong> 0: <em class='comment'>/* Integer */</em>
+<a id='L651' name='L651'></a>   651           <strong class='reserved'>if</strong> (bytes_parsed + 4 &gt; bytes) <strong class='reserved'>return</strong> settings_seen;
+<a id='L652' name='L652'></a>   652           <strong class='reserved'>if</strong> (want_this)
+<a id='L653' name='L653'></a>   653             <em class='brace'>{</em>
+<a id='L654' name='L654'></a>   654               memcpy (&amp;ival, prop+bytes_parsed, 4);
+<a id='L655' name='L655'></a>   655               <strong class='reserved'>if</strong> (my_bo != that_bo) ival = <a href='../D/9379.html' title='Multiple defined in 2 places.'>bswap_32</a> (ival);
+<a id='L656' name='L656'></a>   656             <em class='brace'>}</em>
+<a id='L657' name='L657'></a>   657           bytes_parsed += 4;
+<a id='L658' name='L658'></a>   658           <strong class='reserved'>break</strong>;
+<a id='L659' name='L659'></a>   659 
+<a id='L660' name='L660'></a>   660         <strong class='reserved'>case</strong> 1: <em class='comment'>/* String */</em>
+<a id='L661' name='L661'></a>   661           <strong class='reserved'>if</strong> (bytes_parsed + 4 &gt; bytes) <strong class='reserved'>return</strong> settings_seen;
+<a id='L662' name='L662'></a>   662           memcpy (&amp;vlen, prop+bytes_parsed, 4);
+<a id='L663' name='L663'></a>   663           bytes_parsed += 4;
+<a id='L664' name='L664'></a>   664           <strong class='reserved'>if</strong> (my_bo != that_bo) vlen = <a href='../D/9379.html' title='Multiple defined in 2 places.'>bswap_32</a> (vlen);
+<a id='L665' name='L665'></a>   665           <strong class='reserved'>if</strong> (want_this)
+<a id='L666' name='L666'></a>   666             <em class='brace'>{</em>
+<a id='L667' name='L667'></a>   667               to_cpy = <a href='../D/14403.html' title='Multiple defined in 11 places.'>min</a> (vlen, <strong class='reserved'>sizeof</strong> sval - 1);
+<a id='L668' name='L668'></a>   668               memcpy (sval, prop+bytes_parsed, to_cpy);
+<a id='L669' name='L669'></a>   669               sval[to_cpy] = '\0';
+<a id='L670' name='L670'></a>   670             <em class='brace'>}</em>
+<a id='L671' name='L671'></a>   671           bytes_parsed += vlen;
+<a id='L672' name='L672'></a>   672           bytes_parsed = <a href='../S/161.html#L538' title='Defined at 538 in src/xsettings.c.'>PAD</a> (bytes_parsed);
+<a id='L673' name='L673'></a>   673           <strong class='reserved'>break</strong>;
+<a id='L674' name='L674'></a>   674 
+<a id='L675' name='L675'></a>   675         <strong class='reserved'>case</strong> 2: <em class='comment'>/* RGB value */</em>
+<a id='L676' name='L676'></a>   676           <em class='comment'>/* No need to parse this */</em>
+<a id='L677' name='L677'></a>   677           <strong class='reserved'>if</strong> (bytes_parsed + 8 &gt; bytes) <strong class='reserved'>return</strong> settings_seen;
+<a id='L678' name='L678'></a>   678           bytes_parsed += 8; <em class='comment'>/* 4 values (r, b, g, alpha), 2 bytes each.  */</em>
+<a id='L679' name='L679'></a>   679           <strong class='reserved'>break</strong>;
+<a id='L680' name='L680'></a>   680 
+<a id='L681' name='L681'></a>   681         <strong class='reserved'>default</strong>: <em class='comment'>/* Parse Error */</em>
+<a id='L682' name='L682'></a>   682           <strong class='reserved'>return</strong> settings_seen;
+<a id='L683' name='L683'></a>   683         <em class='brace'>}</em>
+<a id='L684' name='L684'></a>   684 
+<a id='L685' name='L685'></a>   685       <strong class='reserved'>if</strong> (want_this)
+<a id='L686' name='L686'></a>   686         <em class='brace'>{</em>
+<a id='L687' name='L687'></a>   687           <strong class='reserved'>if</strong> (strcmp (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, <a href='../S/161.html#L184' title='Defined at 184 in src/xsettings.c.'>XSETTINGS_TOOL_BAR_STYLE</a>) == 0)
+<a id='L688' name='L688'></a>   688             <em class='brace'>{</em>
+<a id='L689' name='L689'></a>   689               <a href='../S/111.html#L985' title='Defined at 985 in src/alloc.c.'>dupstring</a> (&amp;settings-&gt;tb_style, sval);
+<a id='L690' name='L690'></a>   690               settings-&gt;seen |= <a href='../S/161.html#L195' title='Defined at 195 in src/xsettings.c.'>SEEN_TB_STYLE</a>;
+<a id='L691' name='L691'></a>   691             <em class='brace'>}</em>
+<a id='L692' name='L692'></a>   692 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L693' name='L693'></a>   693           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, <a href='../S/161.html#L182' title='Defined at 182 in src/xsettings.c.'>XSETTINGS_FONT_NAME</a>) == 0)
+<a id='L694' name='L694'></a>   694             <em class='brace'>{</em>
+<a id='L695' name='L695'></a>   695               <a href='../S/111.html#L985' title='Defined at 985 in src/alloc.c.'>dupstring</a> (&amp;settings-&gt;<a href='../S/140.html#L277' title='Defined at 277 in src/font.h.'>font</a>, sval);
+<a id='L696' name='L696'></a>   696               settings-&gt;seen |= <a href='../S/161.html#L194' title='Defined at 194 in src/xsettings.c.'>SEEN_FONT</a>;
+<a id='L697' name='L697'></a>   697             <em class='brace'>}</em>
+<a id='L698' name='L698'></a>   698           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, "Xft/Antialias") == 0)
+<a id='L699' name='L699'></a>   699             <em class='brace'>{</em>
+<a id='L700' name='L700'></a>   700               settings-&gt;seen |= <a href='../S/161.html#L188' title='Defined at 188 in src/xsettings.c.'>SEEN_AA</a>;
+<a id='L701' name='L701'></a>   701               settings-&gt;<a href='../D/8118.html' title='Multiple defined in 2 places.'>aa</a> = ival != 0;
+<a id='L702' name='L702'></a>   702             <em class='brace'>}</em>
+<a id='L703' name='L703'></a>   703           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, "Xft/Hinting") == 0)
+<a id='L704' name='L704'></a>   704             <em class='brace'>{</em>
+<a id='L705' name='L705'></a>   705               settings-&gt;seen |= <a href='../S/161.html#L189' title='Defined at 189 in src/xsettings.c.'>SEEN_HINTING</a>;
+<a id='L706' name='L706'></a>   706               settings-&gt;hinting = ival != 0;
+<a id='L707' name='L707'></a>   707             <em class='brace'>}</em>
+<a id='L708' name='L708'></a>   708 <em class='sharp'># ifdef</em> <a href='../S/213.html#L1200' title='Defined at 1200 in src/ftfont.c.'>FC_HINT_STYLE</a>
+<a id='L709' name='L709'></a>   709           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, "Xft/HintStyle") == 0)
+<a id='L710' name='L710'></a>   710             <em class='brace'>{</em>
+<a id='L711' name='L711'></a>   711               settings-&gt;seen |= <a href='../S/161.html#L192' title='Defined at 192 in src/xsettings.c.'>SEEN_HINTSTYLE</a>;
+<a id='L712' name='L712'></a>   712               <strong class='reserved'>if</strong> (strcmp (sval, "hintnone") == 0)
+<a id='L713' name='L713'></a>   713                 settings-&gt;hintstyle = FC_HINT_NONE;
+<a id='L714' name='L714'></a>   714               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (sval, "hintslight") == 0)
+<a id='L715' name='L715'></a>   715                 settings-&gt;hintstyle = FC_HINT_SLIGHT;
+<a id='L716' name='L716'></a>   716               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (sval, "hintmedium") == 0)
+<a id='L717' name='L717'></a>   717                 settings-&gt;hintstyle = FC_HINT_MEDIUM;
+<a id='L718' name='L718'></a>   718               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (sval, "hintfull") == 0)
+<a id='L719' name='L719'></a>   719                 settings-&gt;hintstyle = FC_HINT_FULL;
+<a id='L720' name='L720'></a>   720               <strong class='reserved'>else</strong>
+<a id='L721' name='L721'></a>   721                 settings-&gt;seen &amp;= ~<a href='../S/161.html#L192' title='Defined at 192 in src/xsettings.c.'>SEEN_HINTSTYLE</a>;
+<a id='L722' name='L722'></a>   722             <em class='brace'>}</em>
+<a id='L723' name='L723'></a>   723 <em class='sharp'># endif</em>
+<a id='L724' name='L724'></a>   724           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, "Xft/RGBA") == 0)
+<a id='L725' name='L725'></a>   725             <em class='brace'>{</em>
+<a id='L726' name='L726'></a>   726               settings-&gt;seen |= <a href='../S/161.html#L190' title='Defined at 190 in src/xsettings.c.'>SEEN_RGBA</a>;
+<a id='L727' name='L727'></a>   727               <strong class='reserved'>if</strong> (strcmp (sval, "none") == 0)
+<a id='L728' name='L728'></a>   728                 settings-&gt;rgba = FC_RGBA_NONE;
+<a id='L729' name='L729'></a>   729               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (sval, "rgb") == 0)
+<a id='L730' name='L730'></a>   730                 settings-&gt;rgba = FC_RGBA_RGB;
+<a id='L731' name='L731'></a>   731               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (sval, "bgr") == 0)
+<a id='L732' name='L732'></a>   732                 settings-&gt;rgba = FC_RGBA_BGR;
+<a id='L733' name='L733'></a>   733               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (sval, "vrgb") == 0)
+<a id='L734' name='L734'></a>   734                 settings-&gt;rgba = FC_RGBA_VRGB;
+<a id='L735' name='L735'></a>   735               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (sval, "vbgr") == 0)
+<a id='L736' name='L736'></a>   736                 settings-&gt;rgba = FC_RGBA_VBGR;
+<a id='L737' name='L737'></a>   737               <strong class='reserved'>else</strong>
+<a id='L738' name='L738'></a>   738                 settings-&gt;seen &amp;= ~<a href='../S/161.html#L190' title='Defined at 190 in src/xsettings.c.'>SEEN_RGBA</a>;
+<a id='L739' name='L739'></a>   739             <em class='brace'>}</em>
+<a id='L740' name='L740'></a>   740           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, "Xft/DPI") == 0 &amp;&amp; ival != (<a href='../S/161.html#L45' title='Defined at 45 in src/xsettings.c.'>CARD32</a>) -1)
+<a id='L741' name='L741'></a>   741             <em class='brace'>{</em>
+<a id='L742' name='L742'></a>   742               settings-&gt;seen |= <a href='../S/161.html#L193' title='Defined at 193 in src/xsettings.c.'>SEEN_DPI</a>;
+<a id='L743' name='L743'></a>   743               settings-&gt;dpi = ival / 1024.0;
+<a id='L744' name='L744'></a>   744             <em class='brace'>}</em>
+<a id='L745' name='L745'></a>   745           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, "Xft/lcdfilter") == 0)
+<a id='L746' name='L746'></a>   746             <em class='brace'>{</em>
+<a id='L747' name='L747'></a>   747               settings-&gt;seen |= <a href='../S/161.html#L191' title='Defined at 191 in src/xsettings.c.'>SEEN_LCDFILTER</a>;
+<a id='L748' name='L748'></a>   748               <strong class='reserved'>if</strong> (strcmp (sval, "none") == 0)
+<a id='L749' name='L749'></a>   749                 settings-&gt;lcdfilter = <a href='../S/161.html#L504' title='Defined at 504 in src/xsettings.c.'>FC_LCD_NONE</a>;
+<a id='L750' name='L750'></a>   750               <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (strcmp (sval, "lcddefault") == 0)
+<a id='L751' name='L751'></a>   751                 settings-&gt;lcdfilter = <a href='../S/161.html#L507' title='Defined at 507 in src/xsettings.c.'>FC_LCD_DEFAULT</a>;
+<a id='L752' name='L752'></a>   752               <strong class='reserved'>else</strong>
+<a id='L753' name='L753'></a>   753                 settings-&gt;seen &amp;= ~<a href='../S/161.html#L191' title='Defined at 191 in src/xsettings.c.'>SEEN_LCDFILTER</a>;
+<a id='L754' name='L754'></a>   754             <em class='brace'>}</em>
+<a id='L755' name='L755'></a>   755 <em class='sharp'>#endif</em> <em class='comment'>/* USE_CAIRO || HAVE_XFT */</em>
+<a id='L756' name='L756'></a>   756           <strong class='reserved'>else</strong>
+<a id='L757' name='L757'></a>   757             want_this = <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L758' name='L758'></a>   758           settings_seen += want_this;
+<a id='L759' name='L759'></a>   759         <em class='brace'>}</em>
+<a id='L760' name='L760'></a>   760     <em class='brace'>}</em>
+<a id='L761' name='L761'></a>   761 
+<a id='L762' name='L762'></a>   762   <strong class='reserved'>return</strong> settings_seen;
+<a id='L763' name='L763'></a>   763 <em class='brace'>}</em>
+<a id='L764' name='L764'></a>   764 <em class='sharp'>#endif</em>
+<a id='L765' name='L765'></a>   765 
+<a id='L766' name='L766'></a>   766 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L767' name='L767'></a>   767 <em class='comment'>/* Read settings from the XSettings property window on display for DPYINFO.</em>
+<a id='L768' name='L768'></a>   768 <em class='comment'>   Store settings read in SETTINGS.</em>
+<a id='L769' name='L769'></a>   769 <em class='comment'>   Return true if successful.  */</em>
+<a id='L770' name='L770'></a>   770 
+<a id='L771' name='L771'></a>   771 <strong class='reserved'>static</strong> <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L772' name='L772'></a>   772 <a href='../S/161.html#L970' title='Referred from 970 in src/xsettings.c.'>read_settings</a> (<a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *dpyinfo, <strong class='reserved'>struct</strong> <a href='../S/161.html#L197' title='Defined at 197 in src/xsettings.c.'>xsettings</a> *settings)
+<a id='L773' name='L773'></a>   773 <em class='brace'>{</em>
+<a id='L774' name='L774'></a>   774   Atom act_type;
+<a id='L775' name='L775'></a>   775   <strong class='reserved'>int</strong> act_form;
+<a id='L776' name='L776'></a>   776   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> nitems, bytes_after;
+<a id='L777' name='L777'></a>   777   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *prop = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L778' name='L778'></a>   778   <a href='../D/1632.html' title='Multiple defined in 6 places.'>Display</a> *dpy = dpyinfo-&gt;<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>;
+<a id='L779' name='L779'></a>   779   <strong class='reserved'>int</strong> rc;
+<a id='L780' name='L780'></a>   780   <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> got_settings = <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L781' name='L781'></a>   781 
+<a id='L782' name='L782'></a>   782   x_catch_errors (dpy);
+<a id='L783' name='L783'></a>   783   rc = XGetWindowProperty (dpy,
+<a id='L784' name='L784'></a>   784                            dpyinfo-&gt;xsettings_window,
+<a id='L785' name='L785'></a>   785                            dpyinfo-&gt;Xatom_xsettings_prop,
+<a id='L786' name='L786'></a>   786                            0, LONG_MAX, False, AnyPropertyType,
+<a id='L787' name='L787'></a>   787                            &amp;act_type, &amp;act_form, &amp;nitems, &amp;bytes_after,
+<a id='L788' name='L788'></a>   788                            &amp;prop);
+<a id='L789' name='L789'></a>   789 
+<a id='L790' name='L790'></a>   790   <strong class='reserved'>if</strong> (rc == Success &amp;&amp; prop != <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a> &amp;&amp; act_form == 8 &amp;&amp; nitems &gt; 0
+<a id='L791' name='L791'></a>   791       &amp;&amp; act_type == dpyinfo-&gt;Xatom_xsettings_prop)
+<a id='L792' name='L792'></a>   792     got_settings = <a href='../S/161.html#L591' title='Defined at 591 in src/xsettings.c.'>parse_settings</a> (prop, nitems, settings) != 0;
+<a id='L793' name='L793'></a>   793 
+<a id='L794' name='L794'></a>   794   XFree (prop);
+<a id='L795' name='L795'></a>   795 
+<a id='L796' name='L796'></a>   796   x_uncatch_errors ();
+<a id='L797' name='L797'></a>   797 
+<a id='L798' name='L798'></a>   798   <strong class='reserved'>return</strong> got_settings;
+<a id='L799' name='L799'></a>   799 <em class='brace'>}</em>
+<a id='L800' name='L800'></a>   800 <em class='sharp'>#endif</em>
+<a id='L801' name='L801'></a>   801 
+<a id='L802' name='L802'></a>   802 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L803' name='L803'></a>   803 <em class='comment'>/* Apply Xft settings in SETTINGS to the Xft library.</em>
+<a id='L804' name='L804'></a>   804 <em class='comment'>   Store a Lisp event that Xft settings changed.  */</em>
+<a id='L805' name='L805'></a>   805 
+<a id='L806' name='L806'></a>   806 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L807' name='L807'></a>   807 <a href='../S/161.html#L973' title='Referred from 973 in src/xsettings.c.'>apply_xft_settings</a> (<a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *dpyinfo,
+<a id='L808' name='L808'></a>   808                     <strong class='reserved'>struct</strong> <a href='../S/161.html#L197' title='Defined at 197 in src/xsettings.c.'>xsettings</a> *settings)
+<a id='L809' name='L809'></a>   809 <em class='brace'>{</em>
+<a id='L810' name='L810'></a>   810 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> HAVE_XFT                                    \
+<a id='L811' name='L811'></a>   811   || (<strong class='reserved'>defined</strong> USE_CAIRO &amp;&amp; <strong class='reserved'>defined</strong> CAIRO_HAS_FC_FONT    \
+<a id='L812' name='L812'></a>   812       &amp;&amp; <strong class='reserved'>defined</strong> CAIRO_HAS_FT_FONT)
+<a id='L813' name='L813'></a>   813   FcPattern *pat;
+<a id='L814' name='L814'></a>   814   <strong class='reserved'>struct</strong> <a href='../S/161.html#L197' title='Defined at 197 in src/xsettings.c.'>xsettings</a> oldsettings;
+<a id='L815' name='L815'></a>   815   <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> changed = <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L816' name='L816'></a>   816 <em class='sharp'>#ifndef</em> HAVE_XFT
+<a id='L817' name='L817'></a>   817   cairo_font_options_t *options;
+<a id='L818' name='L818'></a>   818 <em class='sharp'>#endif</em>
+<a id='L819' name='L819'></a>   819 
+<a id='L820' name='L820'></a>   820 
+<a id='L821' name='L821'></a>   821   memset (&amp;oldsettings, 0, <strong class='reserved'>sizeof</strong> (oldsettings));
+<a id='L822' name='L822'></a>   822   pat = FcPatternCreate ();
+<a id='L823' name='L823'></a>   823 <em class='sharp'>#ifdef</em> HAVE_XFT
+<a id='L824' name='L824'></a>   824   XftDefaultSubstitute (dpyinfo-&gt;<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>,
+<a id='L825' name='L825'></a>   825                         <a href='../S/72.html#L7434' title='Defined at 7434 in src/xfns.c.'>XScreenNumberOfScreen</a> (dpyinfo-&gt;screen),
+<a id='L826' name='L826'></a>   826                         pat);
+<a id='L827' name='L827'></a>   827 <em class='sharp'>#else</em>
+<a id='L828' name='L828'></a>   828   FcConfigSubstitute (<a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, pat, FcMatchPattern);
+<a id='L829' name='L829'></a>   829   options = cairo_font_options_create ();
+<a id='L830' name='L830'></a>   830   <a href='../S/121.html#L763' title='Defined at 763 in src/ftcrfont.c.'>ftcrfont_get_default_font_options</a> (dpyinfo, options);
+<a id='L831' name='L831'></a>   831   cairo_ft_font_options_substitute (options, pat);
+<a id='L832' name='L832'></a>   832   cairo_font_options_destroy (options);
+<a id='L833' name='L833'></a>   833   FcDefaultSubstitute (pat);
+<a id='L834' name='L834'></a>   834 <em class='sharp'>#endif</em>
+<a id='L835' name='L835'></a>   835   FcPatternGetBool (pat, FC_ANTIALIAS, 0, &amp;oldsettings.<a href='../D/8118.html' title='Multiple defined in 2 places.'>aa</a>);
+<a id='L836' name='L836'></a>   836   FcPatternGetBool (pat, FC_HINTING, 0, &amp;oldsettings.hinting);
+<a id='L837' name='L837'></a>   837 <em class='sharp'>#ifdef</em> <a href='../S/213.html#L1200' title='Defined at 1200 in src/ftfont.c.'>FC_HINT_STYLE</a>
+<a id='L838' name='L838'></a>   838   FcPatternGetInteger (pat, <a href='../S/213.html#L1200' title='Defined at 1200 in src/ftfont.c.'>FC_HINT_STYLE</a>, 0, &amp;oldsettings.hintstyle);
+<a id='L839' name='L839'></a>   839 <em class='sharp'>#endif</em>
+<a id='L840' name='L840'></a>   840   FcPatternGetInteger (pat, <a href='../D/2025.html' title='Multiple defined in 3 places.'>FC_LCD_FILTER</a>, 0, &amp;oldsettings.lcdfilter);
+<a id='L841' name='L841'></a>   841   FcPatternGetInteger (pat, FC_RGBA, 0, &amp;oldsettings.rgba);
+<a id='L842' name='L842'></a>   842   FcPatternGetDouble (pat, FC_DPI, 0, &amp;oldsettings.dpi);
+<a id='L843' name='L843'></a>   843 
+<a id='L844' name='L844'></a>   844   <strong class='reserved'>if</strong> ((settings-&gt;seen &amp; <a href='../S/161.html#L188' title='Defined at 188 in src/xsettings.c.'>SEEN_AA</a>) != 0 &amp;&amp; oldsettings.<a href='../D/8118.html' title='Multiple defined in 2 places.'>aa</a> != settings-&gt;<a href='../D/8118.html' title='Multiple defined in 2 places.'>aa</a>)
+<a id='L845' name='L845'></a>   845     <em class='brace'>{</em>
+<a id='L846' name='L846'></a>   846       FcPatternDel (pat, FC_ANTIALIAS);
+<a id='L847' name='L847'></a>   847       FcPatternAddBool (pat, FC_ANTIALIAS, settings-&gt;<a href='../D/8118.html' title='Multiple defined in 2 places.'>aa</a>);
+<a id='L848' name='L848'></a>   848       changed = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L849' name='L849'></a>   849       oldsettings.<a href='../D/8118.html' title='Multiple defined in 2 places.'>aa</a> = settings-&gt;<a href='../D/8118.html' title='Multiple defined in 2 places.'>aa</a>;
+<a id='L850' name='L850'></a>   850     <em class='brace'>}</em>
+<a id='L851' name='L851'></a>   851 
+<a id='L852' name='L852'></a>   852   <strong class='reserved'>if</strong> ((settings-&gt;seen &amp; <a href='../S/161.html#L189' title='Defined at 189 in src/xsettings.c.'>SEEN_HINTING</a>) != 0
+<a id='L853' name='L853'></a>   853       &amp;&amp; oldsettings.hinting != settings-&gt;hinting)
+<a id='L854' name='L854'></a>   854     <em class='brace'>{</em>
+<a id='L855' name='L855'></a>   855       FcPatternDel (pat, FC_HINTING);
+<a id='L856' name='L856'></a>   856       FcPatternAddBool (pat, FC_HINTING, settings-&gt;hinting);
+<a id='L857' name='L857'></a>   857       changed = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L858' name='L858'></a>   858       oldsettings.hinting = settings-&gt;hinting;
+<a id='L859' name='L859'></a>   859     <em class='brace'>}</em>
+<a id='L860' name='L860'></a>   860   <strong class='reserved'>if</strong> ((settings-&gt;seen &amp; <a href='../S/161.html#L190' title='Defined at 190 in src/xsettings.c.'>SEEN_RGBA</a>) != 0 &amp;&amp; oldsettings.rgba != settings-&gt;rgba)
+<a id='L861' name='L861'></a>   861     <em class='brace'>{</em>
+<a id='L862' name='L862'></a>   862       FcPatternDel (pat, FC_RGBA);
+<a id='L863' name='L863'></a>   863       FcPatternAddInteger (pat, FC_RGBA, settings-&gt;rgba);
+<a id='L864' name='L864'></a>   864       oldsettings.rgba = settings-&gt;rgba;
+<a id='L865' name='L865'></a>   865       changed = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L866' name='L866'></a>   866     <em class='brace'>}</em>
+<a id='L867' name='L867'></a>   867 
+<a id='L868' name='L868'></a>   868   <em class='comment'>/* Older fontconfig versions don't have FC_LCD_FILTER. */</em>
+<a id='L869' name='L869'></a>   869   <strong class='reserved'>if</strong> ((settings-&gt;seen &amp; <a href='../S/161.html#L191' title='Defined at 191 in src/xsettings.c.'>SEEN_LCDFILTER</a>) != 0
+<a id='L870' name='L870'></a>   870       &amp;&amp; oldsettings.lcdfilter != settings-&gt;lcdfilter)
+<a id='L871' name='L871'></a>   871     <em class='brace'>{</em>
+<a id='L872' name='L872'></a>   872       FcPatternDel (pat, <a href='../D/2025.html' title='Multiple defined in 3 places.'>FC_LCD_FILTER</a>);
+<a id='L873' name='L873'></a>   873       FcPatternAddInteger (pat, <a href='../D/2025.html' title='Multiple defined in 3 places.'>FC_LCD_FILTER</a>, settings-&gt;lcdfilter);
+<a id='L874' name='L874'></a>   874       changed = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L875' name='L875'></a>   875       oldsettings.lcdfilter = settings-&gt;lcdfilter;
+<a id='L876' name='L876'></a>   876     <em class='brace'>}</em>
+<a id='L877' name='L877'></a>   877 
+<a id='L878' name='L878'></a>   878 <em class='sharp'>#ifdef</em> <a href='../S/213.html#L1200' title='Defined at 1200 in src/ftfont.c.'>FC_HINT_STYLE</a>
+<a id='L879' name='L879'></a>   879   <strong class='reserved'>if</strong> ((settings-&gt;seen &amp; <a href='../S/161.html#L192' title='Defined at 192 in src/xsettings.c.'>SEEN_HINTSTYLE</a>) != 0
+<a id='L880' name='L880'></a>   880       &amp;&amp; oldsettings.hintstyle != settings-&gt;hintstyle)
+<a id='L881' name='L881'></a>   881     <em class='brace'>{</em>
+<a id='L882' name='L882'></a>   882       FcPatternDel (pat, <a href='../S/213.html#L1200' title='Defined at 1200 in src/ftfont.c.'>FC_HINT_STYLE</a>);
+<a id='L883' name='L883'></a>   883       FcPatternAddInteger (pat, <a href='../S/213.html#L1200' title='Defined at 1200 in src/ftfont.c.'>FC_HINT_STYLE</a>, settings-&gt;hintstyle);
+<a id='L884' name='L884'></a>   884       changed = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L885' name='L885'></a>   885       oldsettings.hintstyle = settings-&gt;hintstyle;
+<a id='L886' name='L886'></a>   886     <em class='brace'>}</em>
+<a id='L887' name='L887'></a>   887 <em class='sharp'>#endif</em>
+<a id='L888' name='L888'></a>   888 
+<a id='L889' name='L889'></a>   889 <em class='sharp'>#ifdef</em> USE_CAIRO
+<a id='L890' name='L890'></a>   890   <em class='comment'>/* When Cairo is being used, set oldsettings.dpi to dpyinfo-&gt;resx.</em>
+<a id='L891' name='L891'></a>   891 <em class='comment'>     This is a gross hack, but seeing as Cairo fails to report</em>
+<a id='L892' name='L892'></a>   892 <em class='comment'>     anything reasonable, just use it to avoid config-changed events</em>
+<a id='L893' name='L893'></a>   893 <em class='comment'>     being sent at startup.  */</em>
+<a id='L894' name='L894'></a>   894   oldsettings.dpi = dpyinfo-&gt;resx;
+<a id='L895' name='L895'></a>   895 <em class='sharp'>#endif</em>
+<a id='L896' name='L896'></a>   896 
+<a id='L897' name='L897'></a>   897   <strong class='reserved'>if</strong> ((settings-&gt;seen &amp; <a href='../S/161.html#L193' title='Defined at 193 in src/xsettings.c.'>SEEN_DPI</a>) != 0
+<a id='L898' name='L898'></a>   898       &amp;&amp; settings-&gt;dpi &gt; 0
+<a id='L899' name='L899'></a>   899       <em class='comment'>/* The following conjunct avoids setting `changed' to true when</em>
+<a id='L900' name='L900'></a>   900 <em class='comment'>         old and new dpi settings do not differ "substantially".</em>
+<a id='L901' name='L901'></a>   901 <em class='comment'>         Otherwise, the dynamic-setting Elisp code may process all sorts</em>
+<a id='L902' name='L902'></a>   902 <em class='comment'>         of unrelated settings that override users' font customizations,</em>
+<a id='L903' name='L903'></a>   903 <em class='comment'>         among others.  Compare:</em>
+<a id='L904' name='L904'></a>   904 <em class='comment'></em>
+<a id='L905' name='L905'></a>   905 <em class='comment'>         https://lists.gnu.org/r/emacs-devel/2016-05/msg00557.html</em>
+<a id='L906' name='L906'></a>   906 <em class='comment'>         https://lists.gnu.org/r/bug-gnu-emacs/2016-12/msg00820.html</em>
+<a id='L907' name='L907'></a>   907 <em class='comment'></em>
+<a id='L908' name='L908'></a>   908 <em class='comment'>         As soon as the dynamic-settings code has been tested and</em>
+<a id='L909' name='L909'></a>   909 <em class='comment'>         verified, this Emacs 25.2 workaround should be removed.  */</em>
+<a id='L910' name='L910'></a>   910       &amp;&amp; ((oldsettings.dpi &gt;= settings-&gt;dpi
+<a id='L911' name='L911'></a>   911            &amp;&amp; (oldsettings.dpi - settings-&gt;dpi) &gt; 2)
+<a id='L912' name='L912'></a>   912           || ((settings-&gt;dpi &gt; oldsettings.dpi)
+<a id='L913' name='L913'></a>   913               &amp;&amp; (settings-&gt;dpi - oldsettings.dpi) &gt; 2)))
+<a id='L914' name='L914'></a>   914     <em class='brace'>{</em>
+<a id='L915' name='L915'></a>   915       FcPatternDel (pat, FC_DPI);
+<a id='L916' name='L916'></a>   916       FcPatternAddDouble (pat, FC_DPI, settings-&gt;dpi);
+<a id='L917' name='L917'></a>   917       changed = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L918' name='L918'></a>   918       oldsettings.dpi = settings-&gt;dpi;
+<a id='L919' name='L919'></a>   919 
+<a id='L920' name='L920'></a>   920       <em class='comment'>/* Changing the DPI on this display affects all frames on it.</em>
+<a id='L921' name='L921'></a>   921 <em class='comment'>         Check FRAME_RES_X and FRAME_RES_Y in frame.h to see how.  */</em>
+<a id='L922' name='L922'></a>   922       dpyinfo-&gt;resy = dpyinfo-&gt;resx = settings-&gt;dpi;
+<a id='L923' name='L923'></a>   923     <em class='brace'>}</em>
+<a id='L924' name='L924'></a>   924 
+<a id='L925' name='L925'></a>   925   <strong class='reserved'>if</strong> (changed)
+<a id='L926' name='L926'></a>   926     <em class='brace'>{</em>
+<a id='L927' name='L927'></a>   927       <strong class='reserved'>static</strong> <strong class='reserved'>char</strong> <strong class='reserved'>const</strong> format[] =
+<a id='L928' name='L928'></a>   928         "Antialias: %d, Hinting: %d, RGBA: %d, LCDFilter: %d, "
+<a id='L929' name='L929'></a>   929         "Hintstyle: %d, DPI: %f";
+<a id='L930' name='L930'></a>   930       <strong class='reserved'>enum</strong>
+<a id='L931' name='L931'></a>   931       <em class='brace'>{</em>
+<a id='L932' name='L932'></a>   932         <a href='../S/161.html#L940' title='Referred from 940 in src/xsettings.c.'>d_formats</a> = 5,
+<a id='L933' name='L933'></a>   933         <a href='../S/161.html#L940' title='Referred from 940 in src/xsettings.c.'>d_growth</a> = <a href='../S/2171.html#L72' title='Defined at 72 in lib/intprops.h.'>INT_BUFSIZE_BOUND</a> (<strong class='reserved'>int</strong>) - <strong class='reserved'>sizeof</strong> "%d",
+<a id='L934' name='L934'></a>   934         <a href='../S/161.html#L940' title='Referred from 940 in src/xsettings.c.'>lf_formats</a> = 1,
+<a id='L935' name='L935'></a>   935         <a href='../S/161.html#L937' title='Referred from 937 in src/xsettings.c.'>max_f_integer_digits</a> = DBL_MAX_10_EXP + 1,
+<a id='L936' name='L936'></a>   936         <a href='../S/161.html#L937' title='Referred from 937 in src/xsettings.c.'>f_precision</a> = 6,
+<a id='L937' name='L937'></a>   937         <a href='../S/161.html#L940' title='Referred from 940 in src/xsettings.c.'>lf_growth</a> = (<strong class='reserved'>sizeof</strong> "-." + <a href='../S/161.html#L935' title='Defined at 935 in src/xsettings.c.'>max_f_integer_digits</a> + <a href='../S/161.html#L936' title='Defined at 936 in src/xsettings.c.'>f_precision</a>
+<a id='L938' name='L938'></a>   938                      - <strong class='reserved'>sizeof</strong> "%f")
+<a id='L939' name='L939'></a>   939       <em class='brace'>}</em>;
+<a id='L940' name='L940'></a>   940       <strong class='reserved'>char</strong> buf[<strong class='reserved'>sizeof</strong> format + <a href='../S/161.html#L932' title='Defined at 932 in src/xsettings.c.'>d_formats</a> * <a href='../S/161.html#L933' title='Defined at 933 in src/xsettings.c.'>d_growth</a> + <a href='../S/161.html#L934' title='Defined at 934 in src/xsettings.c.'>lf_formats</a> * <a href='../S/161.html#L937' title='Defined at 937 in src/xsettings.c.'>lf_growth</a>];
+<a id='L941' name='L941'></a>   941 <em class='sharp'>#ifdef</em> HAVE_XFT
+<a id='L942' name='L942'></a>   942       XftDefaultSet (dpyinfo-&gt;<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>, pat);
+<a id='L943' name='L943'></a>   943 <em class='sharp'>#else</em>
+<a id='L944' name='L944'></a>   944       FcPatternDestroy (pat);
+<a id='L945' name='L945'></a>   945 <em class='sharp'>#endif</em>
+<a id='L946' name='L946'></a>   946       <a href='../S/161.html#L76' title='Defined at 76 in src/xsettings.c.'>store_config_changed_event</a> (Qfont_render,
+<a id='L947' name='L947'></a>   947                                   <a href='../D/6892.html' title='Multiple defined in 2 places.'>XCAR</a> (dpyinfo-&gt;name_list_element));
+<a id='L948' name='L948'></a>   948       Vxft_settings
+<a id='L949' name='L949'></a>   949         = <a href='../D/14034.html' title='Multiple defined in 3 places.'>make_formatted_string</a> (buf, format,
+<a id='L950' name='L950'></a>   950                                  oldsettings.<a href='../D/8118.html' title='Multiple defined in 2 places.'>aa</a>, oldsettings.hinting,
+<a id='L951' name='L951'></a>   951                                  oldsettings.rgba, oldsettings.lcdfilter,
+<a id='L952' name='L952'></a>   952                                  oldsettings.hintstyle, oldsettings.dpi);
+<a id='L953' name='L953'></a>   953 
+<a id='L954' name='L954'></a>   954     <em class='brace'>}</em>
+<a id='L955' name='L955'></a>   955   <strong class='reserved'>else</strong>
+<a id='L956' name='L956'></a>   956     FcPatternDestroy (pat);
+<a id='L957' name='L957'></a>   957 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_XFT || (USE_CAIRO &amp;&amp; CAIRO_HAS_FC_FONT &amp;&amp; CAIRO_HAS_FT_FONT) */</em>
+<a id='L958' name='L958'></a>   958 <em class='brace'>}</em>
+<a id='L959' name='L959'></a>   959 <em class='sharp'>#endif</em>
+<a id='L960' name='L960'></a>   960 
+<a id='L961' name='L961'></a>   961 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L962' name='L962'></a>   962 <em class='comment'>/* Read XSettings from the display for DPYINFO.</em>
+<a id='L963' name='L963'></a>   963 <em class='comment'>   If SEND_EVENT_P store a Lisp event settings that changed.  */</em>
+<a id='L964' name='L964'></a>   964 
+<a id='L965' name='L965'></a>   965 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L966' name='L966'></a>   966 <a href='../R/14744.html' title='Multiple referred from 2 places.'>read_and_apply_settings</a> (<a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *dpyinfo, <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> send_event_p)
+<a id='L967' name='L967'></a>   967 <em class='brace'>{</em>
+<a id='L968' name='L968'></a>   968   <strong class='reserved'>struct</strong> <a href='../S/161.html#L197' title='Defined at 197 in src/xsettings.c.'>xsettings</a> settings;
+<a id='L969' name='L969'></a>   969 
+<a id='L970' name='L970'></a>   970   <strong class='reserved'>if</strong> (!<a href='../S/161.html#L772' title='Defined at 772 in src/xsettings.c.'>read_settings</a> (dpyinfo, &amp;settings))
+<a id='L971' name='L971'></a>   971     <strong class='reserved'>return</strong>;
+<a id='L972' name='L972'></a>   972 
+<a id='L973' name='L973'></a>   973   <a href='../S/161.html#L807' title='Defined at 807 in src/xsettings.c.'>apply_xft_settings</a> (dpyinfo, &amp;settings);
+<a id='L974' name='L974'></a>   974   <strong class='reserved'>if</strong> (settings.seen &amp; <a href='../S/161.html#L195' title='Defined at 195 in src/xsettings.c.'>SEEN_TB_STYLE</a>)
+<a id='L975' name='L975'></a>   975     <em class='brace'>{</em>
+<a id='L976' name='L976'></a>   976       <strong class='reserved'>if</strong> (send_event_p)
+<a id='L977' name='L977'></a>   977         <a href='../S/161.html#L167' title='Defined at 167 in src/xsettings.c.'>store_tool_bar_style_changed</a> (settings.tb_style, dpyinfo);
+<a id='L978' name='L978'></a>   978       <strong class='reserved'>else</strong>
+<a id='L979' name='L979'></a>   979         current_tool_bar_style = <a href='../S/161.html#L146' title='Defined at 146 in src/xsettings.c.'>map_tool_bar_style</a> (settings.tb_style);
+<a id='L980' name='L980'></a>   980       <a href='../D/19723.html' title='Multiple defined in 3 places.'>xfree</a> (settings.tb_style);
+<a id='L981' name='L981'></a>   981     <em class='brace'>}</em>
+<a id='L982' name='L982'></a>   982 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L983' name='L983'></a>   983   <strong class='reserved'>if</strong> (settings.seen &amp; <a href='../S/161.html#L194' title='Defined at 194 in src/xsettings.c.'>SEEN_FONT</a>)
+<a id='L984' name='L984'></a>   984     <em class='brace'>{</em>
+<a id='L985' name='L985'></a>   985       <strong class='reserved'>if</strong> (send_event_p)
+<a id='L986' name='L986'></a>   986         <a href='../S/161.html#L127' title='Defined at 127 in src/xsettings.c.'>store_font_name_changed</a> (settings.<a href='../S/140.html#L277' title='Defined at 277 in src/font.h.'>font</a>);
+<a id='L987' name='L987'></a>   987       <strong class='reserved'>else</strong>
+<a id='L988' name='L988'></a>   988         <a href='../S/111.html#L985' title='Defined at 985 in src/alloc.c.'>dupstring</a> (&amp;<a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a>, settings.<a href='../S/140.html#L277' title='Defined at 277 in src/font.h.'>font</a>);
+<a id='L989' name='L989'></a>   989       <a href='../D/19723.html' title='Multiple defined in 3 places.'>xfree</a> (settings.<a href='../S/140.html#L277' title='Defined at 277 in src/font.h.'>font</a>);
+<a id='L990' name='L990'></a>   990     <em class='brace'>}</em>
+<a id='L991' name='L991'></a>   991 <em class='sharp'>#endif</em>
+<a id='L992' name='L992'></a>   992 <em class='brace'>}</em>
+<a id='L993' name='L993'></a>   993 <em class='sharp'>#endif</em>
+<a id='L994' name='L994'></a>   994 
+<a id='L995' name='L995'></a>   995 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L996' name='L996'></a>   996 <em class='comment'>/* Check if EVENT for the display in DPYINFO is XSettings related.</em>
+<a id='L997' name='L997'></a>   997 <em class='comment'>   Return true if it is, after performing associated side effects.  */</em>
+<a id='L998' name='L998'></a>   998 
+<a id='L999' name='L999'></a>   999 <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L1000' name='L1000'></a>  1000 <a href='../R/18334.html' title='Multiple referred from 4 places.'>xft_settings_event</a> (<a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *dpyinfo, <strong class='reserved'>const</strong> XEvent *event)
+<a id='L1001' name='L1001'></a>  1001 <em class='brace'>{</em>
+<a id='L1002' name='L1002'></a>  1002   <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> check_window_p = <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>, apply_settings_p = <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L1003' name='L1003'></a>  1003 
+<a id='L1004' name='L1004'></a>  1004   <strong class='reserved'>switch</strong> (event-&gt;type)
+<a id='L1005' name='L1005'></a>  1005     <em class='brace'>{</em>
+<a id='L1006' name='L1006'></a>  1006     <strong class='reserved'>case</strong> DestroyNotify:
+<a id='L1007' name='L1007'></a>  1007       <strong class='reserved'>if</strong> (dpyinfo-&gt;xsettings_window == event-&gt;xany.<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>)
+<a id='L1008' name='L1008'></a>  1008         check_window_p = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L1009' name='L1009'></a>  1009       <strong class='reserved'>break</strong>;
+<a id='L1010' name='L1010'></a>  1010 
+<a id='L1011' name='L1011'></a>  1011     <strong class='reserved'>case</strong> ClientMessage:
+<a id='L1012' name='L1012'></a>  1012       <strong class='reserved'>if</strong> (event-&gt;xclient.message_type == dpyinfo-&gt;Xatom_xsettings_mgr
+<a id='L1013' name='L1013'></a>  1013           &amp;&amp; event-&gt;xclient.data.l[1] == dpyinfo-&gt;Xatom_xsettings_sel
+<a id='L1014' name='L1014'></a>  1014           &amp;&amp; event-&gt;xclient.<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> == dpyinfo-&gt;root_window)
+<a id='L1015' name='L1015'></a>  1015         check_window_p = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L1016' name='L1016'></a>  1016       <strong class='reserved'>break</strong>;
+<a id='L1017' name='L1017'></a>  1017 
+<a id='L1018' name='L1018'></a>  1018     <strong class='reserved'>case</strong> PropertyNotify:
+<a id='L1019' name='L1019'></a>  1019       <strong class='reserved'>if</strong> (event-&gt;xproperty.<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> == dpyinfo-&gt;xsettings_window
+<a id='L1020' name='L1020'></a>  1020           &amp;&amp; event-&gt;xproperty.state == PropertyNewValue
+<a id='L1021' name='L1021'></a>  1021           &amp;&amp; event-&gt;xproperty.atom == dpyinfo-&gt;Xatom_xsettings_prop)
+<a id='L1022' name='L1022'></a>  1022         apply_settings_p = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L1023' name='L1023'></a>  1023       <strong class='reserved'>break</strong>;
+<a id='L1024' name='L1024'></a>  1024     <em class='brace'>}</em>
+<a id='L1025' name='L1025'></a>  1025 
+<a id='L1026' name='L1026'></a>  1026 
+<a id='L1027' name='L1027'></a>  1027   <strong class='reserved'>if</strong> (check_window_p)
+<a id='L1028' name='L1028'></a>  1028     <em class='brace'>{</em>
+<a id='L1029' name='L1029'></a>  1029       dpyinfo-&gt;xsettings_window = None;
+<a id='L1030' name='L1030'></a>  1030       <a href='../S/161.html#L519' title='Defined at 519 in src/xsettings.c.'>get_prop_window</a> (dpyinfo);
+<a id='L1031' name='L1031'></a>  1031       <strong class='reserved'>if</strong> (dpyinfo-&gt;xsettings_window != None)
+<a id='L1032' name='L1032'></a>  1032         apply_settings_p = <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L1033' name='L1033'></a>  1033     <em class='brace'>}</em>
+<a id='L1034' name='L1034'></a>  1034 
+<a id='L1035' name='L1035'></a>  1035   <strong class='reserved'>if</strong> (apply_settings_p)
+<a id='L1036' name='L1036'></a>  1036     <a href='../S/161.html#L966' title='Defined at 966 in src/xsettings.c.'>read_and_apply_settings</a> (dpyinfo, <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
+<a id='L1037' name='L1037'></a>  1037 
+<a id='L1038' name='L1038'></a>  1038   <strong class='reserved'>return</strong> check_window_p || apply_settings_p;
+<a id='L1039' name='L1039'></a>  1039 <em class='brace'>}</em>
+<a id='L1040' name='L1040'></a>  1040 <em class='sharp'>#endif</em>
+<a id='L1041' name='L1041'></a>  1041 
+<a id='L1042' name='L1042'></a>  1042 <em class='comment'>/* Initialize GSettings and read startup values.  */</em>
+<a id='L1043' name='L1043'></a>  1043 
+<a id='L1044' name='L1044'></a>  1044 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1045' name='L1045'></a>  1045 <a href='../S/161.html#L1216' title='Referred from 1216 in src/xsettings.c.'>init_gsettings</a> (<strong class='reserved'>void</strong>)
+<a id='L1046' name='L1046'></a>  1046 <em class='brace'>{</em>
+<a id='L1047' name='L1047'></a>  1047 <em class='sharp'>#ifdef</em> HAVE_GSETTINGS
+<a id='L1048' name='L1048'></a>  1048   GVariant *val;
+<a id='L1049' name='L1049'></a>  1049   <a href='../D/9268.html' title='Multiple defined in 11 places.'>bool</a> schema_found = <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L1050' name='L1050'></a>  1050 
+<a id='L1051' name='L1051'></a>  1051 <em class='sharp'>#if</em> ! GLIB_CHECK_VERSION (2, 36, 0)
+<a id='L1052' name='L1052'></a>  1052   <a href='../D/11921.html' title='Multiple defined in 2 places.'>g_type_init</a> ();
+<a id='L1053' name='L1053'></a>  1053 <em class='sharp'>#endif</em>
+<a id='L1054' name='L1054'></a>  1054 
+<a id='L1055' name='L1055'></a>  1055 <em class='sharp'>#if</em> GLIB_CHECK_VERSION (2, 32, 0)
+<a id='L1056' name='L1056'></a>  1056   <em class='brace'>{</em>
+<a id='L1057' name='L1057'></a>  1057     GSettingsSchema *<a href='../S/43.html#L192' title='Defined at 192 in lib-src/ebrowse.c.'>sc</a> = g_settings_schema_source_lookup
+<a id='L1058' name='L1058'></a>  1058       (g_settings_schema_source_get_default (),
+<a id='L1059' name='L1059'></a>  1059        <a href='../S/161.html#L218' title='Defined at 218 in src/xsettings.c.'>GSETTINGS_SCHEMA</a>,
+<a id='L1060' name='L1060'></a>  1060        <a href='../S/4104.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
+<a id='L1061' name='L1061'></a>  1061     schema_found = <a href='../S/43.html#L192' title='Defined at 192 in lib-src/ebrowse.c.'>sc</a> != <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1062' name='L1062'></a>  1062     <strong class='reserved'>if</strong> (<a href='../S/43.html#L192' title='Defined at 192 in lib-src/ebrowse.c.'>sc</a>) g_settings_schema_unref (<a href='../S/43.html#L192' title='Defined at 192 in lib-src/ebrowse.c.'>sc</a>);
+<a id='L1063' name='L1063'></a>  1063   <em class='brace'>}</em>
+<a id='L1064' name='L1064'></a>  1064 <em class='sharp'>#else</em>
+<a id='L1065' name='L1065'></a>  1065   <em class='brace'>{</em>
+<a id='L1066' name='L1066'></a>  1066     <strong class='reserved'>const</strong> gchar *<strong class='reserved'>const</strong> *schemas = g_settings_list_schemas ();
+<a id='L1067' name='L1067'></a>  1067     <strong class='reserved'>if</strong> (schemas == <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>) <strong class='reserved'>return</strong>;
+<a id='L1068' name='L1068'></a>  1068     <strong class='reserved'>while</strong> (! schema_found &amp;&amp; *schemas != <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L1069' name='L1069'></a>  1069       schema_found = strcmp (*schemas++, <a href='../S/161.html#L218' title='Defined at 218 in src/xsettings.c.'>GSETTINGS_SCHEMA</a>) == 0;
+<a id='L1070' name='L1070'></a>  1070   <em class='brace'>}</em>
+<a id='L1071' name='L1071'></a>  1071 <em class='sharp'>#endif</em>
+<a id='L1072' name='L1072'></a>  1072   <strong class='reserved'>if</strong> (!schema_found) <strong class='reserved'>return</strong>;
+<a id='L1073' name='L1073'></a>  1073 
+<a id='L1074' name='L1074'></a>  1074   gsettings_client = g_settings_new (<a href='../S/161.html#L218' title='Defined at 218 in src/xsettings.c.'>GSETTINGS_SCHEMA</a>);
+<a id='L1075' name='L1075'></a>  1075   <strong class='reserved'>if</strong> (!gsettings_client) <strong class='reserved'>return</strong>;
+<a id='L1076' name='L1076'></a>  1076   g_object_ref_sink (G_OBJECT (gsettings_client));
+<a id='L1077' name='L1077'></a>  1077   g_signal_connect (G_OBJECT (gsettings_client), "changed",
+<a id='L1078' name='L1078'></a>  1078                     G_CALLBACK (<a href='../S/161.html#L385' title='Defined at 385 in src/xsettings.c.'>something_changed_gsettingsCB</a>), <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1079' name='L1079'></a>  1079 
+<a id='L1080' name='L1080'></a>  1080   val = g_settings_get_value (gsettings_client, <a href='../S/161.html#L219' title='Defined at 219 in src/xsettings.c.'>GSETTINGS_TOOL_BAR_STYLE</a>);
+<a id='L1081' name='L1081'></a>  1081   <strong class='reserved'>if</strong> (val)
+<a id='L1082' name='L1082'></a>  1082     <em class='brace'>{</em>
+<a id='L1083' name='L1083'></a>  1083       g_variant_ref_sink (val);
+<a id='L1084' name='L1084'></a>  1084       <strong class='reserved'>if</strong> (g_variant_is_of_type (val, G_VARIANT_TYPE_STRING))
+<a id='L1085' name='L1085'></a>  1085         current_tool_bar_style
+<a id='L1086' name='L1086'></a>  1086           = <a href='../S/161.html#L146' title='Defined at 146 in src/xsettings.c.'>map_tool_bar_style</a> (g_variant_get_string (val, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>));
+<a id='L1087' name='L1087'></a>  1087       g_variant_unref (val);
+<a id='L1088' name='L1088'></a>  1088     <em class='brace'>}</em>
+<a id='L1089' name='L1089'></a>  1089 
+<a id='L1090' name='L1090'></a>  1090 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L1091' name='L1091'></a>  1091   val = g_settings_get_value (gsettings_client, <a href='../S/161.html#L222' title='Defined at 222 in src/xsettings.c.'>GSETTINGS_MONO_FONT</a>);
+<a id='L1092' name='L1092'></a>  1092   <strong class='reserved'>if</strong> (val)
+<a id='L1093' name='L1093'></a>  1093     <em class='brace'>{</em>
+<a id='L1094' name='L1094'></a>  1094       g_variant_ref_sink (val);
+<a id='L1095' name='L1095'></a>  1095       <strong class='reserved'>if</strong> (g_variant_is_of_type (val, G_VARIANT_TYPE_STRING))
+<a id='L1096' name='L1096'></a>  1096         <a href='../S/111.html#L985' title='Defined at 985 in src/alloc.c.'>dupstring</a> (&amp;current_mono_font, g_variant_get_string (val, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>));
+<a id='L1097' name='L1097'></a>  1097       g_variant_unref (val);
+<a id='L1098' name='L1098'></a>  1098     <em class='brace'>}</em>
+<a id='L1099' name='L1099'></a>  1099 
+<a id='L1100' name='L1100'></a>  1100   val = g_settings_get_value (gsettings_client, <a href='../S/161.html#L223' title='Defined at 223 in src/xsettings.c.'>GSETTINGS_FONT_NAME</a>);
+<a id='L1101' name='L1101'></a>  1101   <strong class='reserved'>if</strong> (val)
+<a id='L1102' name='L1102'></a>  1102     <em class='brace'>{</em>
+<a id='L1103' name='L1103'></a>  1103       g_variant_ref_sink (val);
+<a id='L1104' name='L1104'></a>  1104       <strong class='reserved'>if</strong> (g_variant_is_of_type (val, G_VARIANT_TYPE_STRING))
+<a id='L1105' name='L1105'></a>  1105         <a href='../S/111.html#L985' title='Defined at 985 in src/alloc.c.'>dupstring</a> (&amp;<a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a>, g_variant_get_string (val, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>));
+<a id='L1106' name='L1106'></a>  1106       g_variant_unref (val);
+<a id='L1107' name='L1107'></a>  1107     <em class='brace'>}</em>
+<a id='L1108' name='L1108'></a>  1108 
+<a id='L1109' name='L1109'></a>  1109   <em class='comment'>/* Only use the gsettings font entries for the Cairo backend</em>
+<a id='L1110' name='L1110'></a>  1110 <em class='comment'>     running on PGTK.  */</em>
+<a id='L1111' name='L1111'></a>  1111 <em class='sharp'>#ifdef</em> HAVE_PGTK
+<a id='L1112' name='L1112'></a>  1112   font_options = cairo_font_options_create ();
+<a id='L1113' name='L1113'></a>  1113   <a href='../S/161.html#L312' title='Defined at 312 in src/xsettings.c.'>apply_gsettings_font_antialias</a> (gsettings_client);
+<a id='L1114' name='L1114'></a>  1114   <a href='../S/161.html#L275' title='Defined at 275 in src/xsettings.c.'>apply_gsettings_font_hinting</a> (gsettings_client);
+<a id='L1115' name='L1115'></a>  1115   <a href='../S/161.html#L345' title='Defined at 345 in src/xsettings.c.'>apply_gsettings_font_rgba_order</a> (gsettings_client);
+<a id='L1116' name='L1116'></a>  1116 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_PGTK */</em>
+<a id='L1117' name='L1117'></a>  1117 
+<a id='L1118' name='L1118'></a>  1118 <em class='sharp'>#endif</em> <em class='comment'>/* USE_CAIRO || HAVE_XFT */</em>
+<a id='L1119' name='L1119'></a>  1119 
+<a id='L1120' name='L1120'></a>  1120 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_GSETTINGS */</em>
+<a id='L1121' name='L1121'></a>  1121 <em class='brace'>}</em>
+<a id='L1122' name='L1122'></a>  1122 
+<a id='L1123' name='L1123'></a>  1123 <em class='comment'>/* Init GConf and read startup values.  */</em>
+<a id='L1124' name='L1124'></a>  1124 
+<a id='L1125' name='L1125'></a>  1125 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1126' name='L1126'></a>  1126 <a href='../S/161.html#L1212' title='Referred from 1212 in src/xsettings.c.'>init_gconf</a> (<strong class='reserved'>void</strong>)
+<a id='L1127' name='L1127'></a>  1127 <em class='brace'>{</em>
+<a id='L1128' name='L1128'></a>  1128 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> (HAVE_GCONF)
+<a id='L1129' name='L1129'></a>  1129   <strong class='reserved'>char</strong> *s;
+<a id='L1130' name='L1130'></a>  1130 
+<a id='L1131' name='L1131'></a>  1131 <em class='sharp'>#if</em> ! GLIB_CHECK_VERSION (2, 36, 0)
+<a id='L1132' name='L1132'></a>  1132   <a href='../D/11921.html' title='Multiple defined in 2 places.'>g_type_init</a> ();
+<a id='L1133' name='L1133'></a>  1133 <em class='sharp'>#endif</em>
+<a id='L1134' name='L1134'></a>  1134 
+<a id='L1135' name='L1135'></a>  1135   gconf_client = gconf_client_get_default ();
+<a id='L1136' name='L1136'></a>  1136   gconf_client_set_error_handling (gconf_client, GCONF_CLIENT_HANDLE_NONE);
+<a id='L1137' name='L1137'></a>  1137   gconf_client_add_dir (gconf_client,
+<a id='L1138' name='L1138'></a>  1138                         <a href='../S/161.html#L457' title='Defined at 457 in src/xsettings.c.'>GCONF_TOOL_BAR_STYLE</a>,
+<a id='L1139' name='L1139'></a>  1139                         GCONF_CLIENT_PRELOAD_ONELEVEL,
+<a id='L1140' name='L1140'></a>  1140                         <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1141' name='L1141'></a>  1141   gconf_client_notify_add (gconf_client,
+<a id='L1142' name='L1142'></a>  1142                            <a href='../S/161.html#L457' title='Defined at 457 in src/xsettings.c.'>GCONF_TOOL_BAR_STYLE</a>,
+<a id='L1143' name='L1143'></a>  1143                            <a href='../S/161.html#L470' title='Defined at 470 in src/xsettings.c.'>something_changed_gconfCB</a>,
+<a id='L1144' name='L1144'></a>  1144                            <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1145' name='L1145'></a>  1145 
+<a id='L1146' name='L1146'></a>  1146   s = gconf_client_get_string (gconf_client, <a href='../S/161.html#L457' title='Defined at 457 in src/xsettings.c.'>GCONF_TOOL_BAR_STYLE</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1147' name='L1147'></a>  1147   <strong class='reserved'>if</strong> (s)
+<a id='L1148' name='L1148'></a>  1148     <em class='brace'>{</em>
+<a id='L1149' name='L1149'></a>  1149       current_tool_bar_style = <a href='../S/161.html#L146' title='Defined at 146 in src/xsettings.c.'>map_tool_bar_style</a> (s);
+<a id='L1150' name='L1150'></a>  1150       g_free (s);
+<a id='L1151' name='L1151'></a>  1151     <em class='brace'>}</em>
+<a id='L1152' name='L1152'></a>  1152 
+<a id='L1153' name='L1153'></a>  1153 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L1154' name='L1154'></a>  1154   s = gconf_client_get_string (gconf_client, <a href='../S/161.html#L459' title='Defined at 459 in src/xsettings.c.'>GCONF_MONO_FONT</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1155' name='L1155'></a>  1155   <strong class='reserved'>if</strong> (s)
+<a id='L1156' name='L1156'></a>  1156     <em class='brace'>{</em>
+<a id='L1157' name='L1157'></a>  1157       <a href='../S/111.html#L985' title='Defined at 985 in src/alloc.c.'>dupstring</a> (&amp;current_mono_font, s);
+<a id='L1158' name='L1158'></a>  1158       g_free (s);
+<a id='L1159' name='L1159'></a>  1159     <em class='brace'>}</em>
+<a id='L1160' name='L1160'></a>  1160   s = gconf_client_get_string (gconf_client, <a href='../S/161.html#L460' title='Defined at 460 in src/xsettings.c.'>GCONF_FONT_NAME</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1161' name='L1161'></a>  1161   <strong class='reserved'>if</strong> (s)
+<a id='L1162' name='L1162'></a>  1162     <em class='brace'>{</em>
+<a id='L1163' name='L1163'></a>  1163       <a href='../S/111.html#L985' title='Defined at 985 in src/alloc.c.'>dupstring</a> (&amp;<a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a>, s);
+<a id='L1164' name='L1164'></a>  1164       g_free (s);
+<a id='L1165' name='L1165'></a>  1165     <em class='brace'>}</em>
+<a id='L1166' name='L1166'></a>  1166   gconf_client_add_dir (gconf_client,
+<a id='L1167' name='L1167'></a>  1167                         <a href='../S/161.html#L459' title='Defined at 459 in src/xsettings.c.'>GCONF_MONO_FONT</a>,
+<a id='L1168' name='L1168'></a>  1168                         GCONF_CLIENT_PRELOAD_ONELEVEL,
+<a id='L1169' name='L1169'></a>  1169                         <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1170' name='L1170'></a>  1170   gconf_client_notify_add (gconf_client,
+<a id='L1171' name='L1171'></a>  1171                            <a href='../S/161.html#L459' title='Defined at 459 in src/xsettings.c.'>GCONF_MONO_FONT</a>,
+<a id='L1172' name='L1172'></a>  1172                            <a href='../S/161.html#L470' title='Defined at 470 in src/xsettings.c.'>something_changed_gconfCB</a>,
+<a id='L1173' name='L1173'></a>  1173                            <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1174' name='L1174'></a>  1174   gconf_client_add_dir (gconf_client,
+<a id='L1175' name='L1175'></a>  1175                         <a href='../S/161.html#L460' title='Defined at 460 in src/xsettings.c.'>GCONF_FONT_NAME</a>,
+<a id='L1176' name='L1176'></a>  1176                         GCONF_CLIENT_PRELOAD_ONELEVEL,
+<a id='L1177' name='L1177'></a>  1177                         <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1178' name='L1178'></a>  1178   gconf_client_notify_add (gconf_client,
+<a id='L1179' name='L1179'></a>  1179                            <a href='../S/161.html#L460' title='Defined at 460 in src/xsettings.c.'>GCONF_FONT_NAME</a>,
+<a id='L1180' name='L1180'></a>  1180                            <a href='../S/161.html#L470' title='Defined at 470 in src/xsettings.c.'>something_changed_gconfCB</a>,
+<a id='L1181' name='L1181'></a>  1181                            <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1182' name='L1182'></a>  1182 <em class='sharp'>#endif</em> <em class='comment'>/* USE_CAIRO || HAVE_XFT */</em>
+<a id='L1183' name='L1183'></a>  1183 <em class='sharp'>#endif</em> <em class='comment'>/* HAVE_GCONF */</em>
+<a id='L1184' name='L1184'></a>  1184 <em class='brace'>}</em>
+<a id='L1185' name='L1185'></a>  1185 
+<a id='L1186' name='L1186'></a>  1186 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L1187' name='L1187'></a>  1187 <em class='comment'>/* Init Xsettings and read startup values.  */</em>
+<a id='L1188' name='L1188'></a>  1188 
+<a id='L1189' name='L1189'></a>  1189 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1190' name='L1190'></a>  1190 <a href='../S/161.html#L1214' title='Referred from 1214 in src/xsettings.c.'>init_xsettings</a> (<a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *dpyinfo)
+<a id='L1191' name='L1191'></a>  1191 <em class='brace'>{</em>
+<a id='L1192' name='L1192'></a>  1192   <a href='../D/1632.html' title='Multiple defined in 6 places.'>Display</a> *dpy = dpyinfo-&gt;<a href='../D/10487.html' title='Multiple defined in 3 places.'>display</a>;
+<a id='L1193' name='L1193'></a>  1193 
+<a id='L1194' name='L1194'></a>  1194   <a href='../S/143.html#L53' title='Defined at 53 in src/blockinput.h.'>block_input</a> ();
+<a id='L1195' name='L1195'></a>  1195 
+<a id='L1196' name='L1196'></a>  1196   <em class='comment'>/* Select events so we can detect client messages sent when selection</em>
+<a id='L1197' name='L1197'></a>  1197 <em class='comment'>     owner changes.  */</em>
+<a id='L1198' name='L1198'></a>  1198   XSelectInput (dpy, dpyinfo-&gt;root_window, StructureNotifyMask);
+<a id='L1199' name='L1199'></a>  1199 
+<a id='L1200' name='L1200'></a>  1200   <a href='../S/161.html#L519' title='Defined at 519 in src/xsettings.c.'>get_prop_window</a> (dpyinfo);
+<a id='L1201' name='L1201'></a>  1201   <strong class='reserved'>if</strong> (dpyinfo-&gt;xsettings_window != None)
+<a id='L1202' name='L1202'></a>  1202     <a href='../S/161.html#L966' title='Defined at 966 in src/xsettings.c.'>read_and_apply_settings</a> (dpyinfo, <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>);
+<a id='L1203' name='L1203'></a>  1203 
+<a id='L1204' name='L1204'></a>  1204   <a href='../D/18523.html' title='Multiple defined in 2 places.'>unblock_input</a> ();
+<a id='L1205' name='L1205'></a>  1205 <em class='brace'>}</em>
+<a id='L1206' name='L1206'></a>  1206 <em class='sharp'>#endif</em>
+<a id='L1207' name='L1207'></a>  1207 
+<a id='L1208' name='L1208'></a>  1208 <strong class='reserved'>void</strong>
+<a id='L1209' name='L1209'></a>  1209 <a href='../R/18616.html' title='Multiple referred from 3 places.'>xsettings_initialize</a> (<a href='../D/1635.html' title='Multiple defined in 8 places.'>Display_Info</a> *dpyinfo)
+<a id='L1210' name='L1210'></a>  1210 <em class='brace'>{</em>
+<a id='L1211' name='L1211'></a>  1211   <strong class='reserved'>if</strong> (first_dpyinfo == <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>) first_dpyinfo = dpyinfo;
+<a id='L1212' name='L1212'></a>  1212   <a href='../S/161.html#L1126' title='Defined at 1126 in src/xsettings.c.'>init_gconf</a> ();
+<a id='L1213' name='L1213'></a>  1213 <em class='sharp'>#ifndef</em> HAVE_PGTK
+<a id='L1214' name='L1214'></a>  1214   <a href='../S/161.html#L1190' title='Defined at 1190 in src/xsettings.c.'>init_xsettings</a> (dpyinfo);
+<a id='L1215' name='L1215'></a>  1215 <em class='sharp'>#endif</em>
+<a id='L1216' name='L1216'></a>  1216   <a href='../S/161.html#L1045' title='Defined at 1045 in src/xsettings.c.'>init_gsettings</a> ();
+<a id='L1217' name='L1217'></a>  1217 <em class='brace'>}</em>
+<a id='L1218' name='L1218'></a>  1218 
+<a id='L1219' name='L1219'></a>  1219 <em class='comment'>/* Return the system monospaced font.</em>
+<a id='L1220' name='L1220'></a>  1220 <em class='comment'>   May be NULL if not known.  */</em>
+<a id='L1221' name='L1221'></a>  1221 
+<a id='L1222' name='L1222'></a>  1222 <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *
+<a id='L1223' name='L1223'></a>  1223 <a href='../R/18614.html' title='Multiple referred from 3 places.'>xsettings_get_system_font</a> (<strong class='reserved'>void</strong>)
+<a id='L1224' name='L1224'></a>  1224 <em class='brace'>{</em>
+<a id='L1225' name='L1225'></a>  1225   <strong class='reserved'>return</strong> current_mono_font;
+<a id='L1226' name='L1226'></a>  1226 <em class='brace'>}</em>
+<a id='L1227' name='L1227'></a>  1227 
+<a id='L1228' name='L1228'></a>  1228 <em class='sharp'>#ifdef</em> USE_LUCID
+<a id='L1229' name='L1229'></a>  1229 <em class='comment'>/* Return the system font.</em>
+<a id='L1230' name='L1230'></a>  1230 <em class='comment'>   May be NULL if not known.  */</em>
+<a id='L1231' name='L1231'></a>  1231 
+<a id='L1232' name='L1232'></a>  1232 <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *
+<a id='L1233' name='L1233'></a>  1233 <a href='../R/18615.html' title='Multiple referred from 3 places.'>xsettings_get_system_normal_font</a> (<strong class='reserved'>void</strong>)
+<a id='L1234' name='L1234'></a>  1234 <em class='brace'>{</em>
+<a id='L1235' name='L1235'></a>  1235   <strong class='reserved'>return</strong> <a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a>;
+<a id='L1236' name='L1236'></a>  1236 <em class='brace'>}</em>
+<a id='L1237' name='L1237'></a>  1237 <em class='sharp'>#endif</em>
+<a id='L1238' name='L1238'></a>  1238 
+<a id='L1239' name='L1239'></a>  1239 <em class='sharp'>#ifdef</em> HAVE_PGTK
+<a id='L1240' name='L1240'></a>  1240 <em class='comment'>/* Return the cairo font options, updated from the gsettings font</em>
+<a id='L1241' name='L1241'></a>  1241 <em class='comment'>   config entries.  The caller should call cairo_font_options_destroy</em>
+<a id='L1242' name='L1242'></a>  1242 <em class='comment'>   on the result.  */</em>
+<a id='L1243' name='L1243'></a>  1243 cairo_font_options_t *
+<a id='L1244' name='L1244'></a>  1244 <a href='../R/18613.html' title='Multiple referred from 3 places.'>xsettings_get_font_options</a> (<strong class='reserved'>void</strong>)
+<a id='L1245' name='L1245'></a>  1245 <em class='brace'>{</em>
+<a id='L1246' name='L1246'></a>  1246   <strong class='reserved'>if</strong> (font_options != <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L1247' name='L1247'></a>  1247     <strong class='reserved'>return</strong> cairo_font_options_copy (font_options);
+<a id='L1248' name='L1248'></a>  1248   <strong class='reserved'>else</strong>
+<a id='L1249' name='L1249'></a>  1249     <em class='comment'>/* GSettings is not configured.  */</em>
+<a id='L1250' name='L1250'></a>  1250     <strong class='reserved'>return</strong> cairo_font_options_create ();
+<a id='L1251' name='L1251'></a>  1251 <em class='brace'>}</em>
+<a id='L1252' name='L1252'></a>  1252 <em class='sharp'>#endif</em>
+<a id='L1253' name='L1253'></a>  1253 
+<a id='L1254' name='L1254'></a>  1254 <a href='../R/1357.html' title='Multiple referred from 831 places.'>DEFUN</a> ("font-get-system-normal-font", Ffont_get_system_normal_font,
+<a id='L1255' name='L1255'></a>  1255        Sfont_get_system_normal_font,
+<a id='L1256' name='L1256'></a>  1256        0, 0, 0,
+<a id='L1257' name='L1257'></a>  1257        doc: <em class='comment'>/* Get the system default application font.</em>
+<a id='L1258' name='L1258'></a>  1258 <em class='comment'>The font is returned as either a font-spec or font name.  */</em>)
+<a id='L1259' name='L1259'></a>  1259   (<strong class='reserved'>void</strong>)
+<a id='L1260' name='L1260'></a>  1260 <em class='brace'>{</em>
+<a id='L1261' name='L1261'></a>  1261   <strong class='reserved'>return</strong> <a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a> ? <a href='../D/9426.html' title='Multiple defined in 2 places.'>build_string</a> (<a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a>) : Qnil;
+<a id='L1262' name='L1262'></a>  1262 <em class='brace'>}</em>
+<a id='L1263' name='L1263'></a>  1263 
+<a id='L1264' name='L1264'></a>  1264 <a href='../R/1357.html' title='Multiple referred from 831 places.'>DEFUN</a> ("font-get-system-font", Ffont_get_system_font, Sfont_get_system_font,
+<a id='L1265' name='L1265'></a>  1265        0, 0, 0,
+<a id='L1266' name='L1266'></a>  1266        doc: <em class='comment'>/* Get the system default fixed width font.</em>
+<a id='L1267' name='L1267'></a>  1267 <em class='comment'>The font is returned as either a font-spec or font name.  */</em>)
+<a id='L1268' name='L1268'></a>  1268   (<strong class='reserved'>void</strong>)
+<a id='L1269' name='L1269'></a>  1269 <em class='brace'>{</em>
+<a id='L1270' name='L1270'></a>  1270   <strong class='reserved'>return</strong> current_mono_font ? <a href='../D/9426.html' title='Multiple defined in 2 places.'>build_string</a> (current_mono_font) : Qnil;
+<a id='L1271' name='L1271'></a>  1271 <em class='brace'>}</em>
+<a id='L1272' name='L1272'></a>  1272 
+<a id='L1273' name='L1273'></a>  1273 <a href='../R/1357.html' title='Multiple referred from 831 places.'>DEFUN</a> ("tool-bar-get-system-style", Ftool_bar_get_system_style,
+<a id='L1274' name='L1274'></a>  1274        Stool_bar_get_system_style, 0, 0, 0,
+<a id='L1275' name='L1275'></a>  1275        doc: <em class='comment'>/* Get the system tool bar style.</em>
+<a id='L1276' name='L1276'></a>  1276 <em class='comment'>If no system tool bar style is known, return `tool-bar-style' if set to a</em>
+<a id='L1277' name='L1277'></a>  1277 <em class='comment'>known style.  Otherwise return image.  */</em>)
+<a id='L1278' name='L1278'></a>  1278   (<strong class='reserved'>void</strong>)
+<a id='L1279' name='L1279'></a>  1279 <em class='brace'>{</em>
+<a id='L1280' name='L1280'></a>  1280   <strong class='reserved'>if</strong> (<a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (Vtool_bar_style, Qimage)
+<a id='L1281' name='L1281'></a>  1281       || <a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (Vtool_bar_style, Qtext)
+<a id='L1282' name='L1282'></a>  1282       || <a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (Vtool_bar_style, Qboth)
+<a id='L1283' name='L1283'></a>  1283       || <a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (Vtool_bar_style, Qboth_horiz)
+<a id='L1284' name='L1284'></a>  1284       || <a href='../D/1830.html' title='Multiple defined in 3 places.'>EQ</a> (Vtool_bar_style, Qtext_image_horiz))
+<a id='L1285' name='L1285'></a>  1285     <strong class='reserved'>return</strong> Vtool_bar_style;
+<a id='L1286' name='L1286'></a>  1286   <strong class='reserved'>if</strong> (!<a href='../D/4287.html' title='Multiple defined in 2 places.'>NILP</a> (current_tool_bar_style))
+<a id='L1287' name='L1287'></a>  1287     <strong class='reserved'>return</strong> current_tool_bar_style;
+<a id='L1288' name='L1288'></a>  1288   <strong class='reserved'>return</strong> Qimage;
+<a id='L1289' name='L1289'></a>  1289 <em class='brace'>}</em>
+<a id='L1290' name='L1290'></a>  1290 
+<a id='L1291' name='L1291'></a>  1291 <strong class='reserved'>void</strong>
+<a id='L1292' name='L1292'></a>  1292 <a href='../R/16613.html' title='Multiple referred from 4 places.'>syms_of_xsettings</a> (<strong class='reserved'>void</strong>)
+<a id='L1293' name='L1293'></a>  1293 <em class='brace'>{</em>
+<a id='L1294' name='L1294'></a>  1294   current_mono_font = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1295' name='L1295'></a>  1295   <a href='../S/231.html#L34' title='Defined at 34 in src/pdumper.h.'>PDUMPER_IGNORE</a> (current_mono_font);
+<a id='L1296' name='L1296'></a>  1296   <a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a> = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1297' name='L1297'></a>  1297   <a href='../S/231.html#L34' title='Defined at 34 in src/pdumper.h.'>PDUMPER_IGNORE</a> (<a href='../S/235.html#L2686' title='Defined at 2686 in src/haiku_support.cc.'>current_font</a>);
+<a id='L1298' name='L1298'></a>  1298   first_dpyinfo = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1299' name='L1299'></a>  1299   <a href='../S/231.html#L34' title='Defined at 34 in src/pdumper.h.'>PDUMPER_IGNORE</a> (first_dpyinfo);
+<a id='L1300' name='L1300'></a>  1300 <em class='sharp'>#ifdef</em> HAVE_GSETTINGS
+<a id='L1301' name='L1301'></a>  1301   gsettings_client = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1302' name='L1302'></a>  1302   <a href='../S/231.html#L34' title='Defined at 34 in src/pdumper.h.'>PDUMPER_IGNORE</a> (gsettings_client);
+<a id='L1303' name='L1303'></a>  1303 <em class='sharp'>#endif</em>
+<a id='L1304' name='L1304'></a>  1304 <em class='sharp'>#ifdef</em> HAVE_GCONF
+<a id='L1305' name='L1305'></a>  1305   gconf_client = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1306' name='L1306'></a>  1306   <a href='../S/231.html#L34' title='Defined at 34 in src/pdumper.h.'>PDUMPER_IGNORE</a> (gconf_client);
+<a id='L1307' name='L1307'></a>  1307 <em class='sharp'>#endif</em>
+<a id='L1308' name='L1308'></a>  1308 <em class='sharp'>#ifdef</em> HAVE_PGTK
+<a id='L1309' name='L1309'></a>  1309   font_options = <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1310' name='L1310'></a>  1310   <a href='../S/231.html#L34' title='Defined at 34 in src/pdumper.h.'>PDUMPER_IGNORE</a> (font_options);
+<a id='L1311' name='L1311'></a>  1311 <em class='sharp'>#endif</em>
+<a id='L1312' name='L1312'></a>  1312 
+<a id='L1313' name='L1313'></a>  1313   <a href='../D/1450.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qmonospace_font_name, "monospace-font-name");
+<a id='L1314' name='L1314'></a>  1314   <a href='../D/1450.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qfont_name, "font-name");
+<a id='L1315' name='L1315'></a>  1315   <a href='../D/1450.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qfont_render, "font-render");
+<a id='L1316' name='L1316'></a>  1316   <a href='../D/1450.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qdynamic_setting, "dynamic-setting");
+<a id='L1317' name='L1317'></a>  1317   <a href='../D/1450.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qfont_render_setting, "font-render-setting");
+<a id='L1318' name='L1318'></a>  1318   <a href='../D/1450.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qsystem_font_setting, "system-font-setting");
+<a id='L1319' name='L1319'></a>  1319 
+<a id='L1320' name='L1320'></a>  1320   <a href='../S/174.html#L5327' title='Defined at 5327 in src/lread.c.'>defsubr</a> (&amp;Sfont_get_system_font);
+<a id='L1321' name='L1321'></a>  1321   <a href='../S/174.html#L5327' title='Defined at 5327 in src/lread.c.'>defsubr</a> (&amp;Sfont_get_system_normal_font);
+<a id='L1322' name='L1322'></a>  1322 
+<a id='L1323' name='L1323'></a>  1323   <a href='../D/1467.html' title='Multiple defined in 2 places.'>DEFVAR_BOOL</a> ("font-use-system-font", use_system_font,
+<a id='L1324' name='L1324'></a>  1324     doc: <em class='comment'>/* Non-nil means to apply the system defined font dynamically.</em>
+<a id='L1325' name='L1325'></a>  1325 <em class='comment'>When this is non-nil and the system defined fixed width font changes, we</em>
+<a id='L1326' name='L1326'></a>  1326 <em class='comment'>update frames dynamically.</em>
+<a id='L1327' name='L1327'></a>  1327 <em class='comment'>If this variable is nil, Emacs ignores system font changes.  */</em>);
+<a id='L1328' name='L1328'></a>  1328   use_system_font = <a href='../S/4104.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L1329' name='L1329'></a>  1329 
+<a id='L1330' name='L1330'></a>  1330   <a href='../D/1471.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("xft-settings", Vxft_settings,
+<a id='L1331' name='L1331'></a>  1331                doc: <em class='comment'>/* Font settings applied to Xft.  */</em>);
+<a id='L1332' name='L1332'></a>  1332   Vxft_settings = empty_unibyte_string;
+<a id='L1333' name='L1333'></a>  1333 
+<a id='L1334' name='L1334'></a>  1334 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> USE_CAIRO || <strong class='reserved'>defined</strong> HAVE_XFT
+<a id='L1335' name='L1335'></a>  1335   Fprovide (Qfont_render_setting, Qnil);
+<a id='L1336' name='L1336'></a>  1336 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> (HAVE_GCONF) || <strong class='reserved'>defined</strong> (HAVE_GSETTINGS)
+<a id='L1337' name='L1337'></a>  1337   Fprovide (Qsystem_font_setting, Qnil);
+<a id='L1338' name='L1338'></a>  1338 <em class='sharp'>#endif</em>
+<a id='L1339' name='L1339'></a>  1339 <em class='sharp'>#endif</em>
+<a id='L1340' name='L1340'></a>  1340 
+<a id='L1341' name='L1341'></a>  1341   current_tool_bar_style = Qnil;
+<a id='L1342' name='L1342'></a>  1342   <a href='../D/1450.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qtool_bar_style, "tool-bar-style");
+<a id='L1343' name='L1343'></a>  1343   <a href='../S/174.html#L5327' title='Defined at 5327 in src/lread.c.'>defsubr</a> (&amp;Stool_bar_get_system_style);
+<a id='L1344' name='L1344'></a>  1344 
+<a id='L1345' name='L1345'></a>  1345   Fprovide (Qdynamic_setting, Qnil);
+<a id='L1346' name='L1346'></a>  1346 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L76'>[^]</a><a href='#L1292'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

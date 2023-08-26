@@ -1,224 +1,716 @@
 <!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
 <html xmlns='http://www.w3.org/1999/xhtml'>
 <head>
-<title>exec/loader-armeabi.s</title>
+<title>src/unexw32.c</title>
 <meta name='robots' content='noindex,nofollow' />
 <meta name='generator' content='GLOBAL-6.6.7' />
 <meta http-equiv='Content-Style-Type' content='text/css' />
 <link rel='stylesheet' type='text/css' href='../style.css' />
 </head>
 <body>
-<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4783.html'>exec</a>/loader-armeabi.s</h2>
-<em class='comment'>/* [&lt;][&gt;][^][v][top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4744.html'>src</a>/unexw32.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L74'>[^]</a><a href='#L583'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L74' title='Defined at 74.'>open_output_file</a></li>
+<li><a href='#L116' title='Defined at 116.'>find_section</a></li>
+<li><a href='#L136' title='Defined at 136.'>offset_to_section</a></li>
+<li><a href='#L158' title='Defined at 158.'>relocate_offset</a></li>
+<li><a href='#L217' title='Defined at 217.'>get_section_info</a></li>
+<li><a href='#L364' title='Defined at 364.'>copy_executable_and_dump_data</a></li>
+<li><a href='#L583' title='Defined at 583.'>unexec</a></li>
+</ol>
 <hr />
 <pre>
-<a id='L1' name='L1'></a>     1 @ Copyright (C) 2023 Free Software Foundation, Inc.
-<a id='L2' name='L2'></a>     2 @
-<a id='L3' name='L3'></a>     3 @ This file is part of GNU Emacs.
-<a id='L4' name='L4'></a>     4 @
-<a id='L5' name='L5'></a>     5 @ GNU Emacs is free software: you can redistribute it and/or modify
-<a id='L6' name='L6'></a>     6 @ it under the terms of the GNU General Public License as published
-<a id='L7' name='L7'></a>     7 @ by the Free Software Foundation, either version 3 of the License,
-<a id='L8' name='L8'></a>     8 @ or (at your option) any later version.
-<a id='L9' name='L9'></a>     9 @
-<a id='L10' name='L10'></a>    10 @ GNU Emacs is distributed in the hope that it will be useful, but
-<a id='L11' name='L11'></a>    11 @ WITHOUT ANY WARRANTY; without even the implied warranty of
-<a id='L12' name='L12'></a>    12 @ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-<a id='L13' name='L13'></a>    13 @ General Public License for more details.
-<a id='L14' name='L14'></a>    14 @
-<a id='L15' name='L15'></a>    15 @ You should have received a copy of the GNU General Public License
-<a id='L16' name='L16'></a>    16 @ along with GNU Emacs.  If not, see &lt;https:@www.gnu.org/licenses/&gt;.
-<a id='L17' name='L17'></a>    17 
-<a id='L18' name='L18'></a>    18         .section .text
-<a id='L19' name='L19'></a>    19         .global _start
-<a id='L20' name='L20'></a>    20 _start:
-<a id='L21' name='L21'></a>    21         @mov    r7, #162                @ SYS_nanosleep
-<a id='L22' name='L22'></a>    22         @adr    r0, timespec            @ req
-<a id='L23' name='L23'></a>    23         @mov    r1, #0                  @ rem
-<a id='L24' name='L24'></a>    24         @swi    #0                      @ syscall
-<a id='L25' name='L25'></a>    25         mov     r8, sp                  @ r8 = sp
-<a id='L26' name='L26'></a>    26         ldr     r9, [r8], #8            @ r9 = original sp, r8 += 8
-<a id='L27' name='L27'></a>    27         mov     r14, #-1                @ r14 = secondary fd
-<a id='L28' name='L28'></a>    28 .next_action:
-<a id='L29' name='L29'></a>    29         ldr     r11, [r8]               @ r11 = action number
-<a id='L30' name='L30'></a>    30         and     r12, r11, #-17          @ actual action number
-<a id='L31' name='L31'></a>    31         cmp     r12, #0                 @ open file?
-<a id='L32' name='L32'></a>    32         beq     .open_file              @ open file.
-<a id='L33' name='L33'></a>    33         cmp     r12, #3                 @ jump?
-<a id='L34' name='L34'></a>    34         beq     .rest_of_exec           @ jump to code.
-<a id='L35' name='L35'></a>    35         cmp     r12, #4                 @ anonymous mmap?
-<a id='L36' name='L36'></a>    36         beq     .do_mmap_anon           @ anonymous mmap.
-<a id='L37' name='L37'></a>    37 .do_mmap:
-<a id='L38' name='L38'></a>    38         add     r6, r8, #4              @ r6 = r8 + 4
-<a id='L39' name='L39'></a>    39         ldm     r6!, <em class='brace'>{</em>r0, r5<em class='brace'>}</em>           @ vm_address, file_offset
-<a id='L40' name='L40'></a>    40         ldm     r6!, <em class='brace'>{</em>r1, r2<em class='brace'>}</em>           @ protection, length
-<a id='L41' name='L41'></a>    41         mov     r3, r1                  @ swap
-<a id='L42' name='L42'></a>    42         lsr     r5, #12                 @ divide file offset by page size
-<a id='L43' name='L43'></a>    43         mov     r1, r2                  @ swap
-<a id='L44' name='L44'></a>    44         mov     r2, r3                  @ swap
-<a id='L45' name='L45'></a>    45         ldm     r6!, <em class='brace'>{</em>r3, r12<em class='brace'>}</em>          @ flags, clear
-<a id='L46' name='L46'></a>    46         tst     r11, #16                @ primary fd?
-<a id='L47' name='L47'></a>    47         mov     r4, r10                 @ primary fd
-<a id='L48' name='L48'></a>    48         beq     .do_mmap_1
-<a id='L49' name='L49'></a>    49         mov     r4, r14                 @ secondary fd
-<a id='L50' name='L50'></a>    50 .do_mmap_1:
-<a id='L51' name='L51'></a>    51         mov     r7, #192                @ SYS_mmap2
-<a id='L52' name='L52'></a>    52         swi     #0                      @ syscall
-<a id='L53' name='L53'></a>    53         ldr     r2, [r8, #4]            @ vm_address
-<a id='L54' name='L54'></a>    54         cmp     r2, r0                  @ rc == vm_address?
-<a id='L55' name='L55'></a>    55         bne     .perror
-<a id='L56' name='L56'></a>    56         add     r0, r1, r2              @ r0 = length + vm_address
-<a id='L57' name='L57'></a>    57         sub     r3, r0, r12             @ r3 = r0 - clear
-<a id='L58' name='L58'></a>    58         mov     r1, #0                  @ r1 = 0
-<a id='L59' name='L59'></a>    59 .align:
-<a id='L60' name='L60'></a>    60         cmp     r0, r3                  @ r0 == r3?
-<a id='L61' name='L61'></a>    61         beq     .continue               @ continue
-<a id='L62' name='L62'></a>    62         tst     r3, #3                  @ r3 &amp; 3?
-<a id='L63' name='L63'></a>    63         bne     .fill32                 @ fill aligned
-<a id='L64' name='L64'></a>    64         strb    r1, [r3], #1            @ fill byte
-<a id='L65' name='L65'></a>    65         b       .align                  @ align again
-<a id='L66' name='L66'></a>    66 .fill32:
-<a id='L67' name='L67'></a>    67         sub     r2, r0, r3              @ r2 = r0 - r3
-<a id='L68' name='L68'></a>    68         cmp     r2, #31                 @ r2 &gt;= 32?
-<a id='L69' name='L69'></a>    69         ble     .fillb                  @ start filling bytes
-<a id='L70' name='L70'></a>    70         str     r1, [r3], #4            @ *r3++ = 0
-<a id='L71' name='L71'></a>    71         str     r1, [r3], #4            @ *r3++ = 0
-<a id='L72' name='L72'></a>    72         str     r1, [r3], #4            @ *r3++ = 0
-<a id='L73' name='L73'></a>    73         str     r1, [r3], #4            @ *r3++ = 0
-<a id='L74' name='L74'></a>    74         str     r1, [r3], #4            @ *r3++ = 0
-<a id='L75' name='L75'></a>    75         str     r1, [r3], #4            @ *r3++ = 0
-<a id='L76' name='L76'></a>    76         str     r1, [r3], #4            @ *r3++ = 0
-<a id='L77' name='L77'></a>    77         str     r1, [r3], #4            @ *r3++ = 0
-<a id='L78' name='L78'></a>    78         b       .fill32
-<a id='L79' name='L79'></a>    79 .fillb:
-<a id='L80' name='L80'></a>    80         cmp     r0, r3                  @ r0 == r3
-<a id='L81' name='L81'></a>    81         beq     .continue               @ done
-<a id='L82' name='L82'></a>    82         strb    r1, [r3], #1            @ ((char *) r3)++ = 0
-<a id='L83' name='L83'></a>    83         b       .fillb
-<a id='L84' name='L84'></a>    84 .continue:
-<a id='L85' name='L85'></a>    85         add     r8, r8, #28             @ next action
-<a id='L86' name='L86'></a>    86         b       .next_action
-<a id='L87' name='L87'></a>    87 .do_mmap_anon:
-<a id='L88' name='L88'></a>    88         add     r6, r8, #4              @ r6 = r8 + 4
-<a id='L89' name='L89'></a>    89         ldm     r6!, <em class='brace'>{</em>r0, r5<em class='brace'>}</em>           @ vm_address, file_offset
-<a id='L90' name='L90'></a>    90         ldm     r6!, <em class='brace'>{</em>r1, r2<em class='brace'>}</em>           @ protection, length
-<a id='L91' name='L91'></a>    91         mov     r3, r1                  @ swap
-<a id='L92' name='L92'></a>    92         lsr     r5, #12                 @ divide file offset by page size
-<a id='L93' name='L93'></a>    93         mov     r1, r2                  @ swap
-<a id='L94' name='L94'></a>    94         mov     r2, r3                  @ swap
-<a id='L95' name='L95'></a>    95         ldm     r6!, <em class='brace'>{</em>r3, r12<em class='brace'>}</em>          @ flags, clear
-<a id='L96' name='L96'></a>    96         mov     r4, #-1                 @ fd
-<a id='L97' name='L97'></a>    97         b       .do_mmap_1
-<a id='L98' name='L98'></a>    98 .open_file:
-<a id='L99' name='L99'></a>    99         mov     r7, #5                  @ SYS_open
-<a id='L100' name='L100'></a>   100         add     r0, r8, #4              @ file name
-<a id='L101' name='L101'></a>   101         mov     r1, #0                  @ O_RDONLY
-<a id='L102' name='L102'></a>   102         mov     r2, #0                  @ mode
-<a id='L103' name='L103'></a>   103         swi     #0                      @ syscall
-<a id='L104' name='L104'></a>   104         cmp     r0, #-1                 @ r0 &lt;= -1?
-<a id='L105' name='L105'></a>   105         ble     .perror
-<a id='L106' name='L106'></a>   106         add     r8, r8, #4              @ r8 = start of string
-<a id='L107' name='L107'></a>   107         mov     r1, r8                  @ r1 = r8
-<a id='L108' name='L108'></a>   108 .nextc:
-<a id='L109' name='L109'></a>   109         ldrb    r2, [r8], #1            @ b = *r0++
-<a id='L110' name='L110'></a>   110         cmp     r2, #47                 @ dir separator?
-<a id='L111' name='L111'></a>   111         bne     .nextc1                 @ not dir separator
-<a id='L112' name='L112'></a>   112         mov     r1, r8                  @ r1 = char past separator
-<a id='L113' name='L113'></a>   113 .nextc1:
-<a id='L114' name='L114'></a>   114         cmp     r2, #0                  @ b?
-<a id='L115' name='L115'></a>   115         bne     .nextc                  @ next character
-<a id='L116' name='L116'></a>   116         add     r8, r8, #3              @ round up r8
-<a id='L117' name='L117'></a>   117         and     r8, r8, #-4             @ mask for round, set r8
-<a id='L118' name='L118'></a>   118         tst     r11, #16                @ primary fd?
-<a id='L119' name='L119'></a>   119         bne     .secondary              @ secondary fd
-<a id='L120' name='L120'></a>   120         mov     r10, r0                 @ primary fd
-<a id='L121' name='L121'></a>   121         mov     r7, #172                @ SYS_prctl
-<a id='L122' name='L122'></a>   122         mov     r0, #15                 @ PR_SET_NAME, r1 = name
-<a id='L123' name='L123'></a>   123         mov     r2, #0                  @ arg2
-<a id='L124' name='L124'></a>   124         mov     r3, #0                  @ arg3
-<a id='L125' name='L125'></a>   125         mov     r4, #0                  @ arg4
-<a id='L126' name='L126'></a>   126         mov     r5, #0                  @ arg5
-<a id='L127' name='L127'></a>   127         swi     #0                      @ syscall
-<a id='L128' name='L128'></a>   128         b       .next_action            @ next action
-<a id='L129' name='L129'></a>   129 .secondary:
-<a id='L130' name='L130'></a>   130         mov     r14, r0                 @ secondary fd
-<a id='L131' name='L131'></a>   131         b       .next_action            @ next action
-<a id='L132' name='L132'></a>   132 .perror:
-<a id='L133' name='L133'></a>   133         mov     r7, #1                  @ SYS_exit
-<a id='L134' name='L134'></a>   134         mvn     r0, r0                  @ r0 = ~r0
-<a id='L135' name='L135'></a>   135         add     r0, r0, #1              @ r0 += 1
-<a id='L136' name='L136'></a>   136         swi     #0
-<a id='L137' name='L137'></a>   137 .rest_of_exec:
-<a id='L138' name='L138'></a>   138         mov     r7, r9                  @ r7 = original SP
-<a id='L139' name='L139'></a>   139         ldr     r6, [r7]                @ argc
-<a id='L140' name='L140'></a>   140         add     r6, r6, #2              @ argc + 2
-<a id='L141' name='L141'></a>   141         lsl     r6, r6, #2              @ argc *= 4
-<a id='L142' name='L142'></a>   142         add     r7, r7, r6              @ now past argv
-<a id='L143' name='L143'></a>   143 .skipenv:
-<a id='L144' name='L144'></a>   144         ldr     r6, [r7], #4            @ r6 = *r7++
-<a id='L145' name='L145'></a>   145         cmp     r6, #0                  @ r6?
-<a id='L146' name='L146'></a>   146         bne     .skipenv                @ r6?
-<a id='L147' name='L147'></a>   147 .one_auxv:
-<a id='L148' name='L148'></a>   148         ldr     r6, [r7], #8            @ r6 = *r7, r7 += 2
-<a id='L149' name='L149'></a>   149         cmp     r6, #0                  @ !r6?
-<a id='L150' name='L150'></a>   150         beq     .cleanup                @ r6?
-<a id='L151' name='L151'></a>   151         cmp     r6, #3                  @ is AT_PHDR?
-<a id='L152' name='L152'></a>   152         beq     .replace_phdr           @ replace
-<a id='L153' name='L153'></a>   153         cmp     r6, #4                  @ is AT_PHENT?
-<a id='L154' name='L154'></a>   154         beq     .replace_phent          @ replace
-<a id='L155' name='L155'></a>   155         cmp     r6, #5                  @ is AT_PHNUM?
-<a id='L156' name='L156'></a>   156         beq     .replace_phnum          @ replace
-<a id='L157' name='L157'></a>   157         cmp     r6, #9                  @ is AT_ENTRY?
-<a id='L158' name='L158'></a>   158         beq     .replace_entry          @ replace
-<a id='L159' name='L159'></a>   159         cmp     r6, #7                  @ is AT_BASE?
-<a id='L160' name='L160'></a>   160         beq     .replace_base           @ replace
-<a id='L161' name='L161'></a>   161         b       .one_auxv               @ next auxv
-<a id='L162' name='L162'></a>   162 .replace_phdr:
-<a id='L163' name='L163'></a>   163         ldr     r6, [r8, #20]           @ at_phdr
-<a id='L164' name='L164'></a>   164         str     r6, [r7, #-4]           @ store value
-<a id='L165' name='L165'></a>   165         b       .one_auxv
-<a id='L166' name='L166'></a>   166 .replace_phent:
-<a id='L167' name='L167'></a>   167         ldr     r6, [r8, #12]           @ at_phent
-<a id='L168' name='L168'></a>   168         str     r6, [r7, #-4]           @ store value
-<a id='L169' name='L169'></a>   169         b       .one_auxv
-<a id='L170' name='L170'></a>   170 .replace_phnum:
-<a id='L171' name='L171'></a>   171         ldr     r6, [r8, #16]           @ at_phnum
-<a id='L172' name='L172'></a>   172         str     r6, [r7, #-4]           @ store value
-<a id='L173' name='L173'></a>   173         b       .one_auxv
-<a id='L174' name='L174'></a>   174 .replace_entry:
-<a id='L175' name='L175'></a>   175         ldr     r6, [r8, #8]            @ at_entry
-<a id='L176' name='L176'></a>   176         str     r6, [r7, #-4]           @ store value
-<a id='L177' name='L177'></a>   177         b       .one_auxv
-<a id='L178' name='L178'></a>   178 .replace_base:
-<a id='L179' name='L179'></a>   179         ldr     r6, [r8, #24]           @ at_base
-<a id='L180' name='L180'></a>   180         str     r6, [r7, #-4]           @ store value
-<a id='L181' name='L181'></a>   181         b       .one_auxv
-<a id='L182' name='L182'></a>   182 .cleanup:
-<a id='L183' name='L183'></a>   183         cmp     r14, #-1                @ secondary fd set?
-<a id='L184' name='L184'></a>   184         bne     .cleanup1               @ not set
-<a id='L185' name='L185'></a>   185         mov     r7, #6                  @ SYS_close
-<a id='L186' name='L186'></a>   186         mov     r0, r14                 @ secondary fd
-<a id='L187' name='L187'></a>   187         swi     #0                      @ syscall
-<a id='L188' name='L188'></a>   188 .cleanup1:
-<a id='L189' name='L189'></a>   189         mov     r7, #6                  @ SYS_close
-<a id='L190' name='L190'></a>   190         mov     r0, r10                 @ primary fd
-<a id='L191' name='L191'></a>   191         swi     #0                      @ syscall
-<a id='L192' name='L192'></a>   192 .enter:
-<a id='L193' name='L193'></a>   193         mov     sp, r9                  @ restore original SP
-<a id='L194' name='L194'></a>   194         mov     r0, #0                  @ clear rtld_fini
-<a id='L195' name='L195'></a>   195         ldr     r1, [r8, #4]            @ branch to code
-<a id='L196' name='L196'></a>   196         bx      r1
-<a id='L197' name='L197'></a>   197 
-<a id='L198' name='L198'></a>   198 timespec:
-<a id='L199' name='L199'></a>   199         .long 10
-<a id='L200' name='L200'></a>   200         .long 10
-<a id='L201' name='L201'></a>   201 
-<a id='L202' name='L202'></a>   202 @ Local Variables:
-<a id='L203' name='L203'></a>   203 @ asm-comment-char: 64
-<a id='L204' name='L204'></a>   204 @ End:
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* unexec for GNU Emacs on Windows NT.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Copyright (C) 1994, 2001-2023 Free Software Foundation, Inc.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'></em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>your option) any later version.</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'></em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'></em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L18' name='L18'></a>    18 
+<a id='L19' name='L19'></a>    19 <em class='comment'>/*</em>
+<a id='L20' name='L20'></a>    20 <em class='comment'>   Geoff Voelker (voelker@cs.washington.edu)                         8-12-94</em>
+<a id='L21' name='L21'></a>    21 <em class='comment'>*/</em>
+<a id='L22' name='L22'></a>    22 
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> "<a href='139.html'>unexec.h</a>"
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='../I/494.html'>lisp.h</a>"
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='312.html'>w32common.h</a>"
+<a id='L27' name='L27'></a>    27 <em class='sharp'>#include</em> "<a href='85.html'>w32.h</a>"
+<a id='L28' name='L28'></a>    28 
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#include</em> &lt;stdio.h&gt;
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#include</em> &lt;fcntl.h&gt;
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;<a href='4093.html'>time.h</a>&gt;
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;windows.h&gt;
+<a id='L33' name='L33'></a>    33 
+<a id='L34' name='L34'></a>    34 <em class='comment'>/* Include relevant definitions from IMAGEHLP.H, which can be found</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'>   in \\win32sdk\mstools\samples\image\include\imagehlp.h. */</em>
+<a id='L36' name='L36'></a>    36 
+<a id='L37' name='L37'></a>    37 PIMAGE_NT_HEADERS (__stdcall * pfnCheckSumMappedFile) (LPVOID BaseAddress,
+<a id='L38' name='L38'></a>    38                                                        DWORD FileLength,
+<a id='L39' name='L39'></a>    39                                                        LPDWORD HeaderSum,
+<a id='L40' name='L40'></a>    40                                                        LPDWORD CheckSum);
+<a id='L41' name='L41'></a>    41 
+<a id='L42' name='L42'></a>    42 <strong class='reserved'>extern</strong> <strong class='reserved'>char</strong> my_begdata[];
+<a id='L43' name='L43'></a>    43 <strong class='reserved'>extern</strong> <strong class='reserved'>char</strong> my_begbss[];
+<a id='L44' name='L44'></a>    44 <strong class='reserved'>extern</strong> <strong class='reserved'>char</strong> *my_begbss_static;
+<a id='L45' name='L45'></a>    45 
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#include</em> "<a href='236.html'>w32heap.h</a>"
+<a id='L47' name='L47'></a>    47 
+<a id='L48' name='L48'></a>    48 <strong class='reserved'>void</strong> <a href='../S/75.html#L217' title='Defined at 217 in src/unexw32.c.'>get_section_info</a> (<a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> *p_file);
+<a id='L49' name='L49'></a>    49 <strong class='reserved'>void</strong> <a href='../S/75.html#L364' title='Defined at 364 in src/unexw32.c.'>copy_executable_and_dump_data</a> (<a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> *, <a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> *);
+<a id='L50' name='L50'></a>    50 <strong class='reserved'>void</strong> dump_bss_and_heap (<a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> *p_infile, <a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> *p_outfile);
+<a id='L51' name='L51'></a>    51 
+<a id='L52' name='L52'></a>    52 <em class='comment'>/* Cached info about the .data section in the executable.  */</em>
+<a id='L53' name='L53'></a>    53 PIMAGE_SECTION_HEADER data_section;
+<a id='L54' name='L54'></a>    54 PCHAR  <a href='../S/311.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a> = 0;
+<a id='L55' name='L55'></a>    55 DWORD_PTR  data_size = 0;
+<a id='L56' name='L56'></a>    56 
+<a id='L57' name='L57'></a>    57 <em class='comment'>/* Cached info about the .bss section in the executable.  */</em>
+<a id='L58' name='L58'></a>    58 PIMAGE_SECTION_HEADER bss_section;
+<a id='L59' name='L59'></a>    59 PCHAR  bss_start = 0;
+<a id='L60' name='L60'></a>    60 DWORD_PTR  bss_size = 0;
+<a id='L61' name='L61'></a>    61 DWORD_PTR  extra_bss_size = 0;
+<a id='L62' name='L62'></a>    62 <em class='comment'>/* bss data that is static might be discontiguous from non-static.  */</em>
+<a id='L63' name='L63'></a>    63 PIMAGE_SECTION_HEADER bss_section_static;
+<a id='L64' name='L64'></a>    64 PCHAR  bss_start_static = 0;
+<a id='L65' name='L65'></a>    65 DWORD_PTR  bss_size_static = 0;
+<a id='L66' name='L66'></a>    66 DWORD_PTR  extra_bss_size_static = 0;
+<a id='L67' name='L67'></a>    67 
+<a id='L68' name='L68'></a>    68 <em class='comment'>/* File handling.  */</em>
+<a id='L69' name='L69'></a>    69 
+<a id='L70' name='L70'></a>    70 <em class='comment'>/* Implementation note: this and the next functions work with ANSI</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>   codepage encoded file names!  */</em>
+<a id='L72' name='L72'></a>    72 
+<a id='L73' name='L73'></a>    73 <strong class='reserved'>int</strong>
+<a id='L74' name='L74'></a>    74 <a href='../R/13856.html' title='Multiple referred from 2 places.'>open_output_file</a> (<a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> *p_file, <strong class='reserved'>char</strong> *filename, <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>)
+<a id='L75' name='L75'></a>    75 <em class='brace'>{</em>
+<a id='L76' name='L76'></a>    76   HANDLE file;
+<a id='L77' name='L77'></a>    77   HANDLE file_mapping;
+<a id='L78' name='L78'></a>    78   <strong class='reserved'>void</strong>  *file_base;
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80   <em class='comment'>/* We delete any existing FILENAME because loadup.el will create a</em>
+<a id='L81' name='L81'></a>    81 <em class='comment'>     hard link to it under the name emacs-XX.YY.ZZ.nn.exe.  Evidently,</em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>     overwriting a file on Unix breaks any hard links to it, but that</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>     doesn't happen on Windows.  If we don't delete the file before</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>     creating it, all the emacs-XX.YY.ZZ.nn.exe end up being hard</em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>     links to the same file, which defeats the purpose of these hard</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>     links: being able to run previous builds.  */</em>
+<a id='L87' name='L87'></a>    87   DeleteFileA (filename);
+<a id='L88' name='L88'></a>    88   file = CreateFileA (filename, GENERIC_READ | GENERIC_WRITE, 0, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>,
+<a id='L89' name='L89'></a>    89                       CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+<a id='L90' name='L90'></a>    90   <strong class='reserved'>if</strong> (file == INVALID_HANDLE_VALUE)
+<a id='L91' name='L91'></a>    91     <strong class='reserved'>return</strong> <a href='../D/2018.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L92' name='L92'></a>    92 
+<a id='L93' name='L93'></a>    93   file_mapping = CreateFileMapping (file, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, PAGE_READWRITE,
+<a id='L94' name='L94'></a>    94                                     0, <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>, <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L95' name='L95'></a>    95   <strong class='reserved'>if</strong> (!file_mapping)
+<a id='L96' name='L96'></a>    96     <strong class='reserved'>return</strong> <a href='../D/2018.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L97' name='L97'></a>    97 
+<a id='L98' name='L98'></a>    98   file_base = MapViewOfFile (file_mapping, FILE_MAP_WRITE, 0, 0, <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>);
+<a id='L99' name='L99'></a>    99   <strong class='reserved'>if</strong> (file_base == 0)
+<a id='L100' name='L100'></a>   100     <strong class='reserved'>return</strong> <a href='../D/2018.html' title='Multiple defined in 3 places.'>FALSE</a>;
+<a id='L101' name='L101'></a>   101 
+<a id='L102' name='L102'></a>   102   p_file-&gt;<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a> = filename;
+<a id='L103' name='L103'></a>   103   p_file-&gt;<a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a> = <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L104' name='L104'></a>   104   p_file-&gt;file = file;
+<a id='L105' name='L105'></a>   105   p_file-&gt;file_mapping = file_mapping;
+<a id='L106' name='L106'></a>   106   p_file-&gt;file_base = file_base;
+<a id='L107' name='L107'></a>   107 
+<a id='L108' name='L108'></a>   108   <strong class='reserved'>return</strong> <a href='../D/6305.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L109' name='L109'></a>   109 <em class='brace'>}</em>
+<a id='L110' name='L110'></a>   110 
+<a id='L111' name='L111'></a>   111 
+<a id='L112' name='L112'></a>   112 <em class='comment'>/* Routines to manipulate NT executable file sections.  */</em>
+<a id='L113' name='L113'></a>   113 
+<a id='L114' name='L114'></a>   114 <em class='comment'>/* Return pointer to section header for named section. */</em>
+<a id='L115' name='L115'></a>   115 IMAGE_SECTION_HEADER *
+<a id='L116' name='L116'></a>   116 <a href='../R/10442.html' title='Multiple referred from 2 places.'>find_section</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> * <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>, IMAGE_NT_HEADERS * nt_header)
+<a id='L117' name='L117'></a>   117 <em class='brace'>{</em>
+<a id='L118' name='L118'></a>   118   PIMAGE_SECTION_HEADER <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L119' name='L119'></a>   119   <strong class='reserved'>int</strong> i;
+<a id='L120' name='L120'></a>   120 
+<a id='L121' name='L121'></a>   121   <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = IMAGE_FIRST_SECTION (nt_header);
+<a id='L122' name='L122'></a>   122 
+<a id='L123' name='L123'></a>   123   <strong class='reserved'>for</strong> (i = 0; i &lt; nt_header-&gt;FileHeader.NumberOfSections; i++)
+<a id='L124' name='L124'></a>   124     <em class='brace'>{</em>
+<a id='L125' name='L125'></a>   125       <strong class='reserved'>if</strong> (strcmp ((<strong class='reserved'>char</strong> *)<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;Name, <a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>) == 0)
+<a id='L126' name='L126'></a>   126         <strong class='reserved'>return</strong> <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L127' name='L127'></a>   127       <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>++;
+<a id='L128' name='L128'></a>   128     <em class='brace'>}</em>
+<a id='L129' name='L129'></a>   129   <strong class='reserved'>return</strong> <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L130' name='L130'></a>   130 <em class='brace'>}</em>
+<a id='L131' name='L131'></a>   131 
+<a id='L132' name='L132'></a>   132 <em class='sharp'>#if</em> 0   <em class='comment'>/* unused */</em>
+<a id='L133' name='L133'></a>   133 <em class='comment'>/* Return pointer to section header for section containing the given</em>
+<a id='L134' name='L134'></a>   134 <em class='comment'>   offset in its raw data area. */</em>
+<a id='L135' name='L135'></a>   135 <strong class='reserved'>static</strong> IMAGE_SECTION_HEADER *
+<a id='L136' name='L136'></a>   136 offset_to_section (DWORD_PTR <a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>, IMAGE_NT_HEADERS * nt_header)
+<a id='L137' name='L137'></a>   137 <em class='brace'>{</em>
+<a id='L138' name='L138'></a>   138   PIMAGE_SECTION_HEADER <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L139' name='L139'></a>   139   <strong class='reserved'>int</strong> i;
+<a id='L140' name='L140'></a>   140 
+<a id='L141' name='L141'></a>   141   <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = IMAGE_FIRST_SECTION (nt_header);
+<a id='L142' name='L142'></a>   142 
+<a id='L143' name='L143'></a>   143   <strong class='reserved'>for</strong> (i = 0; i &lt; nt_header-&gt;FileHeader.NumberOfSections; i++)
+<a id='L144' name='L144'></a>   144     <em class='brace'>{</em>
+<a id='L145' name='L145'></a>   145       <strong class='reserved'>if</strong> (<a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a> &gt;= <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;PointerToRawData
+<a id='L146' name='L146'></a>   146           &amp;&amp; <a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a> &lt; <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;PointerToRawData + <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;SizeOfRawData)
+<a id='L147' name='L147'></a>   147         <strong class='reserved'>return</strong> <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L148' name='L148'></a>   148       <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>++;
+<a id='L149' name='L149'></a>   149     <em class='brace'>}</em>
+<a id='L150' name='L150'></a>   150   <strong class='reserved'>return</strong> <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L151' name='L151'></a>   151 <em class='brace'>}</em>
+<a id='L152' name='L152'></a>   152 <em class='sharp'>#endif</em>
+<a id='L153' name='L153'></a>   153 
+<a id='L154' name='L154'></a>   154 <em class='comment'>/* Return offset to an object in dst, given offset in src.  We assume</em>
+<a id='L155' name='L155'></a>   155 <em class='comment'>   there is at least one section in both src and dst images, and that</em>
+<a id='L156' name='L156'></a>   156 <em class='comment'>   the some sections may have been added to dst (after sections in src).  */</em>
+<a id='L157' name='L157'></a>   157 <strong class='reserved'>static</strong> DWORD_PTR
+<a id='L158' name='L158'></a>   158 <a href='../S/75.html#L541' title='Referred from 541 in src/unexw32.c.'>relocate_offset</a> (DWORD_PTR <a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>,
+<a id='L159' name='L159'></a>   159                  IMAGE_NT_HEADERS * src_nt_header,
+<a id='L160' name='L160'></a>   160                  IMAGE_NT_HEADERS * dst_nt_header)
+<a id='L161' name='L161'></a>   161 <em class='brace'>{</em>
+<a id='L162' name='L162'></a>   162   PIMAGE_SECTION_HEADER src_section = IMAGE_FIRST_SECTION (src_nt_header);
+<a id='L163' name='L163'></a>   163   PIMAGE_SECTION_HEADER dst_section = IMAGE_FIRST_SECTION (dst_nt_header);
+<a id='L164' name='L164'></a>   164   <strong class='reserved'>int</strong> i = 0;
+<a id='L165' name='L165'></a>   165 
+<a id='L166' name='L166'></a>   166   <strong class='reserved'>while</strong> (<a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a> &gt;= src_section-&gt;PointerToRawData)
+<a id='L167' name='L167'></a>   167     <em class='brace'>{</em>
+<a id='L168' name='L168'></a>   168       <strong class='reserved'>if</strong> (<a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a> &lt; src_section-&gt;PointerToRawData + src_section-&gt;SizeOfRawData)
+<a id='L169' name='L169'></a>   169         <strong class='reserved'>break</strong>;
+<a id='L170' name='L170'></a>   170       i++;
+<a id='L171' name='L171'></a>   171       <strong class='reserved'>if</strong> (i == src_nt_header-&gt;FileHeader.NumberOfSections)
+<a id='L172' name='L172'></a>   172         <em class='brace'>{</em>
+<a id='L173' name='L173'></a>   173           <em class='comment'>/* Handle offsets after the last section.  */</em>
+<a id='L174' name='L174'></a>   174           dst_section = IMAGE_FIRST_SECTION (dst_nt_header);
+<a id='L175' name='L175'></a>   175           dst_section += dst_nt_header-&gt;FileHeader.NumberOfSections - 1;
+<a id='L176' name='L176'></a>   176           <strong class='reserved'>while</strong> (dst_section-&gt;PointerToRawData == 0)
+<a id='L177' name='L177'></a>   177             dst_section--;
+<a id='L178' name='L178'></a>   178           <strong class='reserved'>while</strong> (src_section-&gt;PointerToRawData == 0)
+<a id='L179' name='L179'></a>   179             src_section--;
+<a id='L180' name='L180'></a>   180           <strong class='reserved'>return</strong> <a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>
+<a id='L181' name='L181'></a>   181             + (dst_section-&gt;PointerToRawData + dst_section-&gt;SizeOfRawData)
+<a id='L182' name='L182'></a>   182             - (src_section-&gt;PointerToRawData + src_section-&gt;SizeOfRawData);
+<a id='L183' name='L183'></a>   183         <em class='brace'>}</em>
+<a id='L184' name='L184'></a>   184       src_section++;
+<a id='L185' name='L185'></a>   185       dst_section++;
+<a id='L186' name='L186'></a>   186     <em class='brace'>}</em>
+<a id='L187' name='L187'></a>   187   <strong class='reserved'>return</strong> <a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a> +
+<a id='L188' name='L188'></a>   188     (dst_section-&gt;PointerToRawData - src_section-&gt;PointerToRawData);
+<a id='L189' name='L189'></a>   189 <em class='brace'>}</em>
+<a id='L190' name='L190'></a>   190 
+<a id='L191' name='L191'></a>   191 <em class='sharp'>#define</em> <a href='../R/4780.html' title='Multiple referred from 2 places.'>RVA_TO_OFFSET</a>(rva, <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>) \
+<a id='L192' name='L192'></a>   192   ((<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;PointerToRawData + ((DWORD_PTR)(rva) - (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;VirtualAddress))
+<a id='L193' name='L193'></a>   193 
+<a id='L194' name='L194'></a>   194 <em class='sharp'>#define</em> <a href='../R/4782.html' title='Multiple referred from 5 places.'>RVA_TO_SECTION_OFFSET</a>(rva, <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>) \
+<a id='L195' name='L195'></a>   195   ((DWORD_PTR)(rva) - (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;VirtualAddress)
+<a id='L196' name='L196'></a>   196 
+<a id='L197' name='L197'></a>   197 <em class='comment'>/* Convert address in executing image to RVA.  */</em>
+<a id='L198' name='L198'></a>   198 <em class='sharp'>#define</em> <a href='../R/4449.html' title='Multiple referred from 11 places.'>PTR_TO_RVA</a>(ptr) ((DWORD_PTR)(ptr) - (DWORD_PTR) GetModuleHandle (<a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>))
+<a id='L199' name='L199'></a>   199 
+<a id='L200' name='L200'></a>   200 <em class='sharp'>#define</em> <a href='../R/4448.html' title='Multiple referred from 3 places.'>PTR_TO_OFFSET</a>(ptr, pfile_data) \
+<a id='L201' name='L201'></a>   201           ((<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *)(ptr) - (pfile_data)-&gt;file_base)
+<a id='L202' name='L202'></a>   202 
+<a id='L203' name='L203'></a>   203 <em class='sharp'>#define</em> <a href='../R/4063.html' title='Multiple referred from 2 places.'>OFFSET_TO_PTR</a>(<a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>, pfile_data) \
+<a id='L204' name='L204'></a>   204           ((pfile_data)-&gt;file_base + (DWORD_PTR)(<a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>))
+<a id='L205' name='L205'></a>   205 
+<a id='L206' name='L206'></a>   206 <em class='sharp'>#if</em> 0   <em class='comment'>/* unused */</em>
+<a id='L207' name='L207'></a>   207 <em class='sharp'>#define</em> OFFSET_TO_RVA(<a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>, <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>) \
+<a id='L208' name='L208'></a>   208   ((<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;VirtualAddress + ((DWORD_PTR)(<a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>) - (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)-&gt;PointerToRawData))
+<a id='L209' name='L209'></a>   209 
+<a id='L210' name='L210'></a>   210 <em class='sharp'>#define</em> <a href='../R/4781.html' title='Multiple referred from 2 places.'>RVA_TO_PTR</a>(var,<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>,filedata) \
+<a id='L211' name='L211'></a>   211           ((<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *)(<a href='../S/75.html#L191' title='Defined at 191 in src/unexw32.c.'>RVA_TO_OFFSET</a> (var,<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>) + (filedata).file_base))
+<a id='L212' name='L212'></a>   212 <em class='sharp'>#endif</em>
+<a id='L213' name='L213'></a>   213 
+<a id='L214' name='L214'></a>   214 
+<a id='L215' name='L215'></a>   215 <em class='comment'>/* Flip through the executable and cache the info necessary for dumping.  */</em>
+<a id='L216' name='L216'></a>   216 <strong class='reserved'>void</strong>
+<a id='L217' name='L217'></a>   217 <a href='../R/11120.html' title='Multiple referred from 2 places.'>get_section_info</a> (<a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> *p_infile)
+<a id='L218' name='L218'></a>   218 <em class='brace'>{</em>
+<a id='L219' name='L219'></a>   219   PIMAGE_DOS_HEADER dos_header;
+<a id='L220' name='L220'></a>   220   PIMAGE_NT_HEADERS nt_header;
+<a id='L221' name='L221'></a>   221   <strong class='reserved'>int</strong> overlap;
+<a id='L222' name='L222'></a>   222 
+<a id='L223' name='L223'></a>   223   dos_header = (PIMAGE_DOS_HEADER) p_infile-&gt;file_base;
+<a id='L224' name='L224'></a>   224   <strong class='reserved'>if</strong> (dos_header-&gt;e_magic != IMAGE_DOS_SIGNATURE)
+<a id='L225' name='L225'></a>   225     <em class='brace'>{</em>
+<a id='L226' name='L226'></a>   226       <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("Unknown EXE header in %s...bailing.\n", p_infile-&gt;<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L227' name='L227'></a>   227       exit (1);
+<a id='L228' name='L228'></a>   228     <em class='brace'>}</em>
+<a id='L229' name='L229'></a>   229   nt_header = (PIMAGE_NT_HEADERS) (((DWORD_PTR) dos_header) +
+<a id='L230' name='L230'></a>   230                                    dos_header-&gt;e_lfanew);
+<a id='L231' name='L231'></a>   231   <strong class='reserved'>if</strong> (nt_header == <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L232' name='L232'></a>   232     <em class='brace'>{</em>
+<a id='L233' name='L233'></a>   233       <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("Failed to find IMAGE_NT_HEADER in %s...bailing.\n",
+<a id='L234' name='L234'></a>   234              p_infile-&gt;<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L235' name='L235'></a>   235       exit (1);
+<a id='L236' name='L236'></a>   236     <em class='brace'>}</em>
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238   <em class='comment'>/* Check the NT header signature ...  */</em>
+<a id='L239' name='L239'></a>   239   <strong class='reserved'>if</strong> (nt_header-&gt;Signature != IMAGE_NT_SIGNATURE)
+<a id='L240' name='L240'></a>   240     <em class='brace'>{</em>
+<a id='L241' name='L241'></a>   241       <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("Invalid IMAGE_NT_SIGNATURE 0x%lx in %s...bailing.\n",
+<a id='L242' name='L242'></a>   242               nt_header-&gt;Signature, p_infile-&gt;<a href='../D/14850.html' title='Multiple defined in 4 places.'>name</a>);
+<a id='L243' name='L243'></a>   243       exit (1);
+<a id='L244' name='L244'></a>   244     <em class='brace'>}</em>
+<a id='L245' name='L245'></a>   245 
+<a id='L246' name='L246'></a>   246   <em class='comment'>/* Locate the ".data" and ".bss" sections for Emacs.  (Note that the</em>
+<a id='L247' name='L247'></a>   247 <em class='comment'>     actual section names are probably different from these, and might</em>
+<a id='L248' name='L248'></a>   248 <em class='comment'>     actually be the same section.)</em>
+<a id='L249' name='L249'></a>   249 <em class='comment'></em>
+<a id='L250' name='L250'></a>   250 <em class='comment'>     We do this as follows: first we determine the virtual address</em>
+<a id='L251' name='L251'></a>   251 <em class='comment'>     ranges in this process for the data and bss variables that we wish</em>
+<a id='L252' name='L252'></a>   252 <em class='comment'>     to preserve.  Then we map these VAs to the section entries in the</em>
+<a id='L253' name='L253'></a>   253 <em class='comment'>     source image.  Finally, we determine the new size of the raw data</em>
+<a id='L254' name='L254'></a>   254 <em class='comment'>     area for the bss section, so we can make the new image the correct</em>
+<a id='L255' name='L255'></a>   255 <em class='comment'>     size.  */</em>
+<a id='L256' name='L256'></a>   256 
+<a id='L257' name='L257'></a>   257   <em class='comment'>/* We arrange for the Emacs initialized data to be in a separate</em>
+<a id='L258' name='L258'></a>   258 <em class='comment'>     section if possible, because we cannot rely on my_begdata and</em>
+<a id='L259' name='L259'></a>   259 <em class='comment'>     my_edata marking out the full extent of the initialized data, at</em>
+<a id='L260' name='L260'></a>   260 <em class='comment'>     least on the Alpha where the linker freely reorders variables</em>
+<a id='L261' name='L261'></a>   261 <em class='comment'>     across libraries.  If we can arrange for this, all we need to do is</em>
+<a id='L262' name='L262'></a>   262 <em class='comment'>     find the start and size of the EMDATA section.  */</em>
+<a id='L263' name='L263'></a>   263   data_section = <a href='../S/75.html#L116' title='Defined at 116 in src/unexw32.c.'>find_section</a> ("EMDATA", nt_header);
+<a id='L264' name='L264'></a>   264   <strong class='reserved'>if</strong> (data_section)
+<a id='L265' name='L265'></a>   265     <em class='brace'>{</em>
+<a id='L266' name='L266'></a>   266       <a href='../S/311.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a> = (<strong class='reserved'>char</strong> *) nt_header-&gt;OptionalHeader.ImageBase +
+<a id='L267' name='L267'></a>   267         data_section-&gt;VirtualAddress;
+<a id='L268' name='L268'></a>   268       data_size = data_section-&gt;Misc.VirtualSize;
+<a id='L269' name='L269'></a>   269     <em class='brace'>}</em>
+<a id='L270' name='L270'></a>   270   <strong class='reserved'>else</strong>
+<a id='L271' name='L271'></a>   271     <em class='brace'>{</em>
+<a id='L272' name='L272'></a>   272       <em class='comment'>/* Fallback on the old method if compiler doesn't support the</em>
+<a id='L273' name='L273'></a>   273 <em class='comment'>         data_set #pragma (or its equivalent).  */</em>
+<a id='L274' name='L274'></a>   274       <a href='../S/311.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a> = my_begdata;
+<a id='L275' name='L275'></a>   275       data_size = my_edata - my_begdata;
+<a id='L276' name='L276'></a>   276       data_section = <a href='../S/302.html#L1679' title='Defined at 1679 in src/w32proc.c.'>rva_to_section</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (my_begdata), nt_header);
+<a id='L277' name='L277'></a>   277       <strong class='reserved'>if</strong> (data_section != <a href='../S/302.html#L1679' title='Defined at 1679 in src/w32proc.c.'>rva_to_section</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (my_edata), nt_header))
+<a id='L278' name='L278'></a>   278         <em class='brace'>{</em>
+<a id='L279' name='L279'></a>   279           <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("Initialized data is not in a single section...bailing\n");
+<a id='L280' name='L280'></a>   280           exit (1);
+<a id='L281' name='L281'></a>   281         <em class='brace'>}</em>
+<a id='L282' name='L282'></a>   282     <em class='brace'>}</em>
+<a id='L283' name='L283'></a>   283 
+<a id='L284' name='L284'></a>   284   <em class='comment'>/* As noted in lastfile.c, the Alpha (but not the Intel) MSVC linker</em>
+<a id='L285' name='L285'></a>   285 <em class='comment'>     globally segregates all static and public bss data (ie. across all</em>
+<a id='L286' name='L286'></a>   286 <em class='comment'>     linked modules, not just per module), so we must take both static</em>
+<a id='L287' name='L287'></a>   287 <em class='comment'>     and public bss areas into account to determine the true extent of</em>
+<a id='L288' name='L288'></a>   288 <em class='comment'>     the bss area used by Emacs.</em>
+<a id='L289' name='L289'></a>   289 <em class='comment'></em>
+<a id='L290' name='L290'></a>   290 <em class='comment'>     To be strictly correct, we dump the static and public bss areas</em>
+<a id='L291' name='L291'></a>   291 <em class='comment'>     used by Emacs separately if non-overlapping (since otherwise we are</em>
+<a id='L292' name='L292'></a>   292 <em class='comment'>     dumping bss data belonging to system libraries, eg. the static bss</em>
+<a id='L293' name='L293'></a>   293 <em class='comment'>     system data on the Alpha).  */</em>
+<a id='L294' name='L294'></a>   294 
+<a id='L295' name='L295'></a>   295   bss_start = my_begbss;
+<a id='L296' name='L296'></a>   296   bss_size = my_endbss - my_begbss;
+<a id='L297' name='L297'></a>   297   bss_section = <a href='../S/302.html#L1679' title='Defined at 1679 in src/w32proc.c.'>rva_to_section</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (my_begbss), nt_header);
+<a id='L298' name='L298'></a>   298   <strong class='reserved'>if</strong> (bss_section != <a href='../S/302.html#L1679' title='Defined at 1679 in src/w32proc.c.'>rva_to_section</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (my_endbss), nt_header))
+<a id='L299' name='L299'></a>   299     <em class='brace'>{</em>
+<a id='L300' name='L300'></a>   300       <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("Uninitialized data is not in a single section...bailing\n");
+<a id='L301' name='L301'></a>   301       exit (1);
+<a id='L302' name='L302'></a>   302     <em class='brace'>}</em>
+<a id='L303' name='L303'></a>   303   <em class='comment'>/* Compute how much the .bss section's raw data will grow.  */</em>
+<a id='L304' name='L304'></a>   304   extra_bss_size =
+<a id='L305' name='L305'></a>   305     <a href='../S/312.html#L26' title='Defined at 26 in src/w32common.h.'>ROUND_UP</a> (<a href='../S/75.html#L194' title='Defined at 194 in src/unexw32.c.'>RVA_TO_SECTION_OFFSET</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (my_endbss), bss_section),
+<a id='L306' name='L306'></a>   306               nt_header-&gt;OptionalHeader.FileAlignment)
+<a id='L307' name='L307'></a>   307     - bss_section-&gt;SizeOfRawData;
+<a id='L308' name='L308'></a>   308 
+<a id='L309' name='L309'></a>   309   bss_start_static = my_begbss_static;
+<a id='L310' name='L310'></a>   310   bss_size_static = my_endbss_static - my_begbss_static;
+<a id='L311' name='L311'></a>   311   bss_section_static = <a href='../S/302.html#L1679' title='Defined at 1679 in src/w32proc.c.'>rva_to_section</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (my_begbss_static), nt_header);
+<a id='L312' name='L312'></a>   312   <strong class='reserved'>if</strong> (bss_section_static != <a href='../S/302.html#L1679' title='Defined at 1679 in src/w32proc.c.'>rva_to_section</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (my_endbss_static), nt_header))
+<a id='L313' name='L313'></a>   313     <em class='brace'>{</em>
+<a id='L314' name='L314'></a>   314       <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("Uninitialized static data is not in a single section...bailing\n");
+<a id='L315' name='L315'></a>   315       exit (1);
+<a id='L316' name='L316'></a>   316     <em class='brace'>}</em>
+<a id='L317' name='L317'></a>   317   <em class='comment'>/* Compute how much the static .bss section's raw data will grow.  */</em>
+<a id='L318' name='L318'></a>   318   extra_bss_size_static =
+<a id='L319' name='L319'></a>   319     <a href='../S/312.html#L26' title='Defined at 26 in src/w32common.h.'>ROUND_UP</a> (<a href='../S/75.html#L194' title='Defined at 194 in src/unexw32.c.'>RVA_TO_SECTION_OFFSET</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (my_endbss_static), bss_section_static),
+<a id='L320' name='L320'></a>   320               nt_header-&gt;OptionalHeader.FileAlignment)
+<a id='L321' name='L321'></a>   321     - bss_section_static-&gt;SizeOfRawData;
+<a id='L322' name='L322'></a>   322 
+<a id='L323' name='L323'></a>   323   <em class='comment'>/* Combine the bss sections into one if they overlap.  */</em>
+<a id='L324' name='L324'></a>   324 <em class='sharp'>#ifdef</em> _ALPHA_
+<a id='L325' name='L325'></a>   325   overlap = 1;                  <em class='comment'>/* force all bss data to be dumped */</em>
+<a id='L326' name='L326'></a>   326 <em class='sharp'>#else</em>
+<a id='L327' name='L327'></a>   327   overlap = 0;
+<a id='L328' name='L328'></a>   328 <em class='sharp'>#endif</em>
+<a id='L329' name='L329'></a>   329   <strong class='reserved'>if</strong> (bss_start &lt; bss_start_static)
+<a id='L330' name='L330'></a>   330     <em class='brace'>{</em>
+<a id='L331' name='L331'></a>   331       <strong class='reserved'>if</strong> (bss_start_static &lt; bss_start + bss_size)
+<a id='L332' name='L332'></a>   332         overlap = 1;
+<a id='L333' name='L333'></a>   333     <em class='brace'>}</em>
+<a id='L334' name='L334'></a>   334   <strong class='reserved'>else</strong>
+<a id='L335' name='L335'></a>   335     <em class='brace'>{</em>
+<a id='L336' name='L336'></a>   336       <strong class='reserved'>if</strong> (bss_start &lt; bss_start_static + bss_size_static)
+<a id='L337' name='L337'></a>   337         overlap = 1;
+<a id='L338' name='L338'></a>   338     <em class='brace'>}</em>
+<a id='L339' name='L339'></a>   339   <strong class='reserved'>if</strong> (overlap)
+<a id='L340' name='L340'></a>   340     <em class='brace'>{</em>
+<a id='L341' name='L341'></a>   341       <strong class='reserved'>if</strong> (bss_section != bss_section_static)
+<a id='L342' name='L342'></a>   342         <em class='brace'>{</em>
+<a id='L343' name='L343'></a>   343           <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("BSS data not in a single section...bailing\n");
+<a id='L344' name='L344'></a>   344           exit (1);
+<a id='L345' name='L345'></a>   345         <em class='brace'>}</em>
+<a id='L346' name='L346'></a>   346       bss_start = <a href='../D/14403.html' title='Multiple defined in 11 places.'>min</a> (bss_start, bss_start_static);
+<a id='L347' name='L347'></a>   347       bss_size = <a href='../D/14257.html' title='Multiple defined in 11 places.'>max</a> (my_endbss, my_endbss_static) - bss_start;
+<a id='L348' name='L348'></a>   348       bss_section_static = 0;
+<a id='L349' name='L349'></a>   349       extra_bss_size = <a href='../D/14257.html' title='Multiple defined in 11 places.'>max</a> (extra_bss_size, extra_bss_size_static);
+<a id='L350' name='L350'></a>   350       extra_bss_size_static = 0;
+<a id='L351' name='L351'></a>   351     <em class='brace'>}</em>
+<a id='L352' name='L352'></a>   352 <em class='brace'>}</em>
+<a id='L353' name='L353'></a>   353 
+<a id='L354' name='L354'></a>   354 <em class='comment'>/* Format to print a DWORD_PTR value.  */</em>
+<a id='L355' name='L355'></a>   355 <em class='sharp'>#if</em> <strong class='reserved'>defined</strong> <a href='../S/4111.html#L35' title='Defined at 35 in nt/inc/ms-w32.h.'>MINGW_W64</a> &amp;&amp; <strong class='reserved'>defined</strong> _WIN64
+<a id='L356' name='L356'></a>   356 <em class='sharp'># define</em> <a href='../R/13930.html' title='Multiple referred from 5 places.'>pDWP</a>  "16llx"
+<a id='L357' name='L357'></a>   357 <em class='sharp'>#else</em>
+<a id='L358' name='L358'></a>   358 <em class='sharp'># define</em> <a href='../R/13930.html' title='Multiple referred from 5 places.'>pDWP</a>  "08lx"
+<a id='L359' name='L359'></a>   359 <em class='sharp'>#endif</em>
+<a id='L360' name='L360'></a>   360 
+<a id='L361' name='L361'></a>   361 <em class='comment'>/* The dump routines.  */</em>
+<a id='L362' name='L362'></a>   362 
+<a id='L363' name='L363'></a>   363 <strong class='reserved'>void</strong>
+<a id='L364' name='L364'></a>   364 <a href='../R/9144.html' title='Multiple referred from 2 places.'>copy_executable_and_dump_data</a> (<a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> *p_infile,
+<a id='L365' name='L365'></a>   365                                <a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> *p_outfile)
+<a id='L366' name='L366'></a>   366 <em class='brace'>{</em>
+<a id='L367' name='L367'></a>   367   <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *dst, *dst_save;
+<a id='L368' name='L368'></a>   368   PIMAGE_DOS_HEADER dos_header;
+<a id='L369' name='L369'></a>   369   PIMAGE_NT_HEADERS nt_header;
+<a id='L370' name='L370'></a>   370   PIMAGE_NT_HEADERS dst_nt_header;
+<a id='L371' name='L371'></a>   371   PIMAGE_SECTION_HEADER <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>;
+<a id='L372' name='L372'></a>   372   PIMAGE_SECTION_HEADER dst_section;
+<a id='L373' name='L373'></a>   373   DWORD_PTR <a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>;
+<a id='L374' name='L374'></a>   374   <strong class='reserved'>int</strong> i;
+<a id='L375' name='L375'></a>   375   <strong class='reserved'>int</strong> be_verbose = GetEnvironmentVariable ("DEBUG_DUMP", <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, 0) &gt; 0;
+<a id='L376' name='L376'></a>   376 
+<a id='L377' name='L377'></a>   377 <em class='sharp'>#define</em> <a href='../R/1176.html' title='Multiple referred from 5 places.'>COPY_CHUNK</a>(<a href='../D/14386.html' title='Multiple defined in 2 places.'>message</a>, src, <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>, verbose)                                 \
+<a id='L378' name='L378'></a>   378   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                                          \
+<a id='L379' name='L379'></a>   379     <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *s = (<strong class='reserved'>void</strong> *)(src);                                           \
+<a id='L380' name='L380'></a>   380     DWORD_PTR count = (<a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>);                                           \
+<a id='L381' name='L381'></a>   381     <strong class='reserved'>if</strong> (verbose)                                                                \
+<a id='L382' name='L382'></a>   382       <em class='brace'>{</em>                                                                         \
+<a id='L383' name='L383'></a>   383         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("%s\n", (<a href='../D/14386.html' title='Multiple defined in 2 places.'>message</a>));                                             \
+<a id='L384' name='L384'></a>   384         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%"<a href='../D/15146.html' title='Multiple defined in 2 places.'>pDWP</a>" Offset in input file.\n", (DWORD_PTR)(s - p_infile-&gt;file_base)); \
+<a id='L385' name='L385'></a>   385         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%"<a href='../D/15146.html' title='Multiple defined in 2 places.'>pDWP</a>" Offset in output file.\n", (DWORD_PTR)(dst - p_outfile-&gt;file_base)); \
+<a id='L386' name='L386'></a>   386         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%"<a href='../D/15146.html' title='Multiple defined in 2 places.'>pDWP</a>" Size in bytes.\n", count);                         \
+<a id='L387' name='L387'></a>   387       <em class='brace'>}</em>                                                                         \
+<a id='L388' name='L388'></a>   388     memcpy (dst, s, count);                                                     \
+<a id='L389' name='L389'></a>   389     dst += count;                                                               \
+<a id='L390' name='L390'></a>   390   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L391' name='L391'></a>   391 
+<a id='L392' name='L392'></a>   392 <em class='sharp'>#define</em> <a href='../R/1178.html' title='Multiple referred from 3 places.'>COPY_PROC_CHUNK</a>(<a href='../D/14386.html' title='Multiple defined in 2 places.'>message</a>, src, <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>, verbose)                            \
+<a id='L393' name='L393'></a>   393   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                                          \
+<a id='L394' name='L394'></a>   394     <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *s = (<strong class='reserved'>void</strong> *)(src);                                           \
+<a id='L395' name='L395'></a>   395     DWORD_PTR count = (<a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>);                                           \
+<a id='L396' name='L396'></a>   396     <strong class='reserved'>if</strong> (verbose)                                                                \
+<a id='L397' name='L397'></a>   397       <em class='brace'>{</em>                                                                         \
+<a id='L398' name='L398'></a>   398         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("%s\n", (<a href='../D/14386.html' title='Multiple defined in 2 places.'>message</a>));                                             \
+<a id='L399' name='L399'></a>   399         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%p Address in process.\n", s);                             \
+<a id='L400' name='L400'></a>   400         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%p Base       output file.\n", p_outfile-&gt;file_base); \
+<a id='L401' name='L401'></a>   401         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%"<a href='../D/15146.html' title='Multiple defined in 2 places.'>pDWP</a>" Offset  in output file.\n", (DWORD_PTR)(dst - p_outfile-&gt;file_base)); \
+<a id='L402' name='L402'></a>   402         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%p Address in output file.\n", dst); \
+<a id='L403' name='L403'></a>   403         <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("\t0x%"<a href='../D/15146.html' title='Multiple defined in 2 places.'>pDWP</a>" Size in bytes.\n", count);                         \
+<a id='L404' name='L404'></a>   404       <em class='brace'>}</em>                                                                         \
+<a id='L405' name='L405'></a>   405     memcpy (dst, s, count);                                                     \
+<a id='L406' name='L406'></a>   406     dst += count;                                                               \
+<a id='L407' name='L407'></a>   407   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L408' name='L408'></a>   408 
+<a id='L409' name='L409'></a>   409 <em class='sharp'>#define</em> <a href='../R/1455.html' title='Multiple referred from 5 places.'>DST_TO_OFFSET</a>()  <a href='../S/75.html#L200' title='Defined at 200 in src/unexw32.c.'>PTR_TO_OFFSET</a> (dst, p_outfile)
+<a id='L410' name='L410'></a>   410 <em class='sharp'>#define</em> <a href='../R/4765.html' title='Multiple referred from 3 places.'>ROUND_UP_DST</a>(<a href='../D/8277.html' title='Multiple defined in 2 places.'>align</a>) \
+<a id='L411' name='L411'></a>   411   (dst = p_outfile-&gt;file_base + <a href='../S/312.html#L26' title='Defined at 26 in src/w32common.h.'>ROUND_UP</a> (<a href='../S/75.html#L409' title='Defined at 409 in src/unexw32.c.'>DST_TO_OFFSET</a> (), (<a href='../D/8277.html' title='Multiple defined in 2 places.'>align</a>)))
+<a id='L412' name='L412'></a>   412 <em class='sharp'>#define</em> <a href='../R/4766.html' title='Multiple referred from 2 places.'>ROUND_UP_DST_AND_ZERO</a>(<a href='../D/8277.html' title='Multiple defined in 2 places.'>align</a>)                                            \
+<a id='L413' name='L413'></a>   413   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                                          \
+<a id='L414' name='L414'></a>   414     <strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *newdst = p_outfile-&gt;file_base                                \
+<a id='L415' name='L415'></a>   415       + <a href='../S/312.html#L26' title='Defined at 26 in src/w32common.h.'>ROUND_UP</a> (<a href='../S/75.html#L409' title='Defined at 409 in src/unexw32.c.'>DST_TO_OFFSET</a> (), (<a href='../D/8277.html' title='Multiple defined in 2 places.'>align</a>));                                   \
+<a id='L416' name='L416'></a>   416     <em class='comment'>/* Zero the alignment slop; it may actually initialize real data.  */</em>       \
+<a id='L417' name='L417'></a>   417     memset (dst, 0, newdst - dst);                                              \
+<a id='L418' name='L418'></a>   418     dst = newdst;                                                               \
+<a id='L419' name='L419'></a>   419   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L420' name='L420'></a>   420 
+<a id='L421' name='L421'></a>   421   <em class='comment'>/* Copy the source image sequentially, ie. section by section after</em>
+<a id='L422' name='L422'></a>   422 <em class='comment'>     copying the headers and section table, to simplify the process of</em>
+<a id='L423' name='L423'></a>   423 <em class='comment'>     dumping the raw data for the bss and heap sections.</em>
+<a id='L424' name='L424'></a>   424 <em class='comment'></em>
+<a id='L425' name='L425'></a>   425 <em class='comment'>     Note that dst is updated implicitly by each COPY_CHUNK.  */</em>
+<a id='L426' name='L426'></a>   426 
+<a id='L427' name='L427'></a>   427   dos_header = (PIMAGE_DOS_HEADER) p_infile-&gt;file_base;
+<a id='L428' name='L428'></a>   428   nt_header = (PIMAGE_NT_HEADERS) (((DWORD_PTR) dos_header) +
+<a id='L429' name='L429'></a>   429                                    dos_header-&gt;e_lfanew);
+<a id='L430' name='L430'></a>   430   <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = IMAGE_FIRST_SECTION (nt_header);
+<a id='L431' name='L431'></a>   431 
+<a id='L432' name='L432'></a>   432   dst = (<strong class='reserved'>unsigned</strong> <strong class='reserved'>char</strong> *) p_outfile-&gt;file_base;
+<a id='L433' name='L433'></a>   433 
+<a id='L434' name='L434'></a>   434   <a href='../S/75.html#L377' title='Defined at 377 in src/unexw32.c.'>COPY_CHUNK</a> ("Copying DOS header...", dos_header,
+<a id='L435' name='L435'></a>   435               (DWORD_PTR) nt_header - (DWORD_PTR) dos_header, be_verbose);
+<a id='L436' name='L436'></a>   436   dst_nt_header = (PIMAGE_NT_HEADERS) dst;
+<a id='L437' name='L437'></a>   437   <a href='../S/75.html#L377' title='Defined at 377 in src/unexw32.c.'>COPY_CHUNK</a> ("Copying NT header...", nt_header,
+<a id='L438' name='L438'></a>   438               (DWORD_PTR) <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> - (DWORD_PTR) nt_header, be_verbose);
+<a id='L439' name='L439'></a>   439   dst_section = (PIMAGE_SECTION_HEADER) dst;
+<a id='L440' name='L440'></a>   440   <a href='../S/75.html#L377' title='Defined at 377 in src/unexw32.c.'>COPY_CHUNK</a> ("Copying section table...", <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>,
+<a id='L441' name='L441'></a>   441               nt_header-&gt;FileHeader.NumberOfSections * <strong class='reserved'>sizeof</strong> (*<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>),
+<a id='L442' name='L442'></a>   442               be_verbose);
+<a id='L443' name='L443'></a>   443 
+<a id='L444' name='L444'></a>   444   <em class='comment'>/* Align the first section's raw data area, and set the header size</em>
+<a id='L445' name='L445'></a>   445 <em class='comment'>     field accordingly.  */</em>
+<a id='L446' name='L446'></a>   446   <a href='../S/75.html#L412' title='Defined at 412 in src/unexw32.c.'>ROUND_UP_DST_AND_ZERO</a> (dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L447' name='L447'></a>   447   dst_nt_header-&gt;OptionalHeader.SizeOfHeaders = <a href='../S/75.html#L409' title='Defined at 409 in src/unexw32.c.'>DST_TO_OFFSET</a> ();
+<a id='L448' name='L448'></a>   448 
+<a id='L449' name='L449'></a>   449   <strong class='reserved'>for</strong> (i = 0; i &lt; nt_header-&gt;FileHeader.NumberOfSections; i++)
+<a id='L450' name='L450'></a>   450     <em class='brace'>{</em>
+<a id='L451' name='L451'></a>   451       <strong class='reserved'>char</strong> msg[100];
+<a id='L452' name='L452'></a>   452       <em class='comment'>/* Windows section names are fixed 8-char strings, only</em>
+<a id='L453' name='L453'></a>   453 <em class='comment'>         zero-terminated if the name is shorter than 8 characters.  */</em>
+<a id='L454' name='L454'></a>   454       <a href='../D/17504.html' title='Multiple defined in 2 places.'>sprintf</a> (msg, "Copying raw data for %.8s...", <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;Name);
+<a id='L455' name='L455'></a>   455 
+<a id='L456' name='L456'></a>   456       dst_save = dst;
+<a id='L457' name='L457'></a>   457 
+<a id='L458' name='L458'></a>   458       <em class='comment'>/* Update the file-relative offset for this section's raw data (if</em>
+<a id='L459' name='L459'></a>   459 <em class='comment'>         it has any) in case things have been relocated; we will update</em>
+<a id='L460' name='L460'></a>   460 <em class='comment'>         the other offsets below once we know where everything is.  */</em>
+<a id='L461' name='L461'></a>   461       <strong class='reserved'>if</strong> (dst_section-&gt;PointerToRawData)
+<a id='L462' name='L462'></a>   462         dst_section-&gt;PointerToRawData = <a href='../S/75.html#L409' title='Defined at 409 in src/unexw32.c.'>DST_TO_OFFSET</a> ();
+<a id='L463' name='L463'></a>   463 
+<a id='L464' name='L464'></a>   464       <em class='comment'>/* Can always copy the original raw data.  */</em>
+<a id='L465' name='L465'></a>   465       <a href='../S/75.html#L377' title='Defined at 377 in src/unexw32.c.'>COPY_CHUNK</a>
+<a id='L466' name='L466'></a>   466         (msg, <a href='../S/75.html#L203' title='Defined at 203 in src/unexw32.c.'>OFFSET_TO_PTR</a> (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;PointerToRawData, p_infile),
+<a id='L467' name='L467'></a>   467          <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;SizeOfRawData, be_verbose);
+<a id='L468' name='L468'></a>   468       <em class='comment'>/* Ensure alignment slop is zeroed.  */</em>
+<a id='L469' name='L469'></a>   469       <a href='../S/75.html#L412' title='Defined at 412 in src/unexw32.c.'>ROUND_UP_DST_AND_ZERO</a> (dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L470' name='L470'></a>   470 
+<a id='L471' name='L471'></a>   471       <em class='comment'>/* Note that various sections below may be aliases.  */</em>
+<a id='L472' name='L472'></a>   472       <strong class='reserved'>if</strong> (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> == data_section)
+<a id='L473' name='L473'></a>   473         <em class='brace'>{</em>
+<a id='L474' name='L474'></a>   474           dst = dst_save
+<a id='L475' name='L475'></a>   475             + <a href='../S/75.html#L194' title='Defined at 194 in src/unexw32.c.'>RVA_TO_SECTION_OFFSET</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (<a href='../S/311.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>), dst_section);
+<a id='L476' name='L476'></a>   476           <a href='../S/75.html#L392' title='Defined at 392 in src/unexw32.c.'>COPY_PROC_CHUNK</a> ("Dumping initialized data...",
+<a id='L477' name='L477'></a>   477                            <a href='../S/311.html#L43' title='Defined at 43 in src/vm-limit.c.'>data_start</a>, data_size, be_verbose);
+<a id='L478' name='L478'></a>   478           dst = dst_save + dst_section-&gt;SizeOfRawData;
+<a id='L479' name='L479'></a>   479         <em class='brace'>}</em>
+<a id='L480' name='L480'></a>   480       <strong class='reserved'>if</strong> (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> == bss_section)
+<a id='L481' name='L481'></a>   481         <em class='brace'>{</em>
+<a id='L482' name='L482'></a>   482           <em class='comment'>/* Dump contents of bss variables, adjusting the section's raw</em>
+<a id='L483' name='L483'></a>   483 <em class='comment'>             data size as necessary.  */</em>
+<a id='L484' name='L484'></a>   484           dst = dst_save
+<a id='L485' name='L485'></a>   485             + <a href='../S/75.html#L194' title='Defined at 194 in src/unexw32.c.'>RVA_TO_SECTION_OFFSET</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (bss_start), dst_section);
+<a id='L486' name='L486'></a>   486           <a href='../S/75.html#L392' title='Defined at 392 in src/unexw32.c.'>COPY_PROC_CHUNK</a> ("Dumping bss data...", bss_start,
+<a id='L487' name='L487'></a>   487                            bss_size, be_verbose);
+<a id='L488' name='L488'></a>   488           <a href='../S/75.html#L410' title='Defined at 410 in src/unexw32.c.'>ROUND_UP_DST</a> (dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L489' name='L489'></a>   489           dst_section-&gt;PointerToRawData = <a href='../S/75.html#L200' title='Defined at 200 in src/unexw32.c.'>PTR_TO_OFFSET</a> (dst_save, p_outfile);
+<a id='L490' name='L490'></a>   490           <em class='comment'>/* Determine new size of raw data area.  */</em>
+<a id='L491' name='L491'></a>   491           dst = <a href='../D/14257.html' title='Multiple defined in 11 places.'>max</a> (dst, dst_save + dst_section-&gt;SizeOfRawData);
+<a id='L492' name='L492'></a>   492           dst_section-&gt;SizeOfRawData = dst - dst_save;
+<a id='L493' name='L493'></a>   493           dst_section-&gt;Characteristics &amp;= ~IMAGE_SCN_CNT_UNINITIALIZED_DATA;
+<a id='L494' name='L494'></a>   494           dst_section-&gt;Characteristics |= IMAGE_SCN_CNT_INITIALIZED_DATA;
+<a id='L495' name='L495'></a>   495         <em class='brace'>}</em>
+<a id='L496' name='L496'></a>   496       <strong class='reserved'>if</strong> (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> == bss_section_static)
+<a id='L497' name='L497'></a>   497         <em class='brace'>{</em>
+<a id='L498' name='L498'></a>   498           <em class='comment'>/* Dump contents of static bss variables, adjusting the</em>
+<a id='L499' name='L499'></a>   499 <em class='comment'>             section's raw data size as necessary.  */</em>
+<a id='L500' name='L500'></a>   500           dst = dst_save
+<a id='L501' name='L501'></a>   501             + <a href='../S/75.html#L194' title='Defined at 194 in src/unexw32.c.'>RVA_TO_SECTION_OFFSET</a> (<a href='../S/75.html#L198' title='Defined at 198 in src/unexw32.c.'>PTR_TO_RVA</a> (bss_start_static), dst_section);
+<a id='L502' name='L502'></a>   502           <a href='../S/75.html#L392' title='Defined at 392 in src/unexw32.c.'>COPY_PROC_CHUNK</a> ("Dumping static bss data...", bss_start_static,
+<a id='L503' name='L503'></a>   503                            bss_size_static, be_verbose);
+<a id='L504' name='L504'></a>   504           <a href='../S/75.html#L410' title='Defined at 410 in src/unexw32.c.'>ROUND_UP_DST</a> (dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L505' name='L505'></a>   505           dst_section-&gt;PointerToRawData = <a href='../S/75.html#L200' title='Defined at 200 in src/unexw32.c.'>PTR_TO_OFFSET</a> (dst_save, p_outfile);
+<a id='L506' name='L506'></a>   506           <em class='comment'>/* Determine new size of raw data area.  */</em>
+<a id='L507' name='L507'></a>   507           dst = <a href='../D/14257.html' title='Multiple defined in 11 places.'>max</a> (dst, dst_save + dst_section-&gt;SizeOfRawData);
+<a id='L508' name='L508'></a>   508           dst_section-&gt;SizeOfRawData = dst - dst_save;
+<a id='L509' name='L509'></a>   509           dst_section-&gt;Characteristics &amp;= ~IMAGE_SCN_CNT_UNINITIALIZED_DATA;
+<a id='L510' name='L510'></a>   510           dst_section-&gt;Characteristics |= IMAGE_SCN_CNT_INITIALIZED_DATA;
+<a id='L511' name='L511'></a>   511         <em class='brace'>}</em>
+<a id='L512' name='L512'></a>   512 
+<a id='L513' name='L513'></a>   513       <em class='comment'>/* Align the section's raw data area.  */</em>
+<a id='L514' name='L514'></a>   514       <a href='../S/75.html#L410' title='Defined at 410 in src/unexw32.c.'>ROUND_UP_DST</a> (dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L515' name='L515'></a>   515 
+<a id='L516' name='L516'></a>   516       <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>++;
+<a id='L517' name='L517'></a>   517       dst_section++;
+<a id='L518' name='L518'></a>   518     <em class='brace'>}</em>
+<a id='L519' name='L519'></a>   519 
+<a id='L520' name='L520'></a>   520   <em class='comment'>/* Copy remainder of source image.  */</em>
+<a id='L521' name='L521'></a>   521   <strong class='reserved'>do</strong>
+<a id='L522' name='L522'></a>   522     <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>--;
+<a id='L523' name='L523'></a>   523   <strong class='reserved'>while</strong> (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;PointerToRawData == 0);
+<a id='L524' name='L524'></a>   524   <a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a> = <a href='../S/312.html#L26' title='Defined at 26 in src/w32common.h.'>ROUND_UP</a> (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;PointerToRawData + <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>-&gt;SizeOfRawData,
+<a id='L525' name='L525'></a>   525                      nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L526' name='L526'></a>   526   <a href='../S/75.html#L377' title='Defined at 377 in src/unexw32.c.'>COPY_CHUNK</a>
+<a id='L527' name='L527'></a>   527     ("Copying remainder of executable...",
+<a id='L528' name='L528'></a>   528      <a href='../S/75.html#L203' title='Defined at 203 in src/unexw32.c.'>OFFSET_TO_PTR</a> (<a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>, p_infile),
+<a id='L529' name='L529'></a>   529      p_infile-&gt;<a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a> - <a href='../D/15007.html' title='Multiple defined in 4 places.'>offset</a>, be_verbose);
+<a id='L530' name='L530'></a>   530 
+<a id='L531' name='L531'></a>   531   <em class='comment'>/* Final size for new image.  */</em>
+<a id='L532' name='L532'></a>   532   p_outfile-&gt;<a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a> = <a href='../S/75.html#L409' title='Defined at 409 in src/unexw32.c.'>DST_TO_OFFSET</a> ();
+<a id='L533' name='L533'></a>   533 
+<a id='L534' name='L534'></a>   534   <em class='comment'>/* Now patch up remaining file-relative offsets.  */</em>
+<a id='L535' name='L535'></a>   535   <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = IMAGE_FIRST_SECTION (nt_header);
+<a id='L536' name='L536'></a>   536   dst_section = IMAGE_FIRST_SECTION (dst_nt_header);
+<a id='L537' name='L537'></a>   537 
+<a id='L538' name='L538'></a>   538 <em class='sharp'>#define</em> <a href='../R/44.html' title='Multiple referred from 3 places.'>ADJUST_OFFSET</a>(var)                                              \
+<a id='L539' name='L539'></a>   539   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                                  \
+<a id='L540' name='L540'></a>   540     <strong class='reserved'>if</strong> ((var) != 0)                                                     \
+<a id='L541' name='L541'></a>   541       (var) = <a href='../S/75.html#L158' title='Defined at 158 in src/unexw32.c.'>relocate_offset</a> ((var), nt_header, dst_nt_header);        \
+<a id='L542' name='L542'></a>   542   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L543' name='L543'></a>   543 
+<a id='L544' name='L544'></a>   544   dst_nt_header-&gt;OptionalHeader.SizeOfInitializedData = 0;
+<a id='L545' name='L545'></a>   545   dst_nt_header-&gt;OptionalHeader.SizeOfUninitializedData = 0;
+<a id='L546' name='L546'></a>   546   <strong class='reserved'>for</strong> (i = 0; i &lt; dst_nt_header-&gt;FileHeader.NumberOfSections; i++)
+<a id='L547' name='L547'></a>   547     <em class='brace'>{</em>
+<a id='L548' name='L548'></a>   548       <em class='comment'>/* Recompute data sizes for completeness.  */</em>
+<a id='L549' name='L549'></a>   549       <strong class='reserved'>if</strong> (dst_section[i].Characteristics &amp; IMAGE_SCN_CNT_INITIALIZED_DATA)
+<a id='L550' name='L550'></a>   550         dst_nt_header-&gt;OptionalHeader.SizeOfInitializedData +=
+<a id='L551' name='L551'></a>   551           <a href='../S/312.html#L26' title='Defined at 26 in src/w32common.h.'>ROUND_UP</a> (dst_section[i].Misc.VirtualSize, dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L552' name='L552'></a>   552       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (dst_section[i].Characteristics &amp; IMAGE_SCN_CNT_UNINITIALIZED_DATA)
+<a id='L553' name='L553'></a>   553         dst_nt_header-&gt;OptionalHeader.SizeOfUninitializedData +=
+<a id='L554' name='L554'></a>   554           <a href='../S/312.html#L26' title='Defined at 26 in src/w32common.h.'>ROUND_UP</a> (dst_section[i].Misc.VirtualSize, dst_nt_header-&gt;OptionalHeader.FileAlignment);
+<a id='L555' name='L555'></a>   555 
+<a id='L556' name='L556'></a>   556       <a href='../S/75.html#L538' title='Defined at 538 in src/unexw32.c.'>ADJUST_OFFSET</a> (dst_section[i].PointerToLinenumbers);
+<a id='L557' name='L557'></a>   557     <em class='brace'>}</em>
+<a id='L558' name='L558'></a>   558 
+<a id='L559' name='L559'></a>   559   <a href='../S/75.html#L538' title='Defined at 538 in src/unexw32.c.'>ADJUST_OFFSET</a> (dst_nt_header-&gt;FileHeader.PointerToSymbolTable);
+<a id='L560' name='L560'></a>   560 
+<a id='L561' name='L561'></a>   561   <em class='comment'>/* Update offsets in debug directory entries. */</em>
+<a id='L562' name='L562'></a>   562   <em class='brace'>{</em>
+<a id='L563' name='L563'></a>   563     IMAGE_DATA_DIRECTORY debug_dir =
+<a id='L564' name='L564'></a>   564       dst_nt_header-&gt;OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DEBUG];
+<a id='L565' name='L565'></a>   565     PIMAGE_DEBUG_DIRECTORY debug_entry;
+<a id='L566' name='L566'></a>   566 
+<a id='L567' name='L567'></a>   567     <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a> = <a href='../S/302.html#L1679' title='Defined at 1679 in src/w32proc.c.'>rva_to_section</a> (debug_dir.VirtualAddress, dst_nt_header);
+<a id='L568' name='L568'></a>   568     <strong class='reserved'>if</strong> (<a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>)
+<a id='L569' name='L569'></a>   569       <em class='brace'>{</em>
+<a id='L570' name='L570'></a>   570         debug_entry = (PIMAGE_DEBUG_DIRECTORY)
+<a id='L571' name='L571'></a>   571           (<a href='../S/75.html#L191' title='Defined at 191 in src/unexw32.c.'>RVA_TO_OFFSET</a> (debug_dir.VirtualAddress, <a href='../S/123.html#L137' title='Defined at 137 in src/unexmacosx.c.'>section</a>) + p_outfile-&gt;file_base);
+<a id='L572' name='L572'></a>   572         debug_dir.Size /= <strong class='reserved'>sizeof</strong> (IMAGE_DEBUG_DIRECTORY);
+<a id='L573' name='L573'></a>   573 
+<a id='L574' name='L574'></a>   574         <strong class='reserved'>for</strong> (i = 0; i &lt; debug_dir.Size; i++, debug_entry++)
+<a id='L575' name='L575'></a>   575           <a href='../S/75.html#L538' title='Defined at 538 in src/unexw32.c.'>ADJUST_OFFSET</a> (debug_entry-&gt;PointerToRawData);
+<a id='L576' name='L576'></a>   576       <em class='brace'>}</em>
+<a id='L577' name='L577'></a>   577   <em class='brace'>}</em>
+<a id='L578' name='L578'></a>   578 <em class='brace'>}</em>
+<a id='L579' name='L579'></a>   579 
+<a id='L580' name='L580'></a>   580 
+<a id='L581' name='L581'></a>   581 <em class='comment'>/* Dump out .data and .bss sections into a new executable.  */</em>
+<a id='L582' name='L582'></a>   582 <strong class='reserved'>void</strong>
+<a id='L583' name='L583'></a>   583 <a href='../R/17164.html' title='Multiple referred from 2 places.'>unexec</a> (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *new_name, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *old_name)
+<a id='L584' name='L584'></a>   584 <em class='brace'>{</em>
+<a id='L585' name='L585'></a>   585   <a href='../D/11339.html' title='Multiple defined in 2 places.'>file_data</a> in_file, out_file;
+<a id='L586' name='L586'></a>   586   <strong class='reserved'>char</strong> out_filename[MAX_PATH], in_filename[MAX_PATH], new_name_a[MAX_PATH];
+<a id='L587' name='L587'></a>   587   <strong class='reserved'>unsigned</strong> <strong class='reserved'>long</strong> <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L588' name='L588'></a>   588   <strong class='reserved'>char</strong> *p;
+<a id='L589' name='L589'></a>   589   <strong class='reserved'>char</strong> *q;
+<a id='L590' name='L590'></a>   590 
+<a id='L591' name='L591'></a>   591   <em class='comment'>/* Ignore old_name, and get our actual location from the OS.  */</em>
+<a id='L592' name='L592'></a>   592   <strong class='reserved'>if</strong> (!GetModuleFileNameA (<a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>, in_filename, MAX_PATH))
+<a id='L593' name='L593'></a>   593     abort ();
+<a id='L594' name='L594'></a>   594 
+<a id='L595' name='L595'></a>   595   <em class='comment'>/* Can't use dostounix_filename here, since that needs its file name</em>
+<a id='L596' name='L596'></a>   596 <em class='comment'>     argument encoded in UTF-8.  */</em>
+<a id='L597' name='L597'></a>   597   <strong class='reserved'>for</strong> (p = in_filename; *p; p = CharNextA (p))
+<a id='L598' name='L598'></a>   598     <strong class='reserved'>if</strong> (*p == '\\')
+<a id='L599' name='L599'></a>   599       *p = '/';
+<a id='L600' name='L600'></a>   600 
+<a id='L601' name='L601'></a>   601   strcpy (out_filename, in_filename);
+<a id='L602' name='L602'></a>   602   <a href='../S/218.html#L1806' title='Defined at 1806 in src/w32.c.'>filename_to_ansi</a> (new_name, new_name_a);
+<a id='L603' name='L603'></a>   603 
+<a id='L604' name='L604'></a>   604   <em class='comment'>/* Change the base of the output filename to match the requested name.  */</em>
+<a id='L605' name='L605'></a>   605   <strong class='reserved'>if</strong> ((p = <a href='../S/2212.html#L786' title='Defined at 786 in lib/string.in.h.'>strrchr</a> (out_filename, '/')) == <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L606' name='L606'></a>   606     abort ();
+<a id='L607' name='L607'></a>   607   <em class='comment'>/* The filenames have already been expanded, and will be in Unix</em>
+<a id='L608' name='L608'></a>   608 <em class='comment'>     format, so it is safe to expect an absolute name.  */</em>
+<a id='L609' name='L609'></a>   609   <strong class='reserved'>if</strong> ((q = <a href='../S/2212.html#L786' title='Defined at 786 in lib/string.in.h.'>strrchr</a> (new_name_a, '/')) == <a href='../D/4475.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L610' name='L610'></a>   610     abort ();
+<a id='L611' name='L611'></a>   611   strcpy (p, q);
+<a id='L612' name='L612'></a>   612 
+<a id='L613' name='L613'></a>   613 <em class='sharp'>#ifdef</em> ENABLE_CHECKING
+<a id='L614' name='L614'></a>   614   <a href='../S/207.html#L622' title='Defined at 622 in src/w32heap.c.'>report_temacs_memory_usage</a> ();
+<a id='L615' name='L615'></a>   615 <em class='sharp'>#endif</em>
+<a id='L616' name='L616'></a>   616 
+<a id='L617' name='L617'></a>   617   <em class='comment'>/* Make sure that the output filename has the ".exe" extension...patch</em>
+<a id='L618' name='L618'></a>   618 <em class='comment'>     it up if not.  */</em>
+<a id='L619' name='L619'></a>   619   p = out_filename + strlen (out_filename) - 4;
+<a id='L620' name='L620'></a>   620   <strong class='reserved'>if</strong> (strcmp (p, ".exe"))
+<a id='L621' name='L621'></a>   621     strcat (out_filename, ".exe");
+<a id='L622' name='L622'></a>   622 
+<a id='L623' name='L623'></a>   623   <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("Dumping from %s\n", in_filename);
+<a id='L624' name='L624'></a>   624   <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("          to %s\n", out_filename);
+<a id='L625' name='L625'></a>   625 
+<a id='L626' name='L626'></a>   626   <em class='comment'>/* Open the undumped executable file.  */</em>
+<a id='L627' name='L627'></a>   627   <strong class='reserved'>if</strong> (!<a href='../S/302.html#L1645' title='Defined at 1645 in src/w32proc.c.'>open_input_file</a> (&amp;in_file, in_filename))
+<a id='L628' name='L628'></a>   628     <em class='brace'>{</em>
+<a id='L629' name='L629'></a>   629       <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("Failed to open %s (%lu)...bailing.\n",
+<a id='L630' name='L630'></a>   630               in_filename, GetLastError ());
+<a id='L631' name='L631'></a>   631       exit (1);
+<a id='L632' name='L632'></a>   632     <em class='brace'>}</em>
+<a id='L633' name='L633'></a>   633 
+<a id='L634' name='L634'></a>   634   <em class='comment'>/* Get the interesting section info, like start and size of .bss...  */</em>
+<a id='L635' name='L635'></a>   635   <a href='../S/75.html#L217' title='Defined at 217 in src/unexw32.c.'>get_section_info</a> (&amp;in_file);
+<a id='L636' name='L636'></a>   636 
+<a id='L637' name='L637'></a>   637   <em class='comment'>/* The size of the dumped executable is the size of the original</em>
+<a id='L638' name='L638'></a>   638 <em class='comment'>     executable plus the size of the heap and the size of the .bss section.  */</em>
+<a id='L639' name='L639'></a>   639   <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a> = in_file.<a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a> +
+<a id='L640' name='L640'></a>   640     extra_bss_size +
+<a id='L641' name='L641'></a>   641     extra_bss_size_static;
+<a id='L642' name='L642'></a>   642   <strong class='reserved'>if</strong> (!<a href='../S/75.html#L74' title='Defined at 74 in src/unexw32.c.'>open_output_file</a> (&amp;out_file, out_filename, <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>))
+<a id='L643' name='L643'></a>   643     <em class='brace'>{</em>
+<a id='L644' name='L644'></a>   644       <a href='../D/15713.html' title='Multiple defined in 4 places.'>printf</a> ("Failed to open %s (%lu)...bailing.\n",
+<a id='L645' name='L645'></a>   645               out_filename, GetLastError ());
+<a id='L646' name='L646'></a>   646       exit (1);
+<a id='L647' name='L647'></a>   647     <em class='brace'>}</em>
+<a id='L648' name='L648'></a>   648 
+<a id='L649' name='L649'></a>   649   <a href='../S/75.html#L364' title='Defined at 364 in src/unexw32.c.'>copy_executable_and_dump_data</a> (&amp;in_file, &amp;out_file);
+<a id='L650' name='L650'></a>   650 
+<a id='L651' name='L651'></a>   651   <em class='comment'>/* Patch up header fields; profiler is picky about this. */</em>
+<a id='L652' name='L652'></a>   652   <em class='brace'>{</em>
+<a id='L653' name='L653'></a>   653     PIMAGE_DOS_HEADER dos_header;
+<a id='L654' name='L654'></a>   654     PIMAGE_NT_HEADERS nt_header;
+<a id='L655' name='L655'></a>   655     HANDLE hImagehelp = <a href='../D/3800.html' title='Multiple defined in 4 places.'>LoadLibrary</a> ("imagehlp.dll");
+<a id='L656' name='L656'></a>   656     DWORD  headersum;
+<a id='L657' name='L657'></a>   657     DWORD  checksum;
+<a id='L658' name='L658'></a>   658 
+<a id='L659' name='L659'></a>   659     dos_header = (PIMAGE_DOS_HEADER) out_file.file_base;
+<a id='L660' name='L660'></a>   660     nt_header = (PIMAGE_NT_HEADERS) ((<strong class='reserved'>char</strong> *) dos_header + dos_header-&gt;e_lfanew);
+<a id='L661' name='L661'></a>   661 
+<a id='L662' name='L662'></a>   662     nt_header-&gt;OptionalHeader.CheckSum = 0;
+<a id='L663' name='L663'></a>   663 <em class='comment'>//    nt_header-&gt;FileHeader.TimeDateStamp = time (NULL);</em>
+<a id='L664' name='L664'></a>   664 <em class='comment'>//    dos_header-&gt;e_cp = size / 512;</em>
+<a id='L665' name='L665'></a>   665 <em class='comment'>//    nt_header-&gt;OptionalHeader.SizeOfImage = size;</em>
+<a id='L666' name='L666'></a>   666 
+<a id='L667' name='L667'></a>   667     pfnCheckSumMappedFile = (<strong class='reserved'>void</strong> *) <a href='../D/2915.html' title='Multiple defined in 2 places.'>GetProcAddress</a> (hImagehelp, "CheckSumMappedFile");
+<a id='L668' name='L668'></a>   668     <strong class='reserved'>if</strong> (pfnCheckSumMappedFile)
+<a id='L669' name='L669'></a>   669       <em class='brace'>{</em>
+<a id='L670' name='L670'></a>   670 <em class='comment'>//      nt_header-&gt;FileHeader.TimeDateStamp = time (NULL);</em>
+<a id='L671' name='L671'></a>   671         pfnCheckSumMappedFile (out_file.file_base,
+<a id='L672' name='L672'></a>   672                                out_file.<a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>,
+<a id='L673' name='L673'></a>   673                                &amp;headersum,
+<a id='L674' name='L674'></a>   674                                &amp;checksum);
+<a id='L675' name='L675'></a>   675         nt_header-&gt;OptionalHeader.CheckSum = checksum;
+<a id='L676' name='L676'></a>   676       <em class='brace'>}</em>
+<a id='L677' name='L677'></a>   677     FreeLibrary (hImagehelp);
+<a id='L678' name='L678'></a>   678   <em class='brace'>}</em>
+<a id='L679' name='L679'></a>   679 
+<a id='L680' name='L680'></a>   680   <a href='../S/302.html#L1706' title='Defined at 1706 in src/w32proc.c.'>close_file_data</a> (&amp;in_file);
+<a id='L681' name='L681'></a>   681   <a href='../S/302.html#L1706' title='Defined at 1706 in src/w32proc.c.'>close_file_data</a> (&amp;out_file);
+<a id='L682' name='L682'></a>   682 <em class='brace'>}</em>
+<a id='L683' name='L683'></a>   683 
+<a id='L684' name='L684'></a>   684 <em class='comment'>/* eof */</em>
 </pre>
 <hr />
 <a id='BOTTOM' name='BOTTOM'></a>
-<em class='comment'>/* [&lt;][&gt;][^][v]<a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L74'>[^]</a><a href='#L583'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
 </body>
 </html>

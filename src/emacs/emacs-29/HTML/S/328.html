@@ -1,0 +1,1609 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/w32uniscribe.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/w32uniscribe.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L109'>[^]</a><a href='#L1503'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L109' title='Defined at 109.'>memq_no_quit</a></li>
+<li><a href='#L119' title='Defined at 119.'>uniscribe_list</a></li>
+<li><a href='#L127' title='Defined at 127.'>uniscribe_match</a></li>
+<li><a href='#L135' title='Defined at 135.'>uniscribe_list_family</a></li>
+<li><a href='#L163' title='Defined at 163.'>uniscribe_open</a></li>
+<li><a href='#L198' title='Defined at 198.'>uniscribe_close</a></li>
+<li><a href='#L239' title='Defined at 239.'>uniscribe_otf_capability</a></li>
+<li><a href='#L286' title='Defined at 286.'>uniscribe_shape</a></li>
+<li><a href='#L598' title='Defined at 598.'>uniscribe_encode_char</a></li>
+<li><a href='#L724' title='Defined at 724.'>add_opentype_font_name_to_list</a></li>
+<li><a href='#L814' title='Defined at 814.'>uniscribe_check_features</a></li>
+<li><a href='#L866' title='Defined at 866.'>uniscribe_check_otf_1</a></li>
+<li><a href='#L959' title='Defined at 959.'>uniscribe_check_otf</a></li>
+<li><a href='#L1141' title='Defined at 1141.'>otf_features</a></li>
+<li><a href='#L1231' title='Defined at 1231.'>w32hb_list</a></li>
+<li><a href='#L1244' title='Defined at 1244.'>w32hb_match</a></li>
+<li><a href='#L1259' title='Defined at 1259.'>free_cb</a></li>
+<li><a href='#L1267' title='Defined at 1267.'>w32hb_get_font_table</a></li>
+<li><a href='#L1304' title='Defined at 1304.'>w32hb_get_font</a></li>
+<li><a href='#L1338' title='Defined at 1338.'>w32hb_encode_char</a></li>
+<li><a href='#L1372' title='Defined at 1372.'>w32hb_begin_font</a></li>
+<li><a href='#L1398' title='Defined at 1398.'>w32hb_get_variation_glyphs</a></li>
+<li><a href='#L1479' title='Defined at 1479.'>syms_of_w32uniscribe</a></li>
+<li><a href='#L1486' title='Defined at 1486.'>load_harfbuzz_funcs</a></li>
+<li><a href='#L1503' title='Defined at 1503.'>syms_of_w32uniscribe_for_pdumper</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Font backend for the Microsoft W32 Uniscribe API.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'>   Windows-specific parts of the HarfBuzz font backend.</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>   Copyright (C) 2008-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L22' name='L22'></a>    22 <em class='comment'>/* Override API version - Uniscribe is only available as standard</em>
+<a id='L23' name='L23'></a>    23 <em class='comment'>   since Windows 2000, though most users of older systems will have it</em>
+<a id='L24' name='L24'></a>    24 <em class='comment'>   since it installs with Internet Explorer 5.0 and other software.</em>
+<a id='L25' name='L25'></a>    25 <em class='comment'>   Also, MinGW64 w32api headers by default define OPENTYPE_TAG typedef</em>
+<a id='L26' name='L26'></a>    26 <em class='comment'>   only if _WIN32_WINNT &gt;= 0x0600.  We only use the affected APIs if</em>
+<a id='L27' name='L27'></a>    27 <em class='comment'>   they are available, so there is no chance of calling non-existent</em>
+<a id='L28' name='L28'></a>    28 <em class='comment'>   functions.  */</em>
+<a id='L29' name='L29'></a>    29 <em class='sharp'>#undef</em> <a href='../R/6479.html' title='Multiple referred from 12 places.'>_WIN32_WINNT</a>
+<a id='L30' name='L30'></a>    30 <em class='sharp'>#define</em> <a href='../R/6479.html' title='Multiple referred from 12 places.'>_WIN32_WINNT</a> 0x0600
+<a id='L31' name='L31'></a>    31 <em class='sharp'>#include</em> &lt;windows.h&gt;
+<a id='L32' name='L32'></a>    32 <em class='sharp'>#include</em> &lt;usp10.h&gt;
+<a id='L33' name='L33'></a>    33 <em class='sharp'>#ifdef</em> HAVE_HARFBUZZ
+<a id='L34' name='L34'></a>    34 <em class='sharp'># include</em> &lt;hb.h&gt;
+<a id='L35' name='L35'></a>    35 <em class='sharp'># include</em> &lt;hb-ot.h&gt;     <em class='comment'>/* for hb_ot_font_set_funcs */</em>
+<a id='L36' name='L36'></a>    36 <em class='sharp'># if</em> <a href='../D/2483.html' title='Multiple defined in 3 places.'>GNUC_PREREQ</a> (4, 3, 0)
+<a id='L37' name='L37'></a>    37 <em class='sharp'>#  define</em> <a href='../R/7364.html' title='Multiple referred from 11 places.'>bswap_32</a>(v)  __builtin_bswap32(v)
+<a id='L38' name='L38'></a>    38 <em class='sharp'># else</em>
+<a id='L39' name='L39'></a>    39 <em class='sharp'>#  include</em> &lt;byteswap.h&gt;
+<a id='L40' name='L40'></a>    40 <em class='sharp'># endif</em>
+<a id='L41' name='L41'></a>    41 <em class='sharp'>#endif</em>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <em class='sharp'>#include</em> "<a href='../I/424.html'>lisp.h</a>"
+<a id='L44' name='L44'></a>    44 <em class='sharp'>#include</em> "<a href='120.html'>w32term.h</a>"
+<a id='L45' name='L45'></a>    45 <em class='sharp'>#include</em> "<a href='65.html'>frame.h</a>"
+<a id='L46' name='L46'></a>    46 <em class='sharp'>#include</em> "<a href='62.html'>composite.h</a>"
+<a id='L47' name='L47'></a>    47 <em class='sharp'>#include</em> "<a href='134.html'>font.h</a>"
+<a id='L48' name='L48'></a>    48 <em class='sharp'>#include</em> "<a href='169.html'>w32font.h</a>"
+<a id='L49' name='L49'></a>    49 <em class='sharp'>#include</em> "<a href='218.html'>pdumper.h</a>"
+<a id='L50' name='L50'></a>    50 <em class='sharp'>#include</em> "<a href='292.html'>w32common.h</a>"
+<a id='L51' name='L51'></a>    51 
+<a id='L52' name='L52'></a>    52 <em class='comment'>/* Extension of w32font_info used by Uniscribe and HarfBuzz backends.  */</em>
+<a id='L53' name='L53'></a>    53 <strong class='reserved'>struct</strong> <a href='../R/15303.html' title='Multiple referred from 17 places.'>uniscribe_font_info</a>
+<a id='L54' name='L54'></a>    54 <em class='brace'>{</em>
+<a id='L55' name='L55'></a>    55   <strong class='reserved'>struct</strong> <a href='../S/169.html#L50' title='Defined at 50 in src/w32font.h.'>w32font_info</a> w32_font;
+<a id='L56' name='L56'></a>    56   <em class='comment'>/* This is used by the Uniscribe backend as a pointer to the script</em>
+<a id='L57' name='L57'></a>    57 <em class='comment'>     cache, and by the HarfBuzz backend as a pointer to a hb_font_t</em>
+<a id='L58' name='L58'></a>    58 <em class='comment'>     object.  */</em>
+<a id='L59' name='L59'></a>    59   <strong class='reserved'>void</strong> *cache;
+<a id='L60' name='L60'></a>    60   <em class='comment'>/* This is used by the HarfBuzz backend to store the font scale.  */</em>
+<a id='L61' name='L61'></a>    61   <strong class='reserved'>double</strong> scale;
+<a id='L62' name='L62'></a>    62 <em class='brace'>}</em>;
+<a id='L63' name='L63'></a>    63 
+<a id='L64' name='L64'></a>    64 <strong class='reserved'>int</strong> uniscribe_available = 0;
+<a id='L65' name='L65'></a>    65 
+<a id='L66' name='L66'></a>    66 <em class='comment'>/* EnumFontFamiliesEx callback.  */</em>
+<a id='L67' name='L67'></a>    67 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../S/97.html#L192' title='Defined at 192 in src/w32fns.c.'>CALLBACK</a> <a href='../D/42.html' title='Multiple defined in 3 places.'>ALIGN_STACK</a> <a href='../S/328.html#L724' title='Defined at 724 in src/w32uniscribe.c.'>add_opentype_font_name_to_list</a> (ENUMLOGFONTEX *,
+<a id='L68' name='L68'></a>    68                                                                 NEWTEXTMETRICEX *,
+<a id='L69' name='L69'></a>    69                                                                 DWORD, LPARAM);
+<a id='L70' name='L70'></a>    70 <em class='sharp'>#ifdef</em> HAVE_HARFBUZZ
+<a id='L71' name='L71'></a>    71 
+<a id='L72' name='L72'></a>    72 <strong class='reserved'>struct</strong> <a href='../S/134.html#L572' title='Defined at 572 in src/font.h.'>font_driver</a> harfbuzz_font_driver;
+<a id='L73' name='L73'></a>    73 <strong class='reserved'>int</strong> harfbuzz_available = 0;
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75 <em class='comment'>/* Typedefs for HarfBuzz functions which we call through function</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>   pointers initialized after we load the HarfBuzz DLL.  */</em>
+<a id='L77' name='L77'></a>    77 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (hb_blob_t *, <a href='../S/328.html#L93' title='Defined at 93 in src/w32uniscribe.c.'>hb_blob_create</a>,
+<a id='L78' name='L78'></a>    78             (<strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *, <strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong>, hb_memory_mode_t, <strong class='reserved'>void</strong> *,
+<a id='L79' name='L79'></a>    79              hb_destroy_func_t));
+<a id='L80' name='L80'></a>    80 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (hb_face_t *, <a href='../S/328.html#L94' title='Defined at 94 in src/w32uniscribe.c.'>hb_face_create_for_tables</a>,
+<a id='L81' name='L81'></a>    81             (hb_reference_table_func_t, <strong class='reserved'>void</strong> *, hb_destroy_func_t));
+<a id='L82' name='L82'></a>    82 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (<strong class='reserved'>unsigned</strong>, <a href='../S/328.html#L95' title='Defined at 95 in src/w32uniscribe.c.'>hb_face_get_glyph_count</a>, (<strong class='reserved'>const</strong> hb_face_t *));
+<a id='L83' name='L83'></a>    83 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (hb_font_t *, <a href='../S/328.html#L96' title='Defined at 96 in src/w32uniscribe.c.'>hb_font_create</a>, (hb_face_t *));
+<a id='L84' name='L84'></a>    84 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (<strong class='reserved'>void</strong>, <a href='../S/328.html#L97' title='Defined at 97 in src/w32uniscribe.c.'>hb_font_destroy</a>, (hb_font_t *));
+<a id='L85' name='L85'></a>    85 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (<strong class='reserved'>void</strong>, <a href='../S/328.html#L98' title='Defined at 98 in src/w32uniscribe.c.'>hb_face_destroy</a>, (hb_face_t *));
+<a id='L86' name='L86'></a>    86 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (<strong class='reserved'>unsigned</strong> <strong class='reserved'>int</strong>, <a href='../S/328.html#L99' title='Defined at 99 in src/w32uniscribe.c.'>hb_face_get_upem</a>, (hb_face_t *));
+<a id='L87' name='L87'></a>    87 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (hb_bool_t, <a href='../S/328.html#L100' title='Defined at 100 in src/w32uniscribe.c.'>hb_font_get_nominal_glyph</a>,
+<a id='L88' name='L88'></a>    88             (hb_font_t *, hb_codepoint_t, hb_codepoint_t *));
+<a id='L89' name='L89'></a>    89 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (hb_bool_t, <a href='../S/328.html#L101' title='Defined at 101 in src/w32uniscribe.c.'>hb_font_get_variation_glyph</a>,
+<a id='L90' name='L90'></a>    90             (hb_font_t *, hb_codepoint_t, hb_codepoint_t, hb_codepoint_t *));
+<a id='L91' name='L91'></a>    91 <a href='../S/292.html#L75' title='Defined at 75 in src/w32common.h.'>DEF_DLL_FN</a> (<strong class='reserved'>void</strong>, <a href='../S/328.html#L102' title='Defined at 102 in src/w32uniscribe.c.'>hb_ot_font_set_funcs</a>, (hb_font_t *));
+<a id='L92' name='L92'></a>    92 
+<a id='L93' name='L93'></a>    93 <em class='sharp'>#define</em> <a href='../R/10593.html' title='Multiple referred from 3 places.'>hb_blob_create</a> fn_hb_blob_create
+<a id='L94' name='L94'></a>    94 <em class='sharp'>#define</em> <a href='../R/10609.html' title='Multiple referred from 3 places.'>hb_face_create_for_tables</a> fn_hb_face_create_for_tables
+<a id='L95' name='L95'></a>    95 <em class='sharp'>#define</em> <a href='../R/10611.html' title='Multiple referred from 3 places.'>hb_face_get_glyph_count</a> fn_hb_face_get_glyph_count
+<a id='L96' name='L96'></a>    96 <em class='sharp'>#define</em> <a href='../R/10613.html' title='Multiple referred from 3 places.'>hb_font_create</a> fn_hb_font_create
+<a id='L97' name='L97'></a>    97 <em class='sharp'>#define</em> <a href='../R/10614.html' title='Multiple referred from 6 places.'>hb_font_destroy</a> fn_hb_font_destroy
+<a id='L98' name='L98'></a>    98 <em class='sharp'>#define</em> <a href='../R/10610.html' title='Multiple referred from 4 places.'>hb_face_destroy</a> fn_hb_face_destroy
+<a id='L99' name='L99'></a>    99 <em class='sharp'>#define</em> <a href='../R/10612.html' title='Multiple referred from 3 places.'>hb_face_get_upem</a> fn_hb_face_get_upem
+<a id='L100' name='L100'></a>   100 <em class='sharp'>#define</em> <a href='../R/10616.html' title='Multiple referred from 3 places.'>hb_font_get_nominal_glyph</a> fn_hb_font_get_nominal_glyph
+<a id='L101' name='L101'></a>   101 <em class='sharp'>#define</em> <a href='../R/10617.html' title='Multiple referred from 4 places.'>hb_font_get_variation_glyph</a> fn_hb_font_get_variation_glyph
+<a id='L102' name='L102'></a>   102 <em class='sharp'>#define</em> <a href='../R/10619.html' title='Multiple referred from 3 places.'>hb_ot_font_set_funcs</a> fn_hb_ot_font_set_funcs
+<a id='L103' name='L103'></a>   103 <em class='sharp'>#endif</em>
+<a id='L104' name='L104'></a>   104 
+<a id='L105' name='L105'></a>   105 <em class='comment'>/* Used by uniscribe_otf_capability.  */</em>
+<a id='L106' name='L106'></a>   106 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/328.html#L1141' title='Defined at 1141 in src/w32uniscribe.c.'>otf_features</a> (HDC <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *table);
+<a id='L107' name='L107'></a>   107 
+<a id='L108' name='L108'></a>   108 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L109' name='L109'></a>   109 <a href='../R/11884.html' title='Multiple referred from 5 places.'>memq_no_quit</a> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> elt, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>)
+<a id='L110' name='L110'></a>   110 <em class='brace'>{</em>
+<a id='L111' name='L111'></a>   111   <strong class='reserved'>while</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>) &amp;&amp; ! <a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>), elt))
+<a id='L112' name='L112'></a>   112     <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>);
+<a id='L113' name='L113'></a>   113   <strong class='reserved'>return</strong> (<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>));
+<a id='L114' name='L114'></a>   114 <em class='brace'>}</em>
+<a id='L115' name='L115'></a>   115 
+<a id='L116' name='L116'></a>   116 
+<a id='L117' name='L117'></a>   117 <em class='comment'>/* Font backend interface implementation.  */</em>
+<a id='L118' name='L118'></a>   118 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L119' name='L119'></a>   119 <a href='../S/328.html#L1446' title='Referred from 1446 in src/w32uniscribe.c.'>uniscribe_list</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>)
+<a id='L120' name='L120'></a>   120 <em class='brace'>{</em>
+<a id='L121' name='L121'></a>   121   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> fonts = <a href='../S/118.html#L816' title='Defined at 816 in src/w32font.c.'>w32font_list_internal</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>, <a href='../S/3907.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
+<a id='L122' name='L122'></a>   122   <a href='../S/134.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("uniscribe-list", <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>, fonts);
+<a id='L123' name='L123'></a>   123   <strong class='reserved'>return</strong> fonts;
+<a id='L124' name='L124'></a>   124 <em class='brace'>}</em>
+<a id='L125' name='L125'></a>   125 
+<a id='L126' name='L126'></a>   126 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L127' name='L127'></a>   127 <a href='../S/328.html#L1447' title='Referred from 1447 in src/w32uniscribe.c.'>uniscribe_match</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>)
+<a id='L128' name='L128'></a>   128 <em class='brace'>{</em>
+<a id='L129' name='L129'></a>   129   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> entity = <a href='../S/118.html#L897' title='Defined at 897 in src/w32font.c.'>w32font_match_internal</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>, <a href='../S/3907.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
+<a id='L130' name='L130'></a>   130   <a href='../S/134.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("uniscribe-match", <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>, entity);
+<a id='L131' name='L131'></a>   131   <strong class='reserved'>return</strong> entity;
+<a id='L132' name='L132'></a>   132 <em class='brace'>}</em>
+<a id='L133' name='L133'></a>   133 
+<a id='L134' name='L134'></a>   134 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L135' name='L135'></a>   135 <a href='../S/328.html#L1448' title='Referred from 1448 in src/w32uniscribe.c.'>uniscribe_list_family</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L136' name='L136'></a>   136 <em class='brace'>{</em>
+<a id='L137' name='L137'></a>   137   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = Qnil;
+<a id='L138' name='L138'></a>   138   LOGFONT font_match_pattern;
+<a id='L139' name='L139'></a>   139   HDC dc;
+<a id='L140' name='L140'></a>   140 
+<a id='L141' name='L141'></a>   141   memset (&amp;font_match_pattern, 0, <strong class='reserved'>sizeof</strong> (font_match_pattern));
+<a id='L142' name='L142'></a>   142   <em class='comment'>/* Limit enumerated fonts to outline fonts to save time.  */</em>
+<a id='L143' name='L143'></a>   143   font_match_pattern.lfOutPrecision = OUT_OUTLINE_PRECIS;
+<a id='L144' name='L144'></a>   144 
+<a id='L145' name='L145'></a>   145   <em class='comment'>/* Prevent quitting while EnumFontFamiliesEx runs and conses the</em>
+<a id='L146' name='L146'></a>   146 <em class='comment'>     list it will return.  That's because get_frame_dc acquires the</em>
+<a id='L147' name='L147'></a>   147 <em class='comment'>     critical section, so we cannot quit before we release it in</em>
+<a id='L148' name='L148'></a>   148 <em class='comment'>     release_frame_dc.  */</em>
+<a id='L149' name='L149'></a>   149   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> prev_quit = Vinhibit_quit;
+<a id='L150' name='L150'></a>   150   Vinhibit_quit = Qt;
+<a id='L151' name='L151'></a>   151   dc = <a href='../S/149.html#L158' title='Defined at 158 in src/w32xfns.c.'>get_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L152' name='L152'></a>   152 
+<a id='L153' name='L153'></a>   153   EnumFontFamiliesEx (dc, &amp;font_match_pattern,
+<a id='L154' name='L154'></a>   154                       (FONTENUMPROC) <a href='../S/328.html#L724' title='Defined at 724 in src/w32uniscribe.c.'>add_opentype_font_name_to_list</a>,
+<a id='L155' name='L155'></a>   155                       (LPARAM) &amp;<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>, 0);
+<a id='L156' name='L156'></a>   156   <a href='../S/149.html#L229' title='Defined at 229 in src/w32xfns.c.'>release_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, dc);
+<a id='L157' name='L157'></a>   157   Vinhibit_quit = prev_quit;
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159   <strong class='reserved'>return</strong> <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>;
+<a id='L160' name='L160'></a>   160 <em class='brace'>}</em>
+<a id='L161' name='L161'></a>   161 
+<a id='L162' name='L162'></a>   162 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L163' name='L163'></a>   163 <a href='../S/328.html#L1450' title='Referred from 1450 in src/w32uniscribe.c.'>uniscribe_open</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/134.html#L259' title='Defined at 259 in src/font.h.'>font_entity</a>, <strong class='reserved'>int</strong> pixel_size)
+<a id='L164' name='L164'></a>   164 <em class='brace'>{</em>
+<a id='L165' name='L165'></a>   165   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> font_object
+<a id='L166' name='L166'></a>   166     = <a href='../S/172.html#L187' title='Defined at 187 in src/font.c.'>font_make_object</a> (<a href='../D/5995.html' title='Multiple defined in 2 places.'>VECSIZE</a> (<strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a>),
+<a id='L167' name='L167'></a>   167                         <a href='../S/134.html#L259' title='Defined at 259 in src/font.h.'>font_entity</a>, pixel_size);
+<a id='L168' name='L168'></a>   168   <strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *uniscribe_font
+<a id='L169' name='L169'></a>   169     = (<strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *) <a href='../S/134.html#L528' title='Defined at 528 in src/font.h.'>XFONT_OBJECT</a> (font_object);
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../D/65.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/134.html#L259' title='Defined at 259 in src/font.h.'>font_entity</a>, <a href='../S/134.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>)))
+<a id='L172' name='L172'></a>   172     <a href='../D/85.html' title='Multiple defined in 2 places.'>ASET</a> (font_object, <a href='../S/134.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>, <a href='../D/65.html' title='Multiple defined in 2 places.'>AREF</a> (<a href='../S/134.html#L259' title='Defined at 259 in src/font.h.'>font_entity</a>, <a href='../S/134.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>));
+<a id='L173' name='L173'></a>   173   <strong class='reserved'>else</strong>  <em class='comment'>/* paranoia: this should never happen */</em>
+<a id='L174' name='L174'></a>   174     <a href='../D/85.html' title='Multiple defined in 2 places.'>ASET</a> (font_object, <a href='../S/134.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>, Quniscribe);
+<a id='L175' name='L175'></a>   175 
+<a id='L176' name='L176'></a>   176   <strong class='reserved'>if</strong> (!<a href='../S/118.html#L952' title='Defined at 952 in src/w32font.c.'>w32font_open_internal</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/134.html#L259' title='Defined at 259 in src/font.h.'>font_entity</a>, pixel_size, font_object))
+<a id='L177' name='L177'></a>   177     <em class='brace'>{</em>
+<a id='L178' name='L178'></a>   178       <strong class='reserved'>return</strong> Qnil;
+<a id='L179' name='L179'></a>   179     <em class='brace'>}</em>
+<a id='L180' name='L180'></a>   180 
+<a id='L181' name='L181'></a>   181   <em class='comment'>/* Initialize the cache for this font.  */</em>
+<a id='L182' name='L182'></a>   182   uniscribe_font-&gt;cache = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L183' name='L183'></a>   183 
+<a id='L184' name='L184'></a>   184   <em class='comment'>/* Uniscribe and HarfBuzz backends use glyph indices.  */</em>
+<a id='L185' name='L185'></a>   185   uniscribe_font-&gt;w32_font.glyph_idx = ETO_GLYPH_INDEX;
+<a id='L186' name='L186'></a>   186 
+<a id='L187' name='L187'></a>   187 <em class='sharp'>#ifdef</em> HAVE_HARFBUZZ
+<a id='L188' name='L188'></a>   188   <strong class='reserved'>if</strong> (<a href='../D/1644.html' title='Multiple defined in 2 places.'>EQ</a> (<a href='../D/65.html' title='Multiple defined in 2 places.'>AREF</a> (font_object, <a href='../S/134.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>), Qharfbuzz))
+<a id='L189' name='L189'></a>   189     uniscribe_font-&gt;w32_font.<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>.driver = &amp;harfbuzz_font_driver;
+<a id='L190' name='L190'></a>   190   <strong class='reserved'>else</strong>
+<a id='L191' name='L191'></a>   191 <em class='sharp'>#endif</em>  <em class='comment'>/* HAVE_HARFBUZZ */</em>
+<a id='L192' name='L192'></a>   192     uniscribe_font-&gt;w32_font.<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>.driver = &amp;uniscribe_font_driver;
+<a id='L193' name='L193'></a>   193 
+<a id='L194' name='L194'></a>   194   <strong class='reserved'>return</strong> font_object;
+<a id='L195' name='L195'></a>   195 <em class='brace'>}</em>
+<a id='L196' name='L196'></a>   196 
+<a id='L197' name='L197'></a>   197 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L198' name='L198'></a>   198 <a href='../S/328.html#L1451' title='Referred from 1451 in src/w32uniscribe.c.'>uniscribe_close</a> (<strong class='reserved'>struct</strong> <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>)
+<a id='L199' name='L199'></a>   199 <em class='brace'>{</em>
+<a id='L200' name='L200'></a>   200   <strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *uniscribe_font
+<a id='L201' name='L201'></a>   201     = (<strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *) <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L202' name='L202'></a>   202 
+<a id='L203' name='L203'></a>   203 <em class='sharp'>#ifdef</em> HAVE_HARFBUZZ
+<a id='L204' name='L204'></a>   204   <strong class='reserved'>if</strong> (uniscribe_font-&gt;w32_font.<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>.driver == &amp;harfbuzz_font_driver
+<a id='L205' name='L205'></a>   205       &amp;&amp; uniscribe_font-&gt;cache)
+<a id='L206' name='L206'></a>   206     <a href='../S/328.html#L97' title='Defined at 97 in src/w32uniscribe.c.'>hb_font_destroy</a> ((hb_font_t *) uniscribe_font-&gt;cache);
+<a id='L207' name='L207'></a>   207   <strong class='reserved'>else</strong>
+<a id='L208' name='L208'></a>   208 <em class='sharp'>#endif</em>
+<a id='L209' name='L209'></a>   209   <strong class='reserved'>if</strong> (uniscribe_font-&gt;cache)
+<a id='L210' name='L210'></a>   210     ScriptFreeCache ((SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache));
+<a id='L211' name='L211'></a>   211 
+<a id='L212' name='L212'></a>   212   uniscribe_font-&gt;cache = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L213' name='L213'></a>   213 
+<a id='L214' name='L214'></a>   214   <a href='../S/118.html#L343' title='Defined at 343 in src/w32font.c.'>w32font_close</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>);
+<a id='L215' name='L215'></a>   215 <em class='brace'>}</em>
+<a id='L216' name='L216'></a>   216 
+<a id='L217' name='L217'></a>   217 <em class='comment'>/* Return a list describing which scripts/languages FONT supports by</em>
+<a id='L218' name='L218'></a>   218 <em class='comment'>   which GSUB/GPOS features of OpenType tables.</em>
+<a id='L219' name='L219'></a>   219 <em class='comment'></em>
+<a id='L220' name='L220'></a>   220 <em class='comment'>   Implementation note: otf_features called by this function uses</em>
+<a id='L221' name='L221'></a>   221 <em class='comment'>   GetFontData to access the font tables directly, instead of using</em>
+<a id='L222' name='L222'></a>   222 <em class='comment'>   ScriptGetFontScriptTags etc. APIs even if those are available.  The</em>
+<a id='L223' name='L223'></a>   223 <em class='comment'>   reason is that font-get, which uses the result of this function,</em>
+<a id='L224' name='L224'></a>   224 <em class='comment'>   expects a cons cell (GSUB . GPOS) where the features are reported</em>
+<a id='L225' name='L225'></a>   225 <em class='comment'>   separately for these 2 OTF tables, while the Uniscribe APIs report</em>
+<a id='L226' name='L226'></a>   226 <em class='comment'>   the features as a single list.  There doesn't seem to be a reason</em>
+<a id='L227' name='L227'></a>   227 <em class='comment'>   for returning the features in 2 separate parts, except for</em>
+<a id='L228' name='L228'></a>   228 <em class='comment'>   compatibility with libotf; the features are disjoint (each can</em>
+<a id='L229' name='L229'></a>   229 <em class='comment'>   appear only in one of the 2 slots), and no client of this data</em>
+<a id='L230' name='L230'></a>   230 <em class='comment'>   discerns between the two slots: the few that request this data all</em>
+<a id='L231' name='L231'></a>   231 <em class='comment'>   look in both slots.  If use of the Uniscribe APIs ever becomes</em>
+<a id='L232' name='L232'></a>   232 <em class='comment'>   necessary here, and the 2 separate slots are still required, it</em>
+<a id='L233' name='L233'></a>   233 <em class='comment'>   should be possible to split the feature list the APIs return into 2</em>
+<a id='L234' name='L234'></a>   234 <em class='comment'>   because each sub-list is alphabetically sorted, so the place where</em>
+<a id='L235' name='L235'></a>   235 <em class='comment'>   the sorting order breaks is where the GSUB features end and GPOS</em>
+<a id='L236' name='L236'></a>   236 <em class='comment'>   features begin.  But for now, this is not necessary, so we leave</em>
+<a id='L237' name='L237'></a>   237 <em class='comment'>   the original code in place.  */</em>
+<a id='L238' name='L238'></a>   238 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L239' name='L239'></a>   239 <a href='../S/328.html#L1461' title='Referred from 1461 in src/w32uniscribe.c.'>uniscribe_otf_capability</a> (<strong class='reserved'>struct</strong> <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>)
+<a id='L240' name='L240'></a>   240 <em class='brace'>{</em>
+<a id='L241' name='L241'></a>   241   HDC <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>;
+<a id='L242' name='L242'></a>   242   HFONT old_font;
+<a id='L243' name='L243'></a>   243   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>;
+<a id='L244' name='L244'></a>   244   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> capability = Fcons (Qnil, Qnil);
+<a id='L245' name='L245'></a>   245   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> features;
+<a id='L246' name='L246'></a>   246 
+<a id='L247' name='L247'></a>   247   <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/65.html#L839' title='Defined at 839 in src/frame.h.'>XFRAME</a> (selected_frame);
+<a id='L248' name='L248'></a>   248   <em class='comment'>/* Prevent quitting while we cons the lists in otf_features.</em>
+<a id='L249' name='L249'></a>   249 <em class='comment'>     That's because get_frame_dc acquires the critical section, so we</em>
+<a id='L250' name='L250'></a>   250 <em class='comment'>     cannot quit before we release it in release_frame_dc.  */</em>
+<a id='L251' name='L251'></a>   251   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> prev_quit = Vinhibit_quit;
+<a id='L252' name='L252'></a>   252   Vinhibit_quit = Qt;
+<a id='L253' name='L253'></a>   253   <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../S/149.html#L158' title='Defined at 158 in src/w32xfns.c.'>get_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L254' name='L254'></a>   254   old_font = SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <a href='../S/169.html#L61' title='Defined at 61 in src/w32font.h.'>FONT_HANDLE</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>));
+<a id='L255' name='L255'></a>   255 
+<a id='L256' name='L256'></a>   256   features = <a href='../S/328.html#L1141' title='Defined at 1141 in src/w32uniscribe.c.'>otf_features</a> (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, "GSUB");
+<a id='L257' name='L257'></a>   257   <a href='../S/125.html#L1537' title='Defined at 1537 in src/lisp.h.'>XSETCAR</a> (capability, features);
+<a id='L258' name='L258'></a>   258   features = <a href='../S/328.html#L1141' title='Defined at 1141 in src/w32uniscribe.c.'>otf_features</a> (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, "GPOS");
+<a id='L259' name='L259'></a>   259   <a href='../D/6654.html' title='Multiple defined in 2 places.'>XSETCDR</a> (capability, features);
+<a id='L260' name='L260'></a>   260 
+<a id='L261' name='L261'></a>   261   SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, old_font);
+<a id='L262' name='L262'></a>   262   <a href='../S/149.html#L229' title='Defined at 229 in src/w32xfns.c.'>release_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L263' name='L263'></a>   263   Vinhibit_quit = prev_quit;
+<a id='L264' name='L264'></a>   264 
+<a id='L265' name='L265'></a>   265   <strong class='reserved'>return</strong> capability;
+<a id='L266' name='L266'></a>   266 <em class='brace'>}</em>
+<a id='L267' name='L267'></a>   267 
+<a id='L268' name='L268'></a>   268 <em class='comment'>/* Uniscribe implementation of shape for font backend.</em>
+<a id='L269' name='L269'></a>   269 <em class='comment'></em>
+<a id='L270' name='L270'></a>   270 <em class='comment'>   Shape text in LGSTRING.  See the docstring of</em>
+<a id='L271' name='L271'></a>   271 <em class='comment'>   `composition-get-gstring' for the format of LGSTRING.  If the</em>
+<a id='L272' name='L272'></a>   272 <em class='comment'>   (N+1)th element of LGSTRING is nil, input of shaping is from the</em>
+<a id='L273' name='L273'></a>   273 <em class='comment'>   1st to (N)th elements.  In each input glyph, FROM, TO, CHAR, and</em>
+<a id='L274' name='L274'></a>   274 <em class='comment'>   CODE are already set.</em>
+<a id='L275' name='L275'></a>   275 <em class='comment'>   DIRECTION is either L2R or R2L, or nil if unknown.  During</em>
+<a id='L276' name='L276'></a>   276 <em class='comment'>   redisplay, this comes from applying the UBA, is passed from</em>
+<a id='L277' name='L277'></a>   277 <em class='comment'>   composition_reseat_it, and is used by the HarfBuzz shaper.</em>
+<a id='L278' name='L278'></a>   278 <em class='comment'></em>
+<a id='L279' name='L279'></a>   279 <em class='comment'>   This function updates all fields of the input glyphs.  If the</em>
+<a id='L280' name='L280'></a>   280 <em class='comment'>   output glyphs (M) are more than the input glyphs (N), (N+1)th</em>
+<a id='L281' name='L281'></a>   281 <em class='comment'>   through (M)th elements of LGSTRING are updated possibly by making</em>
+<a id='L282' name='L282'></a>   282 <em class='comment'>   a new glyph object and storing it in LGSTRING.  If (M) is greater</em>
+<a id='L283' name='L283'></a>   283 <em class='comment'>   than the length of LGSTRING, nil should be returned.  In that case,</em>
+<a id='L284' name='L284'></a>   284 <em class='comment'>   this function is called again with a larger LGSTRING.  */</em>
+<a id='L285' name='L285'></a>   285 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L286' name='L286'></a>   286 <a href='../S/328.html#L1465' title='Referred from 1465 in src/w32uniscribe.c.'>uniscribe_shape</a> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> lgstring, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> direction)
+<a id='L287' name='L287'></a>   287 <em class='brace'>{</em>
+<a id='L288' name='L288'></a>   288   <strong class='reserved'>struct</strong> <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a> = <a href='../S/134.html#L544' title='Defined at 544 in src/font.h.'>CHECK_FONT_GET_OBJECT</a> (<a href='../S/62.html#L261' title='Defined at 261 in src/composite.h.'>LGSTRING_FONT</a> (lgstring));
+<a id='L289' name='L289'></a>   289   <strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *uniscribe_font
+<a id='L290' name='L290'></a>   290     = (<strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *) <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L291' name='L291'></a>   291   <a href='../D/1571.html' title='Multiple defined in 8 places.'>EMACS_UINT</a> nchars;
+<a id='L292' name='L292'></a>   292   <strong class='reserved'>int</strong> nitems, max_items, i, max_glyphs, done_glyphs;
+<a id='L293' name='L293'></a>   293   <a href='../S/2246.html#L105' title='Defined at 105 in lib/stddef.in.h.'>wchar_t</a> *chars;
+<a id='L294' name='L294'></a>   294   WORD *glyphs, *clusters;
+<a id='L295' name='L295'></a>   295   SCRIPT_ITEM *items;
+<a id='L296' name='L296'></a>   296   SCRIPT_VISATTR *attributes;
+<a id='L297' name='L297'></a>   297   <strong class='reserved'>int</strong> *advances;
+<a id='L298' name='L298'></a>   298   GOFFSET *offsets;
+<a id='L299' name='L299'></a>   299   ABC overall_metrics;
+<a id='L300' name='L300'></a>   300   HRESULT result;
+<a id='L301' name='L301'></a>   301   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> * <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L302' name='L302'></a>   302   HDC <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L303' name='L303'></a>   303   HFONT old_font = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L304' name='L304'></a>   304 
+<a id='L305' name='L305'></a>   305   <em class='comment'>/* Get the chars from lgstring in a form we can use with uniscribe.  */</em>
+<a id='L306' name='L306'></a>   306   max_glyphs = nchars = <a href='../S/62.html#L275' title='Defined at 275 in src/composite.h.'>LGSTRING_GLYPH_LEN</a> (lgstring);
+<a id='L307' name='L307'></a>   307   done_glyphs = 0;
+<a id='L308' name='L308'></a>   308   chars = (<a href='../S/2246.html#L105' title='Defined at 105 in lib/stddef.in.h.'>wchar_t</a> *) <a href='../D/7719.html' title='Multiple defined in 8 places.'>alloca</a> (nchars * <strong class='reserved'>sizeof</strong> (<a href='../S/2246.html#L105' title='Defined at 105 in lib/stddef.in.h.'>wchar_t</a>));
+<a id='L309' name='L309'></a>   309   <em class='comment'>/* FIXME: This loop assumes that characters in the input LGSTRING</em>
+<a id='L310' name='L310'></a>   310 <em class='comment'>     are all inside the BMP.  Need to encode characters beyond the BMP</em>
+<a id='L311' name='L311'></a>   311 <em class='comment'>     as UTF-16.  */</em>
+<a id='L312' name='L312'></a>   312   <strong class='reserved'>for</strong> (i = 0; i &lt; nchars; i++)
+<a id='L313' name='L313'></a>   313     <em class='brace'>{</em>
+<a id='L314' name='L314'></a>   314       <em class='comment'>/* lgstring can be bigger than the number of characters in it, in</em>
+<a id='L315' name='L315'></a>   315 <em class='comment'>         the case where more glyphs are required to display those characters.</em>
+<a id='L316' name='L316'></a>   316 <em class='comment'>         If that is the case, note the real number of characters.  */</em>
+<a id='L317' name='L317'></a>   317       <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (<a href='../S/62.html#L276' title='Defined at 276 in src/composite.h.'>LGSTRING_GLYPH</a> (lgstring, i)))
+<a id='L318' name='L318'></a>   318         nchars = i;
+<a id='L319' name='L319'></a>   319       <strong class='reserved'>else</strong>
+<a id='L320' name='L320'></a>   320         chars[i] = <a href='../S/62.html#L305' title='Defined at 305 in src/composite.h.'>LGLYPH_CHAR</a> (<a href='../S/62.html#L276' title='Defined at 276 in src/composite.h.'>LGSTRING_GLYPH</a> (lgstring, i));
+<a id='L321' name='L321'></a>   321     <em class='brace'>}</em>
+<a id='L322' name='L322'></a>   322 
+<a id='L323' name='L323'></a>   323   <em class='comment'>/* First we need to break up the glyph string into runs of glyphs that</em>
+<a id='L324' name='L324'></a>   324 <em class='comment'>     can be treated together.  First try a single run.  */</em>
+<a id='L325' name='L325'></a>   325   max_items = 2;
+<a id='L326' name='L326'></a>   326   items = <a href='../D/17887.html' title='Multiple defined in 8 places.'>xmalloc</a> (<strong class='reserved'>sizeof</strong> (SCRIPT_ITEM) * max_items + 1);
+<a id='L327' name='L327'></a>   327 
+<a id='L328' name='L328'></a>   328   <strong class='reserved'>while</strong> ((result = ScriptItemize (chars, nchars, max_items, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>,
+<a id='L329' name='L329'></a>   329                                   items, &amp;nitems)) == E_OUTOFMEMORY)
+<a id='L330' name='L330'></a>   330     <em class='brace'>{</em>
+<a id='L331' name='L331'></a>   331       <em class='comment'>/* If that wasn't enough, keep trying with one more run.  */</em>
+<a id='L332' name='L332'></a>   332       max_items++;
+<a id='L333' name='L333'></a>   333       items = (SCRIPT_ITEM *) <a href='../D/17925.html' title='Multiple defined in 6 places.'>xrealloc</a> (items,
+<a id='L334' name='L334'></a>   334                                         <strong class='reserved'>sizeof</strong> (SCRIPT_ITEM) * max_items + 1);
+<a id='L335' name='L335'></a>   335     <em class='brace'>}</em>
+<a id='L336' name='L336'></a>   336 
+<a id='L337' name='L337'></a>   337   <strong class='reserved'>if</strong> (FAILED (result))
+<a id='L338' name='L338'></a>   338     <em class='brace'>{</em>
+<a id='L339' name='L339'></a>   339       <a href='../D/17636.html' title='Multiple defined in 2 places.'>xfree</a> (items);
+<a id='L340' name='L340'></a>   340       <strong class='reserved'>return</strong> Qnil;
+<a id='L341' name='L341'></a>   341     <em class='brace'>}</em>
+<a id='L342' name='L342'></a>   342 
+<a id='L343' name='L343'></a>   343   glyphs = <a href='../D/7719.html' title='Multiple defined in 8 places.'>alloca</a> (max_glyphs * <strong class='reserved'>sizeof</strong> (WORD));
+<a id='L344' name='L344'></a>   344   clusters = <a href='../D/7719.html' title='Multiple defined in 8 places.'>alloca</a> (nchars * <strong class='reserved'>sizeof</strong> (WORD));
+<a id='L345' name='L345'></a>   345   attributes = <a href='../D/7719.html' title='Multiple defined in 8 places.'>alloca</a> (max_glyphs * <strong class='reserved'>sizeof</strong> (SCRIPT_VISATTR));
+<a id='L346' name='L346'></a>   346   advances = <a href='../D/7719.html' title='Multiple defined in 8 places.'>alloca</a> (max_glyphs * <strong class='reserved'>sizeof</strong> (<strong class='reserved'>int</strong>));
+<a id='L347' name='L347'></a>   347   offsets = <a href='../D/7719.html' title='Multiple defined in 8 places.'>alloca</a> (max_glyphs * <strong class='reserved'>sizeof</strong> (GOFFSET));
+<a id='L348' name='L348'></a>   348 
+<a id='L349' name='L349'></a>   349   <strong class='reserved'>for</strong> (i = 0; i &lt; nitems; i++)
+<a id='L350' name='L350'></a>   350     <em class='brace'>{</em>
+<a id='L351' name='L351'></a>   351       <strong class='reserved'>int</strong> nglyphs, nchars_in_run;
+<a id='L352' name='L352'></a>   352       nchars_in_run = items[i+1].iCharPos - items[i].iCharPos;
+<a id='L353' name='L353'></a>   353       <em class='comment'>/* Force ScriptShape to generate glyphs in the same order as</em>
+<a id='L354' name='L354'></a>   354 <em class='comment'>         they are in the input LGSTRING, which is in the logical</em>
+<a id='L355' name='L355'></a>   355 <em class='comment'>         order.  */</em>
+<a id='L356' name='L356'></a>   356       items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>.fLogicalOrder = 1;
+<a id='L357' name='L357'></a>   357 
+<a id='L358' name='L358'></a>   358       <em class='comment'>/* Context may be NULL here, in which case the cache should be</em>
+<a id='L359' name='L359'></a>   359 <em class='comment'>         used without needing to select the font.  */</em>
+<a id='L360' name='L360'></a>   360       result = ScriptShape (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, (SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache),
+<a id='L361' name='L361'></a>   361                             chars + items[i].iCharPos, nchars_in_run,
+<a id='L362' name='L362'></a>   362                             max_glyphs - done_glyphs, &amp;(items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>),
+<a id='L363' name='L363'></a>   363                             glyphs, clusters, attributes, &amp;nglyphs);
+<a id='L364' name='L364'></a>   364 
+<a id='L365' name='L365'></a>   365       <strong class='reserved'>if</strong> (result == E_PENDING &amp;&amp; !<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>)
+<a id='L366' name='L366'></a>   366         <em class='brace'>{</em>
+<a id='L367' name='L367'></a>   367           <em class='comment'>/* This assumes the selected frame is on the same display as the</em>
+<a id='L368' name='L368'></a>   368 <em class='comment'>             one we are drawing.  It would be better for the frame to be</em>
+<a id='L369' name='L369'></a>   369 <em class='comment'>             passed in.  */</em>
+<a id='L370' name='L370'></a>   370           <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/65.html#L839' title='Defined at 839 in src/frame.h.'>XFRAME</a> (selected_frame);
+<a id='L371' name='L371'></a>   371           <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../S/149.html#L158' title='Defined at 158 in src/w32xfns.c.'>get_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L372' name='L372'></a>   372           old_font = SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <a href='../S/169.html#L61' title='Defined at 61 in src/w32font.h.'>FONT_HANDLE</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>));
+<a id='L373' name='L373'></a>   373 
+<a id='L374' name='L374'></a>   374           result = ScriptShape (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, (SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache),
+<a id='L375' name='L375'></a>   375                                 chars + items[i].iCharPos, nchars_in_run,
+<a id='L376' name='L376'></a>   376                                 max_glyphs - done_glyphs, &amp;(items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>),
+<a id='L377' name='L377'></a>   377                                 glyphs, clusters, attributes, &amp;nglyphs);
+<a id='L378' name='L378'></a>   378         <em class='brace'>}</em>
+<a id='L379' name='L379'></a>   379 
+<a id='L380' name='L380'></a>   380       <strong class='reserved'>if</strong> (result == E_OUTOFMEMORY)
+<a id='L381' name='L381'></a>   381         <em class='brace'>{</em>
+<a id='L382' name='L382'></a>   382           <em class='comment'>/* Need a bigger lgstring.  */</em>
+<a id='L383' name='L383'></a>   383           lgstring = Qnil;
+<a id='L384' name='L384'></a>   384           <strong class='reserved'>break</strong>;
+<a id='L385' name='L385'></a>   385         <em class='brace'>}</em>
+<a id='L386' name='L386'></a>   386       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (FAILED (result))
+<a id='L387' name='L387'></a>   387         <em class='brace'>{</em>
+<a id='L388' name='L388'></a>   388           <em class='comment'>/* Can't shape this run - return results so far if any.  */</em>
+<a id='L389' name='L389'></a>   389           <strong class='reserved'>break</strong>;
+<a id='L390' name='L390'></a>   390         <em class='brace'>}</em>
+<a id='L391' name='L391'></a>   391       <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>.fNoGlyphIndex)
+<a id='L392' name='L392'></a>   392         <em class='brace'>{</em>
+<a id='L393' name='L393'></a>   393           <em class='comment'>/* Glyph indices not supported by this font (or OS), means we</em>
+<a id='L394' name='L394'></a>   394 <em class='comment'>             can't really do any meaningful shaping.  */</em>
+<a id='L395' name='L395'></a>   395           <strong class='reserved'>break</strong>;
+<a id='L396' name='L396'></a>   396         <em class='brace'>}</em>
+<a id='L397' name='L397'></a>   397       <strong class='reserved'>else</strong>
+<a id='L398' name='L398'></a>   398         <em class='brace'>{</em>
+<a id='L399' name='L399'></a>   399           result = ScriptPlace (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, (SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache),
+<a id='L400' name='L400'></a>   400                                 glyphs, nglyphs, attributes, &amp;(items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>),
+<a id='L401' name='L401'></a>   401                                 advances, offsets, &amp;overall_metrics);
+<a id='L402' name='L402'></a>   402           <strong class='reserved'>if</strong> (result == E_PENDING &amp;&amp; !<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>)
+<a id='L403' name='L403'></a>   403             <em class='brace'>{</em>
+<a id='L404' name='L404'></a>   404               <em class='comment'>/* Cache not complete...  */</em>
+<a id='L405' name='L405'></a>   405               <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/65.html#L839' title='Defined at 839 in src/frame.h.'>XFRAME</a> (selected_frame);
+<a id='L406' name='L406'></a>   406               <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../S/149.html#L158' title='Defined at 158 in src/w32xfns.c.'>get_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L407' name='L407'></a>   407               old_font = SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <a href='../S/169.html#L61' title='Defined at 61 in src/w32font.h.'>FONT_HANDLE</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>));
+<a id='L408' name='L408'></a>   408 
+<a id='L409' name='L409'></a>   409               result = ScriptPlace (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>,
+<a id='L410' name='L410'></a>   410                                     (SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache),
+<a id='L411' name='L411'></a>   411                                     glyphs, nglyphs, attributes, &amp;(items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>),
+<a id='L412' name='L412'></a>   412                                     advances, offsets, &amp;overall_metrics);
+<a id='L413' name='L413'></a>   413             <em class='brace'>}</em>
+<a id='L414' name='L414'></a>   414           <strong class='reserved'>if</strong> (SUCCEEDED (result))
+<a id='L415' name='L415'></a>   415             <em class='brace'>{</em>
+<a id='L416' name='L416'></a>   416               <strong class='reserved'>int</strong> j, from, to, adj_offset = 0;
+<a id='L417' name='L417'></a>   417               <strong class='reserved'>int</strong> cluster_offset = 0;
+<a id='L418' name='L418'></a>   418 
+<a id='L419' name='L419'></a>   419               from = 0;
+<a id='L420' name='L420'></a>   420               to = from;
+<a id='L421' name='L421'></a>   421 
+<a id='L422' name='L422'></a>   422               <strong class='reserved'>for</strong> (j = 0; j &lt; nglyphs; j++)
+<a id='L423' name='L423'></a>   423                 <em class='brace'>{</em>
+<a id='L424' name='L424'></a>   424                   <strong class='reserved'>int</strong> lglyph_index = j + done_glyphs;
+<a id='L425' name='L425'></a>   425                   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> lglyph = <a href='../S/62.html#L276' title='Defined at 276 in src/composite.h.'>LGSTRING_GLYPH</a> (lgstring, lglyph_index);
+<a id='L426' name='L426'></a>   426                   ABC char_metric;
+<a id='L427' name='L427'></a>   427                   <strong class='reserved'>unsigned</strong> gl;
+<a id='L428' name='L428'></a>   428 
+<a id='L429' name='L429'></a>   429                   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (lglyph))
+<a id='L430' name='L430'></a>   430                     <em class='brace'>{</em>
+<a id='L431' name='L431'></a>   431                       lglyph = <a href='../S/62.html#L302' title='Defined at 302 in src/composite.h.'>LGLYPH_NEW</a> ();
+<a id='L432' name='L432'></a>   432                       <a href='../S/62.html#L277' title='Defined at 277 in src/composite.h.'>LGSTRING_SET_GLYPH</a> (lgstring, lglyph_index, lglyph);
+<a id='L433' name='L433'></a>   433                     <em class='brace'>}</em>
+<a id='L434' name='L434'></a>   434                   <em class='comment'>/* Copy to a 32-bit data type to shut up the</em>
+<a id='L435' name='L435'></a>   435 <em class='comment'>                     compiler warning in LGLYPH_SET_CODE about</em>
+<a id='L436' name='L436'></a>   436 <em class='comment'>                     comparison being always false.  */</em>
+<a id='L437' name='L437'></a>   437                   gl = glyphs[j];
+<a id='L438' name='L438'></a>   438                   <a href='../S/62.html#L320' title='Defined at 320 in src/composite.h.'>LGLYPH_SET_CODE</a> (lglyph, gl);
+<a id='L439' name='L439'></a>   439 
+<a id='L440' name='L440'></a>   440                   <em class='comment'>/* Detect clusters, for linking codes back to</em>
+<a id='L441' name='L441'></a>   441 <em class='comment'>                     characters.  */</em>
+<a id='L442' name='L442'></a>   442                   <strong class='reserved'>if</strong> (attributes[j].fClusterStart)
+<a id='L443' name='L443'></a>   443                     <em class='brace'>{</em>
+<a id='L444' name='L444'></a>   444                       <strong class='reserved'>while</strong> (from &lt; nchars_in_run &amp;&amp; clusters[from] &lt; j)
+<a id='L445' name='L445'></a>   445                         from++;
+<a id='L446' name='L446'></a>   446                       <strong class='reserved'>if</strong> (from &gt;= nchars_in_run)
+<a id='L447' name='L447'></a>   447                         from = to = nchars_in_run - 1;
+<a id='L448' name='L448'></a>   448                       <strong class='reserved'>else</strong>
+<a id='L449' name='L449'></a>   449                         <em class='brace'>{</em>
+<a id='L450' name='L450'></a>   450                           <strong class='reserved'>int</strong> k;
+<a id='L451' name='L451'></a>   451                           to = nchars_in_run - 1;
+<a id='L452' name='L452'></a>   452                           <strong class='reserved'>for</strong> (k = from + 1; k &lt; nchars_in_run; k++)
+<a id='L453' name='L453'></a>   453                             <em class='brace'>{</em>
+<a id='L454' name='L454'></a>   454                               <strong class='reserved'>if</strong> (clusters[k] &gt; j)
+<a id='L455' name='L455'></a>   455                                 <em class='brace'>{</em>
+<a id='L456' name='L456'></a>   456                                   to = k - 1;
+<a id='L457' name='L457'></a>   457                                   <strong class='reserved'>break</strong>;
+<a id='L458' name='L458'></a>   458                                 <em class='brace'>}</em>
+<a id='L459' name='L459'></a>   459                             <em class='brace'>}</em>
+<a id='L460' name='L460'></a>   460                         <em class='brace'>}</em>
+<a id='L461' name='L461'></a>   461                       cluster_offset = 0;
+<a id='L462' name='L462'></a>   462 
+<a id='L463' name='L463'></a>   463                       <em class='comment'>/* For RTL text, the Uniscribe shaper prepares</em>
+<a id='L464' name='L464'></a>   464 <em class='comment'>                         the values in ADVANCES array for layout in</em>
+<a id='L465' name='L465'></a>   465 <em class='comment'>                         reverse order, whereby "advance width" is</em>
+<a id='L466' name='L466'></a>   466 <em class='comment'>                         applied to move the pen in reverse direction</em>
+<a id='L467' name='L467'></a>   467 <em class='comment'>                         and _before_ drawing the glyph.  Since we</em>
+<a id='L468' name='L468'></a>   468 <em class='comment'>                         draw glyphs in their normal left-to-right</em>
+<a id='L469' name='L469'></a>   469 <em class='comment'>                         order, we need to adjust the coordinates of</em>
+<a id='L470' name='L470'></a>   470 <em class='comment'>                         each non-base glyph in a grapheme cluster via</em>
+<a id='L471' name='L471'></a>   471 <em class='comment'>                         X-OFF component of the gstring's ADJUSTMENT</em>
+<a id='L472' name='L472'></a>   472 <em class='comment'>                         sub-vector.  This loop computes, for each</em>
+<a id='L473' name='L473'></a>   473 <em class='comment'>                         grapheme cluster, the initial value of the</em>
+<a id='L474' name='L474'></a>   474 <em class='comment'>                         adjustment for the base character, which is</em>
+<a id='L475' name='L475'></a>   475 <em class='comment'>                         then updated for each successive glyph in the</em>
+<a id='L476' name='L476'></a>   476 <em class='comment'>                         grapheme cluster.  */</em>
+<a id='L477' name='L477'></a>   477                       <em class='comment'>/* FIXME: Should we use DIRECTION here instead</em>
+<a id='L478' name='L478'></a>   478 <em class='comment'>                         of what ScriptItemize guessed?  */</em>
+<a id='L479' name='L479'></a>   479                       <strong class='reserved'>if</strong> (items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>.fRTL)
+<a id='L480' name='L480'></a>   480                         <em class='brace'>{</em>
+<a id='L481' name='L481'></a>   481                           <strong class='reserved'>int</strong> j1 = j;
+<a id='L482' name='L482'></a>   482 
+<a id='L483' name='L483'></a>   483                           adj_offset = 0;
+<a id='L484' name='L484'></a>   484                           <strong class='reserved'>while</strong> (j1 &lt; nglyphs &amp;&amp; !attributes[j1].fClusterStart)
+<a id='L485' name='L485'></a>   485                             <em class='brace'>{</em>
+<a id='L486' name='L486'></a>   486                               adj_offset += advances[j1];
+<a id='L487' name='L487'></a>   487                               j1++;
+<a id='L488' name='L488'></a>   488                             <em class='brace'>}</em>
+<a id='L489' name='L489'></a>   489                         <em class='brace'>}</em>
+<a id='L490' name='L490'></a>   490                     <em class='brace'>}</em>
+<a id='L491' name='L491'></a>   491 
+<a id='L492' name='L492'></a>   492                   <strong class='reserved'>int</strong> char_idx = items[i].iCharPos + from + cluster_offset;
+<a id='L493' name='L493'></a>   493                   <strong class='reserved'>if</strong> (from + cluster_offset &gt; to)
+<a id='L494' name='L494'></a>   494                     char_idx = items[i].iCharPos + to;
+<a id='L495' name='L495'></a>   495                   cluster_offset++;
+<a id='L496' name='L496'></a>   496                   <a href='../S/62.html#L318' title='Defined at 318 in src/composite.h.'>LGLYPH_SET_CHAR</a> (lglyph, chars[char_idx]);
+<a id='L497' name='L497'></a>   497                   <a href='../S/62.html#L316' title='Defined at 316 in src/composite.h.'>LGLYPH_SET_FROM</a> (lglyph, items[i].iCharPos + from);
+<a id='L498' name='L498'></a>   498                   <a href='../S/62.html#L317' title='Defined at 317 in src/composite.h.'>LGLYPH_SET_TO</a> (lglyph, items[i].iCharPos + to);
+<a id='L499' name='L499'></a>   499 
+<a id='L500' name='L500'></a>   500                   <em class='comment'>/* Metrics.  */</em>
+<a id='L501' name='L501'></a>   501                   <a href='../S/62.html#L324' title='Defined at 324 in src/composite.h.'>LGLYPH_SET_WIDTH</a> (lglyph, advances[j]);
+<a id='L502' name='L502'></a>   502                   <a href='../S/62.html#L327' title='Defined at 327 in src/composite.h.'>LGLYPH_SET_ASCENT</a> (lglyph, <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;ascent);
+<a id='L503' name='L503'></a>   503                   <a href='../S/62.html#L328' title='Defined at 328 in src/composite.h.'>LGLYPH_SET_DESCENT</a> (lglyph, <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>-&gt;descent);
+<a id='L504' name='L504'></a>   504 
+<a id='L505' name='L505'></a>   505                   result = ScriptGetGlyphABCWidth
+<a id='L506' name='L506'></a>   506                     (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, (SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache),
+<a id='L507' name='L507'></a>   507                      glyphs[j], &amp;char_metric);
+<a id='L508' name='L508'></a>   508                   <strong class='reserved'>if</strong> (result == E_PENDING &amp;&amp; !<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>)
+<a id='L509' name='L509'></a>   509                     <em class='brace'>{</em>
+<a id='L510' name='L510'></a>   510                       <em class='comment'>/* Cache incomplete... */</em>
+<a id='L511' name='L511'></a>   511                       <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/65.html#L839' title='Defined at 839 in src/frame.h.'>XFRAME</a> (selected_frame);
+<a id='L512' name='L512'></a>   512                       <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../S/149.html#L158' title='Defined at 158 in src/w32xfns.c.'>get_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L513' name='L513'></a>   513                       old_font = SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <a href='../S/169.html#L61' title='Defined at 61 in src/w32font.h.'>FONT_HANDLE</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>));
+<a id='L514' name='L514'></a>   514                       result = ScriptGetGlyphABCWidth
+<a id='L515' name='L515'></a>   515                         (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, (SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache),
+<a id='L516' name='L516'></a>   516                          glyphs[j], &amp;char_metric);
+<a id='L517' name='L517'></a>   517                     <em class='brace'>}</em>
+<a id='L518' name='L518'></a>   518 
+<a id='L519' name='L519'></a>   519                   <strong class='reserved'>if</strong> (SUCCEEDED (result))
+<a id='L520' name='L520'></a>   520                     <em class='brace'>{</em>
+<a id='L521' name='L521'></a>   521                       <strong class='reserved'>int</strong> lbearing = char_metric.abcA;
+<a id='L522' name='L522'></a>   522                       <strong class='reserved'>int</strong> rbearing = char_metric.abcA + char_metric.abcB;
+<a id='L523' name='L523'></a>   523 
+<a id='L524' name='L524'></a>   524                       <a href='../S/62.html#L325' title='Defined at 325 in src/composite.h.'>LGLYPH_SET_LBEARING</a> (lglyph, lbearing);
+<a id='L525' name='L525'></a>   525                       <a href='../S/62.html#L326' title='Defined at 326 in src/composite.h.'>LGLYPH_SET_RBEARING</a> (lglyph, rbearing);
+<a id='L526' name='L526'></a>   526                     <em class='brace'>}</em>
+<a id='L527' name='L527'></a>   527                   <strong class='reserved'>else</strong>
+<a id='L528' name='L528'></a>   528                     <em class='brace'>{</em>
+<a id='L529' name='L529'></a>   529                       <a href='../S/62.html#L325' title='Defined at 325 in src/composite.h.'>LGLYPH_SET_LBEARING</a> (lglyph, 0);
+<a id='L530' name='L530'></a>   530                       <a href='../S/62.html#L326' title='Defined at 326 in src/composite.h.'>LGLYPH_SET_RBEARING</a> (lglyph, advances[j]);
+<a id='L531' name='L531'></a>   531                     <em class='brace'>}</em>
+<a id='L532' name='L532'></a>   532 
+<a id='L533' name='L533'></a>   533                   <strong class='reserved'>if</strong> (offsets[j].du || offsets[j].dv
+<a id='L534' name='L534'></a>   534                       <em class='comment'>/* For non-base glyphs of RTL grapheme clusters,</em>
+<a id='L535' name='L535'></a>   535 <em class='comment'>                         adjust the X offset even if both DU and DV</em>
+<a id='L536' name='L536'></a>   536 <em class='comment'>                         are zero.  */</em>
+<a id='L537' name='L537'></a>   537                       || (!attributes[j].fClusterStart &amp;&amp; items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>.fRTL))
+<a id='L538' name='L538'></a>   538                     <em class='brace'>{</em>
+<a id='L539' name='L539'></a>   539                       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> vec = <a href='../S/3577.html#L3820' title='Defined at 3820 in test/manual/etags/c-src/emacs/src/lisp.h.'>make_uninit_vector</a> (3);
+<a id='L540' name='L540'></a>   540 
+<a id='L541' name='L541'></a>   541                       <strong class='reserved'>if</strong> (items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>.fRTL)
+<a id='L542' name='L542'></a>   542                         <em class='brace'>{</em>
+<a id='L543' name='L543'></a>   543                           <em class='comment'>/* Empirically, it looks like Uniscribe</em>
+<a id='L544' name='L544'></a>   544 <em class='comment'>                             interprets DU in reverse direction for</em>
+<a id='L545' name='L545'></a>   545 <em class='comment'>                             RTL clusters.  E.g., if we don't reverse</em>
+<a id='L546' name='L546'></a>   546 <em class='comment'>                             the direction, the Hebrew point HOLAM is</em>
+<a id='L547' name='L547'></a>   547 <em class='comment'>                             drawn above the right edge of the base</em>
+<a id='L548' name='L548'></a>   548 <em class='comment'>                             consonant, instead of above the left edge.  */</em>
+<a id='L549' name='L549'></a>   549                           <a href='../D/85.html' title='Multiple defined in 2 places.'>ASET</a> (vec, 0, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (-offsets[j].du
+<a id='L550' name='L550'></a>   550                                                      + adj_offset));
+<a id='L551' name='L551'></a>   551                           <em class='comment'>/* Update the adjustment value for the width</em>
+<a id='L552' name='L552'></a>   552 <em class='comment'>                             advance of the glyph we just emitted.  */</em>
+<a id='L553' name='L553'></a>   553                           adj_offset -= 2 * advances[j];
+<a id='L554' name='L554'></a>   554                         <em class='brace'>}</em>
+<a id='L555' name='L555'></a>   555                       <strong class='reserved'>else</strong>
+<a id='L556' name='L556'></a>   556                         <a href='../D/85.html' title='Multiple defined in 2 places.'>ASET</a> (vec, 0, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (offsets[j].du + adj_offset));
+<a id='L557' name='L557'></a>   557                       <em class='comment'>/* In the font definition coordinate system, the</em>
+<a id='L558' name='L558'></a>   558 <em class='comment'>                         Y coordinate points up, while in our screen</em>
+<a id='L559' name='L559'></a>   559 <em class='comment'>                         coordinates Y grows downwards.  So we need to</em>
+<a id='L560' name='L560'></a>   560 <em class='comment'>                         reverse the sign of Y-OFFSET here.  */</em>
+<a id='L561' name='L561'></a>   561                       <a href='../D/85.html' title='Multiple defined in 2 places.'>ASET</a> (vec, 1, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (-offsets[j].dv));
+<a id='L562' name='L562'></a>   562                       <em class='comment'>/* Based on what ftfont.c does... */</em>
+<a id='L563' name='L563'></a>   563                       <a href='../D/85.html' title='Multiple defined in 2 places.'>ASET</a> (vec, 2, <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (advances[j]));
+<a id='L564' name='L564'></a>   564                       <a href='../S/62.html#L329' title='Defined at 329 in src/composite.h.'>LGLYPH_SET_ADJUSTMENT</a> (lglyph, vec);
+<a id='L565' name='L565'></a>   565                     <em class='brace'>}</em>
+<a id='L566' name='L566'></a>   566                   <strong class='reserved'>else</strong>
+<a id='L567' name='L567'></a>   567                     <em class='brace'>{</em>
+<a id='L568' name='L568'></a>   568                       <a href='../S/62.html#L329' title='Defined at 329 in src/composite.h.'>LGLYPH_SET_ADJUSTMENT</a> (lglyph, Qnil);
+<a id='L569' name='L569'></a>   569                       <em class='comment'>/* Update the adjustment value to compensate for</em>
+<a id='L570' name='L570'></a>   570 <em class='comment'>                         the width of the base character.  */</em>
+<a id='L571' name='L571'></a>   571                       <strong class='reserved'>if</strong> (items[i].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>.fRTL)
+<a id='L572' name='L572'></a>   572                         adj_offset -= advances[j];
+<a id='L573' name='L573'></a>   573                     <em class='brace'>}</em>
+<a id='L574' name='L574'></a>   574                 <em class='brace'>}</em>
+<a id='L575' name='L575'></a>   575             <em class='brace'>}</em>
+<a id='L576' name='L576'></a>   576         <em class='brace'>}</em>
+<a id='L577' name='L577'></a>   577       done_glyphs += nglyphs;
+<a id='L578' name='L578'></a>   578     <em class='brace'>}</em>
+<a id='L579' name='L579'></a>   579 
+<a id='L580' name='L580'></a>   580   <a href='../D/17636.html' title='Multiple defined in 2 places.'>xfree</a> (items);
+<a id='L581' name='L581'></a>   581 
+<a id='L582' name='L582'></a>   582   <strong class='reserved'>if</strong> (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>)
+<a id='L583' name='L583'></a>   583     <em class='brace'>{</em>
+<a id='L584' name='L584'></a>   584       SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, old_font);
+<a id='L585' name='L585'></a>   585       <a href='../S/149.html#L229' title='Defined at 229 in src/w32xfns.c.'>release_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L586' name='L586'></a>   586     <em class='brace'>}</em>
+<a id='L587' name='L587'></a>   587 
+<a id='L588' name='L588'></a>   588   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (lgstring))
+<a id='L589' name='L589'></a>   589     <strong class='reserved'>return</strong> Qnil;
+<a id='L590' name='L590'></a>   590   <strong class='reserved'>else</strong>
+<a id='L591' name='L591'></a>   591     <strong class='reserved'>return</strong> <a href='../D/12619.html' title='Multiple defined in 2 places.'>make_fixnum</a> (done_glyphs);
+<a id='L592' name='L592'></a>   592 <em class='brace'>}</em>
+<a id='L593' name='L593'></a>   593 
+<a id='L594' name='L594'></a>   594 <em class='comment'>/* Uniscribe implementation of encode_char for font backend.</em>
+<a id='L595' name='L595'></a>   595 <em class='comment'>   Return a glyph code of FONT for character C (Unicode code point).</em>
+<a id='L596' name='L596'></a>   596 <em class='comment'>   If FONT doesn't have such a glyph, return FONT_INVALID_CODE.  */</em>
+<a id='L597' name='L597'></a>   597 <strong class='reserved'>static</strong> <strong class='reserved'>unsigned</strong>
+<a id='L598' name='L598'></a>   598 <a href='../S/328.html#L1455' title='Referred from 1455 in src/w32uniscribe.c.'>uniscribe_encode_char</a> (<strong class='reserved'>struct</strong> <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <strong class='reserved'>int</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L599' name='L599'></a>   599 <em class='brace'>{</em>
+<a id='L600' name='L600'></a>   600   HDC <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L601' name='L601'></a>   601   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L602' name='L602'></a>   602   HFONT old_font = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L603' name='L603'></a>   603   <strong class='reserved'>unsigned</strong> code = <a href='../S/134.html#L568' title='Defined at 568 in src/font.h.'>FONT_INVALID_CODE</a>;
+<a id='L604' name='L604'></a>   604   <a href='../S/2246.html#L105' title='Defined at 105 in lib/stddef.in.h.'>wchar_t</a> ch[2];
+<a id='L605' name='L605'></a>   605   <strong class='reserved'>int</strong> len;
+<a id='L606' name='L606'></a>   606   SCRIPT_ITEM* items;
+<a id='L607' name='L607'></a>   607   <strong class='reserved'>int</strong> nitems;
+<a id='L608' name='L608'></a>   608   <strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *uniscribe_font
+<a id='L609' name='L609'></a>   609     = (<strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *)<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L610' name='L610'></a>   610 
+<a id='L611' name='L611'></a>   611   <strong class='reserved'>if</strong> (<a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a> &lt; 0x10000)
+<a id='L612' name='L612'></a>   612     <em class='brace'>{</em>
+<a id='L613' name='L613'></a>   613       ch[0] = (<a href='../S/2246.html#L105' title='Defined at 105 in lib/stddef.in.h.'>wchar_t</a>) <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>;
+<a id='L614' name='L614'></a>   614       len = 1;
+<a id='L615' name='L615'></a>   615     <em class='brace'>}</em>
+<a id='L616' name='L616'></a>   616   <strong class='reserved'>else</strong>
+<a id='L617' name='L617'></a>   617     <em class='brace'>{</em>
+<a id='L618' name='L618'></a>   618       DWORD surrogate = <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a> - 0x10000;
+<a id='L619' name='L619'></a>   619 
+<a id='L620' name='L620'></a>   620       <em class='comment'>/* High surrogate: U+D800 - U+DBFF.  */</em>
+<a id='L621' name='L621'></a>   621       ch[0] = 0xD800 + ((surrogate &gt;&gt; 10) &amp; 0x03FF);
+<a id='L622' name='L622'></a>   622       <em class='comment'>/* Low surrogate: U+DC00 - U+DFFF.  */</em>
+<a id='L623' name='L623'></a>   623       ch[1] = 0xDC00 + (surrogate &amp; 0x03FF);
+<a id='L624' name='L624'></a>   624       len = 2;
+<a id='L625' name='L625'></a>   625     <em class='brace'>}</em>
+<a id='L626' name='L626'></a>   626 
+<a id='L627' name='L627'></a>   627   <em class='comment'>/* Non BMP characters must be handled by the uniscribe shaping</em>
+<a id='L628' name='L628'></a>   628 <em class='comment'>     engine as GDI functions (except blindly displaying lines of</em>
+<a id='L629' name='L629'></a>   629 <em class='comment'>     Unicode text) and the promising looking ScriptGetCMap do not</em>
+<a id='L630' name='L630'></a>   630 <em class='comment'>     convert surrogate pairs to glyph indexes correctly.  */</em>
+<a id='L631' name='L631'></a>   631     <em class='brace'>{</em>
+<a id='L632' name='L632'></a>   632       items = (SCRIPT_ITEM *) <a href='../D/7719.html' title='Multiple defined in 8 places.'>alloca</a> (<strong class='reserved'>sizeof</strong> (SCRIPT_ITEM) * 2 + 1);
+<a id='L633' name='L633'></a>   633       <strong class='reserved'>if</strong> (SUCCEEDED (ScriptItemize (ch, len, 2, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, items, &amp;nitems)))
+<a id='L634' name='L634'></a>   634         <em class='brace'>{</em>
+<a id='L635' name='L635'></a>   635           HRESULT result;
+<a id='L636' name='L636'></a>   636           <em class='comment'>/* Surrogates seem to need 2 here, even though only one glyph is</em>
+<a id='L637' name='L637'></a>   637 <em class='comment'>             returned.  Indic characters can also produce 2 or more glyphs for</em>
+<a id='L638' name='L638'></a>   638 <em class='comment'>             a single code point, but they need to use uniscribe_shape</em>
+<a id='L639' name='L639'></a>   639 <em class='comment'>             above for correct display.  */</em>
+<a id='L640' name='L640'></a>   640           WORD glyphs[2], clusters[2];
+<a id='L641' name='L641'></a>   641           SCRIPT_VISATTR attrs[2];
+<a id='L642' name='L642'></a>   642           <strong class='reserved'>int</strong> nglyphs;
+<a id='L643' name='L643'></a>   643 
+<a id='L644' name='L644'></a>   644           <em class='comment'>/* Force ScriptShape to generate glyphs in the logical</em>
+<a id='L645' name='L645'></a>   645 <em class='comment'>             order.  */</em>
+<a id='L646' name='L646'></a>   646           items[0].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>.fLogicalOrder = 1;
+<a id='L647' name='L647'></a>   647 
+<a id='L648' name='L648'></a>   648           result = ScriptShape (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>,
+<a id='L649' name='L649'></a>   649                                 (SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache),
+<a id='L650' name='L650'></a>   650                                 ch, len, 2, &amp;(items[0].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>),
+<a id='L651' name='L651'></a>   651                                 glyphs, clusters, attrs, &amp;nglyphs);
+<a id='L652' name='L652'></a>   652 
+<a id='L653' name='L653'></a>   653           <strong class='reserved'>if</strong> (result == E_PENDING)
+<a id='L654' name='L654'></a>   654             <em class='brace'>{</em>
+<a id='L655' name='L655'></a>   655               <em class='comment'>/* Use selected frame until API is updated to pass</em>
+<a id='L656' name='L656'></a>   656 <em class='comment'>                 the frame.  */</em>
+<a id='L657' name='L657'></a>   657               <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/65.html#L839' title='Defined at 839 in src/frame.h.'>XFRAME</a> (selected_frame);
+<a id='L658' name='L658'></a>   658               <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../S/149.html#L158' title='Defined at 158 in src/w32xfns.c.'>get_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L659' name='L659'></a>   659               old_font = SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <a href='../S/169.html#L61' title='Defined at 61 in src/w32font.h.'>FONT_HANDLE</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>));
+<a id='L660' name='L660'></a>   660               result = ScriptShape (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>,
+<a id='L661' name='L661'></a>   661                                     (SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache),
+<a id='L662' name='L662'></a>   662                                     ch, len, 2, &amp;(items[0].<a href='../D/7549.html' title='Multiple defined in 6 places.'>a</a>),
+<a id='L663' name='L663'></a>   663                                     glyphs, clusters, attrs, &amp;nglyphs);
+<a id='L664' name='L664'></a>   664             <em class='brace'>}</em>
+<a id='L665' name='L665'></a>   665 
+<a id='L666' name='L666'></a>   666           <strong class='reserved'>if</strong> (SUCCEEDED (result) &amp;&amp; nglyphs == 1)
+<a id='L667' name='L667'></a>   667             <em class='brace'>{</em>
+<a id='L668' name='L668'></a>   668               <em class='comment'>/* Some fonts return .notdef glyphs instead of failing.</em>
+<a id='L669' name='L669'></a>   669 <em class='comment'>                 (TrueType spec reserves glyph code 0 for .notdef)  */</em>
+<a id='L670' name='L670'></a>   670               <strong class='reserved'>if</strong> (glyphs[0])
+<a id='L671' name='L671'></a>   671                 code = glyphs[0];
+<a id='L672' name='L672'></a>   672             <em class='brace'>}</em>
+<a id='L673' name='L673'></a>   673           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (SUCCEEDED (result) || result == E_OUTOFMEMORY)
+<a id='L674' name='L674'></a>   674             <em class='brace'>{</em>
+<a id='L675' name='L675'></a>   675               <em class='comment'>/* This character produces zero or more than one glyph</em>
+<a id='L676' name='L676'></a>   676 <em class='comment'>                 when shaped. But we still need the return from here</em>
+<a id='L677' name='L677'></a>   677 <em class='comment'>                 to be valid for the shaping engine to be invoked</em>
+<a id='L678' name='L678'></a>   678 <em class='comment'>                 later.  */</em>
+<a id='L679' name='L679'></a>   679               result = ScriptGetCMap (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>,
+<a id='L680' name='L680'></a>   680                                       (SCRIPT_CACHE) &amp;(uniscribe_font-&gt;cache),
+<a id='L681' name='L681'></a>   681                                       ch, len, 0, glyphs);
+<a id='L682' name='L682'></a>   682               <strong class='reserved'>if</strong> (SUCCEEDED (result) &amp;&amp; glyphs[0])
+<a id='L683' name='L683'></a>   683                 code = glyphs[0];
+<a id='L684' name='L684'></a>   684             <em class='brace'>}</em>
+<a id='L685' name='L685'></a>   685         <em class='brace'>}</em>
+<a id='L686' name='L686'></a>   686     <em class='brace'>}</em>
+<a id='L687' name='L687'></a>   687     <strong class='reserved'>if</strong> (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>)
+<a id='L688' name='L688'></a>   688       <em class='brace'>{</em>
+<a id='L689' name='L689'></a>   689         SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, old_font);
+<a id='L690' name='L690'></a>   690         <a href='../S/149.html#L229' title='Defined at 229 in src/w32xfns.c.'>release_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L691' name='L691'></a>   691       <em class='brace'>}</em>
+<a id='L692' name='L692'></a>   692 
+<a id='L693' name='L693'></a>   693     <strong class='reserved'>return</strong> code;
+<a id='L694' name='L694'></a>   694 <em class='brace'>}</em>
+<a id='L695' name='L695'></a>   695 
+<a id='L696' name='L696'></a>   696 <em class='comment'>/*</em>
+<a id='L697' name='L697'></a>   697 <em class='comment'>   Shared with w32font:</em>
+<a id='L698' name='L698'></a>   698 <em class='comment'>   Lisp_Object uniscribe_get_cache (Lisp_Object frame);</em>
+<a id='L699' name='L699'></a>   699 <em class='comment'>   void uniscribe_free_entity (Lisp_Object font_entity);</em>
+<a id='L700' name='L700'></a>   700 <em class='comment'>   int uniscribe_has_char (Lisp_Object entity, int c);</em>
+<a id='L701' name='L701'></a>   701 <em class='comment'>   void uniscribe_text_extents (struct font *font, unsigned *code,</em>
+<a id='L702' name='L702'></a>   702 <em class='comment'>                                int nglyphs, struct font_metrics *metrics);</em>
+<a id='L703' name='L703'></a>   703 <em class='comment'>   int uniscribe_draw (struct glyph_string *s, int from, int to,</em>
+<a id='L704' name='L704'></a>   704 <em class='comment'>                       int x, int y, int with_background);</em>
+<a id='L705' name='L705'></a>   705 <em class='comment'></em>
+<a id='L706' name='L706'></a>   706 <em class='comment'>   Unused:</em>
+<a id='L707' name='L707'></a>   707 <em class='comment'>   int uniscribe_prepare_face (struct frame *f, struct face *face);</em>
+<a id='L708' name='L708'></a>   708 <em class='comment'>   void uniscribe_done_face (struct frame *f, struct face *face);</em>
+<a id='L709' name='L709'></a>   709 <em class='comment'>   int uniscribe_get_bitmap (struct font *font, unsigned code,</em>
+<a id='L710' name='L710'></a>   710 <em class='comment'>                             struct font_bitmap *bitmap, int bits_per_pixel);</em>
+<a id='L711' name='L711'></a>   711 <em class='comment'>   void uniscribe_free_bitmap (struct font *font, struct font_bitmap *bitmap);</em>
+<a id='L712' name='L712'></a>   712 <em class='comment'>   int uniscribe_anchor_point (struct font *font, unsigned code,</em>
+<a id='L713' name='L713'></a>   713 <em class='comment'>                               int index, int *x, int *y);</em>
+<a id='L714' name='L714'></a>   714 <em class='comment'>   int uniscribe_start_for_frame (struct frame *f);</em>
+<a id='L715' name='L715'></a>   715 <em class='comment'>   int uniscribe_end_for_frame (struct frame *f);</em>
+<a id='L716' name='L716'></a>   716 <em class='comment'></em>
+<a id='L717' name='L717'></a>   717 <em class='comment'>*/</em>
+<a id='L718' name='L718'></a>   718 
+<a id='L719' name='L719'></a>   719 
+<a id='L720' name='L720'></a>   720 <em class='comment'>/* Callback function for EnumFontFamiliesEx.</em>
+<a id='L721' name='L721'></a>   721 <em class='comment'>   Adds the name of opentype fonts to a Lisp list (passed in as the</em>
+<a id='L722' name='L722'></a>   722 <em class='comment'>   lParam arg). */</em>
+<a id='L723' name='L723'></a>   723 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong> <a href='../S/97.html#L192' title='Defined at 192 in src/w32fns.c.'>CALLBACK</a> <a href='../D/42.html' title='Multiple defined in 3 places.'>ALIGN_STACK</a>
+<a id='L724' name='L724'></a>   724 <a href='../R/6808.html' title='Multiple referred from 2 places.'>add_opentype_font_name_to_list</a> (ENUMLOGFONTEX *logical_font,
+<a id='L725' name='L725'></a>   725                                 NEWTEXTMETRICEX *physical_font,
+<a id='L726' name='L726'></a>   726                                 DWORD font_type, LPARAM list_object)
+<a id='L727' name='L727'></a>   727 <em class='brace'>{</em>
+<a id='L728' name='L728'></a>   728   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>* <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> *) list_object;
+<a id='L729' name='L729'></a>   729   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> family;
+<a id='L730' name='L730'></a>   730 
+<a id='L731' name='L731'></a>   731   <em class='comment'>/* Skip vertical fonts (intended only for printing)  */</em>
+<a id='L732' name='L732'></a>   732   <strong class='reserved'>if</strong> (logical_font-&gt;elfLogFont.lfFaceName[0] == '@')
+<a id='L733' name='L733'></a>   733     <strong class='reserved'>return</strong> 1;
+<a id='L734' name='L734'></a>   734 
+<a id='L735' name='L735'></a>   735   <em class='comment'>/* Skip non opentype fonts.  Count old truetype fonts as opentype,</em>
+<a id='L736' name='L736'></a>   736 <em class='comment'>     as some of them do contain GPOS and GSUB data that Uniscribe</em>
+<a id='L737' name='L737'></a>   737 <em class='comment'>     can make use of.  */</em>
+<a id='L738' name='L738'></a>   738   <strong class='reserved'>if</strong> (!(physical_font-&gt;ntmTm.ntmFlags &amp; <a href='../S/169.html#L36' title='Defined at 36 in src/w32font.h.'>NTMFLAGS_OPENTYPE</a>)
+<a id='L739' name='L739'></a>   739       &amp;&amp; font_type != TRUETYPE_FONTTYPE)
+<a id='L740' name='L740'></a>   740     <strong class='reserved'>return</strong> 1;
+<a id='L741' name='L741'></a>   741 
+<a id='L742' name='L742'></a>   742   <em class='comment'>/* Skip fonts that have no Unicode coverage.  */</em>
+<a id='L743' name='L743'></a>   743   <strong class='reserved'>if</strong> (!physical_font-&gt;ntmFontSig.fsUsb[3]
+<a id='L744' name='L744'></a>   744       &amp;&amp; !physical_font-&gt;ntmFontSig.fsUsb[2]
+<a id='L745' name='L745'></a>   745       &amp;&amp; !physical_font-&gt;ntmFontSig.fsUsb[1]
+<a id='L746' name='L746'></a>   746       &amp;&amp; !(physical_font-&gt;ntmFontSig.fsUsb[0] &amp; 0x3fffffff))
+<a id='L747' name='L747'></a>   747     <strong class='reserved'>return</strong> 1;
+<a id='L748' name='L748'></a>   748 
+<a id='L749' name='L749'></a>   749   family = <a href='../S/118.html#L241' title='Defined at 241 in src/w32font.c.'>intern_font_name</a> (logical_font-&gt;elfLogFont.lfFaceName);
+<a id='L750' name='L750'></a>   750   <strong class='reserved'>if</strong> (! <a href='../D/12911.html' title='Multiple defined in 2 places.'>memq_no_quit</a> (family, *<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>))
+<a id='L751' name='L751'></a>   751     *<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = Fcons (family, *<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>);
+<a id='L752' name='L752'></a>   752 
+<a id='L753' name='L753'></a>   753   <strong class='reserved'>return</strong> 1;
+<a id='L754' name='L754'></a>   754 <em class='brace'>}</em>
+<a id='L755' name='L755'></a>   755 
+<a id='L756' name='L756'></a>   756 
+<a id='L757' name='L757'></a>   757 <em class='comment'>/* :otf property handling.</em>
+<a id='L758' name='L758'></a>   758 <em class='comment'>   Since the necessary Uniscribe APIs for getting font tag information</em>
+<a id='L759' name='L759'></a>   759 <em class='comment'>   are only available in Vista, we may need to parse the font data directly</em>
+<a id='L760' name='L760'></a>   760 <em class='comment'>   according to the OpenType Specification.  */</em>
+<a id='L761' name='L761'></a>   761 
+<a id='L762' name='L762'></a>   762 <em class='comment'>/* Push into DWORD backwards to cope with endianness.  */</em>
+<a id='L763' name='L763'></a>   763 <em class='sharp'>#define</em> <a href='../R/3822.html' title='Multiple referred from 12 places.'>OTF_TAG</a>(<a href='../S/271.html#L496' title='Defined at 496 in src/comp.c.'>STR</a>)                                          \
+<a id='L764' name='L764'></a>   764   ((<a href='../S/271.html#L496' title='Defined at 496 in src/comp.c.'>STR</a>[3] &lt;&lt; 24) | (<a href='../S/271.html#L496' title='Defined at 496 in src/comp.c.'>STR</a>[2] &lt;&lt; 16) | (<a href='../S/271.html#L496' title='Defined at 496 in src/comp.c.'>STR</a>[1] &lt;&lt; 8) | <a href='../S/271.html#L496' title='Defined at 496 in src/comp.c.'>STR</a>[0])
+<a id='L765' name='L765'></a>   765 
+<a id='L766' name='L766'></a>   766 <em class='sharp'>#define</em> <a href='../R/3820.html' title='Multiple referred from 22 places.'>OTF_INT16_VAL</a>(TABLE, <a href='../D/4199.html' title='Multiple defined in 2 places.'>OFFSET</a>, PTR)                    \
+<a id='L767' name='L767'></a>   767   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                       \
+<a id='L768' name='L768'></a>   768     BYTE temp, data[2];                                      \
+<a id='L769' name='L769'></a>   769     <strong class='reserved'>if</strong> (GetFontData (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, TABLE, <a href='../D/4199.html' title='Multiple defined in 2 places.'>OFFSET</a>, data, 2) != 2)  \
+<a id='L770' name='L770'></a>   770       <strong class='reserved'>goto</strong> font_table_error;                                 \
+<a id='L771' name='L771'></a>   771     temp = data[0], data[0] = data[1], data[1] = temp;       \
+<a id='L772' name='L772'></a>   772     memcpy (PTR, data, 2);                                   \
+<a id='L773' name='L773'></a>   773   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L774' name='L774'></a>   774 
+<a id='L775' name='L775'></a>   775 <em class='comment'>/* Do not reverse the bytes, because we will compare with a OTF_TAG value</em>
+<a id='L776' name='L776'></a>   776 <em class='comment'>   that has them reversed already.  */</em>
+<a id='L777' name='L777'></a>   777 <em class='sharp'>#define</em> <a href='../R/3819.html' title='Multiple referred from 4 places.'>OTF_DWORDTAG_VAL</a>(TABLE, <a href='../D/4199.html' title='Multiple defined in 2 places.'>OFFSET</a>, PTR)                    \
+<a id='L778' name='L778'></a>   778   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                          \
+<a id='L779' name='L779'></a>   779     <strong class='reserved'>if</strong> (GetFontData (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, TABLE, <a href='../D/4199.html' title='Multiple defined in 2 places.'>OFFSET</a>, PTR, 4) != 4)      \
+<a id='L780' name='L780'></a>   780       <strong class='reserved'>goto</strong> font_table_error;                                    \
+<a id='L781' name='L781'></a>   781   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L782' name='L782'></a>   782 
+<a id='L783' name='L783'></a>   783 <em class='sharp'>#define</em> <a href='../R/3825.html' title='Multiple referred from 4 places.'>OTF_TAG_VAL</a>(TABLE, <a href='../D/4199.html' title='Multiple defined in 2 places.'>OFFSET</a>, <a href='../S/271.html#L496' title='Defined at 496 in src/comp.c.'>STR</a>)                      \
+<a id='L784' name='L784'></a>   784   <strong class='reserved'>do</strong> <em class='brace'>{</em>                                                       \
+<a id='L785' name='L785'></a>   785     <strong class='reserved'>if</strong> (GetFontData (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, TABLE, <a href='../D/4199.html' title='Multiple defined in 2 places.'>OFFSET</a>, <a href='../S/271.html#L496' title='Defined at 496 in src/comp.c.'>STR</a>, 4) != 4)   \
+<a id='L786' name='L786'></a>   786       <strong class='reserved'>goto</strong> font_table_error;                                 \
+<a id='L787' name='L787'></a>   787     <a href='../S/271.html#L496' title='Defined at 496 in src/comp.c.'>STR</a>[4] = '\0';                                           \
+<a id='L788' name='L788'></a>   788   <em class='brace'>}</em> <strong class='reserved'>while</strong> (0)
+<a id='L789' name='L789'></a>   789 
+<a id='L790' name='L790'></a>   790 <em class='sharp'>#define</em> <a href='../R/4781.html' title='Multiple referred from 5 places.'>SNAME</a>(VAL) <a href='../D/5349.html' title='Multiple defined in 2 places.'>SSDATA</a> (<a href='../D/5490.html' title='Multiple defined in 2 places.'>SYMBOL_NAME</a> (VAL))
+<a id='L791' name='L791'></a>   791 
+<a id='L792' name='L792'></a>   792 <em class='comment'>/* Uniscribe APIs available only since Windows Vista.  */</em>
+<a id='L793' name='L793'></a>   793 <strong class='reserved'>typedef</strong> HRESULT (WINAPI *ScriptGetFontScriptTags_Proc)
+<a id='L794' name='L794'></a>   794   (HDC, SCRIPT_CACHE *, SCRIPT_ANALYSIS *, <strong class='reserved'>int</strong>, OPENTYPE_TAG *, <strong class='reserved'>int</strong> *);
+<a id='L795' name='L795'></a>   795 
+<a id='L796' name='L796'></a>   796 <strong class='reserved'>typedef</strong> HRESULT (WINAPI *ScriptGetFontLanguageTags_Proc)
+<a id='L797' name='L797'></a>   797   (HDC, SCRIPT_CACHE *, SCRIPT_ANALYSIS *, OPENTYPE_TAG, <strong class='reserved'>int</strong>, OPENTYPE_TAG *, <strong class='reserved'>int</strong> *);
+<a id='L798' name='L798'></a>   798 
+<a id='L799' name='L799'></a>   799 <strong class='reserved'>typedef</strong> HRESULT (WINAPI *ScriptGetFontFeatureTags_Proc)
+<a id='L800' name='L800'></a>   800   (HDC, SCRIPT_CACHE *, SCRIPT_ANALYSIS *, OPENTYPE_TAG, OPENTYPE_TAG, <strong class='reserved'>int</strong>, OPENTYPE_TAG *, <strong class='reserved'>int</strong> *);
+<a id='L801' name='L801'></a>   801 
+<a id='L802' name='L802'></a>   802 ScriptGetFontScriptTags_Proc script_get_font_scripts_fn;
+<a id='L803' name='L803'></a>   803 ScriptGetFontLanguageTags_Proc script_get_font_languages_fn;
+<a id='L804' name='L804'></a>   804 ScriptGetFontFeatureTags_Proc script_get_font_features_fn;
+<a id='L805' name='L805'></a>   805 
+<a id='L806' name='L806'></a>   806 <strong class='reserved'>static</strong> <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> uniscribe_new_apis;
+<a id='L807' name='L807'></a>   807 
+<a id='L808' name='L808'></a>   808 <em class='comment'>/* Verify that all the required features in FEATURES, each of whose</em>
+<a id='L809' name='L809'></a>   809 <em class='comment'>   elements is a list or nil, can be found among the N feature tags in</em>
+<a id='L810' name='L810'></a>   810 <em class='comment'>   FTAGS.  Return 'true' if the required features are supported,</em>
+<a id='L811' name='L811'></a>   811 <em class='comment'>   'false' if not.  Each list in FEATURES can include an element of</em>
+<a id='L812' name='L812'></a>   812 <em class='comment'>   nil, which means all the elements after it must not be in FTAGS.  */</em>
+<a id='L813' name='L813'></a>   813 <strong class='reserved'>static</strong> <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L814' name='L814'></a>   814 <a href='../R/15298.html' title='Multiple referred from 2 places.'>uniscribe_check_features</a> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> features[2], OPENTYPE_TAG *ftags, <strong class='reserved'>int</strong> n)
+<a id='L815' name='L815'></a>   815 <em class='brace'>{</em>
+<a id='L816' name='L816'></a>   816   <strong class='reserved'>int</strong> j;
+<a id='L817' name='L817'></a>   817 
+<a id='L818' name='L818'></a>   818   <strong class='reserved'>for</strong> (j = 0; j &lt; 2; j++)
+<a id='L819' name='L819'></a>   819     <em class='brace'>{</em>
+<a id='L820' name='L820'></a>   820       <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> negative = <a href='../S/3907.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L821' name='L821'></a>   821       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> rest;
+<a id='L822' name='L822'></a>   822 
+<a id='L823' name='L823'></a>   823       <strong class='reserved'>for</strong> (rest = features[j]; <a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (rest); rest = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (rest))
+<a id='L824' name='L824'></a>   824         <em class='brace'>{</em>
+<a id='L825' name='L825'></a>   825           <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> feature = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (rest);
+<a id='L826' name='L826'></a>   826 
+<a id='L827' name='L827'></a>   827           <em class='comment'>/* The font must NOT have any of the features after nil.</em>
+<a id='L828' name='L828'></a>   828 <em class='comment'>             See the doc string of 'font-spec', under ':otf'.  */</em>
+<a id='L829' name='L829'></a>   829           <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (feature))
+<a id='L830' name='L830'></a>   830             negative = <a href='../S/3907.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L831' name='L831'></a>   831           <strong class='reserved'>else</strong>
+<a id='L832' name='L832'></a>   832             <em class='brace'>{</em>
+<a id='L833' name='L833'></a>   833               OPENTYPE_TAG feature_tag = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> (<a href='../S/328.html#L790' title='Defined at 790 in src/w32uniscribe.c.'>SNAME</a> (feature));
+<a id='L834' name='L834'></a>   834               <strong class='reserved'>int</strong> i;
+<a id='L835' name='L835'></a>   835 
+<a id='L836' name='L836'></a>   836               <strong class='reserved'>for</strong> (i = 0; i &lt; n; i++)
+<a id='L837' name='L837'></a>   837                 <em class='brace'>{</em>
+<a id='L838' name='L838'></a>   838                   <strong class='reserved'>if</strong> (ftags[i] == feature_tag)
+<a id='L839' name='L839'></a>   839                     <em class='brace'>{</em>
+<a id='L840' name='L840'></a>   840                       <em class='comment'>/* Test fails if we find a feature that the font</em>
+<a id='L841' name='L841'></a>   841 <em class='comment'>                         must NOT have.  */</em>
+<a id='L842' name='L842'></a>   842                       <strong class='reserved'>if</strong> (negative)
+<a id='L843' name='L843'></a>   843                         <strong class='reserved'>return</strong> <a href='../S/3907.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L844' name='L844'></a>   844                       <strong class='reserved'>break</strong>;
+<a id='L845' name='L845'></a>   845                     <em class='brace'>}</em>
+<a id='L846' name='L846'></a>   846                 <em class='brace'>}</em>
+<a id='L847' name='L847'></a>   847 
+<a id='L848' name='L848'></a>   848               <em class='comment'>/* Test fails if we do NOT find a feature that the font</em>
+<a id='L849' name='L849'></a>   849 <em class='comment'>                 should have.  */</em>
+<a id='L850' name='L850'></a>   850               <strong class='reserved'>if</strong> (i &gt;= n &amp;&amp; !negative)
+<a id='L851' name='L851'></a>   851                 <strong class='reserved'>return</strong> <a href='../S/3907.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L852' name='L852'></a>   852             <em class='brace'>}</em>
+<a id='L853' name='L853'></a>   853         <em class='brace'>}</em>
+<a id='L854' name='L854'></a>   854     <em class='brace'>}</em>
+<a id='L855' name='L855'></a>   855 
+<a id='L856' name='L856'></a>   856   <strong class='reserved'>return</strong> <a href='../S/3907.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L857' name='L857'></a>   857 <em class='brace'>}</em>
+<a id='L858' name='L858'></a>   858 
+<a id='L859' name='L859'></a>   859 <em class='comment'>/* Check if font supports the required OTF script/language/features</em>
+<a id='L860' name='L860'></a>   860 <em class='comment'>   using the Unsicribe APIs available since Windows Vista.  We prefer</em>
+<a id='L861' name='L861'></a>   861 <em class='comment'>   these APIs as a kind of future-proofing Emacs: they seem to</em>
+<a id='L862' name='L862'></a>   862 <em class='comment'>   retrieve script tags that the old code (and also libotf) doesn't</em>
+<a id='L863' name='L863'></a>   863 <em class='comment'>   seem to be able to get, e.g., some fonts that claim support for</em>
+<a id='L864' name='L864'></a>   864 <em class='comment'>   "dev2" script don't show "deva", but the new APIs do report it.  */</em>
+<a id='L865' name='L865'></a>   865 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L866' name='L866'></a>   866 <a href='../S/328.html#L997' title='Referred from 997 in src/w32uniscribe.c.'>uniscribe_check_otf_1</a> (HDC <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> script, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> lang,
+<a id='L867' name='L867'></a>   867                        <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> features[2], <strong class='reserved'>int</strong> *retval)
+<a id='L868' name='L868'></a>   868 <em class='brace'>{</em>
+<a id='L869' name='L869'></a>   869   SCRIPT_CACHE cache = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L870' name='L870'></a>   870   OPENTYPE_TAG tags[32], script_tag, lang_tag;
+<a id='L871' name='L871'></a>   871   <strong class='reserved'>int</strong> max_tags = <a href='../D/75.html' title='Multiple defined in 2 places.'>ARRAYELTS</a> (tags);
+<a id='L872' name='L872'></a>   872   <strong class='reserved'>int</strong> ntags, i, ret = 0;
+<a id='L873' name='L873'></a>   873   HRESULT rslt;
+<a id='L874' name='L874'></a>   874 
+<a id='L875' name='L875'></a>   875   *retval = 0;
+<a id='L876' name='L876'></a>   876 
+<a id='L877' name='L877'></a>   877   rslt = script_get_font_scripts_fn (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, &amp;cache, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, max_tags,
+<a id='L878' name='L878'></a>   878                                      tags, &amp;ntags);
+<a id='L879' name='L879'></a>   879   <strong class='reserved'>if</strong> (FAILED (rslt))
+<a id='L880' name='L880'></a>   880     <em class='brace'>{</em>
+<a id='L881' name='L881'></a>   881       <a href='../D/1456.html' title='Multiple defined in 2 places.'>DebPrint</a> (("ScriptGetFontScriptTags failed with 0x%x\n", rslt));
+<a id='L882' name='L882'></a>   882       ret = -1;
+<a id='L883' name='L883'></a>   883       <strong class='reserved'>goto</strong> no_support;
+<a id='L884' name='L884'></a>   884     <em class='brace'>}</em>
+<a id='L885' name='L885'></a>   885   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (script))
+<a id='L886' name='L886'></a>   886     script_tag = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> ("DFLT");
+<a id='L887' name='L887'></a>   887   <strong class='reserved'>else</strong>
+<a id='L888' name='L888'></a>   888     script_tag = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> (<a href='../S/328.html#L790' title='Defined at 790 in src/w32uniscribe.c.'>SNAME</a> (script));
+<a id='L889' name='L889'></a>   889   <strong class='reserved'>for</strong> (i = 0; i &lt; ntags; i++)
+<a id='L890' name='L890'></a>   890     <strong class='reserved'>if</strong> (tags[i] == script_tag)
+<a id='L891' name='L891'></a>   891       <strong class='reserved'>break</strong>;
+<a id='L892' name='L892'></a>   892 
+<a id='L893' name='L893'></a>   893   <strong class='reserved'>if</strong> (i &gt;= ntags)
+<a id='L894' name='L894'></a>   894     <strong class='reserved'>goto</strong> no_support;
+<a id='L895' name='L895'></a>   895 
+<a id='L896' name='L896'></a>   896   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (lang))
+<a id='L897' name='L897'></a>   897     lang_tag = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> ("dflt");
+<a id='L898' name='L898'></a>   898   <strong class='reserved'>else</strong>
+<a id='L899' name='L899'></a>   899     <em class='brace'>{</em>
+<a id='L900' name='L900'></a>   900       rslt = script_get_font_languages_fn (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, &amp;cache, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, script_tag,
+<a id='L901' name='L901'></a>   901                                            max_tags, tags, &amp;ntags);
+<a id='L902' name='L902'></a>   902       <strong class='reserved'>if</strong> (FAILED (rslt))
+<a id='L903' name='L903'></a>   903         <em class='brace'>{</em>
+<a id='L904' name='L904'></a>   904           <a href='../D/1456.html' title='Multiple defined in 2 places.'>DebPrint</a> (("ScriptGetFontLanguageTags failed with 0x%x\n", rslt));
+<a id='L905' name='L905'></a>   905           ret = -1;
+<a id='L906' name='L906'></a>   906           <strong class='reserved'>goto</strong> no_support;
+<a id='L907' name='L907'></a>   907         <em class='brace'>}</em>
+<a id='L908' name='L908'></a>   908       <strong class='reserved'>if</strong> (ntags == 0)
+<a id='L909' name='L909'></a>   909         lang_tag = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> ("dflt");
+<a id='L910' name='L910'></a>   910       <strong class='reserved'>else</strong>
+<a id='L911' name='L911'></a>   911         <em class='brace'>{</em>
+<a id='L912' name='L912'></a>   912           lang_tag = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> (<a href='../S/328.html#L790' title='Defined at 790 in src/w32uniscribe.c.'>SNAME</a> (lang));
+<a id='L913' name='L913'></a>   913           <strong class='reserved'>for</strong> (i = 0; i &lt; ntags; i++)
+<a id='L914' name='L914'></a>   914             <strong class='reserved'>if</strong> (tags[i] == lang_tag)
+<a id='L915' name='L915'></a>   915               <strong class='reserved'>break</strong>;
+<a id='L916' name='L916'></a>   916 
+<a id='L917' name='L917'></a>   917           <strong class='reserved'>if</strong> (i &gt;= ntags)
+<a id='L918' name='L918'></a>   918             <strong class='reserved'>goto</strong> no_support;
+<a id='L919' name='L919'></a>   919         <em class='brace'>}</em>
+<a id='L920' name='L920'></a>   920     <em class='brace'>}</em>
+<a id='L921' name='L921'></a>   921 
+<a id='L922' name='L922'></a>   922   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (features[0]))
+<a id='L923' name='L923'></a>   923     <em class='brace'>{</em>
+<a id='L924' name='L924'></a>   924       <em class='comment'>/* Are the 2 feature lists valid?  */</em>
+<a id='L925' name='L925'></a>   925       <strong class='reserved'>if</strong> (!<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (features[0])
+<a id='L926' name='L926'></a>   926           || (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (features[1]) &amp;&amp; !<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (features[1])))
+<a id='L927' name='L927'></a>   927         <strong class='reserved'>goto</strong> no_support;
+<a id='L928' name='L928'></a>   928       rslt = script_get_font_features_fn (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, &amp;cache, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>,
+<a id='L929' name='L929'></a>   929                                           script_tag, lang_tag,
+<a id='L930' name='L930'></a>   930                                           max_tags, tags, &amp;ntags);
+<a id='L931' name='L931'></a>   931       <strong class='reserved'>if</strong> (FAILED (rslt))
+<a id='L932' name='L932'></a>   932         <em class='brace'>{</em>
+<a id='L933' name='L933'></a>   933           <a href='../D/1456.html' title='Multiple defined in 2 places.'>DebPrint</a> (("ScriptGetFontFeatureTags failed with 0x%x\n", rslt));
+<a id='L934' name='L934'></a>   934           ret = -1;
+<a id='L935' name='L935'></a>   935           <strong class='reserved'>goto</strong> no_support;
+<a id='L936' name='L936'></a>   936         <em class='brace'>}</em>
+<a id='L937' name='L937'></a>   937 
+<a id='L938' name='L938'></a>   938       <em class='comment'>/* ScriptGetFontFeatureTags doesn't let us query features</em>
+<a id='L939' name='L939'></a>   939 <em class='comment'>         separately for GSUB and GPOS, so we check them all together.</em>
+<a id='L940' name='L940'></a>   940 <em class='comment'>         It doesn't really matter, since the features in GSUB and GPOS</em>
+<a id='L941' name='L941'></a>   941 <em class='comment'>         are disjoint, i.e. no feature can appear in both tables.  */</em>
+<a id='L942' name='L942'></a>   942       <strong class='reserved'>if</strong> (!<a href='../S/328.html#L814' title='Defined at 814 in src/w32uniscribe.c.'>uniscribe_check_features</a> (features, tags, ntags))
+<a id='L943' name='L943'></a>   943         <strong class='reserved'>goto</strong> no_support;
+<a id='L944' name='L944'></a>   944     <em class='brace'>}</em>
+<a id='L945' name='L945'></a>   945 
+<a id='L946' name='L946'></a>   946   ret = 1;
+<a id='L947' name='L947'></a>   947   *retval = 1;
+<a id='L948' name='L948'></a>   948 
+<a id='L949' name='L949'></a>   949  no_support:
+<a id='L950' name='L950'></a>   950   <strong class='reserved'>if</strong> (cache)
+<a id='L951' name='L951'></a>   951     ScriptFreeCache (&amp;cache);
+<a id='L952' name='L952'></a>   952   <strong class='reserved'>return</strong> ret;
+<a id='L953' name='L953'></a>   953 <em class='brace'>}</em>
+<a id='L954' name='L954'></a>   954 
+<a id='L955' name='L955'></a>   955 <em class='comment'>/* Check if font supports the otf script/language/features specified.</em>
+<a id='L956' name='L956'></a>   956 <em class='comment'>   OTF_SPEC is in the format</em>
+<a id='L957' name='L957'></a>   957 <em class='comment'>     (script lang [(gsub_feature ...)|nil] [(gpos_feature ...)]?) */</em>
+<a id='L958' name='L958'></a>   958 <strong class='reserved'>int</strong>
+<a id='L959' name='L959'></a>   959 <a href='../R/15299.html' title='Multiple referred from 2 places.'>uniscribe_check_otf</a> (LOGFONT *<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> otf_spec)
+<a id='L960' name='L960'></a>   960 <em class='brace'>{</em>
+<a id='L961' name='L961'></a>   961   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> script, lang, rest;
+<a id='L962' name='L962'></a>   962   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> features[2];
+<a id='L963' name='L963'></a>   963   DWORD feature_tables[2];
+<a id='L964' name='L964'></a>   964   DWORD script_tag, default_script, lang_tag = 0;
+<a id='L965' name='L965'></a>   965   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> * <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>;
+<a id='L966' name='L966'></a>   966   HDC <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>;
+<a id='L967' name='L967'></a>   967   HFONT check_font, old_font;
+<a id='L968' name='L968'></a>   968   <strong class='reserved'>int</strong> i, retval = 0;
+<a id='L969' name='L969'></a>   969 
+<a id='L970' name='L970'></a>   970   <em class='comment'>/* Check the spec is in the right format.  */</em>
+<a id='L971' name='L971'></a>   971   <strong class='reserved'>if</strong> (!<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (otf_spec) || <a href='../S/125.html#L1294' title='Defined at 1294 in src/lisp.h.'>XFIXNUM</a> (Flength (otf_spec)) &lt; 3)
+<a id='L972' name='L972'></a>   972     <strong class='reserved'>return</strong> 0;
+<a id='L973' name='L973'></a>   973 
+<a id='L974' name='L974'></a>   974   <em class='comment'>/* Break otf_spec into its components.  */</em>
+<a id='L975' name='L975'></a>   975   script = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (otf_spec);
+<a id='L976' name='L976'></a>   976   rest = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (otf_spec);
+<a id='L977' name='L977'></a>   977 
+<a id='L978' name='L978'></a>   978   lang = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (rest);
+<a id='L979' name='L979'></a>   979   rest = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (rest);
+<a id='L980' name='L980'></a>   980 
+<a id='L981' name='L981'></a>   981   features[0] = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (rest);
+<a id='L982' name='L982'></a>   982   rest = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (rest);
+<a id='L983' name='L983'></a>   983   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (rest))
+<a id='L984' name='L984'></a>   984     features[1] = Qnil;
+<a id='L985' name='L985'></a>   985   <strong class='reserved'>else</strong>
+<a id='L986' name='L986'></a>   986     features[1] = <a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (rest);
+<a id='L987' name='L987'></a>   987 
+<a id='L988' name='L988'></a>   988   <em class='comment'>/* Set up graphics context so we can use the font.  */</em>
+<a id='L989' name='L989'></a>   989   <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/65.html#L839' title='Defined at 839 in src/frame.h.'>XFRAME</a> (selected_frame);
+<a id='L990' name='L990'></a>   990   <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../S/149.html#L158' title='Defined at 158 in src/w32xfns.c.'>get_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L991' name='L991'></a>   991   check_font = CreateFontIndirect (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>);
+<a id='L992' name='L992'></a>   992   old_font = SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, check_font);
+<a id='L993' name='L993'></a>   993 
+<a id='L994' name='L994'></a>   994   <em class='comment'>/* If we are on Vista or later, use the new APIs.  */</em>
+<a id='L995' name='L995'></a>   995   <strong class='reserved'>if</strong> (uniscribe_new_apis
+<a id='L996' name='L996'></a>   996       &amp;&amp; !w32_disable_new_uniscribe_apis
+<a id='L997' name='L997'></a>   997       &amp;&amp; <a href='../S/328.html#L866' title='Defined at 866 in src/w32uniscribe.c.'>uniscribe_check_otf_1</a> (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, script, lang, features, &amp;retval) != -1)
+<a id='L998' name='L998'></a>   998     <strong class='reserved'>goto</strong> done;
+<a id='L999' name='L999'></a>   999 
+<a id='L1000' name='L1000'></a>  1000   <em class='comment'>/* Set up tags we will use in the search.  */</em>
+<a id='L1001' name='L1001'></a>  1001   feature_tables[0] = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> ("GSUB");
+<a id='L1002' name='L1002'></a>  1002   feature_tables[1] = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> ("GPOS");
+<a id='L1003' name='L1003'></a>  1003   default_script = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> ("DFLT");
+<a id='L1004' name='L1004'></a>  1004   <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (script))
+<a id='L1005' name='L1005'></a>  1005     script_tag = default_script;
+<a id='L1006' name='L1006'></a>  1006   <strong class='reserved'>else</strong>
+<a id='L1007' name='L1007'></a>  1007     script_tag = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> (<a href='../S/328.html#L790' title='Defined at 790 in src/w32uniscribe.c.'>SNAME</a> (script));
+<a id='L1008' name='L1008'></a>  1008   <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (lang))
+<a id='L1009' name='L1009'></a>  1009     lang_tag = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> (<a href='../S/328.html#L790' title='Defined at 790 in src/w32uniscribe.c.'>SNAME</a> (lang));
+<a id='L1010' name='L1010'></a>  1010 
+<a id='L1011' name='L1011'></a>  1011   <em class='comment'>/* Scan GSUB and GPOS tables.  */</em>
+<a id='L1012' name='L1012'></a>  1012   <strong class='reserved'>for</strong> (i = 0; i &lt; 2; i++)
+<a id='L1013' name='L1013'></a>  1013     <em class='brace'>{</em>
+<a id='L1014' name='L1014'></a>  1014       <strong class='reserved'>int</strong> j, n_match_features;
+<a id='L1015' name='L1015'></a>  1015       <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> scriptlist_table, feature_table, n_scripts;
+<a id='L1016' name='L1016'></a>  1016       <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> script_table, langsys_table, n_langs;
+<a id='L1017' name='L1017'></a>  1017       <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> feature_index, n_features;
+<a id='L1018' name='L1018'></a>  1018       DWORD tbl = feature_tables[i];
+<a id='L1019' name='L1019'></a>  1019       DWORD feature_id, *ftags;
+<a id='L1020' name='L1020'></a>  1020       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> farray[2];
+<a id='L1021' name='L1021'></a>  1021 
+<a id='L1022' name='L1022'></a>  1022       <em class='comment'>/* Skip if no features requested from this table.  */</em>
+<a id='L1023' name='L1023'></a>  1023       <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (features[i]))
+<a id='L1024' name='L1024'></a>  1024         <strong class='reserved'>continue</strong>;
+<a id='L1025' name='L1025'></a>  1025 
+<a id='L1026' name='L1026'></a>  1026       <em class='comment'>/* If features is not a cons, this font spec is messed up.  */</em>
+<a id='L1027' name='L1027'></a>  1027       <strong class='reserved'>if</strong> (!<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (features[i]))
+<a id='L1028' name='L1028'></a>  1028         <strong class='reserved'>goto</strong> no_support;
+<a id='L1029' name='L1029'></a>  1029 
+<a id='L1030' name='L1030'></a>  1030       <em class='comment'>/* Read GPOS/GSUB header.  */</em>
+<a id='L1031' name='L1031'></a>  1031       <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, 4, &amp;scriptlist_table);
+<a id='L1032' name='L1032'></a>  1032       <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, 6, &amp;feature_table);
+<a id='L1033' name='L1033'></a>  1033       <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, scriptlist_table, &amp;n_scripts);
+<a id='L1034' name='L1034'></a>  1034 
+<a id='L1035' name='L1035'></a>  1035       <em class='comment'>/* Find the appropriate script table.  */</em>
+<a id='L1036' name='L1036'></a>  1036       script_table = 0;
+<a id='L1037' name='L1037'></a>  1037       <strong class='reserved'>for</strong> (j = 0; j &lt; n_scripts; j++)
+<a id='L1038' name='L1038'></a>  1038         <em class='brace'>{</em>
+<a id='L1039' name='L1039'></a>  1039           DWORD script_id;
+<a id='L1040' name='L1040'></a>  1040           <a href='../S/328.html#L777' title='Defined at 777 in src/w32uniscribe.c.'>OTF_DWORDTAG_VAL</a> (tbl, scriptlist_table + 2 + j * 6, &amp;script_id);
+<a id='L1041' name='L1041'></a>  1041           <strong class='reserved'>if</strong> (script_id == script_tag)
+<a id='L1042' name='L1042'></a>  1042             <em class='brace'>{</em>
+<a id='L1043' name='L1043'></a>  1043               <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, scriptlist_table + 6 + j * 6, &amp;script_table);
+<a id='L1044' name='L1044'></a>  1044               <strong class='reserved'>break</strong>;
+<a id='L1045' name='L1045'></a>  1045             <em class='brace'>}</em>
+<a id='L1046' name='L1046'></a>  1046 <em class='sharp'>#if</em> 0     <em class='comment'>/* Causes false positives.  */</em>
+<a id='L1047' name='L1047'></a>  1047           <em class='comment'>/* If there is a DFLT script defined in the font, use it</em>
+<a id='L1048' name='L1048'></a>  1048 <em class='comment'>             if the specified script is not found.  */</em>
+<a id='L1049' name='L1049'></a>  1049           <strong class='reserved'>else</strong> <strong class='reserved'>if</strong> (script_id == default_script)
+<a id='L1050' name='L1050'></a>  1050             <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, scriptlist_table + 6 + j * 6, &amp;script_table);
+<a id='L1051' name='L1051'></a>  1051 <em class='sharp'>#endif</em>
+<a id='L1052' name='L1052'></a>  1052         <em class='brace'>}</em>
+<a id='L1053' name='L1053'></a>  1053       <em class='comment'>/* If no specific or default script table was found, then this font</em>
+<a id='L1054' name='L1054'></a>  1054 <em class='comment'>         does not support the script.  */</em>
+<a id='L1055' name='L1055'></a>  1055       <strong class='reserved'>if</strong> (!script_table)
+<a id='L1056' name='L1056'></a>  1056         <strong class='reserved'>goto</strong> no_support;
+<a id='L1057' name='L1057'></a>  1057 
+<a id='L1058' name='L1058'></a>  1058       <em class='comment'>/* Offset is from beginning of scriptlist_table.  */</em>
+<a id='L1059' name='L1059'></a>  1059       script_table += scriptlist_table;
+<a id='L1060' name='L1060'></a>  1060 
+<a id='L1061' name='L1061'></a>  1061       <em class='comment'>/* Get default langsys table.  */</em>
+<a id='L1062' name='L1062'></a>  1062       <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, script_table, &amp;langsys_table);
+<a id='L1063' name='L1063'></a>  1063 
+<a id='L1064' name='L1064'></a>  1064       <em class='comment'>/* If lang was specified, see if font contains a specific entry.  */</em>
+<a id='L1065' name='L1065'></a>  1065       <strong class='reserved'>if</strong> (!<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (lang))
+<a id='L1066' name='L1066'></a>  1066         <em class='brace'>{</em>
+<a id='L1067' name='L1067'></a>  1067           <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, script_table + 2, &amp;n_langs);
+<a id='L1068' name='L1068'></a>  1068 
+<a id='L1069' name='L1069'></a>  1069           <strong class='reserved'>for</strong> (j = 0; j &lt; n_langs; j++)
+<a id='L1070' name='L1070'></a>  1070             <em class='brace'>{</em>
+<a id='L1071' name='L1071'></a>  1071               DWORD lang_id;
+<a id='L1072' name='L1072'></a>  1072               <a href='../S/328.html#L777' title='Defined at 777 in src/w32uniscribe.c.'>OTF_DWORDTAG_VAL</a> (tbl, script_table + 4 + j * 6, &amp;lang_id);
+<a id='L1073' name='L1073'></a>  1073               <strong class='reserved'>if</strong> (lang_id == lang_tag)
+<a id='L1074' name='L1074'></a>  1074                 <em class='brace'>{</em>
+<a id='L1075' name='L1075'></a>  1075                   <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, script_table + 8 + j * 6, &amp;langsys_table);
+<a id='L1076' name='L1076'></a>  1076                   <strong class='reserved'>break</strong>;
+<a id='L1077' name='L1077'></a>  1077                 <em class='brace'>}</em>
+<a id='L1078' name='L1078'></a>  1078             <em class='brace'>}</em>
+<a id='L1079' name='L1079'></a>  1079         <em class='brace'>}</em>
+<a id='L1080' name='L1080'></a>  1080 
+<a id='L1081' name='L1081'></a>  1081       <strong class='reserved'>if</strong> (!langsys_table)
+<a id='L1082' name='L1082'></a>  1082         <strong class='reserved'>goto</strong> no_support;
+<a id='L1083' name='L1083'></a>  1083 
+<a id='L1084' name='L1084'></a>  1084       <em class='comment'>/* Offset is from beginning of script table.  */</em>
+<a id='L1085' name='L1085'></a>  1085       langsys_table += script_table;
+<a id='L1086' name='L1086'></a>  1086 
+<a id='L1087' name='L1087'></a>  1087       <em class='comment'>/* If there are no features to check, skip checking.  */</em>
+<a id='L1088' name='L1088'></a>  1088       <strong class='reserved'>if</strong> (<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (features[i]))
+<a id='L1089' name='L1089'></a>  1089         <strong class='reserved'>continue</strong>;
+<a id='L1090' name='L1090'></a>  1090       <strong class='reserved'>if</strong> (!<a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (features[i]))
+<a id='L1091' name='L1091'></a>  1091         <strong class='reserved'>goto</strong> no_support;
+<a id='L1092' name='L1092'></a>  1092 
+<a id='L1093' name='L1093'></a>  1093       n_match_features = 0;
+<a id='L1094' name='L1094'></a>  1094 
+<a id='L1095' name='L1095'></a>  1095       <em class='comment'>/* First get required feature (if any).  */</em>
+<a id='L1096' name='L1096'></a>  1096       <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, langsys_table + 2, &amp;feature_index);
+<a id='L1097' name='L1097'></a>  1097       <strong class='reserved'>if</strong> (feature_index != 0xFFFF)
+<a id='L1098' name='L1098'></a>  1098         n_match_features = 1;
+<a id='L1099' name='L1099'></a>  1099       <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, langsys_table + 4, &amp;n_features);
+<a id='L1100' name='L1100'></a>  1100       n_match_features += n_features;
+<a id='L1101' name='L1101'></a>  1101       <a href='../D/5945.html' title='Multiple defined in 2 places.'>USE_SAFE_ALLOCA</a>;
+<a id='L1102' name='L1102'></a>  1102       <a href='../D/4982.html' title='Multiple defined in 2 places.'>SAFE_NALLOCA</a> (ftags, 1, n_match_features);
+<a id='L1103' name='L1103'></a>  1103       <strong class='reserved'>int</strong> k = 0;
+<a id='L1104' name='L1104'></a>  1104       <strong class='reserved'>if</strong> (feature_index != 0xFFFF)
+<a id='L1105' name='L1105'></a>  1105         <em class='brace'>{</em>
+<a id='L1106' name='L1106'></a>  1106           <a href='../S/328.html#L777' title='Defined at 777 in src/w32uniscribe.c.'>OTF_DWORDTAG_VAL</a> (tbl, feature_table + 2 + feature_index * 6,
+<a id='L1107' name='L1107'></a>  1107                             &amp;feature_id);
+<a id='L1108' name='L1108'></a>  1108           ftags[k++] = feature_id;
+<a id='L1109' name='L1109'></a>  1109         <em class='brace'>}</em>
+<a id='L1110' name='L1110'></a>  1110       <em class='comment'>/* Now get all the other features.  */</em>
+<a id='L1111' name='L1111'></a>  1111       <strong class='reserved'>for</strong> (j = 0; j &lt; n_features; j++)
+<a id='L1112' name='L1112'></a>  1112         <em class='brace'>{</em>
+<a id='L1113' name='L1113'></a>  1113           <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, langsys_table + 6 + j * 2, &amp;feature_index);
+<a id='L1114' name='L1114'></a>  1114           <a href='../S/328.html#L777' title='Defined at 777 in src/w32uniscribe.c.'>OTF_DWORDTAG_VAL</a> (tbl, feature_table + 2 + feature_index * 6,
+<a id='L1115' name='L1115'></a>  1115                             &amp;feature_id);
+<a id='L1116' name='L1116'></a>  1116           ftags[k++] = feature_id;
+<a id='L1117' name='L1117'></a>  1117         <em class='brace'>}</em>
+<a id='L1118' name='L1118'></a>  1118 
+<a id='L1119' name='L1119'></a>  1119       <em class='comment'>/* Check the features for this table.  */</em>
+<a id='L1120' name='L1120'></a>  1120       farray[0] = features[i];
+<a id='L1121' name='L1121'></a>  1121       farray[1] = Qnil;
+<a id='L1122' name='L1122'></a>  1122       <strong class='reserved'>if</strong> (!<a href='../S/328.html#L814' title='Defined at 814 in src/w32uniscribe.c.'>uniscribe_check_features</a> (farray, ftags, n_match_features))
+<a id='L1123' name='L1123'></a>  1123         <strong class='reserved'>goto</strong> no_support;
+<a id='L1124' name='L1124'></a>  1124       <a href='../D/4980.html' title='Multiple defined in 2 places.'>SAFE_FREE</a> ();
+<a id='L1125' name='L1125'></a>  1125     <em class='brace'>}</em>
+<a id='L1126' name='L1126'></a>  1126 
+<a id='L1127' name='L1127'></a>  1127   retval = 1;
+<a id='L1128' name='L1128'></a>  1128 
+<a id='L1129' name='L1129'></a>  1129  done:
+<a id='L1130' name='L1130'></a>  1130  no_support:
+<a id='L1131' name='L1131'></a>  1131  font_table_error:
+<a id='L1132' name='L1132'></a>  1132   <em class='comment'>/* restore graphics context.  */</em>
+<a id='L1133' name='L1133'></a>  1133   SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, old_font);
+<a id='L1134' name='L1134'></a>  1134   DeleteObject (check_font);
+<a id='L1135' name='L1135'></a>  1135   <a href='../S/149.html#L229' title='Defined at 229 in src/w32xfns.c.'>release_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L1136' name='L1136'></a>  1136 
+<a id='L1137' name='L1137'></a>  1137   <strong class='reserved'>return</strong> retval;
+<a id='L1138' name='L1138'></a>  1138 <em class='brace'>}</em>
+<a id='L1139' name='L1139'></a>  1139 
+<a id='L1140' name='L1140'></a>  1140 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L1141' name='L1141'></a>  1141 <a href='../R/12549.html' title='Multiple referred from 23 places.'>otf_features</a> (HDC <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <strong class='reserved'>const</strong> <strong class='reserved'>char</strong> *table)
+<a id='L1142' name='L1142'></a>  1142 <em class='brace'>{</em>
+<a id='L1143' name='L1143'></a>  1143   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> script_list = Qnil;
+<a id='L1144' name='L1144'></a>  1144   <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> scriptlist_table, n_scripts, feature_table;
+<a id='L1145' name='L1145'></a>  1145   DWORD tbl = <a href='../D/4275.html' title='Multiple defined in 2 places.'>OTF_TAG</a> (table);
+<a id='L1146' name='L1146'></a>  1146   <strong class='reserved'>int</strong> i, j, k;
+<a id='L1147' name='L1147'></a>  1147 
+<a id='L1148' name='L1148'></a>  1148   <em class='comment'>/* Look for scripts in the table.  */</em>
+<a id='L1149' name='L1149'></a>  1149   <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, 4, &amp;scriptlist_table);
+<a id='L1150' name='L1150'></a>  1150   <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, 6, &amp;feature_table);
+<a id='L1151' name='L1151'></a>  1151   <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, scriptlist_table, &amp;n_scripts);
+<a id='L1152' name='L1152'></a>  1152 
+<a id='L1153' name='L1153'></a>  1153   <strong class='reserved'>for</strong> (i = n_scripts - 1; i &gt;= 0; i--)
+<a id='L1154' name='L1154'></a>  1154     <em class='brace'>{</em>
+<a id='L1155' name='L1155'></a>  1155       <strong class='reserved'>char</strong> script[5], lang[5];
+<a id='L1156' name='L1156'></a>  1156       <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> script_table, lang_count, langsys_table, feature_count;
+<a id='L1157' name='L1157'></a>  1157       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> script_tag, langsys_list, langsys_tag, feature_list;
+<a id='L1158' name='L1158'></a>  1158       <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> record_offset = scriptlist_table + 2 + i * 6;
+<a id='L1159' name='L1159'></a>  1159       <a href='../D/4278.html' title='Multiple defined in 2 places.'>OTF_TAG_VAL</a> (tbl, record_offset, script);
+<a id='L1160' name='L1160'></a>  1160       <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, record_offset + 4, &amp;script_table);
+<a id='L1161' name='L1161'></a>  1161 
+<a id='L1162' name='L1162'></a>  1162       <em class='comment'>/* Offset is from beginning of script table.  */</em>
+<a id='L1163' name='L1163'></a>  1163       script_table += scriptlist_table;
+<a id='L1164' name='L1164'></a>  1164 
+<a id='L1165' name='L1165'></a>  1165       script_tag = <a href='../D/11970.html' title='Multiple defined in 2 places.'>intern</a> (script);
+<a id='L1166' name='L1166'></a>  1166       langsys_list = Qnil;
+<a id='L1167' name='L1167'></a>  1167 
+<a id='L1168' name='L1168'></a>  1168       <em class='comment'>/* Optional default lang.  */</em>
+<a id='L1169' name='L1169'></a>  1169       <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, script_table, &amp;langsys_table);
+<a id='L1170' name='L1170'></a>  1170       <strong class='reserved'>if</strong> (langsys_table)
+<a id='L1171' name='L1171'></a>  1171         <em class='brace'>{</em>
+<a id='L1172' name='L1172'></a>  1172           <em class='comment'>/* Offset is from beginning of script table.  */</em>
+<a id='L1173' name='L1173'></a>  1173           langsys_table += script_table;
+<a id='L1174' name='L1174'></a>  1174 
+<a id='L1175' name='L1175'></a>  1175           langsys_tag = Qnil;
+<a id='L1176' name='L1176'></a>  1176           feature_list = Qnil;
+<a id='L1177' name='L1177'></a>  1177           <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, langsys_table + 4, &amp;feature_count);
+<a id='L1178' name='L1178'></a>  1178           <strong class='reserved'>for</strong> (k = feature_count - 1; k &gt;= 0; k--)
+<a id='L1179' name='L1179'></a>  1179             <em class='brace'>{</em>
+<a id='L1180' name='L1180'></a>  1180               <strong class='reserved'>char</strong> feature[5];
+<a id='L1181' name='L1181'></a>  1181               <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> <a href='../S/27.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a>;
+<a id='L1182' name='L1182'></a>  1182               <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, langsys_table + 6 + k * 2, &amp;<a href='../S/27.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a>);
+<a id='L1183' name='L1183'></a>  1183               <a href='../D/4278.html' title='Multiple defined in 2 places.'>OTF_TAG_VAL</a> (tbl, feature_table + 2 + <a href='../S/27.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a> * 6, feature);
+<a id='L1184' name='L1184'></a>  1184               feature_list = Fcons (<a href='../D/11970.html' title='Multiple defined in 2 places.'>intern</a> (feature), feature_list);
+<a id='L1185' name='L1185'></a>  1185             <em class='brace'>}</em>
+<a id='L1186' name='L1186'></a>  1186           langsys_list = Fcons (Fcons (langsys_tag, feature_list),
+<a id='L1187' name='L1187'></a>  1187                                 langsys_list);
+<a id='L1188' name='L1188'></a>  1188         <em class='brace'>}</em>
+<a id='L1189' name='L1189'></a>  1189 
+<a id='L1190' name='L1190'></a>  1190       <em class='comment'>/* List of supported languages.  */</em>
+<a id='L1191' name='L1191'></a>  1191       <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, script_table + 2, &amp;lang_count);
+<a id='L1192' name='L1192'></a>  1192 
+<a id='L1193' name='L1193'></a>  1193       <strong class='reserved'>for</strong> (j = lang_count - 1; j &gt;= 0; j--)
+<a id='L1194' name='L1194'></a>  1194         <em class='brace'>{</em>
+<a id='L1195' name='L1195'></a>  1195           record_offset = script_table + 4 + j * 6;
+<a id='L1196' name='L1196'></a>  1196           <a href='../D/4278.html' title='Multiple defined in 2 places.'>OTF_TAG_VAL</a> (tbl, record_offset, lang);
+<a id='L1197' name='L1197'></a>  1197           <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, record_offset + 4, &amp;langsys_table);
+<a id='L1198' name='L1198'></a>  1198 
+<a id='L1199' name='L1199'></a>  1199           <em class='comment'>/* Offset is from beginning of script table.  */</em>
+<a id='L1200' name='L1200'></a>  1200           langsys_table += script_table;
+<a id='L1201' name='L1201'></a>  1201 
+<a id='L1202' name='L1202'></a>  1202           langsys_tag = <a href='../D/11970.html' title='Multiple defined in 2 places.'>intern</a> (lang);
+<a id='L1203' name='L1203'></a>  1203           feature_list = Qnil;
+<a id='L1204' name='L1204'></a>  1204           <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, langsys_table + 4, &amp;feature_count);
+<a id='L1205' name='L1205'></a>  1205           <strong class='reserved'>for</strong> (k = feature_count - 1; k &gt;= 0; k--)
+<a id='L1206' name='L1206'></a>  1206             <em class='brace'>{</em>
+<a id='L1207' name='L1207'></a>  1207               <strong class='reserved'>char</strong> feature[5];
+<a id='L1208' name='L1208'></a>  1208               <strong class='reserved'>unsigned</strong> <strong class='reserved'>short</strong> <a href='../S/27.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a>;
+<a id='L1209' name='L1209'></a>  1209               <a href='../D/4273.html' title='Multiple defined in 2 places.'>OTF_INT16_VAL</a> (tbl, langsys_table + 6 + k * 2, &amp;<a href='../S/27.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a>);
+<a id='L1210' name='L1210'></a>  1210               <a href='../D/4278.html' title='Multiple defined in 2 places.'>OTF_TAG_VAL</a> (tbl, feature_table + 2 + <a href='../S/27.html#L89' title='Defined at 89 in lib-src/ntlib.h.'>index</a> * 6, feature);
+<a id='L1211' name='L1211'></a>  1211               feature_list = Fcons (<a href='../D/11970.html' title='Multiple defined in 2 places.'>intern</a> (feature), feature_list);
+<a id='L1212' name='L1212'></a>  1212             <em class='brace'>}</em>
+<a id='L1213' name='L1213'></a>  1213           langsys_list = Fcons (Fcons (langsys_tag, feature_list),
+<a id='L1214' name='L1214'></a>  1214                                 langsys_list);
+<a id='L1215' name='L1215'></a>  1215 
+<a id='L1216' name='L1216'></a>  1216         <em class='brace'>}</em>
+<a id='L1217' name='L1217'></a>  1217 
+<a id='L1218' name='L1218'></a>  1218       script_list = Fcons (Fcons (script_tag, langsys_list), script_list);
+<a id='L1219' name='L1219'></a>  1219     <em class='brace'>}</em>
+<a id='L1220' name='L1220'></a>  1220 
+<a id='L1221' name='L1221'></a>  1221   <strong class='reserved'>return</strong> script_list;
+<a id='L1222' name='L1222'></a>  1222 
+<a id='L1223' name='L1223'></a>  1223 font_table_error:
+<a id='L1224' name='L1224'></a>  1224   <strong class='reserved'>return</strong> Qnil;
+<a id='L1225' name='L1225'></a>  1225 <em class='brace'>}</em>
+<a id='L1226' name='L1226'></a>  1226 
+<a id='L1227' name='L1227'></a>  1227 <em class='sharp'>#ifdef</em> HAVE_HARFBUZZ
+<a id='L1228' name='L1228'></a>  1228 
+<a id='L1229' name='L1229'></a>  1229 <em class='comment'>/* W32 implementation of the 'list' method for HarfBuzz backend.  */</em>
+<a id='L1230' name='L1230'></a>  1230 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L1231' name='L1231'></a>  1231 <a href='../S/328.html#L1549' title='Referred from 1549 in src/w32uniscribe.c.'>w32hb_list</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>)
+<a id='L1232' name='L1232'></a>  1232 <em class='brace'>{</em>
+<a id='L1233' name='L1233'></a>  1233   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> fonts = <a href='../S/118.html#L816' title='Defined at 816 in src/w32font.c.'>w32font_list_internal</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>, <a href='../S/3907.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
+<a id='L1234' name='L1234'></a>  1234   <a href='../S/134.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("harfbuzz-list", <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>, fonts);
+<a id='L1235' name='L1235'></a>  1235 
+<a id='L1236' name='L1236'></a>  1236   <strong class='reserved'>for</strong> (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/3636.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = fonts; <a href='../D/1079.html' title='Multiple defined in 2 places.'>CONSP</a> (<a href='../S/3636.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>); <a href='../S/3636.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a> = <a href='../D/6343.html' title='Multiple defined in 2 places.'>XCDR</a> (<a href='../S/3636.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>))
+<a id='L1237' name='L1237'></a>  1237     <a href='../D/85.html' title='Multiple defined in 2 places.'>ASET</a> (<a href='../D/6342.html' title='Multiple defined in 2 places.'>XCAR</a> (<a href='../S/3636.html#L70' title='Defined at 70 in test/manual/cedet/tests/testsppreplaced.c.'>tail</a>), <a href='../S/134.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>, Qharfbuzz);
+<a id='L1238' name='L1238'></a>  1238 
+<a id='L1239' name='L1239'></a>  1239   <strong class='reserved'>return</strong> fonts;
+<a id='L1240' name='L1240'></a>  1240 <em class='brace'>}</em>
+<a id='L1241' name='L1241'></a>  1241 
+<a id='L1242' name='L1242'></a>  1242 <em class='comment'>/* W32 implementation of the 'match' method for HarfBuzz backend.  */</em>
+<a id='L1243' name='L1243'></a>  1243 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L1244' name='L1244'></a>  1244 <a href='../S/328.html#L1550' title='Referred from 1550 in src/w32uniscribe.c.'>w32hb_match</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>)
+<a id='L1245' name='L1245'></a>  1245 <em class='brace'>{</em>
+<a id='L1246' name='L1246'></a>  1246   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> entity = <a href='../S/118.html#L897' title='Defined at 897 in src/w32font.c.'>w32font_match_internal</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>, <a href='../S/3907.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>);
+<a id='L1247' name='L1247'></a>  1247   <a href='../S/134.html#L984' title='Defined at 984 in src/font.h.'>FONT_ADD_LOG</a> ("harfbuzz-match", <a href='../S/134.html#L251' title='Defined at 251 in src/font.h.'>font_spec</a>, entity);
+<a id='L1248' name='L1248'></a>  1248 
+<a id='L1249' name='L1249'></a>  1249   <strong class='reserved'>if</strong> (! <a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (entity))
+<a id='L1250' name='L1250'></a>  1250     <a href='../D/85.html' title='Multiple defined in 2 places.'>ASET</a> (entity, <a href='../S/134.html#L76' title='Defined at 76 in src/font.h.'>FONT_TYPE_INDEX</a>, Qharfbuzz);
+<a id='L1251' name='L1251'></a>  1251   <strong class='reserved'>return</strong> entity;
+<a id='L1252' name='L1252'></a>  1252 <em class='brace'>}</em>
+<a id='L1253' name='L1253'></a>  1253 
+<a id='L1254' name='L1254'></a>  1254 <em class='comment'>/* Callback function to free memory.  We need this so we could pass it</em>
+<a id='L1255' name='L1255'></a>  1255 <em class='comment'>   to HarfBuzz as the function to call to destroy objects for which we</em>
+<a id='L1256' name='L1256'></a>  1256 <em class='comment'>   allocated data by calling our 'malloc' (as opposed to 'malloc' from</em>
+<a id='L1257' name='L1257'></a>  1257 <em class='comment'>   the MS CRT, against which HarfBuzz was linked).  */</em>
+<a id='L1258' name='L1258'></a>  1258 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1259' name='L1259'></a>  1259 <a href='../S/328.html#L1289' title='Referred from 1289 in src/w32uniscribe.c.'>free_cb</a> (<strong class='reserved'>void</strong> *ptr)
+<a id='L1260' name='L1260'></a>  1260 <em class='brace'>{</em>
+<a id='L1261' name='L1261'></a>  1261   <a href='../D/10383.html' title='Multiple defined in 19 places.'>free</a> (ptr);
+<a id='L1262' name='L1262'></a>  1262 <em class='brace'>}</em>
+<a id='L1263' name='L1263'></a>  1263 
+<a id='L1264' name='L1264'></a>  1264 <em class='comment'>/* A function used as reference_table_func for HarfBuzz.  It returns</em>
+<a id='L1265' name='L1265'></a>  1265 <em class='comment'>   the data of a specified table of a font as a blob.  */</em>
+<a id='L1266' name='L1266'></a>  1266 <strong class='reserved'>static</strong> hb_blob_t *
+<a id='L1267' name='L1267'></a>  1267 <a href='../S/328.html#L1309' title='Referred from 1309 in src/w32uniscribe.c.'>w32hb_get_font_table</a> (hb_face_t *<a href='../S/164.html#L1668' title='Defined at 1668 in src/dispextern.h.'>face</a>, hb_tag_t tag, <strong class='reserved'>void</strong> *data)
+<a id='L1268' name='L1268'></a>  1268 <em class='brace'>{</em>
+<a id='L1269' name='L1269'></a>  1269   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = <a href='../S/65.html#L839' title='Defined at 839 in src/frame.h.'>XFRAME</a> (selected_frame);
+<a id='L1270' name='L1270'></a>  1270   HDC <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../S/149.html#L158' title='Defined at 158 in src/w32xfns.c.'>get_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L1271' name='L1271'></a>  1271   HFONT old_font = SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, (HFONT) data);
+<a id='L1272' name='L1272'></a>  1272   <strong class='reserved'>char</strong> *font_data = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1273' name='L1273'></a>  1273   DWORD font_data_size = 0, val;
+<a id='L1274' name='L1274'></a>  1274   DWORD table = <a href='../D/8208.html' title='Multiple defined in 2 places.'>bswap_32</a> (tag);
+<a id='L1275' name='L1275'></a>  1275   hb_blob_t *blob = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1276' name='L1276'></a>  1276 
+<a id='L1277' name='L1277'></a>  1277   val = GetFontData (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, table, 0, font_data, font_data_size);
+<a id='L1278' name='L1278'></a>  1278   <strong class='reserved'>if</strong> (val != GDI_ERROR)
+<a id='L1279' name='L1279'></a>  1279     <em class='brace'>{</em>
+<a id='L1280' name='L1280'></a>  1280       font_data_size = val;
+<a id='L1281' name='L1281'></a>  1281       <em class='comment'>/* Don't call xmalloc, because it can signal an error, while</em>
+<a id='L1282' name='L1282'></a>  1282 <em class='comment'>         we are inside a critical section established by get_frame_dc.  */</em>
+<a id='L1283' name='L1283'></a>  1283       font_data = <a href='../D/12720.html' title='Multiple defined in 19 places.'>malloc</a> (font_data_size);
+<a id='L1284' name='L1284'></a>  1284       <strong class='reserved'>if</strong> (font_data)
+<a id='L1285' name='L1285'></a>  1285         <em class='brace'>{</em>
+<a id='L1286' name='L1286'></a>  1286           val = GetFontData (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, table, 0, font_data, font_data_size);
+<a id='L1287' name='L1287'></a>  1287           <strong class='reserved'>if</strong> (val != GDI_ERROR)
+<a id='L1288' name='L1288'></a>  1288             blob = <a href='../S/328.html#L93' title='Defined at 93 in src/w32uniscribe.c.'>hb_blob_create</a> (font_data, font_data_size,
+<a id='L1289' name='L1289'></a>  1289                                    HB_MEMORY_MODE_READONLY, font_data, <a href='../S/328.html#L1259' title='Defined at 1259 in src/w32uniscribe.c.'>free_cb</a>);
+<a id='L1290' name='L1290'></a>  1290         <em class='brace'>}</em>
+<a id='L1291' name='L1291'></a>  1291     <em class='brace'>}</em>
+<a id='L1292' name='L1292'></a>  1292 
+<a id='L1293' name='L1293'></a>  1293   <em class='comment'>/* Restore graphics context.  */</em>
+<a id='L1294' name='L1294'></a>  1294   SelectObject (<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, old_font);
+<a id='L1295' name='L1295'></a>  1295   <a href='../S/149.html#L229' title='Defined at 229 in src/w32xfns.c.'>release_frame_dc</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L1296' name='L1296'></a>  1296 
+<a id='L1297' name='L1297'></a>  1297   <strong class='reserved'>return</strong> blob;
+<a id='L1298' name='L1298'></a>  1298 <em class='brace'>}</em>
+<a id='L1299' name='L1299'></a>  1299 
+<a id='L1300' name='L1300'></a>  1300 <em class='comment'>/* Helper function used by the HarfBuzz implementations of the</em>
+<a id='L1301' name='L1301'></a>  1301 <em class='comment'>   encode_char, has_char, and begin_hb_font methods.  It creates an</em>
+<a id='L1302' name='L1302'></a>  1302 <em class='comment'>   hb_font_t object for a given Emacs font.  */</em>
+<a id='L1303' name='L1303'></a>  1303 <strong class='reserved'>static</strong> hb_font_t *
+<a id='L1304' name='L1304'></a>  1304 <a href='../R/15829.html' title='Multiple referred from 3 places.'>w32hb_get_font</a> (<strong class='reserved'>struct</strong> <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <strong class='reserved'>double</strong> *scale)
+<a id='L1305' name='L1305'></a>  1305 <em class='brace'>{</em>
+<a id='L1306' name='L1306'></a>  1306   hb_font_t *hb_font = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L1307' name='L1307'></a>  1307   HFONT font_handle = <a href='../S/169.html#L61' title='Defined at 61 in src/w32font.h.'>FONT_HANDLE</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>);
+<a id='L1308' name='L1308'></a>  1308   hb_face_t *hb_face =
+<a id='L1309' name='L1309'></a>  1309     <a href='../S/328.html#L94' title='Defined at 94 in src/w32uniscribe.c.'>hb_face_create_for_tables</a> (<a href='../S/328.html#L1267' title='Defined at 1267 in src/w32uniscribe.c.'>w32hb_get_font_table</a>, font_handle, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1310' name='L1310'></a>  1310   <strong class='reserved'>if</strong> (<a href='../S/328.html#L95' title='Defined at 95 in src/w32uniscribe.c.'>hb_face_get_glyph_count</a> (hb_face) &gt; 0)
+<a id='L1311' name='L1311'></a>  1311     <em class='brace'>{</em>
+<a id='L1312' name='L1312'></a>  1312       hb_font = <a href='../S/328.html#L96' title='Defined at 96 in src/w32uniscribe.c.'>hb_font_create</a> (hb_face);
+<a id='L1313' name='L1313'></a>  1313       <em class='comment'>/* This is needed for HarfBuzz before 2.0.0; it is the default</em>
+<a id='L1314' name='L1314'></a>  1314 <em class='comment'>         in later versions.  */</em>
+<a id='L1315' name='L1315'></a>  1315       <a href='../S/328.html#L102' title='Defined at 102 in src/w32uniscribe.c.'>hb_ot_font_set_funcs</a> (hb_font);
+<a id='L1316' name='L1316'></a>  1316     <em class='brace'>}</em>
+<a id='L1317' name='L1317'></a>  1317 
+<a id='L1318' name='L1318'></a>  1318   <strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *uniscribe_font =
+<a id='L1319' name='L1319'></a>  1319     (<strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *) <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L1320' name='L1320'></a>  1320   <strong class='reserved'>unsigned</strong> upem = <a href='../S/328.html#L99' title='Defined at 99 in src/w32uniscribe.c.'>hb_face_get_upem</a> (hb_face);
+<a id='L1321' name='L1321'></a>  1321   <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (upem &gt; 0);
+<a id='L1322' name='L1322'></a>  1322   <em class='comment'>/* https://support.microsoft.com/en-sg/help/74299/info-calculating-the-logical-height-and-point-size-of-a-font.  */</em>
+<a id='L1323' name='L1323'></a>  1323   <a href='../D/3386.html' title='Multiple defined in 3 places.'>LONG</a> font_point_size =
+<a id='L1324' name='L1324'></a>  1324     uniscribe_font-&gt;w32_font.metrics.tmHeight
+<a id='L1325' name='L1325'></a>  1325     - uniscribe_font-&gt;w32_font.metrics.tmInternalLeading;
+<a id='L1326' name='L1326'></a>  1326   <em class='comment'>/* https://docs.microsoft.com/en-us/typography/opentype/spec/ttch01,</em>
+<a id='L1327' name='L1327'></a>  1327 <em class='comment'>     under "Converting FUnits to pixels".  */</em>
+<a id='L1328' name='L1328'></a>  1328   *scale = font_point_size * 1.0 / upem;
+<a id='L1329' name='L1329'></a>  1329 
+<a id='L1330' name='L1330'></a>  1330   <a href='../S/328.html#L98' title='Defined at 98 in src/w32uniscribe.c.'>hb_face_destroy</a> (hb_face);
+<a id='L1331' name='L1331'></a>  1331 
+<a id='L1332' name='L1332'></a>  1332   <em class='comment'>/* FIXME: Can hb_font be non-NULL and yet invalid?  Compare to get_empty?  */</em>
+<a id='L1333' name='L1333'></a>  1333   <strong class='reserved'>return</strong> hb_font;
+<a id='L1334' name='L1334'></a>  1334 <em class='brace'>}</em>
+<a id='L1335' name='L1335'></a>  1335 
+<a id='L1336' name='L1336'></a>  1336 <em class='comment'>/* W32 implementation of encode_char method for HarfBuzz backend.  */</em>
+<a id='L1337' name='L1337'></a>  1337 <strong class='reserved'>static</strong> <strong class='reserved'>unsigned</strong>
+<a id='L1338' name='L1338'></a>  1338 <a href='../S/328.html#L1551' title='Referred from 1551 in src/w32uniscribe.c.'>w32hb_encode_char</a> (<strong class='reserved'>struct</strong> <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <strong class='reserved'>int</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>)
+<a id='L1339' name='L1339'></a>  1339 <em class='brace'>{</em>
+<a id='L1340' name='L1340'></a>  1340   <strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *uniscribe_font
+<a id='L1341' name='L1341'></a>  1341     = (<strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *) <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L1342' name='L1342'></a>  1342   <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (uniscribe_font-&gt;w32_font.<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>.driver == &amp;harfbuzz_font_driver);
+<a id='L1343' name='L1343'></a>  1343   hb_font_t *hb_font = uniscribe_font-&gt;cache;
+<a id='L1344' name='L1344'></a>  1344 
+<a id='L1345' name='L1345'></a>  1345   <em class='comment'>/* First time we use this font with HarfBuzz, create the hb_font_t</em>
+<a id='L1346' name='L1346'></a>  1346 <em class='comment'>     object and cache it.  */</em>
+<a id='L1347' name='L1347'></a>  1347   <strong class='reserved'>if</strong> (!hb_font)
+<a id='L1348' name='L1348'></a>  1348     <em class='brace'>{</em>
+<a id='L1349' name='L1349'></a>  1349       <strong class='reserved'>double</strong> scale;
+<a id='L1350' name='L1350'></a>  1350       hb_font = <a href='../S/328.html#L1304' title='Defined at 1304 in src/w32uniscribe.c.'>w32hb_get_font</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>, &amp;scale);
+<a id='L1351' name='L1351'></a>  1351       <strong class='reserved'>if</strong> (!hb_font)
+<a id='L1352' name='L1352'></a>  1352         <strong class='reserved'>return</strong> <a href='../S/134.html#L568' title='Defined at 568 in src/font.h.'>FONT_INVALID_CODE</a>;
+<a id='L1353' name='L1353'></a>  1353 
+<a id='L1354' name='L1354'></a>  1354       uniscribe_font-&gt;cache = hb_font;
+<a id='L1355' name='L1355'></a>  1355       <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (scale &gt; 0.0);
+<a id='L1356' name='L1356'></a>  1356       uniscribe_font-&gt;scale = scale;
+<a id='L1357' name='L1357'></a>  1357     <em class='brace'>}</em>
+<a id='L1358' name='L1358'></a>  1358   hb_codepoint_t <a href='../S/164.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a>;
+<a id='L1359' name='L1359'></a>  1359   <strong class='reserved'>if</strong> (<a href='../S/328.html#L100' title='Defined at 100 in src/w32uniscribe.c.'>hb_font_get_nominal_glyph</a> (hb_font, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, &amp;<a href='../S/164.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a>))
+<a id='L1360' name='L1360'></a>  1360     <strong class='reserved'>return</strong> <a href='../S/164.html#L418' title='Defined at 418 in src/dispextern.h.'>glyph</a>;
+<a id='L1361' name='L1361'></a>  1361   <strong class='reserved'>return</strong> <a href='../S/134.html#L568' title='Defined at 568 in src/font.h.'>FONT_INVALID_CODE</a>;
+<a id='L1362' name='L1362'></a>  1362 <em class='brace'>}</em>
+<a id='L1363' name='L1363'></a>  1363 
+<a id='L1364' name='L1364'></a>  1364 <em class='comment'>/* W32 implementation of HarfBuzz begin_hb_font and end_hb_font</em>
+<a id='L1365' name='L1365'></a>  1365 <em class='comment'>   methods.  */</em>
+<a id='L1366' name='L1366'></a>  1366 
+<a id='L1367' name='L1367'></a>  1367 <em class='comment'>/* Return a HarfBuzz font object for FONT and store in POSITION_UNIT</em>
+<a id='L1368' name='L1368'></a>  1368 <em class='comment'>   the scale factor to convert a hb_position_t value to the number of</em>
+<a id='L1369' name='L1369'></a>  1369 <em class='comment'>   pixels.  Return NULL if HarfBuzz font object is not available for</em>
+<a id='L1370' name='L1370'></a>  1370 <em class='comment'>   FONT.  */</em>
+<a id='L1371' name='L1371'></a>  1371 <strong class='reserved'>static</strong> hb_font_t *
+<a id='L1372' name='L1372'></a>  1372 <a href='../S/328.html#L1556' title='Referred from 1556 in src/w32uniscribe.c.'>w32hb_begin_font</a> (<strong class='reserved'>struct</strong> <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <strong class='reserved'>double</strong> *position_unit)
+<a id='L1373' name='L1373'></a>  1373 <em class='brace'>{</em>
+<a id='L1374' name='L1374'></a>  1374   <strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *uniscribe_font
+<a id='L1375' name='L1375'></a>  1375     = (<strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *) <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L1376' name='L1376'></a>  1376   <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (uniscribe_font-&gt;w32_font.<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>.driver == &amp;harfbuzz_font_driver);
+<a id='L1377' name='L1377'></a>  1377 
+<a id='L1378' name='L1378'></a>  1378   <em class='comment'>/* First time we use this font with HarfBuzz, create the hb_font_t</em>
+<a id='L1379' name='L1379'></a>  1379 <em class='comment'>     object and cache it.  */</em>
+<a id='L1380' name='L1380'></a>  1380   <strong class='reserved'>if</strong> (!uniscribe_font-&gt;cache)
+<a id='L1381' name='L1381'></a>  1381     <em class='brace'>{</em>
+<a id='L1382' name='L1382'></a>  1382       <strong class='reserved'>double</strong> scale;
+<a id='L1383' name='L1383'></a>  1383       uniscribe_font-&gt;cache = <a href='../S/328.html#L1304' title='Defined at 1304 in src/w32uniscribe.c.'>w32hb_get_font</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>, &amp;scale);
+<a id='L1384' name='L1384'></a>  1384       <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (scale &gt; 0.0);
+<a id='L1385' name='L1385'></a>  1385       uniscribe_font-&gt;scale = scale;
+<a id='L1386' name='L1386'></a>  1386     <em class='brace'>}</em>
+<a id='L1387' name='L1387'></a>  1387   *position_unit = uniscribe_font-&gt;scale;
+<a id='L1388' name='L1388'></a>  1388   <strong class='reserved'>return</strong> (hb_font_t *) uniscribe_font-&gt;cache;
+<a id='L1389' name='L1389'></a>  1389 <em class='brace'>}</em>
+<a id='L1390' name='L1390'></a>  1390 
+<a id='L1391' name='L1391'></a>  1391 <em class='comment'>/* W32 implementation of get_variation_glyphs method for HarfBuzz.</em>
+<a id='L1392' name='L1392'></a>  1392 <em class='comment'></em>
+<a id='L1393' name='L1393'></a>  1393 <em class='comment'>   Return the number of variation glyphs of character C supported by</em>
+<a id='L1394' name='L1394'></a>  1394 <em class='comment'>   FONT.  VARIATIONS is an array of 256 elements.  If the variation</em>
+<a id='L1395' name='L1395'></a>  1395 <em class='comment'>   selector N (1..256) defines a glyph, that glyph code is stored in</em>
+<a id='L1396' name='L1396'></a>  1396 <em class='comment'>   the (N-1)th element of VARIATIONS.  */</em>
+<a id='L1397' name='L1397'></a>  1397 <strong class='reserved'>static</strong> <strong class='reserved'>int</strong>
+<a id='L1398' name='L1398'></a>  1398 <a href='../S/328.html#L1554' title='Referred from 1554 in src/w32uniscribe.c.'>w32hb_get_variation_glyphs</a> (<strong class='reserved'>struct</strong> <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a> *<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>, <strong class='reserved'>int</strong> <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, <strong class='reserved'>unsigned</strong> variations[256])
+<a id='L1399' name='L1399'></a>  1399 <em class='brace'>{</em>
+<a id='L1400' name='L1400'></a>  1400   <strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *uniscribe_font
+<a id='L1401' name='L1401'></a>  1401     = (<strong class='reserved'>struct</strong> <a href='../S/328.html#L53' title='Defined at 53 in src/w32uniscribe.c.'>uniscribe_font_info</a> *) <a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>;
+<a id='L1402' name='L1402'></a>  1402   <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (uniscribe_font-&gt;w32_font.<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>.driver == &amp;harfbuzz_font_driver);
+<a id='L1403' name='L1403'></a>  1403 
+<a id='L1404' name='L1404'></a>  1404   <em class='comment'>/* First time we use this font with HarfBuzz, create the hb_font_t</em>
+<a id='L1405' name='L1405'></a>  1405 <em class='comment'>     object and cache it.  */</em>
+<a id='L1406' name='L1406'></a>  1406   <strong class='reserved'>if</strong> (!uniscribe_font-&gt;cache)
+<a id='L1407' name='L1407'></a>  1407     <em class='brace'>{</em>
+<a id='L1408' name='L1408'></a>  1408       <strong class='reserved'>double</strong> scale;
+<a id='L1409' name='L1409'></a>  1409       uniscribe_font-&gt;cache = <a href='../S/328.html#L1304' title='Defined at 1304 in src/w32uniscribe.c.'>w32hb_get_font</a> (<a href='../S/134.html#L272' title='Defined at 272 in src/font.h.'>font</a>, &amp;scale);
+<a id='L1410' name='L1410'></a>  1410       <a href='../D/9615.html' title='Multiple defined in 5 places.'>eassert</a> (scale &gt; 0.0);
+<a id='L1411' name='L1411'></a>  1411       uniscribe_font-&gt;scale = scale;
+<a id='L1412' name='L1412'></a>  1412     <em class='brace'>}</em>
+<a id='L1413' name='L1413'></a>  1413 
+<a id='L1414' name='L1414'></a>  1414   <strong class='reserved'>int</strong> i, n = 0;
+<a id='L1415' name='L1415'></a>  1415   hb_font_t *hb_font = uniscribe_font-&gt;cache;
+<a id='L1416' name='L1416'></a>  1416   <strong class='reserved'>for</strong> (i = 0; i &lt; 16; i++)
+<a id='L1417' name='L1417'></a>  1417     <em class='brace'>{</em>
+<a id='L1418' name='L1418'></a>  1418       <strong class='reserved'>if</strong> (<a href='../S/328.html#L101' title='Defined at 101 in src/w32uniscribe.c.'>hb_font_get_variation_glyph</a> (hb_font, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, 0xFE00 + i, &amp;variations[i]))
+<a id='L1419' name='L1419'></a>  1419         n++;
+<a id='L1420' name='L1420'></a>  1420       <strong class='reserved'>else</strong>
+<a id='L1421' name='L1421'></a>  1421         variations[i] = 0;
+<a id='L1422' name='L1422'></a>  1422     <em class='brace'>}</em>
+<a id='L1423' name='L1423'></a>  1423   <strong class='reserved'>for</strong> ( ; i &lt; 256; i++)
+<a id='L1424' name='L1424'></a>  1424     <em class='brace'>{</em>
+<a id='L1425' name='L1425'></a>  1425       <strong class='reserved'>if</strong> (<a href='../S/328.html#L101' title='Defined at 101 in src/w32uniscribe.c.'>hb_font_get_variation_glyph</a> (hb_font, <a href='../D/8273.html' title='Multiple defined in 2 places.'>c</a>, 0xE0100 + (i - 16),
+<a id='L1426' name='L1426'></a>  1426                                        &amp;variations[i]))
+<a id='L1427' name='L1427'></a>  1427         n++;
+<a id='L1428' name='L1428'></a>  1428       <strong class='reserved'>else</strong>
+<a id='L1429' name='L1429'></a>  1429         variations[i] = 0;
+<a id='L1430' name='L1430'></a>  1430     <em class='brace'>}</em>
+<a id='L1431' name='L1431'></a>  1431 
+<a id='L1432' name='L1432'></a>  1432   <strong class='reserved'>return</strong> n;
+<a id='L1433' name='L1433'></a>  1433 <em class='brace'>}</em>
+<a id='L1434' name='L1434'></a>  1434 <em class='sharp'>#endif</em>  <em class='comment'>/* HAVE_HARFBUZZ */</em>
+<a id='L1435' name='L1435'></a>  1435 
+<a id='L1436' name='L1436'></a>  1436 <em class='sharp'>#undef</em> <a href='../R/3820.html' title='Multiple referred from 22 places.'>OTF_INT16_VAL</a>
+<a id='L1437' name='L1437'></a>  1437 <em class='sharp'>#undef</em> <a href='../R/3825.html' title='Multiple referred from 4 places.'>OTF_TAG_VAL</a>
+<a id='L1438' name='L1438'></a>  1438 <em class='sharp'>#undef</em> <a href='../R/3822.html' title='Multiple referred from 12 places.'>OTF_TAG</a>
+<a id='L1439' name='L1439'></a>  1439 
+<a id='L1440' name='L1440'></a>  1440 
+<a id='L1441' name='L1441'></a>  1441 <strong class='reserved'>struct</strong> <a href='../S/134.html#L572' title='Defined at 572 in src/font.h.'>font_driver</a> uniscribe_font_driver =
+<a id='L1442' name='L1442'></a>  1442   <em class='brace'>{</em>
+<a id='L1443' name='L1443'></a>  1443     <a href='../S/125.html#L950' title='Defined at 950 in src/lisp.h.'>LISPSYM_INITIALLY</a> (Quniscribe),
+<a id='L1444' name='L1444'></a>  1444     0, <em class='comment'>/* case insensitive */</em>
+<a id='L1445' name='L1445'></a>  1445     <a href='../S/118.html#L255' title='Defined at 255 in src/w32font.c.'>w32font_get_cache</a>,
+<a id='L1446' name='L1446'></a>  1446     <a href='../S/328.html#L119' title='Defined at 119 in src/w32uniscribe.c.'>uniscribe_list</a>,
+<a id='L1447' name='L1447'></a>  1447     <a href='../S/328.html#L127' title='Defined at 127 in src/w32uniscribe.c.'>uniscribe_match</a>,
+<a id='L1448' name='L1448'></a>  1448     <a href='../S/328.html#L135' title='Defined at 135 in src/w32uniscribe.c.'>uniscribe_list_family</a>,
+<a id='L1449' name='L1449'></a>  1449     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* free_entity */</em>
+<a id='L1450' name='L1450'></a>  1450     <a href='../S/328.html#L163' title='Defined at 163 in src/w32uniscribe.c.'>uniscribe_open</a>,
+<a id='L1451' name='L1451'></a>  1451     <a href='../S/328.html#L198' title='Defined at 198 in src/w32uniscribe.c.'>uniscribe_close</a>,
+<a id='L1452' name='L1452'></a>  1452     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* prepare_face */</em>
+<a id='L1453' name='L1453'></a>  1453     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* done_face */</em>
+<a id='L1454' name='L1454'></a>  1454     <a href='../S/118.html#L372' title='Defined at 372 in src/w32font.c.'>w32font_has_char</a>,
+<a id='L1455' name='L1455'></a>  1455     <a href='../S/328.html#L598' title='Defined at 598 in src/w32uniscribe.c.'>uniscribe_encode_char</a>,
+<a id='L1456' name='L1456'></a>  1456     <a href='../S/118.html#L438' title='Defined at 438 in src/w32font.c.'>w32font_text_extents</a>,
+<a id='L1457' name='L1457'></a>  1457     <a href='../S/118.html#L633' title='Defined at 633 in src/w32font.c.'>w32font_draw</a>,
+<a id='L1458' name='L1458'></a>  1458     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* get_bitmap */</em>
+<a id='L1459' name='L1459'></a>  1459     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* free_bitmap */</em>
+<a id='L1460' name='L1460'></a>  1460     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* anchor_point */</em>
+<a id='L1461' name='L1461'></a>  1461     <a href='../S/328.html#L239' title='Defined at 239 in src/w32uniscribe.c.'>uniscribe_otf_capability</a>, <em class='comment'>/* Defined so (font-get FONTOBJ :otf) works.  */</em>
+<a id='L1462' name='L1462'></a>  1462     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* otf_drive - use shape instead.  */</em>
+<a id='L1463' name='L1463'></a>  1463     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* start_for_frame */</em>
+<a id='L1464' name='L1464'></a>  1464     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* end_for_frame */</em>
+<a id='L1465' name='L1465'></a>  1465     <a href='../S/328.html#L286' title='Defined at 286 in src/w32uniscribe.c.'>uniscribe_shape</a>,
+<a id='L1466' name='L1466'></a>  1466     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* check */</em>
+<a id='L1467' name='L1467'></a>  1467     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* get_variation_glyphs */</em>
+<a id='L1468' name='L1468'></a>  1468     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* filter_properties */</em>
+<a id='L1469' name='L1469'></a>  1469     <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>, <em class='comment'>/* cached_font_ok */</em>
+<a id='L1470' name='L1470'></a>  1470   <em class='brace'>}</em>;
+<a id='L1471' name='L1471'></a>  1471 
+<a id='L1472' name='L1472'></a>  1472 <em class='comment'>/* Note that this should be called at every startup, not just when dumping,</em>
+<a id='L1473' name='L1473'></a>  1473 <em class='comment'>   as it needs to test for the existence of the Uniscribe library.  */</em>
+<a id='L1474' name='L1474'></a>  1474 <strong class='reserved'>void</strong> <a href='../S/328.html#L1479' title='Defined at 1479 in src/w32uniscribe.c.'>syms_of_w32uniscribe</a> (<strong class='reserved'>void</strong>);
+<a id='L1475' name='L1475'></a>  1475 
+<a id='L1476' name='L1476'></a>  1476 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong> <a href='../S/328.html#L1503' title='Defined at 1503 in src/w32uniscribe.c.'>syms_of_w32uniscribe_for_pdumper</a> (<strong class='reserved'>void</strong>);
+<a id='L1477' name='L1477'></a>  1477 
+<a id='L1478' name='L1478'></a>  1478 <strong class='reserved'>void</strong>
+<a id='L1479' name='L1479'></a>  1479 <a href='../R/14732.html' title='Multiple referred from 3 places.'>syms_of_w32uniscribe</a> (<strong class='reserved'>void</strong>)
+<a id='L1480' name='L1480'></a>  1480 <em class='brace'>{</em>
+<a id='L1481' name='L1481'></a>  1481   <a href='../S/218.html#L92' title='Defined at 92 in src/pdumper.h.'>pdumper_do_now_and_after_load</a> (<a href='../S/328.html#L1503' title='Defined at 1503 in src/w32uniscribe.c.'>syms_of_w32uniscribe_for_pdumper</a>);
+<a id='L1482' name='L1482'></a>  1482 <em class='brace'>}</em>
+<a id='L1483' name='L1483'></a>  1483 
+<a id='L1484' name='L1484'></a>  1484 <em class='sharp'>#ifdef</em> HAVE_HARFBUZZ
+<a id='L1485' name='L1485'></a>  1485 <strong class='reserved'>static</strong> <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L1486' name='L1486'></a>  1486 <a href='../S/328.html#L1542' title='Referred from 1542 in src/w32uniscribe.c.'>load_harfbuzz_funcs</a> (HMODULE library)
+<a id='L1487' name='L1487'></a>  1487 <em class='brace'>{</em>
+<a id='L1488' name='L1488'></a>  1488   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L93' title='Defined at 93 in src/w32uniscribe.c.'>hb_blob_create</a>);
+<a id='L1489' name='L1489'></a>  1489   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L94' title='Defined at 94 in src/w32uniscribe.c.'>hb_face_create_for_tables</a>);
+<a id='L1490' name='L1490'></a>  1490   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L95' title='Defined at 95 in src/w32uniscribe.c.'>hb_face_get_glyph_count</a>);
+<a id='L1491' name='L1491'></a>  1491   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L96' title='Defined at 96 in src/w32uniscribe.c.'>hb_font_create</a>);
+<a id='L1492' name='L1492'></a>  1492   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L97' title='Defined at 97 in src/w32uniscribe.c.'>hb_font_destroy</a>);
+<a id='L1493' name='L1493'></a>  1493   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L99' title='Defined at 99 in src/w32uniscribe.c.'>hb_face_get_upem</a>);
+<a id='L1494' name='L1494'></a>  1494   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L98' title='Defined at 98 in src/w32uniscribe.c.'>hb_face_destroy</a>);
+<a id='L1495' name='L1495'></a>  1495   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L100' title='Defined at 100 in src/w32uniscribe.c.'>hb_font_get_nominal_glyph</a>);
+<a id='L1496' name='L1496'></a>  1496   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L101' title='Defined at 101 in src/w32uniscribe.c.'>hb_font_get_variation_glyph</a>);
+<a id='L1497' name='L1497'></a>  1497   <a href='../S/292.html#L80' title='Defined at 80 in src/w32common.h.'>LOAD_DLL_FN</a> (library, <a href='../S/328.html#L102' title='Defined at 102 in src/w32uniscribe.c.'>hb_ot_font_set_funcs</a>);
+<a id='L1498' name='L1498'></a>  1498   <strong class='reserved'>return</strong> <a href='../S/148.html#L119' title='Defined at 119 in src/hbfont.c.'>hbfont_init_w32_funcs</a> (library);
+<a id='L1499' name='L1499'></a>  1499 <em class='brace'>}</em>
+<a id='L1500' name='L1500'></a>  1500 <em class='sharp'>#endif</em>  <em class='comment'>/* HAVE_HARFBUZZ */</em>
+<a id='L1501' name='L1501'></a>  1501 
+<a id='L1502' name='L1502'></a>  1502 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L1503' name='L1503'></a>  1503 <a href='../R/14733.html' title='Multiple referred from 2 places.'>syms_of_w32uniscribe_for_pdumper</a> (<strong class='reserved'>void</strong>)
+<a id='L1504' name='L1504'></a>  1504 <em class='brace'>{</em>
+<a id='L1505' name='L1505'></a>  1505   <em class='comment'>/* Don't init Uniscribe and HarfBuzz when dumping */</em>
+<a id='L1506' name='L1506'></a>  1506   <strong class='reserved'>if</strong> (!initialized)
+<a id='L1507' name='L1507'></a>  1507     <strong class='reserved'>return</strong>;
+<a id='L1508' name='L1508'></a>  1508 
+<a id='L1509' name='L1509'></a>  1509   <em class='comment'>/* Don't register if Uniscribe is not available.  */</em>
+<a id='L1510' name='L1510'></a>  1510   HMODULE uniscribe = GetModuleHandle ("usp10");
+<a id='L1511' name='L1511'></a>  1511   <strong class='reserved'>if</strong> (!uniscribe)
+<a id='L1512' name='L1512'></a>  1512     <strong class='reserved'>return</strong>;
+<a id='L1513' name='L1513'></a>  1513 
+<a id='L1514' name='L1514'></a>  1514   uniscribe_available = 1;
+<a id='L1515' name='L1515'></a>  1515 
+<a id='L1516' name='L1516'></a>  1516   <a href='../S/172.html#L3306' title='Defined at 3306 in src/font.c.'>register_font_driver</a> (&amp;uniscribe_font_driver, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1517' name='L1517'></a>  1517 
+<a id='L1518' name='L1518'></a>  1518   script_get_font_scripts_fn = (ScriptGetFontScriptTags_Proc)
+<a id='L1519' name='L1519'></a>  1519     <a href='../S/292.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (uniscribe, "ScriptGetFontScriptTags");
+<a id='L1520' name='L1520'></a>  1520   script_get_font_languages_fn = (ScriptGetFontLanguageTags_Proc)
+<a id='L1521' name='L1521'></a>  1521     <a href='../S/292.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (uniscribe, "ScriptGetFontLanguageTags");
+<a id='L1522' name='L1522'></a>  1522   script_get_font_features_fn = (ScriptGetFontFeatureTags_Proc)
+<a id='L1523' name='L1523'></a>  1523     <a href='../S/292.html#L65' title='Defined at 65 in src/w32common.h.'>get_proc_addr</a> (uniscribe, "ScriptGetFontFeatureTags");
+<a id='L1524' name='L1524'></a>  1524   <strong class='reserved'>if</strong> (script_get_font_scripts_fn
+<a id='L1525' name='L1525'></a>  1525       &amp;&amp; script_get_font_languages_fn
+<a id='L1526' name='L1526'></a>  1526       &amp;&amp; script_get_font_features_fn)
+<a id='L1527' name='L1527'></a>  1527     uniscribe_new_apis = <a href='../S/3907.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L1528' name='L1528'></a>  1528   <strong class='reserved'>else</strong>
+<a id='L1529' name='L1529'></a>  1529     uniscribe_new_apis = <a href='../S/3907.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L1530' name='L1530'></a>  1530 
+<a id='L1531' name='L1531'></a>  1531 <em class='sharp'>#ifdef</em> HAVE_HARFBUZZ
+<a id='L1532' name='L1532'></a>  1532   <em class='comment'>/* Currently, HarfBuzz DLLs are always named libharfbuzz-0.dll, as</em>
+<a id='L1533' name='L1533'></a>  1533 <em class='comment'>     the project keeps the ABI backward-compatible.  So we can</em>
+<a id='L1534' name='L1534'></a>  1534 <em class='comment'>     hard-code the name of the library here, for now.  If they ever</em>
+<a id='L1535' name='L1535'></a>  1535 <em class='comment'>     break ABI compatibility, we may need to load the DLL that</em>
+<a id='L1536' name='L1536'></a>  1536 <em class='comment'>     corresponds to the HarfBuzz version for which Emacs was built.  */</em>
+<a id='L1537' name='L1537'></a>  1537   HMODULE harfbuzz = <a href='../D/3510.html' title='Multiple defined in 4 places.'>LoadLibrary</a> ("libharfbuzz-0.dll");
+<a id='L1538' name='L1538'></a>  1538   <em class='comment'>/* Don't register if HarfBuzz is not available.  */</em>
+<a id='L1539' name='L1539'></a>  1539   <strong class='reserved'>if</strong> (!harfbuzz)
+<a id='L1540' name='L1540'></a>  1540     <strong class='reserved'>return</strong>;
+<a id='L1541' name='L1541'></a>  1541 
+<a id='L1542' name='L1542'></a>  1542   <strong class='reserved'>if</strong> (!<a href='../S/328.html#L1486' title='Defined at 1486 in src/w32uniscribe.c.'>load_harfbuzz_funcs</a> (harfbuzz))
+<a id='L1543' name='L1543'></a>  1543     <strong class='reserved'>return</strong>;
+<a id='L1544' name='L1544'></a>  1544 
+<a id='L1545' name='L1545'></a>  1545   Fput (Quniscribe, Qfont_driver_superseded_by, Qharfbuzz);
+<a id='L1546' name='L1546'></a>  1546   harfbuzz_available = 1;
+<a id='L1547' name='L1547'></a>  1547   harfbuzz_font_driver = uniscribe_font_driver;
+<a id='L1548' name='L1548'></a>  1548   harfbuzz_font_driver.type = Qharfbuzz;
+<a id='L1549' name='L1549'></a>  1549   harfbuzz_font_driver.<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = <a href='../S/328.html#L1231' title='Defined at 1231 in src/w32uniscribe.c.'>w32hb_list</a>;
+<a id='L1550' name='L1550'></a>  1550   harfbuzz_font_driver.<a href='../D/12821.html' title='Multiple defined in 4 places.'>match</a> = <a href='../S/328.html#L1244' title='Defined at 1244 in src/w32uniscribe.c.'>w32hb_match</a>;
+<a id='L1551' name='L1551'></a>  1551   harfbuzz_font_driver.<a href='../S/205.html#L1727' title='Defined at 1727 in src/charset.c.'>encode_char</a> = <a href='../S/328.html#L1338' title='Defined at 1338 in src/w32uniscribe.c.'>w32hb_encode_char</a>;
+<a id='L1552' name='L1552'></a>  1552   harfbuzz_font_driver.otf_capability = <a href='../S/148.html#L217' title='Defined at 217 in src/hbfont.c.'>hbfont_otf_capability</a>;
+<a id='L1553' name='L1553'></a>  1553   harfbuzz_font_driver.shape = <a href='../S/148.html#L395' title='Defined at 395 in src/hbfont.c.'>hbfont_shape</a>;
+<a id='L1554' name='L1554'></a>  1554   harfbuzz_font_driver.get_variation_glyphs = <a href='../S/328.html#L1398' title='Defined at 1398 in src/w32uniscribe.c.'>w32hb_get_variation_glyphs</a>;
+<a id='L1555' name='L1555'></a>  1555   harfbuzz_font_driver.combining_capability = <a href='../S/148.html#L607' title='Defined at 607 in src/hbfont.c.'>hbfont_combining_capability</a>;
+<a id='L1556' name='L1556'></a>  1556   harfbuzz_font_driver.begin_hb_font = <a href='../S/328.html#L1372' title='Defined at 1372 in src/w32uniscribe.c.'>w32hb_begin_font</a>;
+<a id='L1557' name='L1557'></a>  1557   <a href='../S/172.html#L3306' title='Defined at 3306 in src/font.c.'>register_font_driver</a> (&amp;harfbuzz_font_driver, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L1558' name='L1558'></a>  1558 <em class='sharp'>#endif</em>  <em class='comment'>/* HAVE_HARFBUZZ */</em>
+<a id='L1559' name='L1559'></a>  1559 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L109'>[^]</a><a href='#L1503'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

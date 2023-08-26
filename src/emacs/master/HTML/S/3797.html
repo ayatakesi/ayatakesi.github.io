@@ -1,0 +1,254 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>exec/loader-mips64el.s</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4741.html'>exec</a>/loader-mips64el.s</h2>
+<em class='comment'>/* [&lt;][&gt;][^][v][top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'># Copyright (C) 2023 Free Software Foundation, Inc.</em>
+<a id='L2' name='L2'></a>     2 <em class='sharp'>#</em>
+<a id='L3' name='L3'></a>     3 <em class='comment'># This file is part of GNU Emacs.</em>
+<a id='L4' name='L4'></a>     4 <em class='sharp'>#</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'># GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'># it under the terms of the GNU General Public License as published</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'># by the Free Software Foundation, either version 3 of the License,</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'># or (at your option) any later version.</em>
+<a id='L9' name='L9'></a>     9 <em class='sharp'>#</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'># GNU Emacs is distributed in the hope that it will be useful, but</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'># WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'># General Public License for more details.</em>
+<a id='L14' name='L14'></a>    14 <em class='sharp'>#</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'># You should have received a copy of the GNU General Public License</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'># along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.</em>
+<a id='L17' name='L17'></a>    17 
+<a id='L18' name='L18'></a>    18 include(`config-mips.m4')
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20         .set noreorder                  # delay slots managed by hand
+<a id='L21' name='L21'></a>    21         .set noat                       # no assembler macros
+<a id='L22' name='L22'></a>    22         .section .text
+<a id='L23' name='L23'></a>    23         .global __start
+<a id='L24' name='L24'></a>    24 __start:
+<a id='L25' name='L25'></a>    25 dnl     li      $v0, 5034               # SYS_nanosleep
+<a id='L26' name='L26'></a>    26 dnl     dla     $a0, .timespec          # rqtp
+<a id='L27' name='L27'></a>    27 dnl     li      $a1, 0                  # rmtp
+<a id='L28' name='L28'></a>    28 dnl     syscall                         # syscall
+<a id='L29' name='L29'></a>    29         ld      $s2, ($sp)              # original stack pointer
+<a id='L30' name='L30'></a>    30         DADDI3( $s0, $sp, 16)           # start of load area
+<a id='L31' name='L31'></a>    31         DADDI2( $sp, -16)               # primary fd, secondary fd
+<a id='L32' name='L32'></a>    32         li      $t0, -1                 # secondary fd
+<a id='L33' name='L33'></a>    33         sd      $t0, 8($sp)             # initialize secondary fd
+<a id='L34' name='L34'></a>    34 .next_action:
+<a id='L35' name='L35'></a>    35         ld      $s1, ($s0)              # action number
+<a id='L36' name='L36'></a>    36         andi    $t0, $s1, 15            # t0 = action number &amp; 15
+<a id='L37' name='L37'></a>    37         beqz    $t0, .open_file         # open file?
+<a id='L38' name='L38'></a>    38         nop                             # delay slot
+<a id='L39' name='L39'></a>    39         DADDI2( $t0, -3)                # t0 -= 3
+<a id='L40' name='L40'></a>    40         beqz    $t0, .rest_of_exec      # jump to code
+<a id='L41' name='L41'></a>    41         nop                             # delay slot
+<a id='L42' name='L42'></a>    42         li      $t1, 1
+<a id='L43' name='L43'></a>    43         beq     $t0, $t1, .do_mmap_anon # anonymous mmap?
+<a id='L44' name='L44'></a>    44         nop                             # delay slot
+<a id='L45' name='L45'></a>    45 .do_mmap:
+<a id='L46' name='L46'></a>    46         ld      $t0, 8($s0)             # vm address
+<a id='L47' name='L47'></a>    47         ld      $t1, 16($s0)            # file_offset
+<a id='L48' name='L48'></a>    48         ld      $t2, 24($s0)            # protection
+<a id='L49' name='L49'></a>    49         ld      $t3, 32($s0)            # length
+<a id='L50' name='L50'></a>    50         ld      $v0, 40($s0)            # flags
+<a id='L51' name='L51'></a>    51         ld      $v1, ($sp)              # primary fd
+<a id='L52' name='L52'></a>    52         andi    $s3, $s1, 16            # s1 &amp; 16?
+<a id='L53' name='L53'></a>    53         beqz    $s3, .do_mmap_1         # secondary fd?
+<a id='L54' name='L54'></a>    54         nop                             # delay slot
+<a id='L55' name='L55'></a>    55         ld      $v1, 8($sp)             # secondary fd
+<a id='L56' name='L56'></a>    56 .do_mmap_1:
+<a id='L57' name='L57'></a>    57         move    $a0, $t0                # syscall arg
+<a id='L58' name='L58'></a>    58         move    $a1, $t3                # syscall arg
+<a id='L59' name='L59'></a>    59         move    $a2, $t2                # syscall arg
+<a id='L60' name='L60'></a>    60         move    $a3, $v0                # syscall arg
+<a id='L61' name='L61'></a>    61         move    $a4, $v1                # syscall arg
+<a id='L62' name='L62'></a>    62         move    $a5, $t1                # syscall arg
+<a id='L63' name='L63'></a>    63         li      $v0, 5009               # SYS_mmap
+<a id='L64' name='L64'></a>    64         syscall                         # syscall
+<a id='L65' name='L65'></a>    65         bne     $a3, $zero, .perror     # perror?
+<a id='L66' name='L66'></a>    66         nop                             # delay slot
+<a id='L67' name='L67'></a>    67         ld      $t1, 48($s0)            # clear
+<a id='L68' name='L68'></a>    68         dadd    $t0, $a0, $a1           # t0 = end of mapping
+<a id='L69' name='L69'></a>    69         dsub    $t1, $t0, $t1           # t1 = t0 - clear
+<a id='L70' name='L70'></a>    70 .align:
+<a id='L71' name='L71'></a>    71         beq     $t0, $t1, .continue     # already finished
+<a id='L72' name='L72'></a>    72         nop                             # delay slot
+<a id='L73' name='L73'></a>    73         andi    $t2, $t1, 7             # t1 &amp; 7?
+<a id='L74' name='L74'></a>    74         bnez    $t2, .filld             # start filling longs
+<a id='L75' name='L75'></a>    75         nop                             # delay slot
+<a id='L76' name='L76'></a>    76 .filld:
+<a id='L77' name='L77'></a>    77         dsub    $t2, $t0, $t1           # t2 = t0 - t1
+<a id='L78' name='L78'></a>    78         sltiu   $t2, $t2, 64            # t2 &lt; 64?
+<a id='L79' name='L79'></a>    79         bne     $t2, $zero, .fillb      # fill bytes
+<a id='L80' name='L80'></a>    80         nop                             # delay slot
+<a id='L81' name='L81'></a>    81         sd      $zero, ($t1)            # zero doubleword
+<a id='L82' name='L82'></a>    82         DADDI2( $t1, 8)                 # next doubleword
+<a id='L83' name='L83'></a>    83         sd      $zero, ($t1)            # zero doubleword
+<a id='L84' name='L84'></a>    84         DADDI2( $t1, 8)                 # next doubleword
+<a id='L85' name='L85'></a>    85         sd      $zero, ($t1)            # zero doubleword
+<a id='L86' name='L86'></a>    86         DADDI2( $t1, 8)                 # next doubleword
+<a id='L87' name='L87'></a>    87         sd      $zero, ($t1)            # zero doubleword
+<a id='L88' name='L88'></a>    88         DADDI2( $t1, 8)                 # next doubleword
+<a id='L89' name='L89'></a>    89         sd      $zero, ($t1)            # zero doubleword
+<a id='L90' name='L90'></a>    90         DADDI2( $t1, 8)                 # next doubleword
+<a id='L91' name='L91'></a>    91         sd      $zero, ($t1)            # zero doubleword
+<a id='L92' name='L92'></a>    92         DADDI2( $t1, 8)                 # next doubleword
+<a id='L93' name='L93'></a>    93         sd      $zero, ($t1)            # zero doubleword
+<a id='L94' name='L94'></a>    94         DADDI2( $t1, 8)                 # next doubleword
+<a id='L95' name='L95'></a>    95         sd      $zero, ($t1)            # zero doubleword
+<a id='L96' name='L96'></a>    96         DADDI2( $t1, 8)                 # next doubleword
+<a id='L97' name='L97'></a>    97         j       .filld                  # fill either doubleword or byte
+<a id='L98' name='L98'></a>    98         nop                             # delay slot
+<a id='L99' name='L99'></a>    99 .fillb:
+<a id='L100' name='L100'></a>   100         beq     $t0, $t1, .continue     # already finished?
+<a id='L101' name='L101'></a>   101         nop                             # delay slot
+<a id='L102' name='L102'></a>   102         sb      $zero, ($t1)            # clear byte
+<a id='L103' name='L103'></a>   103         DADDI2( $t1, 1)                 # t1++
+<a id='L104' name='L104'></a>   104 .continue:
+<a id='L105' name='L105'></a>   105         DADDI2( $s0, 56)                # s0 = next action
+<a id='L106' name='L106'></a>   106         j       .next_action            # next action
+<a id='L107' name='L107'></a>   107         nop                             # delay slot
+<a id='L108' name='L108'></a>   108 .do_mmap_anon:
+<a id='L109' name='L109'></a>   109         ld      $t0, 8($s0)             # vm address
+<a id='L110' name='L110'></a>   110         ld      $t1, 16($s0)            # file_offset
+<a id='L111' name='L111'></a>   111         ld      $t2, 24($s0)            # protection
+<a id='L112' name='L112'></a>   112         ld      $t3, 32($s0)            # length
+<a id='L113' name='L113'></a>   113         ld      $v0, 40($s0)            # flags
+<a id='L114' name='L114'></a>   114         li      $v1, -1                 # fd
+<a id='L115' name='L115'></a>   115         j       .do_mmap_1              # do mmap
+<a id='L116' name='L116'></a>   116         nop                             # branch delay slot
+<a id='L117' name='L117'></a>   117 .open_file:
+<a id='L118' name='L118'></a>   118         li      $v0, 5002               # SYS_open
+<a id='L119' name='L119'></a>   119         DADDI3( $a0, $s0, 8)            # start of name
+<a id='L120' name='L120'></a>   120         move    $a1, $zero              # flags = O_RDONLY
+<a id='L121' name='L121'></a>   121         move    $a2, $zero              # mode = 0
+<a id='L122' name='L122'></a>   122         syscall                         # syscall
+<a id='L123' name='L123'></a>   123         bne     $a3, $zero, .perror     # perror
+<a id='L124' name='L124'></a>   124         nop                             # delay slot
+<a id='L125' name='L125'></a>   125         DADDI2( $s0, 8)                 # start of string
+<a id='L126' name='L126'></a>   126         move    $t3, $s0                # t3 = s0
+<a id='L127' name='L127'></a>   127 .nextc:
+<a id='L128' name='L128'></a>   128         lb      $t0, ($s0)              # load byte
+<a id='L129' name='L129'></a>   129         DADDI2( $s0, 1)                 # s0++
+<a id='L130' name='L130'></a>   130         li      $t1, 47                 # directory separator `/'
+<a id='L131' name='L131'></a>   131         bne     $t0, $t1, .nextc1       # is separator char?
+<a id='L132' name='L132'></a>   132         nop                             # delay slot
+<a id='L133' name='L133'></a>   133         move    $t3, $s0                # t3 = char past separator
+<a id='L134' name='L134'></a>   134 .nextc1:
+<a id='L135' name='L135'></a>   135         bnez    $t0, .nextc             # next character?
+<a id='L136' name='L136'></a>   136         nop                             # delay slot
+<a id='L137' name='L137'></a>   137         DADDI2( $s0, 7)                 # adjust for round
+<a id='L138' name='L138'></a>   138         li      $t2, -8                 # t2 = -8
+<a id='L139' name='L139'></a>   139         and     $s0, $s0, $t2           # mask for round
+<a id='L140' name='L140'></a>   140         andi    $t0, $s1, 16            # t1 = s1 &amp; 16
+<a id='L141' name='L141'></a>   141         move    $t1, $sp                # address of primary fd
+<a id='L142' name='L142'></a>   142         beqz    $t0, .primary           # primary fd?
+<a id='L143' name='L143'></a>   143         nop                             # delay slot
+<a id='L144' name='L144'></a>   144         DADDI2( $t1, 8)                 # address of secondary fd
+<a id='L145' name='L145'></a>   145         sd      $v0, ($t1)              # store fd
+<a id='L146' name='L146'></a>   146         j       .next_action            # next action
+<a id='L147' name='L147'></a>   147         nop                             # delay slot
+<a id='L148' name='L148'></a>   148 .primary:
+<a id='L149' name='L149'></a>   149         sd      $v0, ($t1)              # store fd
+<a id='L150' name='L150'></a>   150         li      $v0, 5153               # SYS_prctl
+<a id='L151' name='L151'></a>   151         li      $a0, 15                 # PR_SET_NAME
+<a id='L152' name='L152'></a>   152         move    $a1, $t3                # char past separator
+<a id='L153' name='L153'></a>   153         move    $a2, $zero              # a2
+<a id='L154' name='L154'></a>   154         move    $a3, $zero              # a3
+<a id='L155' name='L155'></a>   155         move    $a4, $zero              # a4
+<a id='L156' name='L156'></a>   156         move    $a5, $zero              # a5
+<a id='L157' name='L157'></a>   157         syscall                         # syscall
+<a id='L158' name='L158'></a>   158         j       .next_action            # next action
+<a id='L159' name='L159'></a>   159         nop                             # delay slot
+<a id='L160' name='L160'></a>   160 .perror:
+<a id='L161' name='L161'></a>   161         move    $a0, $v0                # errno
+<a id='L162' name='L162'></a>   162         li      $v0, 5058               # SYS_exit
+<a id='L163' name='L163'></a>   163         syscall                         # syscall
+<a id='L164' name='L164'></a>   164 .rest_of_exec:
+<a id='L165' name='L165'></a>   165         move    $s1, $s2                # original SP
+<a id='L166' name='L166'></a>   166         ld      $t0, ($s1)              # argc
+<a id='L167' name='L167'></a>   167         dsll    $t0, $t0, 3             # argc *= 8
+<a id='L168' name='L168'></a>   168         DADDI2( $t0, 16)                # argc += 16
+<a id='L169' name='L169'></a>   169         dadd    $s1, $s1, $t0           # s1 = start of envp
+<a id='L170' name='L170'></a>   170 .skipenv:
+<a id='L171' name='L171'></a>   171         ld      $t0, ($s1)              # t0 = *s1
+<a id='L172' name='L172'></a>   172         DADDI2( $s1, 8)                 # s1++
+<a id='L173' name='L173'></a>   173         bne     $t0, $zero, .skipenv    # skip again
+<a id='L174' name='L174'></a>   174         nop                             # delay slot
+<a id='L175' name='L175'></a>   175         dla     $t3, .auxvtab           # address of auxv table
+<a id='L176' name='L176'></a>   176 .one_auxv:
+<a id='L177' name='L177'></a>   177         ld      $t0, ($s1)              # t0 = auxv type
+<a id='L178' name='L178'></a>   178         li      $t1, 10                 # t1 = 10
+<a id='L179' name='L179'></a>   179         beqz    $t0, .finish            # is AT_IGNORE?
+<a id='L180' name='L180'></a>   180         nop                             # delay slot
+<a id='L181' name='L181'></a>   181         sltu    $t1, $t0, $t1           # t1 = t0 &lt; num offsets
+<a id='L182' name='L182'></a>   182         beqz    $t1, .next              # next auxv
+<a id='L183' name='L183'></a>   183         nop                             # delay slot
+<a id='L184' name='L184'></a>   184         dsll    $t1, $t0, 2             # t1 = t0 * 4
+<a id='L185' name='L185'></a>   185         dadd    $t1, $t3, $t1           # t1 = .auxvtab + t1
+<a id='L186' name='L186'></a>   186         lw      $t2, ($t1)              # t2 = *t1
+<a id='L187' name='L187'></a>   187         beqz    $t2, .next              # skip auxv
+<a id='L188' name='L188'></a>   188         nop                             # delay slot
+<a id='L189' name='L189'></a>   189         dadd    $t2, $s0, $t2           # t2 = s0 + t2
+<a id='L190' name='L190'></a>   190         ld      $t2, ($t2)              # t2 = *t2
+<a id='L191' name='L191'></a>   191         sd      $t2, 8($s1)             # set auxv value
+<a id='L192' name='L192'></a>   192 .next:
+<a id='L193' name='L193'></a>   193         DADDI2( $s1, 16)                # next auxv
+<a id='L194' name='L194'></a>   194         j       .one_auxv               # next auxv
+<a id='L195' name='L195'></a>   195         nop                             # delay slot
+<a id='L196' name='L196'></a>   196 .finish:
+<a id='L197' name='L197'></a>   197         ld      $t0, 8($sp)             # secondary fd
+<a id='L198' name='L198'></a>   198         li      $t1, -1                 # t1 = -1
+<a id='L199' name='L199'></a>   199         ld      $s1, ($sp)              # s1 = primary fd
+<a id='L200' name='L200'></a>   200         li      $v0, 5003               # SYS_close
+<a id='L201' name='L201'></a>   201         beq     $t0, $t2, .finish1      # secondary fd set?
+<a id='L202' name='L202'></a>   202         nop                             # delay slot
+<a id='L203' name='L203'></a>   203         move    $a0, $t0                # secondary fd
+<a id='L204' name='L204'></a>   204         syscall                         # syscall
+<a id='L205' name='L205'></a>   205         li      $v0, 5003               # SYS_close
+<a id='L206' name='L206'></a>   206 .finish1:
+<a id='L207' name='L207'></a>   207         move    $a0, $s1                # primary fd
+<a id='L208' name='L208'></a>   208         syscall                         # syscall
+<a id='L209' name='L209'></a>   209 .jump:
+<a id='L210' name='L210'></a>   210         move    $v0, $zero              # rtld_fini
+<a id='L211' name='L211'></a>   211         ld      $t0, 8($s0)             # entry
+<a id='L212' name='L212'></a>   212         move    $sp, $s2                # restore stack pointer, delay slot
+<a id='L213' name='L213'></a>   213         jr      $t0                     # enter
+<a id='L214' name='L214'></a>   214         nop                             # delay slot
+<a id='L215' name='L215'></a>   215 
+<a id='L216' name='L216'></a>   216 .auxvtab:
+<a id='L217' name='L217'></a>   217         .long   0                       # 0
+<a id='L218' name='L218'></a>   218         .long   0                       # 1
+<a id='L219' name='L219'></a>   219         .long   0                       # 2
+<a id='L220' name='L220'></a>   220         .long   40                      # 3 AT_PHDR
+<a id='L221' name='L221'></a>   221         .long   24                      # 4 AT_PHENT
+<a id='L222' name='L222'></a>   222         .long   32                      # 5 AT_PHNUM
+<a id='L223' name='L223'></a>   223         .long   0                       # 6
+<a id='L224' name='L224'></a>   224         .long   48                      # 7 AT_BASE
+<a id='L225' name='L225'></a>   225         .long   0                       # 8
+<a id='L226' name='L226'></a>   226         .long   16                      # 9 AT_ENTRY
+<a id='L227' name='L227'></a>   227 
+<a id='L228' name='L228'></a>   228 .timespec:
+<a id='L229' name='L229'></a>   229         .quad   10
+<a id='L230' name='L230'></a>   230         .quad   10
+<a id='L231' name='L231'></a>   231 
+<a id='L232' name='L232'></a>   232 <em class='comment'># Local Variables:</em>
+<a id='L233' name='L233'></a>   233 <em class='comment'># asm-comment-char: 35</em>
+<a id='L234' name='L234'></a>   234 <em class='comment'># End:</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;][^][v]<a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

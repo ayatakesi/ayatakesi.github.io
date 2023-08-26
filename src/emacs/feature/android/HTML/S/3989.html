@@ -1,0 +1,266 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>java/org/gnu/emacs/EmacsWindowAttachmentManager.java</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4729.html'>java</a>/<a href='../files/4730.html'>org</a>/<a href='../files/4731.html'>gnu</a>/<a href='../files/4732.html'>emacs</a>/EmacsWindowAttachmentManager.java</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L68'>[^]</a><a href='#L226'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L68' title='Defined at 68.'>attachWindow</a></li>
+<li><a href='#L69' title='Defined at 69.'>getAttachedWindow</a></li>
+<li><a href='#L70' title='Defined at 70.'>detachWindow</a></li>
+<li><a href='#L71' title='Defined at 71.'>destroy</a></li>
+<li><a href='#L88' title='Defined at 88.'>registerWindowConsumer</a></li>
+<li><a href='#L109' title='Defined at 109.'>registerWindow</a></li>
+<li><a href='#L155' title='Defined at 155.'>removeWindowConsumer</a></li>
+<li><a href='#L176' title='Defined at 176.'>detachWindow</a></li>
+<li><a href='#L196' title='Defined at 196.'>noticeIconified</a></li>
+<li><a href='#L211' title='Defined at 211.'>noticeDeiconified</a></li>
+<li><a href='#L226' title='Defined at 226.'>copyWindows</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Communication module for Android terminals.  -*- c-file-style: "GNU" -*-</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <strong class='reserved'>package</strong> org.gnu.emacs;
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <strong class='reserved'>import</strong> java.util.ArrayList;
+<a id='L23' name='L23'></a>    23 <strong class='reserved'>import</strong> java.util.List;
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 <strong class='reserved'>import</strong> android.app.ActivityOptions;
+<a id='L26' name='L26'></a>    26 <strong class='reserved'>import</strong> android.content.Intent;
+<a id='L27' name='L27'></a>    27 <strong class='reserved'>import</strong> android.os.Build;
+<a id='L28' name='L28'></a>    28 <strong class='reserved'>import</strong> android.util.Log;
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <em class='comment'>/* Code to paper over the differences in lifecycles between</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>   "activities" and windows.  There are four interfaces to an instance</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'>   of this class:</em>
+<a id='L33' name='L33'></a>    33 <em class='comment'></em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>     registerWindowConsumer (WindowConsumer)</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'>     registerWindow (EmacsWindow)</em>
+<a id='L36' name='L36'></a>    36 <em class='comment'>     removeWindowConsumer (WindowConsumer)</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'>     removeWindow (EmacsWindow)</em>
+<a id='L38' name='L38'></a>    38 <em class='comment'></em>
+<a id='L39' name='L39'></a>    39 <em class='comment'>   A WindowConsumer is expected to allow an EmacsWindow to be attached</em>
+<a id='L40' name='L40'></a>    40 <em class='comment'>   to it, and be created or destroyed.</em>
+<a id='L41' name='L41'></a>    41 <em class='comment'></em>
+<a id='L42' name='L42'></a>    42 <em class='comment'>   Every time a window is created, registerWindow checks the list of</em>
+<a id='L43' name='L43'></a>    43 <em class='comment'>   window consumers.  If a consumer exists and does not currently have</em>
+<a id='L44' name='L44'></a>    44 <em class='comment'>   a window of its own attached, it gets the new window.  Otherwise,</em>
+<a id='L45' name='L45'></a>    45 <em class='comment'>   the window attachment manager starts a new consumer.</em>
+<a id='L46' name='L46'></a>    46 <em class='comment'></em>
+<a id='L47' name='L47'></a>    47 <em class='comment'>   Every time a consumer is registered, registerWindowConsumer checks</em>
+<a id='L48' name='L48'></a>    48 <em class='comment'>   the list of available windows.  If a window exists and is not</em>
+<a id='L49' name='L49'></a>    49 <em class='comment'>   currently attached to a consumer, then the consumer gets it.</em>
+<a id='L50' name='L50'></a>    50 <em class='comment'></em>
+<a id='L51' name='L51'></a>    51 <em class='comment'>   Finally, every time a window is removed, the consumer is</em>
+<a id='L52' name='L52'></a>    52 <em class='comment'>   destroyed.  */</em>
+<a id='L53' name='L53'></a>    53 
+<a id='L54' name='L54'></a>    54 <strong class='reserved'>public</strong> <strong class='reserved'>final</strong> <strong class='reserved'>class</strong> <a href='../R/1829.html' title='Multiple referred from 22 places.'>EmacsWindowAttachmentManager</a>
+<a id='L55' name='L55'></a>    55 <em class='brace'>{</em>
+<a id='L56' name='L56'></a>    56   <strong class='reserved'>private</strong> <strong class='reserved'>final</strong> <strong class='reserved'>static</strong> String TAG = "EmacsWindowAttachmentManager";
+<a id='L57' name='L57'></a>    57 
+<a id='L58' name='L58'></a>    58   <em class='comment'>/* The single window attachment manager ``object''.  */</em>
+<a id='L59' name='L59'></a>    59   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <a href='../S/3989.html#L54' title='Defined at 54 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>EmacsWindowAttachmentManager</a> MANAGER;
+<a id='L60' name='L60'></a>    60 
+<a id='L61' name='L61'></a>    61   <strong class='reserved'>static</strong>
+<a id='L62' name='L62'></a>    62   <em class='brace'>{</em>
+<a id='L63' name='L63'></a>    63     MANAGER = <strong class='reserved'>new</strong> <a href='../S/3989.html#L54' title='Defined at 54 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>EmacsWindowAttachmentManager</a> ();
+<a id='L64' name='L64'></a>    64   <em class='brace'>}</em>;
+<a id='L65' name='L65'></a>    65 
+<a id='L66' name='L66'></a>    66   <strong class='reserved'>public</strong> <strong class='reserved'>interface</strong> <a href='../R/6163.html' title='Multiple referred from 13 places.'>WindowConsumer</a>
+<a id='L67' name='L67'></a>    67   <em class='brace'>{</em>
+<a id='L68' name='L68'></a>    68     <strong class='reserved'>public</strong> <strong class='reserved'>void</strong> <a href='../R/8093.html' title='Multiple referred from 2 places.'>attachWindow</a> (<a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L69' name='L69'></a>    69     <strong class='reserved'>public</strong> <a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../R/10966.html' title='Multiple referred from 4 places.'>getAttachedWindow</a> ();
+<a id='L70' name='L70'></a>    70     <strong class='reserved'>public</strong> <strong class='reserved'>void</strong> <a href='../R/9459.html' title='Multiple referred from 4 places.'>detachWindow</a> ();
+<a id='L71' name='L71'></a>    71     <strong class='reserved'>public</strong> <strong class='reserved'>void</strong> <a href='../R/9452.html' title='Multiple referred from 5 places.'>destroy</a> ();
+<a id='L72' name='L72'></a>    72   <em class='brace'>}</em>;
+<a id='L73' name='L73'></a>    73 
+<a id='L74' name='L74'></a>    74   <em class='comment'>/* List of currently attached window consumers.  */</em>
+<a id='L75' name='L75'></a>    75   <strong class='reserved'>public</strong> List&lt;<a href='../S/3989.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>WindowConsumer</a>&gt; consumers;
+<a id='L76' name='L76'></a>    76 
+<a id='L77' name='L77'></a>    77   <em class='comment'>/* List of currently attached windows.  */</em>
+<a id='L78' name='L78'></a>    78   <strong class='reserved'>public</strong> List&lt;<a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a>&gt; windows;
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80   <strong class='reserved'>public</strong>
+<a id='L81' name='L81'></a>    81   EmacsWindowAttachmentManager ()
+<a id='L82' name='L82'></a>    82   <em class='brace'>{</em>
+<a id='L83' name='L83'></a>    83     consumers = <strong class='reserved'>new</strong> ArrayList&lt;<a href='../S/3989.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>WindowConsumer</a>&gt; ();
+<a id='L84' name='L84'></a>    84     windows = <strong class='reserved'>new</strong> ArrayList&lt;<a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a>&gt; ();
+<a id='L85' name='L85'></a>    85   <em class='brace'>}</em>
+<a id='L86' name='L86'></a>    86 
+<a id='L87' name='L87'></a>    87   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
+<a id='L88' name='L88'></a>    88   <a href='../S/3974.html#L224' title='Referred from 224 in java/org/gnu/emacs/EmacsActivity.java.'>registerWindowConsumer</a> (<a href='../S/3989.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>WindowConsumer</a> consumer)
+<a id='L89' name='L89'></a>    89   <em class='brace'>{</em>
+<a id='L90' name='L90'></a>    90     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "registerWindowConsumer " + consumer);
+<a id='L91' name='L91'></a>    91 
+<a id='L92' name='L92'></a>    92     consumers.<a href='../S/2260.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a> (consumer);
+<a id='L93' name='L93'></a>    93 
+<a id='L94' name='L94'></a>    94     <strong class='reserved'>for</strong> (<a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> : windows)
+<a id='L95' name='L95'></a>    95       <em class='brace'>{</em>
+<a id='L96' name='L96'></a>    96         <strong class='reserved'>if</strong> (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../S/3991.html#L263' title='Defined at 263 in java/org/gnu/emacs/EmacsWindow.java.'>getAttachedConsumer</a> () == <strong class='reserved'>null</strong>)
+<a id='L97' name='L97'></a>    97           <em class='brace'>{</em>
+<a id='L98' name='L98'></a>    98             Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "registerWindowConsumer: attaching " + <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L99' name='L99'></a>    99             consumer.<a href='../D/9009.html' title='Multiple defined in 2 places.'>attachWindow</a> (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L100' name='L100'></a>   100             <strong class='reserved'>return</strong>;
+<a id='L101' name='L101'></a>   101           <em class='brace'>}</em>
+<a id='L102' name='L102'></a>   102       <em class='brace'>}</em>
+<a id='L103' name='L103'></a>   103 
+<a id='L104' name='L104'></a>   104     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "registerWindowConsumer: sendWindowAction 0, 0");
+<a id='L105' name='L105'></a>   105     <a href='../S/3961.html#L31' title='Defined at 31 in java/org/gnu/emacs/EmacsNative.java.'>EmacsNative</a>.<a href='../S/3961.html#L119' title='Defined at 119 in java/org/gnu/emacs/EmacsNative.java.'>sendWindowAction</a> ((<strong class='reserved'>short</strong>) 0, 0);
+<a id='L106' name='L106'></a>   106   <em class='brace'>}</em>
+<a id='L107' name='L107'></a>   107 
+<a id='L108' name='L108'></a>   108   <strong class='reserved'>public</strong> <strong class='reserved'>synchronized</strong> <strong class='reserved'>void</strong>
+<a id='L109' name='L109'></a>   109   <a href='../R/14936.html' title='Multiple referred from 2 places.'>registerWindow</a> (<a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>)
+<a id='L110' name='L110'></a>   110   <em class='brace'>{</em>
+<a id='L111' name='L111'></a>   111     Intent intent;
+<a id='L112' name='L112'></a>   112     ActivityOptions options;
+<a id='L113' name='L113'></a>   113 
+<a id='L114' name='L114'></a>   114     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "registerWindow (maybe): " + <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L115' name='L115'></a>   115 
+<a id='L116' name='L116'></a>   116     <strong class='reserved'>if</strong> (windows.contains (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>))
+<a id='L117' name='L117'></a>   117       <em class='comment'>/* The window is already registered.  */</em>
+<a id='L118' name='L118'></a>   118       <strong class='reserved'>return</strong>;
+<a id='L119' name='L119'></a>   119 
+<a id='L120' name='L120'></a>   120     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "registerWindow: " + <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L121' name='L121'></a>   121 
+<a id='L122' name='L122'></a>   122     windows.<a href='../S/2260.html#L157' title='Defined at 157 in lib/nstrftime.c.'>add</a> (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L123' name='L123'></a>   123 
+<a id='L124' name='L124'></a>   124     <strong class='reserved'>for</strong> (<a href='../S/3989.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>WindowConsumer</a> consumer : consumers)
+<a id='L125' name='L125'></a>   125       <em class='brace'>{</em>
+<a id='L126' name='L126'></a>   126         <strong class='reserved'>if</strong> (consumer.<a href='../D/12023.html' title='Multiple defined in 2 places.'>getAttachedWindow</a> () == <strong class='reserved'>null</strong>)
+<a id='L127' name='L127'></a>   127           <em class='brace'>{</em>
+<a id='L128' name='L128'></a>   128             Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "registerWindow: attaching " + consumer);
+<a id='L129' name='L129'></a>   129             consumer.<a href='../D/9009.html' title='Multiple defined in 2 places.'>attachWindow</a> (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L130' name='L130'></a>   130             <strong class='reserved'>return</strong>;
+<a id='L131' name='L131'></a>   131           <em class='brace'>}</em>
+<a id='L132' name='L132'></a>   132       <em class='brace'>}</em>
+<a id='L133' name='L133'></a>   133 
+<a id='L134' name='L134'></a>   134     intent = <strong class='reserved'>new</strong> Intent (<a href='../S/3959.html#L87' title='Defined at 87 in java/org/gnu/emacs/EmacsService.java.'>EmacsService</a>.SERVICE,
+<a id='L135' name='L135'></a>   135                          <a href='../S/3958.html#L26' title='Defined at 26 in java/org/gnu/emacs/EmacsMultitaskActivity.java.'>EmacsMultitaskActivity</a>.<strong class='reserved'>class</strong>);
+<a id='L136' name='L136'></a>   136     intent.addFlags (Intent.FLAG_ACTIVITY_NEW_DOCUMENT
+<a id='L137' name='L137'></a>   137                      | Intent.FLAG_ACTIVITY_NEW_TASK
+<a id='L138' name='L138'></a>   138                      | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+<a id='L139' name='L139'></a>   139 
+<a id='L140' name='L140'></a>   140     <strong class='reserved'>if</strong> (Build.<a href='../S/3682.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &lt; Build.VERSION_CODES.<a href='../D/4195.html' title='Multiple defined in 12 places.'>N</a>)
+<a id='L141' name='L141'></a>   141       <a href='../S/3959.html#L87' title='Defined at 87 in java/org/gnu/emacs/EmacsService.java.'>EmacsService</a>.SERVICE.startActivity (intent);
+<a id='L142' name='L142'></a>   142     <strong class='reserved'>else</strong>
+<a id='L143' name='L143'></a>   143       <em class='brace'>{</em>
+<a id='L144' name='L144'></a>   144         <em class='comment'>/* Specify the desired window size.  */</em>
+<a id='L145' name='L145'></a>   145         options = ActivityOptions.makeBasic ();
+<a id='L146' name='L146'></a>   146         options.setLaunchBounds (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../S/3991.html#L207' title='Defined at 207 in java/org/gnu/emacs/EmacsWindow.java.'>getGeometry</a> ());
+<a id='L147' name='L147'></a>   147         <a href='../S/3959.html#L87' title='Defined at 87 in java/org/gnu/emacs/EmacsService.java.'>EmacsService</a>.SERVICE.startActivity (intent,
+<a id='L148' name='L148'></a>   148                                             options.toBundle ());
+<a id='L149' name='L149'></a>   149       <em class='brace'>}</em>
+<a id='L150' name='L150'></a>   150 
+<a id='L151' name='L151'></a>   151     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "registerWindow: startActivity");
+<a id='L152' name='L152'></a>   152   <em class='brace'>}</em>
+<a id='L153' name='L153'></a>   153 
+<a id='L154' name='L154'></a>   154   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
+<a id='L155' name='L155'></a>   155   <a href='../S/3974.html#L262' title='Referred from 262 in java/org/gnu/emacs/EmacsActivity.java.'>removeWindowConsumer</a> (<a href='../S/3989.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>WindowConsumer</a> consumer, <strong class='reserved'>boolean</strong> isFinishing)
+<a id='L156' name='L156'></a>   156   <em class='brace'>{</em>
+<a id='L157' name='L157'></a>   157     <a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "removeWindowConsumer " + consumer);
+<a id='L160' name='L160'></a>   160 
+<a id='L161' name='L161'></a>   161     <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> = consumer.<a href='../D/12023.html' title='Multiple defined in 2 places.'>getAttachedWindow</a> ();
+<a id='L162' name='L162'></a>   162 
+<a id='L163' name='L163'></a>   163     <strong class='reserved'>if</strong> (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> != <strong class='reserved'>null</strong>)
+<a id='L164' name='L164'></a>   164       <em class='brace'>{</em>
+<a id='L165' name='L165'></a>   165         Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "removeWindowConsumer: detaching " + <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L166' name='L166'></a>   166 
+<a id='L167' name='L167'></a>   167         consumer.<a href='../D/10431.html' title='Multiple defined in 3 places.'>detachWindow</a> ();
+<a id='L168' name='L168'></a>   168         <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../S/3991.html#L694' title='Defined at 694 in java/org/gnu/emacs/EmacsWindow.java.'>onActivityDetached</a> (isFinishing);
+<a id='L169' name='L169'></a>   169       <em class='brace'>}</em>
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "removeWindowConsumer: removing " + consumer);
+<a id='L172' name='L172'></a>   172     consumers.<a href='../D/16224.html' title='Multiple defined in 3 places.'>remove</a> (consumer);
+<a id='L173' name='L173'></a>   173   <em class='brace'>}</em>
+<a id='L174' name='L174'></a>   174 
+<a id='L175' name='L175'></a>   175   <strong class='reserved'>public</strong> <strong class='reserved'>synchronized</strong> <strong class='reserved'>void</strong>
+<a id='L176' name='L176'></a>   176   <a href='../R/9459.html' title='Multiple referred from 4 places.'>detachWindow</a> (<a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>)
+<a id='L177' name='L177'></a>   177   <em class='brace'>{</em>
+<a id='L178' name='L178'></a>   178     <a href='../S/3989.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>WindowConsumer</a> consumer;
+<a id='L179' name='L179'></a>   179 
+<a id='L180' name='L180'></a>   180     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "detachWindow " + <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L181' name='L181'></a>   181 
+<a id='L182' name='L182'></a>   182     <strong class='reserved'>if</strong> (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../S/3991.html#L263' title='Defined at 263 in java/org/gnu/emacs/EmacsWindow.java.'>getAttachedConsumer</a> () != <strong class='reserved'>null</strong>)
+<a id='L183' name='L183'></a>   183       <em class='brace'>{</em>
+<a id='L184' name='L184'></a>   184         consumer = <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../S/3991.html#L263' title='Defined at 263 in java/org/gnu/emacs/EmacsWindow.java.'>getAttachedConsumer</a> ();
+<a id='L185' name='L185'></a>   185 
+<a id='L186' name='L186'></a>   186         Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "detachWindow: removing" + consumer);
+<a id='L187' name='L187'></a>   187 
+<a id='L188' name='L188'></a>   188         consumers.<a href='../D/16224.html' title='Multiple defined in 3 places.'>remove</a> (consumer);
+<a id='L189' name='L189'></a>   189         consumer.<a href='../D/10424.html' title='Multiple defined in 2 places.'>destroy</a> ();
+<a id='L190' name='L190'></a>   190       <em class='brace'>}</em>
+<a id='L191' name='L191'></a>   191 
+<a id='L192' name='L192'></a>   192     windows.<a href='../D/16224.html' title='Multiple defined in 3 places.'>remove</a> (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>);
+<a id='L193' name='L193'></a>   193   <em class='brace'>}</em>
+<a id='L194' name='L194'></a>   194 
+<a id='L195' name='L195'></a>   195   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
+<a id='L196' name='L196'></a>   196   <a href='../R/13758.html' title='Multiple referred from 3 places.'>noticeIconified</a> (<a href='../S/3989.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>WindowConsumer</a> consumer)
+<a id='L197' name='L197'></a>   197   <em class='brace'>{</em>
+<a id='L198' name='L198'></a>   198     <a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
+<a id='L199' name='L199'></a>   199 
+<a id='L200' name='L200'></a>   200     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "noticeIconified " + consumer);
+<a id='L201' name='L201'></a>   201 
+<a id='L202' name='L202'></a>   202     <em class='comment'>/* If a window is attached, send the appropriate iconification</em>
+<a id='L203' name='L203'></a>   203 <em class='comment'>       events.  */</em>
+<a id='L204' name='L204'></a>   204     <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> = consumer.<a href='../D/12023.html' title='Multiple defined in 2 places.'>getAttachedWindow</a> ();
+<a id='L205' name='L205'></a>   205 
+<a id='L206' name='L206'></a>   206     <strong class='reserved'>if</strong> (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> != <strong class='reserved'>null</strong>)
+<a id='L207' name='L207'></a>   207       <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../D/14946.html' title='Multiple defined in 2 places.'>noticeIconified</a> ();
+<a id='L208' name='L208'></a>   208   <em class='brace'>}</em>
+<a id='L209' name='L209'></a>   209 
+<a id='L210' name='L210'></a>   210   <strong class='reserved'>public</strong> <strong class='reserved'>void</strong>
+<a id='L211' name='L211'></a>   211   <a href='../R/13757.html' title='Multiple referred from 3 places.'>noticeDeiconified</a> (<a href='../S/3989.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsWindowAttachmentManager.java.'>WindowConsumer</a> consumer)
+<a id='L212' name='L212'></a>   212   <em class='brace'>{</em>
+<a id='L213' name='L213'></a>   213     <a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a> <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>;
+<a id='L214' name='L214'></a>   214 
+<a id='L215' name='L215'></a>   215     Log.<a href='../D/10234.html' title='Multiple defined in 2 places.'>d</a> (TAG, "noticeDeiconified " + consumer);
+<a id='L216' name='L216'></a>   216 
+<a id='L217' name='L217'></a>   217     <em class='comment'>/* If a window is attached, send the appropriate iconification</em>
+<a id='L218' name='L218'></a>   218 <em class='comment'>       events.  */</em>
+<a id='L219' name='L219'></a>   219     <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> = consumer.<a href='../D/12023.html' title='Multiple defined in 2 places.'>getAttachedWindow</a> ();
+<a id='L220' name='L220'></a>   220 
+<a id='L221' name='L221'></a>   221     <strong class='reserved'>if</strong> (<a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a> != <strong class='reserved'>null</strong>)
+<a id='L222' name='L222'></a>   222       <a href='../S/314.html#L100' title='Defined at 100 in src/window.h.'>window</a>.<a href='../D/14945.html' title='Multiple defined in 2 places.'>noticeDeiconified</a> ();
+<a id='L223' name='L223'></a>   223   <em class='brace'>}</em>
+<a id='L224' name='L224'></a>   224 
+<a id='L225' name='L225'></a>   225   <strong class='reserved'>public</strong> <strong class='reserved'>synchronized</strong> List&lt;<a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a>&gt;
+<a id='L226' name='L226'></a>   226   <a href='../S/3959.html#L488' title='Referred from 488 in java/org/gnu/emacs/EmacsService.java.'>copyWindows</a> ()
+<a id='L227' name='L227'></a>   227   <em class='brace'>{</em>
+<a id='L228' name='L228'></a>   228     <strong class='reserved'>return</strong> <strong class='reserved'>new</strong> ArrayList&lt;<a href='../D/1971.html' title='Multiple defined in 2 places.'>EmacsWindow</a>&gt; (windows);
+<a id='L229' name='L229'></a>   229   <em class='brace'>}</em>
+<a id='L230' name='L230'></a>   230 <em class='brace'>}</em>;
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L68'>[^]</a><a href='#L226'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

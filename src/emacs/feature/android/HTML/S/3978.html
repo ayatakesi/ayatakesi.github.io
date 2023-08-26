@@ -1,0 +1,209 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>java/org/gnu/emacs/EmacsFontDriver.java</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4729.html'>java</a>/<a href='../files/4730.html'>org</a>/<a href='../files/4731.html'>gnu</a>/<a href='../files/4732.html'>emacs</a>/EmacsFontDriver.java</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L85'>[^]</a><a href='#L166'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L85' title='Defined at 85.'>toString</a></li>
+<li><a href='#L110' title='Defined at 110.'>toString</a></li>
+<li><a href='#L152' title='Defined at 152.'>list</a></li>
+<li><a href='#L153' title='Defined at 153.'>match</a></li>
+<li><a href='#L154' title='Defined at 154.'>listFamilies</a></li>
+<li><a href='#L155' title='Defined at 155.'>openFont</a></li>
+<li><a href='#L156' title='Defined at 156.'>hasChar</a></li>
+<li><a href='#L157' title='Defined at 157.'>textExtents</a></li>
+<li><a href='#L159' title='Defined at 159.'>encodeChar</a></li>
+<li><a href='#L160' title='Defined at 160.'>draw</a></li>
+<li><a href='#L166' title='Defined at 166.'>createFontDriver</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Font backend for Android terminals.  -*- c-file-style: "GNU" -*-</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <strong class='reserved'>package</strong> org.gnu.emacs;
+<a id='L21' name='L21'></a>    21 
+<a id='L22' name='L22'></a>    22 <strong class='reserved'>import</strong> android.os.Build;
+<a id='L23' name='L23'></a>    23 
+<a id='L24' name='L24'></a>    24 <em class='comment'>/* This code is mostly unused.  See sfntfont-android.c for the code</em>
+<a id='L25' name='L25'></a>    25 <em class='comment'>   that is actually used.  */</em>
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> <strong class='reserved'>class</strong> <a href='../R/1779.html' title='Multiple referred from 2 places.'>EmacsFontDriver</a>
+<a id='L28' name='L28'></a>    28 <em class='brace'>{</em>
+<a id='L29' name='L29'></a>    29   <em class='comment'>/* Font weights.  */</em>
+<a id='L30' name='L30'></a>    30   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> THIN          = 0;
+<a id='L31' name='L31'></a>    31   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> ULTRA_LIGHT   = 40;
+<a id='L32' name='L32'></a>    32   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> LIGHT         = 50;
+<a id='L33' name='L33'></a>    33   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> SEMI_LIGHT    = 55;
+<a id='L34' name='L34'></a>    34   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> REGULAR       = 80;
+<a id='L35' name='L35'></a>    35   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> MEDIUM        = 100;
+<a id='L36' name='L36'></a>    36   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> SEMI_BOLD     = 180;
+<a id='L37' name='L37'></a>    37   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> BOLD          = 200;
+<a id='L38' name='L38'></a>    38   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> EXTRA_BOLD    = 205;
+<a id='L39' name='L39'></a>    39   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/3716.html#L12' title='Defined at 12 in test/manual/etags/cp-src/screen.hpp.'>BLACK</a>         = 210;
+<a id='L40' name='L40'></a>    40   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> ULTRA_HEAVY   = 250;
+<a id='L41' name='L41'></a>    41 
+<a id='L42' name='L42'></a>    42   <em class='comment'>/* Font slants.  */</em>
+<a id='L43' name='L43'></a>    43   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> REVERSE_OBLIQUE       = 0;
+<a id='L44' name='L44'></a>    44   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> REVERSE_ITALIC        = 10;
+<a id='L45' name='L45'></a>    45   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/4085.html#L422' title='Defined at 422 in nt/cmdproxy.c.'>NORMAL</a>                = 100;
+<a id='L46' name='L46'></a>    46   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> ITALIC                = 200;
+<a id='L47' name='L47'></a>    47   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> OBLIQUE               = 210;
+<a id='L48' name='L48'></a>    48 
+<a id='L49' name='L49'></a>    49   <em class='comment'>/* Font widths.  */</em>
+<a id='L50' name='L50'></a>    50   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/51.html#L297' title='Defined at 297 in src/haiku_support.h.'>ULTRA_CONDENSED</a>       = 50;
+<a id='L51' name='L51'></a>    51   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/51.html#L298' title='Defined at 298 in src/haiku_support.h.'>EXTRA_CONDENSED</a>       = 63;
+<a id='L52' name='L52'></a>    52   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/51.html#L299' title='Defined at 299 in src/haiku_support.h.'>CONDENSED</a>             = 75;
+<a id='L53' name='L53'></a>    53   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/51.html#L300' title='Defined at 300 in src/haiku_support.h.'>SEMI_CONDENSED</a>        = 87;
+<a id='L54' name='L54'></a>    54   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> UNSPECIFIED           = 100;
+<a id='L55' name='L55'></a>    55   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/51.html#L302' title='Defined at 302 in src/haiku_support.h.'>SEMI_EXPANDED</a>         = 113;
+<a id='L56' name='L56'></a>    56   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/51.html#L303' title='Defined at 303 in src/haiku_support.h.'>EXPANDED</a>              = 125;
+<a id='L57' name='L57'></a>    57   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/51.html#L304' title='Defined at 304 in src/haiku_support.h.'>EXTRA_EXPANDED</a>        = 150;
+<a id='L58' name='L58'></a>    58   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> <a href='../S/51.html#L305' title='Defined at 305 in src/haiku_support.h.'>ULTRA_EXPANDED</a>        = 200;
+<a id='L59' name='L59'></a>    59 
+<a id='L60' name='L60'></a>    60   <em class='comment'>/* Font spacings.  */</em>
+<a id='L61' name='L61'></a>    61   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> PROPORTIONAL  = 0;
+<a id='L62' name='L62'></a>    62   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> DUAL          = 90;
+<a id='L63' name='L63'></a>    63   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> MONO          = 100;
+<a id='L64' name='L64'></a>    64   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>final</strong> <strong class='reserved'>int</strong> CHARCELL      = 110;
+<a id='L65' name='L65'></a>    65 
+<a id='L66' name='L66'></a>    66   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>class</strong> <a href='../R/2394.html' title='Multiple referred from 10 places.'>FontSpec</a>
+<a id='L67' name='L67'></a>    67   <em class='brace'>{</em>
+<a id='L68' name='L68'></a>    68     <em class='comment'>/* The fields below mean the same as they do in enum</em>
+<a id='L69' name='L69'></a>    69 <em class='comment'>       font_property_index in font.h.  */</em>
+<a id='L70' name='L70'></a>    70 
+<a id='L71' name='L71'></a>    71     <strong class='reserved'>public</strong> String foundry;
+<a id='L72' name='L72'></a>    72     <strong class='reserved'>public</strong> String family;
+<a id='L73' name='L73'></a>    73     <strong class='reserved'>public</strong> String adstyle;
+<a id='L74' name='L74'></a>    74     <strong class='reserved'>public</strong> String registry;
+<a id='L75' name='L75'></a>    75     <strong class='reserved'>public</strong> Integer width;
+<a id='L76' name='L76'></a>    76     <strong class='reserved'>public</strong> Integer weight;
+<a id='L77' name='L77'></a>    77     <strong class='reserved'>public</strong> Integer slant;
+<a id='L78' name='L78'></a>    78     <strong class='reserved'>public</strong> Integer <a href='../D/17405.html' title='Multiple defined in 5 places.'>size</a>;
+<a id='L79' name='L79'></a>    79     <strong class='reserved'>public</strong> Integer spacing;
+<a id='L80' name='L80'></a>    80     <strong class='reserved'>public</strong> Integer avgwidth;
+<a id='L81' name='L81'></a>    81     <strong class='reserved'>public</strong> Integer dpi;
+<a id='L82' name='L82'></a>    82 
+<a id='L83' name='L83'></a>    83     @Override
+<a id='L84' name='L84'></a>    84     <strong class='reserved'>public</strong> String
+<a id='L85' name='L85'></a>    85     <a href='../R/16871.html' title='Multiple referred from 14 places.'>toString</a> ()
+<a id='L86' name='L86'></a>    86     <em class='brace'>{</em>
+<a id='L87' name='L87'></a>    87       <strong class='reserved'>return</strong> ("foundry: " + foundry
+<a id='L88' name='L88'></a>    88               + " family: " + family
+<a id='L89' name='L89'></a>    89               + " adstyle: " + adstyle
+<a id='L90' name='L90'></a>    90               + " registry: " + registry
+<a id='L91' name='L91'></a>    91               + " width: " + width
+<a id='L92' name='L92'></a>    92               + " weight: " + weight
+<a id='L93' name='L93'></a>    93               + " slant: " + slant
+<a id='L94' name='L94'></a>    94               + " spacing: " + spacing
+<a id='L95' name='L95'></a>    95               + " avgwidth: " + avgwidth
+<a id='L96' name='L96'></a>    96               + " dpi: " + dpi);
+<a id='L97' name='L97'></a>    97     <em class='brace'>}</em>
+<a id='L98' name='L98'></a>    98   <em class='brace'>}</em>;
+<a id='L99' name='L99'></a>    99 
+<a id='L100' name='L100'></a>   100   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>class</strong> <a href='../R/2392.html' title='Multiple referred from 5 places.'>FontMetrics</a>
+<a id='L101' name='L101'></a>   101   <em class='brace'>{</em>
+<a id='L102' name='L102'></a>   102     <strong class='reserved'>public</strong> <strong class='reserved'>short</strong> lbearing;
+<a id='L103' name='L103'></a>   103     <strong class='reserved'>public</strong> <strong class='reserved'>short</strong> rbearing;
+<a id='L104' name='L104'></a>   104     <strong class='reserved'>public</strong> <strong class='reserved'>short</strong> width;
+<a id='L105' name='L105'></a>   105     <strong class='reserved'>public</strong> <strong class='reserved'>short</strong> ascent;
+<a id='L106' name='L106'></a>   106     <strong class='reserved'>public</strong> <strong class='reserved'>short</strong> descent;
+<a id='L107' name='L107'></a>   107 
+<a id='L108' name='L108'></a>   108     @Override
+<a id='L109' name='L109'></a>   109     <strong class='reserved'>public</strong> String
+<a id='L110' name='L110'></a>   110     <a href='../R/16871.html' title='Multiple referred from 14 places.'>toString</a> ()
+<a id='L111' name='L111'></a>   111     <em class='brace'>{</em>
+<a id='L112' name='L112'></a>   112       <strong class='reserved'>return</strong> ("lbearing " + lbearing
+<a id='L113' name='L113'></a>   113               + " rbearing " + rbearing
+<a id='L114' name='L114'></a>   114               + " width " + width
+<a id='L115' name='L115'></a>   115               + " ascent " + ascent
+<a id='L116' name='L116'></a>   116               + " descent " + descent);
+<a id='L117' name='L117'></a>   117     <em class='brace'>}</em>
+<a id='L118' name='L118'></a>   118   <em class='brace'>}</em>
+<a id='L119' name='L119'></a>   119 
+<a id='L120' name='L120'></a>   120   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <strong class='reserved'>class</strong> <a href='../R/2391.html' title='Multiple referred from 11 places.'>FontEntity</a> <strong class='reserved'>extends</strong> <a href='../S/3978.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontSpec</a>
+<a id='L121' name='L121'></a>   121   <em class='brace'>{</em>
+<a id='L122' name='L122'></a>   122     <em class='comment'>/* No extra fields here.  */</em>
+<a id='L123' name='L123'></a>   123   <em class='brace'>}</em>;
+<a id='L124' name='L124'></a>   124 
+<a id='L125' name='L125'></a>   125   <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> <strong class='reserved'>class</strong> <a href='../R/2393.html' title='Multiple referred from 10 places.'>FontObject</a> <strong class='reserved'>extends</strong> <a href='../S/3978.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontSpec</a>
+<a id='L126' name='L126'></a>   126   <em class='brace'>{</em>
+<a id='L127' name='L127'></a>   127     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> minWidth;
+<a id='L128' name='L128'></a>   128     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> maxWidth;
+<a id='L129' name='L129'></a>   129     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> pixelSize;
+<a id='L130' name='L130'></a>   130     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> height;
+<a id='L131' name='L131'></a>   131     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> spaceWidth;
+<a id='L132' name='L132'></a>   132     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> averageWidth;
+<a id='L133' name='L133'></a>   133     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> ascent;
+<a id='L134' name='L134'></a>   134     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> descent;
+<a id='L135' name='L135'></a>   135     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> underlineThickness;
+<a id='L136' name='L136'></a>   136     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> underlinePosition;
+<a id='L137' name='L137'></a>   137     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> baselineOffset;
+<a id='L138' name='L138'></a>   138     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> relativeCompose;
+<a id='L139' name='L139'></a>   139     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> defaultAscent;
+<a id='L140' name='L140'></a>   140     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> encodingCharset;
+<a id='L141' name='L141'></a>   141     <strong class='reserved'>public</strong> <strong class='reserved'>int</strong> repertoryCharset;
+<a id='L142' name='L142'></a>   142 
+<a id='L143' name='L143'></a>   143     <strong class='reserved'>public</strong>
+<a id='L144' name='L144'></a>   144     FontObject ()
+<a id='L145' name='L145'></a>   145     <em class='brace'>{</em>
+<a id='L146' name='L146'></a>   146       encodingCharset = -1;
+<a id='L147' name='L147'></a>   147       repertoryCharset = -1;
+<a id='L148' name='L148'></a>   148     <em class='brace'>}</em>
+<a id='L149' name='L149'></a>   149   <em class='brace'>}</em>;
+<a id='L150' name='L150'></a>   150 
+<a id='L151' name='L151'></a>   151   <em class='comment'>/* These mean the same as they do in struct font_driver.  */</em>
+<a id='L152' name='L152'></a>   152   <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> <a href='../S/3978.html#L120' title='Defined at 120 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontEntity</a>[] <a href='../R/12673.html' title='Multiple referred from 759 places.'>list</a> (<a href='../S/3978.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontSpec</a> fontSpec);
+<a id='L153' name='L153'></a>   153   <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> <a href='../S/3978.html#L120' title='Defined at 120 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontEntity</a> <a href='../R/13093.html' title='Multiple referred from 161 places.'>match</a> (<a href='../S/3978.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontSpec</a> fontSpec);
+<a id='L154' name='L154'></a>   154   <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> String[] listFamilies ();
+<a id='L155' name='L155'></a>   155   <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> <a href='../S/3978.html#L125' title='Defined at 125 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontObject</a> <a href='../S/4025.html#L587' title='Referred from 587 in lwlib/lwlib-Xaw.c.'>openFont</a> (<a href='../S/3978.html#L120' title='Defined at 120 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontEntity</a> fontEntity, <strong class='reserved'>int</strong> pixelSize);
+<a id='L156' name='L156'></a>   156   <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> <strong class='reserved'>int</strong> hasChar (<a href='../S/3978.html#L66' title='Defined at 66 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontSpec</a> <a href='../S/140.html#L277' title='Defined at 277 in src/font.h.'>font</a>, <strong class='reserved'>char</strong> charCode);
+<a id='L157' name='L157'></a>   157   <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> <strong class='reserved'>void</strong> textExtents (<a href='../S/3978.html#L125' title='Defined at 125 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontObject</a> <a href='../S/140.html#L277' title='Defined at 277 in src/font.h.'>font</a>, <strong class='reserved'>int</strong> code[],
+<a id='L158' name='L158'></a>   158                                     <a href='../S/3978.html#L100' title='Defined at 100 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontMetrics</a> fontMetrics);
+<a id='L159' name='L159'></a>   159   <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> <strong class='reserved'>int</strong> encodeChar (<a href='../S/3978.html#L125' title='Defined at 125 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontObject</a> fontObject, <strong class='reserved'>char</strong> charCode);
+<a id='L160' name='L160'></a>   160   <strong class='reserved'>public</strong> <strong class='reserved'>abstract</strong> <strong class='reserved'>int</strong> <a href='../R/9622.html' title='Multiple referred from 97 places.'>draw</a> (<a href='../S/3978.html#L125' title='Defined at 125 in java/org/gnu/emacs/EmacsFontDriver.java.'>FontObject</a> fontObject, <a href='../S/3982.html#L32' title='Defined at 32 in java/org/gnu/emacs/EmacsGC.java.'>EmacsGC</a> gc,
+<a id='L161' name='L161'></a>   161                             <a href='../S/3968.html#L26' title='Defined at 26 in java/org/gnu/emacs/EmacsDrawable.java.'>EmacsDrawable</a> drawable, <strong class='reserved'>int</strong>[] chars,
+<a id='L162' name='L162'></a>   162                             <strong class='reserved'>int</strong> <a href='../S/3715.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> backgroundWidth,
+<a id='L163' name='L163'></a>   163                             <strong class='reserved'>boolean</strong> withBackground);
+<a id='L164' name='L164'></a>   164 
+<a id='L165' name='L165'></a>   165   <strong class='reserved'>public</strong> <strong class='reserved'>static</strong> <a href='../S/3978.html#L27' title='Defined at 27 in java/org/gnu/emacs/EmacsFontDriver.java.'>EmacsFontDriver</a>
+<a id='L166' name='L166'></a>   166   createFontDriver ()
+<a id='L167' name='L167'></a>   167   <em class='brace'>{</em>
+<a id='L168' name='L168'></a>   168     <strong class='reserved'>if</strong> (Build.<a href='../S/3682.html#L789' title='Defined at 789 in test/manual/etags/c-src/etags.c.'>VERSION</a>.SDK_INT &gt;= Build.VERSION_CODES.<a href='../D/3802.html' title='Multiple defined in 5 places.'>M</a>)
+<a id='L169' name='L169'></a>   169       <strong class='reserved'>return</strong> <strong class='reserved'>new</strong> <a href='../S/3986.html#L25' title='Defined at 25 in java/org/gnu/emacs/EmacsSdk23FontDriver.java.'>EmacsSdk23FontDriver</a> ();
+<a id='L170' name='L170'></a>   170 
+<a id='L171' name='L171'></a>   171     <strong class='reserved'>return</strong> <strong class='reserved'>new</strong> <a href='../S/3971.html#L34' title='Defined at 34 in java/org/gnu/emacs/EmacsSdk7FontDriver.java.'>EmacsSdk7FontDriver</a> ();
+<a id='L172' name='L172'></a>   172   <em class='brace'>}</em>
+<a id='L173' name='L173'></a>   173 <em class='brace'>}</em>;
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L85'>[^]</a><a href='#L166'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

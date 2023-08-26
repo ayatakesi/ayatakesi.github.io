@@ -1,0 +1,218 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/itree.h</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4757.html'>src</a>/itree.h</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L120'>[^]</a>[v][top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'><a href='../J/489.html' title='Multiple included from 5 places.'>INCLUDED FROM</a></h2>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L120' title='Defined at 120.'>itree_empty_p</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* This file implements an efficient interval data-structure.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 2017-2023 Free Software Foundation, Inc.</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'></em>
+<a id='L5' name='L5'></a>     5 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L6' name='L6'></a>     6 <em class='comment'></em>
+<a id='L7' name='L7'></a>     7 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>your option) any later version.</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'></em>
+<a id='L12' name='L12'></a>    12 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'></em>
+<a id='L17' name='L17'></a>    17 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L19' name='L19'></a>    19 
+<a id='L20' name='L20'></a>    20 <em class='sharp'>#ifndef</em> <a href='../S/262.html#L21' title='Defined at 21 in src/itree.h.'>ITREE_H</a>
+<a id='L21' name='L21'></a>    21 <em class='sharp'>#define</em> <a href='../S/262.html#L20' title='Referred from 20 in src/itree.h.'>ITREE_H</a>
+<a id='L22' name='L22'></a>    22 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;stddef.h&gt;
+<a id='L24' name='L24'></a>    24 <em class='sharp'>#include</em> &lt;<a href='../I/310.html'>inttypes.h</a>&gt;
+<a id='L25' name='L25'></a>    25 
+<a id='L26' name='L26'></a>    26 <em class='sharp'>#include</em> "<a href='../I/498.html'>lisp.h</a>"
+<a id='L27' name='L27'></a>    27 
+<a id='L28' name='L28'></a>    28 <a href='../D/3144.html' title='Multiple defined in 2 places.'>INLINE_HEADER_BEGIN</a>
+<a id='L29' name='L29'></a>    29 
+<a id='L30' name='L30'></a>    30 <em class='comment'>/* The tree and node structs are mainly here, so they can be</em>
+<a id='L31' name='L31'></a>    31 <em class='comment'>   allocated.</em>
+<a id='L32' name='L32'></a>    32 <em class='comment'></em>
+<a id='L33' name='L33'></a>    33 <em class='comment'>   NOTE: The only time where it is safe to modify node.begin and</em>
+<a id='L34' name='L34'></a>    34 <em class='comment'>   node.end directly, is while the node is not part of any tree.</em>
+<a id='L35' name='L35'></a>    35 <em class='comment'></em>
+<a id='L36' name='L36'></a>    36 <em class='comment'>   NOTE: It is safe to read node.begin and node.end directly, if the</em>
+<a id='L37' name='L37'></a>    37 <em class='comment'>   node came from an iterator, because it validates the nodes it</em>
+<a id='L38' name='L38'></a>    38 <em class='comment'>   returns as a side-effect.  See ITREE_FOREACH.</em>
+<a id='L39' name='L39'></a>    39 <em class='comment'> */</em>
+<a id='L40' name='L40'></a>    40 
+<a id='L41' name='L41'></a>    41 <strong class='reserved'>struct</strong> <a href='../R/12407.html' title='Multiple referred from 125 places.'>itree_node</a>
+<a id='L42' name='L42'></a>    42 <em class='brace'>{</em>
+<a id='L43' name='L43'></a>    43   <em class='comment'>/* The normal parent, left and right links found in binary trees.</em>
+<a id='L44' name='L44'></a>    44 <em class='comment'>     See also `red`, below, which completes the Red-Black tree</em>
+<a id='L45' name='L45'></a>    45 <em class='comment'>     representation.  */</em>
+<a id='L46' name='L46'></a>    46   <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *<a href='../D/15229.html' title='Multiple defined in 2 places.'>parent</a>;
+<a id='L47' name='L47'></a>    47   <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *left;
+<a id='L48' name='L48'></a>    48   <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *right;
+<a id='L49' name='L49'></a>    49 
+<a id='L50' name='L50'></a>    50   <em class='comment'>/* The following five fields comprise the interval abstraction.</em>
+<a id='L51' name='L51'></a>    51 <em class='comment'></em>
+<a id='L52' name='L52'></a>    52 <em class='comment'>     BEGIN, END are buffer positions describing the range.  When a</em>
+<a id='L53' name='L53'></a>    53 <em class='comment'>     node is in a tree these fields are read only, written only by</em>
+<a id='L54' name='L54'></a>    54 <em class='comment'>     itree functions.</em>
+<a id='L55' name='L55'></a>    55 <em class='comment'></em>
+<a id='L56' name='L56'></a>    56 <em class='comment'>     The LIMIT, OFFSET and OTICK fields should be considered internal</em>
+<a id='L57' name='L57'></a>    57 <em class='comment'>     to itree.c and used only by itree functions.</em>
+<a id='L58' name='L58'></a>    58 <em class='comment'></em>
+<a id='L59' name='L59'></a>    59 <em class='comment'>     LIMIT is a buffer position, the maximum of END of this node and</em>
+<a id='L60' name='L60'></a>    60 <em class='comment'>     its children.  See itree.c for its use.</em>
+<a id='L61' name='L61'></a>    61 <em class='comment'></em>
+<a id='L62' name='L62'></a>    62 <em class='comment'>     OFFSET is in buffer position units, and will be non-zero only</em>
+<a id='L63' name='L63'></a>    63 <em class='comment'>     when the node is dirty.</em>
+<a id='L64' name='L64'></a>    64 <em class='comment'></em>
+<a id='L65' name='L65'></a>    65 <em class='comment'>     OTICK determines whether BEGIN, END, LIMIT and OFFSET are</em>
+<a id='L66' name='L66'></a>    66 <em class='comment'>     considered dirty.  A node is clean when its OTICK is equal to the</em>
+<a id='L67' name='L67'></a>    67 <em class='comment'>     OTICK of its tree (see struct itree_tree).  Otherwise, it is</em>
+<a id='L68' name='L68'></a>    68 <em class='comment'>     dirty.</em>
+<a id='L69' name='L69'></a>    69 <em class='comment'></em>
+<a id='L70' name='L70'></a>    70 <em class='comment'>     In a clean node, BEGIN, END and LIMIT are correct buffer</em>
+<a id='L71' name='L71'></a>    71 <em class='comment'>     positions, and OFFSET is zero.  The parent of a clean node is</em>
+<a id='L72' name='L72'></a>    72 <em class='comment'>     also clean, recursively.</em>
+<a id='L73' name='L73'></a>    73 <em class='comment'></em>
+<a id='L74' name='L74'></a>    74 <em class='comment'>     In a dirty node, the node's OTICK won't equal its tree's OTICK,</em>
+<a id='L75' name='L75'></a>    75 <em class='comment'>     and its OFFSET may be non-zero.  At all times the descendents of</em>
+<a id='L76' name='L76'></a>    76 <em class='comment'>     a dirty node are also dirty.  BEGIN, END and LIMIT require</em>
+<a id='L77' name='L77'></a>    77 <em class='comment'>     adjustment before use as buffer positions.</em>
+<a id='L78' name='L78'></a>    78 <em class='comment'></em>
+<a id='L79' name='L79'></a>    79 <em class='comment'>     NOTE: BEGIN and END must not be modified while the node is part</em>
+<a id='L80' name='L80'></a>    80 <em class='comment'>     of a tree.  Use itree_insert_gap and itree_delete_gap instead.</em>
+<a id='L81' name='L81'></a>    81 <em class='comment'></em>
+<a id='L82' name='L82'></a>    82 <em class='comment'>     NOTE: The interval iterators ensure nodes are clean before</em>
+<a id='L83' name='L83'></a>    83 <em class='comment'>     yielding them, so BEGIN and END may be safely used as buffer</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>     positions then.  */</em>
+<a id='L85' name='L85'></a>    85 
+<a id='L86' name='L86'></a>    86   ptrdiff_t begin;              <em class='comment'>/* The beginning of this interval. */</em>
+<a id='L87' name='L87'></a>    87   ptrdiff_t end;                <em class='comment'>/* The end of the interval. */</em>
+<a id='L88' name='L88'></a>    88   ptrdiff_t limit;              <em class='comment'>/* The maximum end in this subtree. */</em>
+<a id='L89' name='L89'></a>    89   ptrdiff_t <a href='../D/15074.html' title='Multiple defined in 4 places.'>offset</a>;             <em class='comment'>/* The amount of shift to apply to this subtree. */</em>
+<a id='L90' name='L90'></a>    90   <a href='../D/18587.html' title='Multiple defined in 6 places.'>uintmax_t</a> otick;              <em class='comment'>/* offset modified tick */</em>
+<a id='L91' name='L91'></a>    91   <a href='../D/3784.html' title='Multiple defined in 11 places.'>Lisp_Object</a> data;             <em class='comment'>/* Exclusively used by the client. */</em>
+<a id='L92' name='L92'></a>    92   <a href='../D/9321.html' title='Multiple defined in 2 places.'>bool_bf</a> red : 1;
+<a id='L93' name='L93'></a>    93   <a href='../D/9321.html' title='Multiple defined in 2 places.'>bool_bf</a> rear_advance : 1;     <em class='comment'>/* Same as for marker and overlays.  */</em>
+<a id='L94' name='L94'></a>    94   <a href='../D/9321.html' title='Multiple defined in 2 places.'>bool_bf</a> front_advance : 1;    <em class='comment'>/* Same as for marker and overlays.  */</em>
+<a id='L95' name='L95'></a>    95 <em class='brace'>}</em>;
+<a id='L96' name='L96'></a>    96 
+<a id='L97' name='L97'></a>    97 <strong class='reserved'>struct</strong> <a href='../R/12430.html' title='Multiple referred from 45 places.'>itree_tree</a>
+<a id='L98' name='L98'></a>    98 <em class='brace'>{</em>
+<a id='L99' name='L99'></a>    99   <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *root;
+<a id='L100' name='L100'></a>   100   <a href='../D/18587.html' title='Multiple defined in 6 places.'>uintmax_t</a> otick;              <em class='comment'>/* offset tick, compared with node's otick. */</em>
+<a id='L101' name='L101'></a>   101   <a href='../D/13450.html' title='Multiple defined in 6 places.'>intmax_t</a> <a href='../D/17475.html' title='Multiple defined in 5 places.'>size</a>;                <em class='comment'>/* Number of nodes in the tree. */</em>
+<a id='L102' name='L102'></a>   102 <em class='brace'>}</em>;
+<a id='L103' name='L103'></a>   103 
+<a id='L104' name='L104'></a>   104 <strong class='reserved'>enum</strong> <a href='../R/12413.html' title='Multiple referred from 3 places.'>itree_order</a>
+<a id='L105' name='L105'></a>   105   <em class='brace'>{</em>
+<a id='L106' name='L106'></a>   106     <a href='../R/3040.html' title='Multiple referred from 6 places.'>ITREE_ASCENDING</a>,
+<a id='L107' name='L107'></a>   107     <a href='../R/3041.html' title='Multiple referred from 5 places.'>ITREE_DESCENDING</a>,
+<a id='L108' name='L108'></a>   108     <a href='../R/3046.html' title='Multiple referred from 3 places.'>ITREE_PRE_ORDER</a>,
+<a id='L109' name='L109'></a>   109     <a href='../R/3045.html' title='Multiple referred from 2 places.'>ITREE_POST_ORDER</a>,
+<a id='L110' name='L110'></a>   110   <em class='brace'>}</em>;
+<a id='L111' name='L111'></a>   111 
+<a id='L112' name='L112'></a>   112 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/80.html#L432' title='Defined at 432 in src/itree.c.'>itree_node_init</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *, <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a>, <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a>, <a href='../D/3784.html' title='Multiple defined in 11 places.'>Lisp_Object</a>);
+<a id='L113' name='L113'></a>   113 <strong class='reserved'>extern</strong> ptrdiff_t <a href='../S/80.html#L449' title='Defined at 449 in src/itree.c.'>itree_node_begin</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *, <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *);
+<a id='L114' name='L114'></a>   114 <strong class='reserved'>extern</strong> ptrdiff_t <a href='../S/80.html#L459' title='Defined at 459 in src/itree.c.'>itree_node_end</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *, <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *);
+<a id='L115' name='L115'></a>   115 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/80.html#L744' title='Defined at 744 in src/itree.c.'>itree_node_set_region</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *, <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *,
+<a id='L116' name='L116'></a>   116                                    ptrdiff_t, ptrdiff_t);
+<a id='L117' name='L117'></a>   117 <strong class='reserved'>extern</strong> <strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *<a href='../S/80.html#L469' title='Defined at 469 in src/itree.c.'>itree_create</a> (<strong class='reserved'>void</strong>);
+<a id='L118' name='L118'></a>   118 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/80.html#L498' title='Defined at 498 in src/itree.c.'>itree_destroy</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *);
+<a id='L119' name='L119'></a>   119 <a href='../D/3143.html' title='Multiple defined in 3 places.'>INLINE</a> <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a>
+<a id='L120' name='L120'></a>   120 <a href='../R/12391.html' title='Multiple referred from 4 places.'>itree_empty_p</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *tree)
+<a id='L121' name='L121'></a>   121 <em class='brace'>{</em>
+<a id='L122' name='L122'></a>   122   <strong class='reserved'>return</strong> !tree || !tree-&gt;root;
+<a id='L123' name='L123'></a>   123 <em class='brace'>}</em>
+<a id='L124' name='L124'></a>   124 <strong class='reserved'>extern</strong> <a href='../D/13450.html' title='Multiple defined in 6 places.'>intmax_t</a> <a href='../S/80.html#L507' title='Defined at 507 in src/itree.c.'>itree_size</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *);
+<a id='L125' name='L125'></a>   125 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/80.html#L479' title='Defined at 479 in src/itree.c.'>itree_clear</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *);
+<a id='L126' name='L126'></a>   126 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/80.html#L732' title='Defined at 732 in src/itree.c.'>itree_insert</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *, <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *,
+<a id='L127' name='L127'></a>   127                           ptrdiff_t, ptrdiff_t);
+<a id='L128' name='L128'></a>   128 <strong class='reserved'>extern</strong> <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *<a href='../S/80.html#L962' title='Defined at 962 in src/itree.c.'>itree_remove</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *,
+<a id='L129' name='L129'></a>   129                                         <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *);
+<a id='L130' name='L130'></a>   130 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/80.html#L1046' title='Defined at 1046 in src/itree.c.'>itree_insert_gap</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *, ptrdiff_t, ptrdiff_t, <a href='../D/9320.html' title='Multiple defined in 11 places.'>bool</a>);
+<a id='L131' name='L131'></a>   131 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/80.html#L1139' title='Defined at 1139 in src/itree.c.'>itree_delete_gap</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *, ptrdiff_t, ptrdiff_t);
+<a id='L132' name='L132'></a>   132 
+<a id='L133' name='L133'></a>   133 <em class='comment'>/* Iteration functions.  Almost all code should use ITREE_FOREACH</em>
+<a id='L134' name='L134'></a>   134 <em class='comment'>   instead.  */</em>
+<a id='L135' name='L135'></a>   135 <strong class='reserved'>extern</strong> <strong class='reserved'>struct</strong> <a href='../S/262.html#L145' title='Defined at 145 in src/itree.h.'>itree_iterator</a> *<a href='../S/80.html#L1381' title='Defined at 1381 in src/itree.c.'>itree_iterator_start</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L145' title='Defined at 145 in src/itree.h.'>itree_iterator</a> *,
+<a id='L136' name='L136'></a>   136                                                     <strong class='reserved'>struct</strong> <a href='../S/262.html#L97' title='Defined at 97 in src/itree.h.'>itree_tree</a> *,
+<a id='L137' name='L137'></a>   137                                                     ptrdiff_t,
+<a id='L138' name='L138'></a>   138                                                     ptrdiff_t,
+<a id='L139' name='L139'></a>   139                                                     <strong class='reserved'>enum</strong> <a href='../S/262.html#L104' title='Defined at 104 in src/itree.h.'>itree_order</a>);
+<a id='L140' name='L140'></a>   140 <strong class='reserved'>extern</strong> <strong class='reserved'>void</strong> <a href='../S/80.html#L1418' title='Defined at 1418 in src/itree.c.'>itree_iterator_narrow</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L145' title='Defined at 145 in src/itree.h.'>itree_iterator</a> *, ptrdiff_t,
+<a id='L141' name='L141'></a>   141                                    ptrdiff_t);
+<a id='L142' name='L142'></a>   142 <strong class='reserved'>extern</strong> <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *<a href='../S/80.html#L1401' title='Defined at 1401 in src/itree.c.'>itree_iterator_next</a> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L145' title='Defined at 145 in src/itree.h.'>itree_iterator</a> *);
+<a id='L143' name='L143'></a>   143 
+<a id='L144' name='L144'></a>   144 <em class='comment'>/* State used when iterating interval. */</em>
+<a id='L145' name='L145'></a>   145 <strong class='reserved'>struct</strong> <a href='../R/12399.html' title='Multiple referred from 17 places.'>itree_iterator</a>
+<a id='L146' name='L146'></a>   146   <em class='brace'>{</em>
+<a id='L147' name='L147'></a>   147     <strong class='reserved'>struct</strong> <a href='../S/262.html#L41' title='Defined at 41 in src/itree.h.'>itree_node</a> *<a href='../D/14991.html' title='Multiple defined in 2 places.'>node</a>;
+<a id='L148' name='L148'></a>   148     ptrdiff_t begin;
+<a id='L149' name='L149'></a>   149     ptrdiff_t end;
+<a id='L150' name='L150'></a>   150     <a href='../D/18587.html' title='Multiple defined in 6 places.'>uintmax_t</a> otick;    <em class='comment'>/* A copy of the tree's `otick`.  */</em>
+<a id='L151' name='L151'></a>   151     <strong class='reserved'>enum</strong> <a href='../S/262.html#L104' title='Defined at 104 in src/itree.h.'>itree_order</a> <a href='../D/15159.html' title='Multiple defined in 5 places.'>order</a>;
+<a id='L152' name='L152'></a>   152   <em class='brace'>}</em>;
+<a id='L153' name='L153'></a>   153 
+<a id='L154' name='L154'></a>   154 <em class='comment'>/* Iterate over the intervals between BEG and END in the tree T.</em>
+<a id='L155' name='L155'></a>   155 <em class='comment'>   N will hold successive nodes.  ORDER can be one of : `ASCENDING`,</em>
+<a id='L156' name='L156'></a>   156 <em class='comment'>   `DESCENDING`, `POST_ORDER`, or `PRE_ORDER`.</em>
+<a id='L157' name='L157'></a>   157 <em class='comment'>   It should be used as:</em>
+<a id='L158' name='L158'></a>   158 <em class='comment'></em>
+<a id='L159' name='L159'></a>   159 <em class='comment'>      ITREE_FOREACH (n, t, beg, end, order)</em>
+<a id='L160' name='L160'></a>   160 <em class='comment'>        {</em>
+<a id='L161' name='L161'></a>   161 <em class='comment'>          .. do the thing with n ..</em>
+<a id='L162' name='L162'></a>   162 <em class='comment'>        }</em>
+<a id='L163' name='L163'></a>   163 <em class='comment'></em>
+<a id='L164' name='L164'></a>   164 <em class='comment'>   BEWARE:</em>
+<a id='L165' name='L165'></a>   165 <em class='comment'>   - The expression T may be evaluated more than once, so make sure</em>
+<a id='L166' name='L166'></a>   166 <em class='comment'>     it is cheap and pure.</em>
+<a id='L167' name='L167'></a>   167 <em class='comment'>   - Don't modify the tree during the iteration.</em>
+<a id='L168' name='L168'></a>   168 <em class='comment'> */</em>
+<a id='L169' name='L169'></a>   169 <em class='sharp'>#define</em> <a href='../R/3042.html' title='Multiple referred from 18 places.'>ITREE_FOREACH</a>(n, t, beg, end, <a href='../D/15159.html' title='Multiple defined in 5 places.'>order</a>)                        \
+<a id='L170' name='L170'></a>   170   <em class='comment'>/* FIXME: We'd want to declare `n` right here, but I can't figure out</em>
+<a id='L171' name='L171'></a>   171 <em class='comment'>     how to make that work here: the `for` syntax only allows a single</em>
+<a id='L172' name='L172'></a>   172 <em class='comment'>     clause for the var declarations where we need 2 different types.</em>
+<a id='L173' name='L173'></a>   173 <em class='comment'>     We could use the `struct {foo x; bar y; } p;` trick to declare two</em>
+<a id='L174' name='L174'></a>   174 <em class='comment'>     vars `p.x` and `p.y` of unrelated types, but then none of the names</em>
+<a id='L175' name='L175'></a>   175 <em class='comment'>     of the vars matches the `n` we receive :-(.  */</em>             \
+<a id='L176' name='L176'></a>   176   <strong class='reserved'>if</strong> (!t)                                                        \
+<a id='L177' name='L177'></a>   177     <em class='brace'>{</em> <em class='brace'>}</em>                                                          \
+<a id='L178' name='L178'></a>   178   <strong class='reserved'>else</strong>                                                           \
+<a id='L179' name='L179'></a>   179     <strong class='reserved'>for</strong> (<strong class='reserved'>struct</strong> <a href='../S/262.html#L145' title='Defined at 145 in src/itree.h.'>itree_iterator</a> itree_local_iter_,                \
+<a id='L180' name='L180'></a>   180                                *itree_iter_                      \
+<a id='L181' name='L181'></a>   181             = <a href='../S/80.html#L1381' title='Defined at 1381 in src/itree.c.'>itree_iterator_start</a> (&amp;itree_local_iter_,          \
+<a id='L182' name='L182'></a>   182                                     t, beg, end, ITREE_##<a href='../D/15159.html' title='Multiple defined in 5 places.'>order</a>); \
+<a id='L183' name='L183'></a>   183           ((n = <a href='../S/80.html#L1401' title='Defined at 1401 in src/itree.c.'>itree_iterator_next</a> (itree_iter_)));)
+<a id='L184' name='L184'></a>   184 
+<a id='L185' name='L185'></a>   185 <em class='sharp'>#define</em> <a href='../R/3043.html' title='Multiple referred from 2 places.'>ITREE_FOREACH_NARROW</a>(beg, end) \
+<a id='L186' name='L186'></a>   186   <a href='../S/80.html#L1418' title='Defined at 1418 in src/itree.c.'>itree_iterator_narrow</a> (itree_iter_, beg, end)
+<a id='L187' name='L187'></a>   187 
+<a id='L188' name='L188'></a>   188 <a href='../D/3145.html' title='Multiple defined in 2 places.'>INLINE_HEADER_END</a>
+<a id='L189' name='L189'></a>   189 
+<a id='L190' name='L190'></a>   190 <em class='sharp'>#endif</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;][^]<a href='#L120'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>

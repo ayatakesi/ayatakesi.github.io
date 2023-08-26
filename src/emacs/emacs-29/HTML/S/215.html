@@ -1,0 +1,353 @@
+<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns='http://www.w3.org/1999/xhtml'>
+<head>
+<title>src/pgtkim.c</title>
+<meta name='robots' content='noindex,nofollow' />
+<meta name='generator' content='GLOBAL-6.6.7' />
+<meta http-equiv='Content-Style-Type' content='text/css' />
+<link rel='stylesheet' type='text/css' href='../style.css' />
+</head>
+<body>
+<a id='TOP' name='TOP'></a><h2 class='header'><a href='../mains.html'>root</a>/<a href='../files/4503.html'>src</a>/pgtkim.c</h2>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L28'>[^]</a><a href='#L299'>[v]</a>[top]<a href='#BOTTOM'>[bottom]</a><a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+<hr />
+<h2 class='header'>DEFINITIONS</h2>
+This source file includes following definitions.
+<ol>
+<li><a href='#L28' title='Defined at 28.'>im_context_commit_cb</a></li>
+<li><a href='#L44' title='Defined at 44.'>im_context_retrieve_surrounding_cb</a></li>
+<li><a href='#L51' title='Defined at 51.'>im_context_delete_surrounding_cb</a></li>
+<li><a href='#L58' title='Defined at 58.'>make_color_string</a></li>
+<li><a href='#L67' title='Defined at 67.'>im_context_preedit_changed_cb</a></li>
+<li><a href='#L154' title='Defined at 154.'>im_context_preedit_end_cb</a></li>
+<li><a href='#L168' title='Defined at 168.'>im_context_preedit_start_cb</a></li>
+<li><a href='#L173' title='Defined at 173.'>pgtk_im_focus_in</a></li>
+<li><a href='#L188' title='Defined at 188.'>pgtk_im_focus_out</a></li>
+<li><a href='#L204' title='Defined at 204.'>pgtk_im_filter_keypress</a></li>
+<li><a href='#L216' title='Defined at 216.'>pgtk_im_set_cursor_location</a></li>
+<li><a href='#L228' title='Defined at 228.'>pgtk_im_use_context</a></li>
+<li><a href='#L272' title='Defined at 272.'>pgtk_im_init</a></li>
+<li><a href='#L280' title='Defined at 280.'>pgtk_im_finish</a></li>
+<li><a href='#L299' title='Defined at 299.'>syms_of_pgtkim</a></li>
+</ol>
+<hr />
+<pre>
+<a id='L1' name='L1'></a>     1 <em class='comment'>/* Pure Gtk+-3 communication module.</em>
+<a id='L2' name='L2'></a>     2 <em class='comment'></em>
+<a id='L3' name='L3'></a>     3 <em class='comment'>Copyright (C) 1989, 1993-1994, 2005-2006, 2008-2023 Free Software</em>
+<a id='L4' name='L4'></a>     4 <em class='comment'>Foundation, Inc.</em>
+<a id='L5' name='L5'></a>     5 <em class='comment'></em>
+<a id='L6' name='L6'></a>     6 <em class='comment'>This file is part of GNU Emacs.</em>
+<a id='L7' name='L7'></a>     7 <em class='comment'></em>
+<a id='L8' name='L8'></a>     8 <em class='comment'>GNU Emacs is free software: you can redistribute it and/or modify</em>
+<a id='L9' name='L9'></a>     9 <em class='comment'>it under the terms of the GNU General Public License as published by</em>
+<a id='L10' name='L10'></a>    10 <em class='comment'>the Free Software Foundation, either version 3 of the License, or (at</em>
+<a id='L11' name='L11'></a>    11 <em class='comment'>your option) any later version.</em>
+<a id='L12' name='L12'></a>    12 <em class='comment'></em>
+<a id='L13' name='L13'></a>    13 <em class='comment'>GNU Emacs is distributed in the hope that it will be useful,</em>
+<a id='L14' name='L14'></a>    14 <em class='comment'>but WITHOUT ANY WARRANTY; without even the implied warranty of</em>
+<a id='L15' name='L15'></a>    15 <em class='comment'>MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</em>
+<a id='L16' name='L16'></a>    16 <em class='comment'>GNU General Public License for more details.</em>
+<a id='L17' name='L17'></a>    17 <em class='comment'></em>
+<a id='L18' name='L18'></a>    18 <em class='comment'>You should have received a copy of the GNU General Public License</em>
+<a id='L19' name='L19'></a>    19 <em class='comment'>along with GNU Emacs.  If not, see &lt;https://www.gnu.org/licenses/&gt;.  */</em>
+<a id='L20' name='L20'></a>    20 
+<a id='L21' name='L21'></a>    21 <em class='comment'>/* This should be the first include, as it may set up #defines affecting</em>
+<a id='L22' name='L22'></a>    22 <em class='comment'>   interpretation of even the system includes. */</em>
+<a id='L23' name='L23'></a>    23 <em class='sharp'>#include</em> &lt;config.h&gt;
+<a id='L24' name='L24'></a>    24 
+<a id='L25' name='L25'></a>    25 <em class='sharp'>#include</em> "<a href='261.html'>pgtkterm.h</a>"
+<a id='L26' name='L26'></a>    26 
+<a id='L27' name='L27'></a>    27 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L28' name='L28'></a>    28 <a href='../S/215.html#L248' title='Referred from 248 in src/pgtkim.c.'>im_context_commit_cb</a> (GtkIMContext *imc,
+<a id='L29' name='L29'></a>    29                       gchar *str,
+<a id='L30' name='L30'></a>    30                       gpointer user_data)
+<a id='L31' name='L31'></a>    31 <em class='brace'>{</em>
+<a id='L32' name='L32'></a>    32   <strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo = user_data;
+<a id='L33' name='L33'></a>    33   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = dpyinfo-&gt;im.focused_frame;
+<a id='L34' name='L34'></a>    34 
+<a id='L35' name='L35'></a>    35   <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> == <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L36' name='L36'></a>    36     <strong class='reserved'>return</strong>;
+<a id='L37' name='L37'></a>    37   <strong class='reserved'>if</strong> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> == <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L38' name='L38'></a>    38     <strong class='reserved'>return</strong>;
+<a id='L39' name='L39'></a>    39 
+<a id='L40' name='L40'></a>    40   <a href='../S/274.html#L5127' title='Defined at 5127 in src/pgtkterm.c.'>pgtk_enqueue_string</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, str);
+<a id='L41' name='L41'></a>    41 <em class='brace'>}</em>
+<a id='L42' name='L42'></a>    42 
+<a id='L43' name='L43'></a>    43 <strong class='reserved'>static</strong> gboolean
+<a id='L44' name='L44'></a>    44 <a href='../S/215.html#L250' title='Referred from 250 in src/pgtkim.c.'>im_context_retrieve_surrounding_cb</a> (GtkIMContext *imc, gpointer user_data)
+<a id='L45' name='L45'></a>    45 <em class='brace'>{</em>
+<a id='L46' name='L46'></a>    46   gtk_im_context_set_surrounding (imc, "", -1, 0);
+<a id='L47' name='L47'></a>    47   <strong class='reserved'>return</strong> <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L48' name='L48'></a>    48 <em class='brace'>}</em>
+<a id='L49' name='L49'></a>    49 
+<a id='L50' name='L50'></a>    50 <strong class='reserved'>static</strong> gboolean
+<a id='L51' name='L51'></a>    51 <a href='../S/215.html#L253' title='Referred from 253 in src/pgtkim.c.'>im_context_delete_surrounding_cb</a> (GtkIMContext *imc, <strong class='reserved'>int</strong> <a href='../D/13571.html' title='Multiple defined in 4 places.'>offset</a>, <strong class='reserved'>int</strong> n_chars,
+<a id='L52' name='L52'></a>    52                                   gpointer user_data)
+<a id='L53' name='L53'></a>    53 <em class='brace'>{</em>
+<a id='L54' name='L54'></a>    54   <strong class='reserved'>return</strong> <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>;
+<a id='L55' name='L55'></a>    55 <em class='brace'>}</em>
+<a id='L56' name='L56'></a>    56 
+<a id='L57' name='L57'></a>    57 <strong class='reserved'>static</strong> <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a>
+<a id='L58' name='L58'></a>    58 <a href='../R/11576.html' title='Multiple referred from 3 places.'>make_color_string</a> (PangoAttrColor *pac)
+<a id='L59' name='L59'></a>    59 <em class='brace'>{</em>
+<a id='L60' name='L60'></a>    60   <strong class='reserved'>char</strong> buf[256];
+<a id='L61' name='L61'></a>    61   <a href='../D/15496.html' title='Multiple defined in 2 places.'>sprintf</a> (buf, "#%02x%02x%02x",
+<a id='L62' name='L62'></a>    62            pac-&gt;color.red &gt;&gt; 8, pac-&gt;color.green &gt;&gt; 8, pac-&gt;color.blue &gt;&gt; 8);
+<a id='L63' name='L63'></a>    63   <strong class='reserved'>return</strong> <a href='../D/8254.html' title='Multiple defined in 2 places.'>build_string</a> (buf);
+<a id='L64' name='L64'></a>    64 <em class='brace'>}</em>
+<a id='L65' name='L65'></a>    65 
+<a id='L66' name='L66'></a>    66 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L67' name='L67'></a>    67 <a href='../S/215.html#L256' title='Referred from 256 in src/pgtkim.c.'>im_context_preedit_changed_cb</a> (GtkIMContext *imc, gpointer user_data)
+<a id='L68' name='L68'></a>    68 <em class='brace'>{</em>
+<a id='L69' name='L69'></a>    69   <strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo = user_data;
+<a id='L70' name='L70'></a>    70   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = dpyinfo-&gt;im.focused_frame;
+<a id='L71' name='L71'></a>    71   <strong class='reserved'>char</strong> *str;
+<a id='L72' name='L72'></a>    72   PangoAttrList *attrs;
+<a id='L73' name='L73'></a>    73   <strong class='reserved'>int</strong> pos;
+<a id='L74' name='L74'></a>    74 
+<a id='L75' name='L75'></a>    75   <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> == <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L76' name='L76'></a>    76     <strong class='reserved'>return</strong>;
+<a id='L77' name='L77'></a>    77   <strong class='reserved'>if</strong> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> == <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L78' name='L78'></a>    78     <strong class='reserved'>return</strong>;
+<a id='L79' name='L79'></a>    79 
+<a id='L80' name='L80'></a>    80   gtk_im_context_get_preedit_string (imc, &amp;str, &amp;attrs, &amp;pos);
+<a id='L81' name='L81'></a>    81 
+<a id='L82' name='L82'></a>    82 
+<a id='L83' name='L83'></a>    83   <em class='comment'>/*</em>
+<a id='L84' name='L84'></a>    84 <em class='comment'>   * (</em>
+<a id='L85' name='L85'></a>    85 <em class='comment'>   *   (TEXT (ul . COLOR) (bg . COLOR) (fg . COLOR))</em>
+<a id='L86' name='L86'></a>    86 <em class='comment'>   *   ...</em>
+<a id='L87' name='L87'></a>    87 <em class='comment'>   * )</em>
+<a id='L88' name='L88'></a>    88 <em class='comment'>   */</em>
+<a id='L89' name='L89'></a>    89   <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = Qnil;
+<a id='L90' name='L90'></a>    90 
+<a id='L91' name='L91'></a>    91   PangoAttrIterator *iter;
+<a id='L92' name='L92'></a>    92   iter = pango_attr_list_get_iterator (attrs);
+<a id='L93' name='L93'></a>    93   <strong class='reserved'>do</strong>
+<a id='L94' name='L94'></a>    94     <em class='brace'>{</em>
+<a id='L95' name='L95'></a>    95       <strong class='reserved'>int</strong> st, ed;
+<a id='L96' name='L96'></a>    96       <strong class='reserved'>int</strong> has_underline = 0;
+<a id='L97' name='L97'></a>    97       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> part = Qnil;
+<a id='L98' name='L98'></a>    98 
+<a id='L99' name='L99'></a>    99       pango_attr_iterator_range (iter, &amp;st, &amp;ed);
+<a id='L100' name='L100'></a>   100 
+<a id='L101' name='L101'></a>   101       <strong class='reserved'>if</strong> (ed &gt; strlen (str))
+<a id='L102' name='L102'></a>   102         ed = strlen (str);
+<a id='L103' name='L103'></a>   103       <strong class='reserved'>if</strong> (st &gt;= ed)
+<a id='L104' name='L104'></a>   104         <strong class='reserved'>continue</strong>;
+<a id='L105' name='L105'></a>   105 
+<a id='L106' name='L106'></a>   106       <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> text = <a href='../S/105.html#L2351' title='Defined at 2351 in src/alloc.c.'>make_string</a> (str + st, ed - st);
+<a id='L107' name='L107'></a>   107       part = Fcons (text, part);
+<a id='L108' name='L108'></a>   108 
+<a id='L109' name='L109'></a>   109       PangoAttrInt *ul =
+<a id='L110' name='L110'></a>   110         (PangoAttrInt *) pango_attr_iterator_get (iter, PANGO_ATTR_UNDERLINE);
+<a id='L111' name='L111'></a>   111       <strong class='reserved'>if</strong> (ul != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L112' name='L112'></a>   112         <em class='brace'>{</em>
+<a id='L113' name='L113'></a>   113           <strong class='reserved'>if</strong> (ul-&gt;<a href='../S/60.html#L276' title='Defined at 276 in src/bytecode.c.'>value</a> != PANGO_UNDERLINE_NONE)
+<a id='L114' name='L114'></a>   114             has_underline = 1;
+<a id='L115' name='L115'></a>   115         <em class='brace'>}</em>
+<a id='L116' name='L116'></a>   116 
+<a id='L117' name='L117'></a>   117       PangoAttrColor *pac;
+<a id='L118' name='L118'></a>   118       <strong class='reserved'>if</strong> (has_underline)
+<a id='L119' name='L119'></a>   119         <em class='brace'>{</em>
+<a id='L120' name='L120'></a>   120           pac =
+<a id='L121' name='L121'></a>   121             (PangoAttrColor *) pango_attr_iterator_get (iter,
+<a id='L122' name='L122'></a>   122                                                         PANGO_ATTR_UNDERLINE_COLOR);
+<a id='L123' name='L123'></a>   123           <strong class='reserved'>if</strong> (pac != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L124' name='L124'></a>   124             part = Fcons (Fcons (Qul, <a href='../S/215.html#L58' title='Defined at 58 in src/pgtkim.c.'>make_color_string</a> (pac)), part);
+<a id='L125' name='L125'></a>   125           <strong class='reserved'>else</strong>
+<a id='L126' name='L126'></a>   126             part = Fcons (Fcons (Qul, Qt), part);
+<a id='L127' name='L127'></a>   127         <em class='brace'>}</em>
+<a id='L128' name='L128'></a>   128 
+<a id='L129' name='L129'></a>   129       pac =
+<a id='L130' name='L130'></a>   130         (PangoAttrColor *) pango_attr_iterator_get (iter,
+<a id='L131' name='L131'></a>   131                                                     PANGO_ATTR_FOREGROUND);
+<a id='L132' name='L132'></a>   132       <strong class='reserved'>if</strong> (pac != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L133' name='L133'></a>   133         part = Fcons (Fcons (Qfg, <a href='../S/215.html#L58' title='Defined at 58 in src/pgtkim.c.'>make_color_string</a> (pac)), part);
+<a id='L134' name='L134'></a>   134 
+<a id='L135' name='L135'></a>   135       pac =
+<a id='L136' name='L136'></a>   136         (PangoAttrColor *) pango_attr_iterator_get (iter,
+<a id='L137' name='L137'></a>   137                                                     PANGO_ATTR_BACKGROUND);
+<a id='L138' name='L138'></a>   138       <strong class='reserved'>if</strong> (pac != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L139' name='L139'></a>   139         part = Fcons (Fcons (Qbg, <a href='../S/215.html#L58' title='Defined at 58 in src/pgtkim.c.'>make_color_string</a> (pac)), part);
+<a id='L140' name='L140'></a>   140 
+<a id='L141' name='L141'></a>   141       part = Fnreverse (part);
+<a id='L142' name='L142'></a>   142       <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = Fcons (part, <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>);
+<a id='L143' name='L143'></a>   143     <em class='brace'>}</em>
+<a id='L144' name='L144'></a>   144   <strong class='reserved'>while</strong> (pango_attr_iterator_next (iter));
+<a id='L145' name='L145'></a>   145 
+<a id='L146' name='L146'></a>   146   <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a> = Fnreverse (<a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>);
+<a id='L147' name='L147'></a>   147   <a href='../S/274.html#L5154' title='Defined at 5154 in src/pgtkterm.c.'>pgtk_enqueue_preedit</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <a href='../D/12409.html' title='Multiple defined in 3 places.'>list</a>);
+<a id='L148' name='L148'></a>   148 
+<a id='L149' name='L149'></a>   149   g_free (str);
+<a id='L150' name='L150'></a>   150   pango_attr_list_unref (attrs);
+<a id='L151' name='L151'></a>   151 <em class='brace'>}</em>
+<a id='L152' name='L152'></a>   152 
+<a id='L153' name='L153'></a>   153 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L154' name='L154'></a>   154 <a href='../S/215.html#L259' title='Referred from 259 in src/pgtkim.c.'>im_context_preedit_end_cb</a> (GtkIMContext *imc, gpointer user_data)
+<a id='L155' name='L155'></a>   155 <em class='brace'>{</em>
+<a id='L156' name='L156'></a>   156   <strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo = user_data;
+<a id='L157' name='L157'></a>   157   <strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> = dpyinfo-&gt;im.focused_frame;
+<a id='L158' name='L158'></a>   158 
+<a id='L159' name='L159'></a>   159   <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> == <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L160' name='L160'></a>   160     <strong class='reserved'>return</strong>;
+<a id='L161' name='L161'></a>   161   <strong class='reserved'>if</strong> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a> == <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L162' name='L162'></a>   162     <strong class='reserved'>return</strong>;
+<a id='L163' name='L163'></a>   163 
+<a id='L164' name='L164'></a>   164   <a href='../S/274.html#L5154' title='Defined at 5154 in src/pgtkterm.c.'>pgtk_enqueue_preedit</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, Qnil);
+<a id='L165' name='L165'></a>   165 <em class='brace'>}</em>
+<a id='L166' name='L166'></a>   166 
+<a id='L167' name='L167'></a>   167 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L168' name='L168'></a>   168 <a href='../S/215.html#L261' title='Referred from 261 in src/pgtkim.c.'>im_context_preedit_start_cb</a> (GtkIMContext *imc, gpointer user_data)
+<a id='L169' name='L169'></a>   169 <em class='brace'>{</em>
+<a id='L170' name='L170'></a>   170 <em class='brace'>}</em>
+<a id='L171' name='L171'></a>   171 
+<a id='L172' name='L172'></a>   172 <strong class='reserved'>void</strong>
+<a id='L173' name='L173'></a>   173 <a href='../R/12824.html' title='Multiple referred from 3 places.'>pgtk_im_focus_in</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L174' name='L174'></a>   174 <em class='brace'>{</em>
+<a id='L175' name='L175'></a>   175   <strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo = <a href='../D/2016.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L176' name='L176'></a>   176   <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L177' name='L177'></a>   177     <em class='brace'>{</em>
+<a id='L178' name='L178'></a>   178       gtk_im_context_reset (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L179' name='L179'></a>   179       gtk_im_context_set_client_window (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>,
+<a id='L180' name='L180'></a>   180                                         gtk_widget_get_window
+<a id='L181' name='L181'></a>   181                                         (<a href='../D/2034.html' title='Multiple defined in 2 places.'>FRAME_GTK_WIDGET</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)));
+<a id='L182' name='L182'></a>   182       gtk_im_context_focus_in (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L183' name='L183'></a>   183     <em class='brace'>}</em>
+<a id='L184' name='L184'></a>   184   dpyinfo-&gt;im.focused_frame = <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>;
+<a id='L185' name='L185'></a>   185 <em class='brace'>}</em>
+<a id='L186' name='L186'></a>   186 
+<a id='L187' name='L187'></a>   187 <strong class='reserved'>void</strong>
+<a id='L188' name='L188'></a>   188 <a href='../R/12825.html' title='Multiple referred from 2 places.'>pgtk_im_focus_out</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L189' name='L189'></a>   189 <em class='brace'>{</em>
+<a id='L190' name='L190'></a>   190   <strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo = <a href='../D/2016.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L191' name='L191'></a>   191   <strong class='reserved'>if</strong> (dpyinfo-&gt;im.focused_frame == <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L192' name='L192'></a>   192     <em class='brace'>{</em>
+<a id='L193' name='L193'></a>   193       <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L194' name='L194'></a>   194         <em class='brace'>{</em>
+<a id='L195' name='L195'></a>   195           gtk_im_context_reset (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L196' name='L196'></a>   196           gtk_im_context_focus_out (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L197' name='L197'></a>   197           gtk_im_context_set_client_window (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L198' name='L198'></a>   198         <em class='brace'>}</em>
+<a id='L199' name='L199'></a>   199       dpyinfo-&gt;im.focused_frame = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L200' name='L200'></a>   200     <em class='brace'>}</em>
+<a id='L201' name='L201'></a>   201 <em class='brace'>}</em>
+<a id='L202' name='L202'></a>   202 
+<a id='L203' name='L203'></a>   203 <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a>
+<a id='L204' name='L204'></a>   204 <a href='../R/12822.html' title='Multiple referred from 2 places.'>pgtk_im_filter_keypress</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, GdkEventKey * ev)
+<a id='L205' name='L205'></a>   205 <em class='brace'>{</em>
+<a id='L206' name='L206'></a>   206   <strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo = <a href='../D/2016.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L207' name='L207'></a>   207   <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L208' name='L208'></a>   208     <em class='brace'>{</em>
+<a id='L209' name='L209'></a>   209       <strong class='reserved'>if</strong> (gtk_im_context_filter_keypress (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, ev))
+<a id='L210' name='L210'></a>   210         <strong class='reserved'>return</strong> <a href='../S/3907.html#L13' title='Defined at 13 in nt/inc/stdbool.h.'>true</a>;
+<a id='L211' name='L211'></a>   211     <em class='brace'>}</em>
+<a id='L212' name='L212'></a>   212   <strong class='reserved'>return</strong> <a href='../S/3907.html#L12' title='Defined at 12 in nt/inc/stdbool.h.'>false</a>;
+<a id='L213' name='L213'></a>   213 <em class='brace'>}</em>
+<a id='L214' name='L214'></a>   214 
+<a id='L215' name='L215'></a>   215 <strong class='reserved'>void</strong>
+<a id='L216' name='L216'></a>   216 <a href='../R/12827.html' title='Multiple referred from 2 places.'>pgtk_im_set_cursor_location</a> (<strong class='reserved'>struct</strong> <a href='../D/10353.html' title='Multiple defined in 3 places.'>frame</a> *<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>, <strong class='reserved'>int</strong> <a href='../S/3607.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, <strong class='reserved'>int</strong> y, <strong class='reserved'>int</strong> width,
+<a id='L217' name='L217'></a>   217                              <strong class='reserved'>int</strong> height)
+<a id='L218' name='L218'></a>   218 <em class='brace'>{</em>
+<a id='L219' name='L219'></a>   219   <strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo = <a href='../D/2016.html' title='Multiple defined in 6 places.'>FRAME_DISPLAY_INFO</a> (<a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>);
+<a id='L220' name='L220'></a>   220   <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a> &amp;&amp; dpyinfo-&gt;im.focused_frame == <a href='../D/9944.html' title='Multiple defined in 12 places.'>f</a>)
+<a id='L221' name='L221'></a>   221     <em class='brace'>{</em>
+<a id='L222' name='L222'></a>   222       GdkRectangle area = <em class='brace'>{</em> <a href='../S/3607.html#L43' title='Defined at 43 in test/manual/etags/cp-src/fail.C.'>x</a>, y, width, height <em class='brace'>}</em>;
+<a id='L223' name='L223'></a>   223       gtk_im_context_set_cursor_location (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, &amp;area);
+<a id='L224' name='L224'></a>   224     <em class='brace'>}</em>
+<a id='L225' name='L225'></a>   225 <em class='brace'>}</em>
+<a id='L226' name='L226'></a>   226 
+<a id='L227' name='L227'></a>   227 <strong class='reserved'>static</strong> <strong class='reserved'>void</strong>
+<a id='L228' name='L228'></a>   228 <a href='../R/12828.html' title='Multiple referred from 2 places.'>pgtk_im_use_context</a> (<strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo, <a href='../D/8099.html' title='Multiple defined in 10 places.'>bool</a> use_p)
+<a id='L229' name='L229'></a>   229 <em class='brace'>{</em>
+<a id='L230' name='L230'></a>   230   <strong class='reserved'>if</strong> (!use_p)
+<a id='L231' name='L231'></a>   231     <em class='brace'>{</em>
+<a id='L232' name='L232'></a>   232       <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L233' name='L233'></a>   233         <em class='brace'>{</em>
+<a id='L234' name='L234'></a>   234           gtk_im_context_reset (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L235' name='L235'></a>   235           gtk_im_context_focus_out (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L236' name='L236'></a>   236           gtk_im_context_set_client_window (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>);
+<a id='L237' name='L237'></a>   237 
+<a id='L238' name='L238'></a>   238           <a href='../D/10612.html' title='Multiple defined in 2 places.'>g_object_unref</a> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L239' name='L239'></a>   239           dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L240' name='L240'></a>   240         <em class='brace'>}</em>
+<a id='L241' name='L241'></a>   241     <em class='brace'>}</em>
+<a id='L242' name='L242'></a>   242   <strong class='reserved'>else</strong>
+<a id='L243' name='L243'></a>   243     <em class='brace'>{</em>
+<a id='L244' name='L244'></a>   244       <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> == <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L245' name='L245'></a>   245         <em class='brace'>{</em>
+<a id='L246' name='L246'></a>   246           dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = gtk_im_multicontext_new ();
+<a id='L247' name='L247'></a>   247           g_signal_connect (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, "commit",
+<a id='L248' name='L248'></a>   248                             G_CALLBACK (<a href='../S/215.html#L28' title='Defined at 28 in src/pgtkim.c.'>im_context_commit_cb</a>), dpyinfo);
+<a id='L249' name='L249'></a>   249           g_signal_connect (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, "retrieve-surrounding",
+<a id='L250' name='L250'></a>   250                             G_CALLBACK (<a href='../S/215.html#L44' title='Defined at 44 in src/pgtkim.c.'>im_context_retrieve_surrounding_cb</a>),
+<a id='L251' name='L251'></a>   251                             dpyinfo);
+<a id='L252' name='L252'></a>   252           g_signal_connect (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, "delete-surrounding",
+<a id='L253' name='L253'></a>   253                             G_CALLBACK (<a href='../S/215.html#L51' title='Defined at 51 in src/pgtkim.c.'>im_context_delete_surrounding_cb</a>),
+<a id='L254' name='L254'></a>   254                             dpyinfo);
+<a id='L255' name='L255'></a>   255           g_signal_connect (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, "preedit-changed",
+<a id='L256' name='L256'></a>   256                             G_CALLBACK (<a href='../S/215.html#L67' title='Defined at 67 in src/pgtkim.c.'>im_context_preedit_changed_cb</a>),
+<a id='L257' name='L257'></a>   257                             dpyinfo);
+<a id='L258' name='L258'></a>   258           g_signal_connect (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, "preedit-end",
+<a id='L259' name='L259'></a>   259                             G_CALLBACK (<a href='../S/215.html#L154' title='Defined at 154 in src/pgtkim.c.'>im_context_preedit_end_cb</a>), dpyinfo);
+<a id='L260' name='L260'></a>   260           g_signal_connect (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, "preedit-start",
+<a id='L261' name='L261'></a>   261                             G_CALLBACK (<a href='../S/215.html#L168' title='Defined at 168 in src/pgtkim.c.'>im_context_preedit_start_cb</a>),
+<a id='L262' name='L262'></a>   262                             dpyinfo);
+<a id='L263' name='L263'></a>   263           gtk_im_context_set_use_preedit (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>, <a href='../D/5765.html' title='Multiple defined in 3 places.'>TRUE</a>);
+<a id='L264' name='L264'></a>   264 
+<a id='L265' name='L265'></a>   265           <strong class='reserved'>if</strong> (dpyinfo-&gt;im.focused_frame)
+<a id='L266' name='L266'></a>   266             <a href='../S/215.html#L173' title='Defined at 173 in src/pgtkim.c.'>pgtk_im_focus_in</a> (dpyinfo-&gt;im.focused_frame);
+<a id='L267' name='L267'></a>   267         <em class='brace'>}</em>
+<a id='L268' name='L268'></a>   268     <em class='brace'>}</em>
+<a id='L269' name='L269'></a>   269 <em class='brace'>}</em>
+<a id='L270' name='L270'></a>   270 
+<a id='L271' name='L271'></a>   271 <strong class='reserved'>void</strong>
+<a id='L272' name='L272'></a>   272 <a href='../R/12826.html' title='Multiple referred from 2 places.'>pgtk_im_init</a> (<strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo)
+<a id='L273' name='L273'></a>   273 <em class='brace'>{</em>
+<a id='L274' name='L274'></a>   274   dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L275' name='L275'></a>   275 
+<a id='L276' name='L276'></a>   276   <a href='../S/215.html#L228' title='Defined at 228 in src/pgtkim.c.'>pgtk_im_use_context</a> (dpyinfo, !<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (Vpgtk_use_im_context_on_new_connection));
+<a id='L277' name='L277'></a>   277 <em class='brace'>}</em>
+<a id='L278' name='L278'></a>   278 
+<a id='L279' name='L279'></a>   279 <strong class='reserved'>void</strong>
+<a id='L280' name='L280'></a>   280 <a href='../R/12823.html' title='Multiple referred from 2 places.'>pgtk_im_finish</a> (<strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo)
+<a id='L281' name='L281'></a>   281 <em class='brace'>{</em>
+<a id='L282' name='L282'></a>   282   <strong class='reserved'>if</strong> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> != <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>)
+<a id='L283' name='L283'></a>   283     <a href='../D/10612.html' title='Multiple defined in 2 places.'>g_object_unref</a> (dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a>);
+<a id='L284' name='L284'></a>   284   dpyinfo-&gt;im.<a href='../S/2157.html#L102' title='Defined at 102 in lib/diffseq.h.'>context</a> = <a href='../D/4155.html' title='Multiple defined in 11 places.'>NULL</a>;
+<a id='L285' name='L285'></a>   285 <em class='brace'>}</em>
+<a id='L286' name='L286'></a>   286 
+<a id='L287' name='L287'></a>   287 <a href='../D/1294.html' title='Multiple defined in 979 places.'>DEFUN</a> ("pgtk-use-im-context", Fpgtk_use_im_context, Spgtk_use_im_context, 1, 2, 0,
+<a id='L288' name='L288'></a>   288        doc: <em class='comment'>/* Set whether to use GtkIMContext. */</em>)
+<a id='L289' name='L289'></a>   289   (<a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> use_p, <a href='../D/3486.html' title='Multiple defined in 11 places.'>Lisp_Object</a> <a href='../S/216.html#L454' title='Defined at 454 in src/termhooks.h.'>terminal</a>)
+<a id='L290' name='L290'></a>   290 <em class='brace'>{</em>
+<a id='L291' name='L291'></a>   291   <strong class='reserved'>struct</strong> <a href='../S/261.html#L122' title='Defined at 122 in src/pgtkterm.h.'>pgtk_display_info</a> *dpyinfo = <a href='../S/124.html#L80' title='Defined at 80 in src/pgtkfns.c.'>check_pgtk_display_info</a> (<a href='../S/216.html#L454' title='Defined at 454 in src/termhooks.h.'>terminal</a>);
+<a id='L292' name='L292'></a>   292 
+<a id='L293' name='L293'></a>   293   <a href='../S/215.html#L228' title='Defined at 228 in src/pgtkim.c.'>pgtk_im_use_context</a> (dpyinfo, !<a href='../D/3972.html' title='Multiple defined in 2 places.'>NILP</a> (use_p));
+<a id='L294' name='L294'></a>   294 
+<a id='L295' name='L295'></a>   295   <strong class='reserved'>return</strong> Qnil;
+<a id='L296' name='L296'></a>   296 <em class='brace'>}</em>
+<a id='L297' name='L297'></a>   297 
+<a id='L298' name='L298'></a>   298 <strong class='reserved'>void</strong>
+<a id='L299' name='L299'></a>   299 <a href='../R/14701.html' title='Multiple referred from 2 places.'>syms_of_pgtkim</a> (<strong class='reserved'>void</strong>)
+<a id='L300' name='L300'></a>   300 <em class='brace'>{</em>
+<a id='L301' name='L301'></a>   301   <a href='../S/165.html#L5066' title='Defined at 5066 in src/lread.c.'>defsubr</a> (&amp;Spgtk_use_im_context);
+<a id='L302' name='L302'></a>   302 
+<a id='L303' name='L303'></a>   303   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qpgtk_refresh_preedit, "pgtk-refresh-preedit");
+<a id='L304' name='L304'></a>   304   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qul, "ul");
+<a id='L305' name='L305'></a>   305   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qfg, "fg");
+<a id='L306' name='L306'></a>   306   <a href='../D/1293.html' title='Multiple defined in 2 places.'>DEFSYM</a> (Qbg, "bg");
+<a id='L307' name='L307'></a>   307 
+<a id='L308' name='L308'></a>   308   <a href='../D/1314.html' title='Multiple defined in 2 places.'>DEFVAR_LISP</a> ("pgtk-use-im-context-on-new-connection", Vpgtk_use_im_context_on_new_connection,
+<a id='L309' name='L309'></a>   309                doc: <em class='comment'>/* Whether to use GtkIMContext on a new connection.</em>
+<a id='L310' name='L310'></a>   310 <em class='comment'>If you want to change it after connection, use the `pgtk-use-im-context'</em>
+<a id='L311' name='L311'></a>   311 <em class='comment'>function.  */</em> );
+<a id='L312' name='L312'></a>   312   Vpgtk_use_im_context_on_new_connection = Qt;
+<a id='L313' name='L313'></a>   313 <em class='brace'>}</em>
+</pre>
+<hr />
+<a id='BOTTOM' name='BOTTOM'></a>
+<em class='comment'>/* [&lt;][&gt;]<a href='#L28'>[^]</a><a href='#L299'>[v]</a><a href='#TOP'>[top]</a>[bottom]<a href='../mains.html'>[index]</a><a href='../help.html'>[help]</a> */</em>
+</body>
+</html>
