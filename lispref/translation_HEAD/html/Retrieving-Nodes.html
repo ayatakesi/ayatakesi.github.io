@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 29.1.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="October 31, 2023">
+<meta name="date" content="December 17, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -62,10 +62,10 @@ ul.no-bullet {list-style: none}
 <div class="section" id="Retrieving-Nodes">
 <div class="header">
 <p>
-Next: <a href="Accessing-Node-Information.html" accesskey="n" rel="next">ノード情報へのアクセス</a>, Previous: <a href="Using-Parser.html" accesskey="p" rel="prev">tree-sitterパーサーの使用</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Accessing-Node-Information.html" accesskey="n" rel="next">Accessing Node Information</a>, Previous: <a href="Using-Parser.html" accesskey="p" rel="prev">Using Tree-sitter Parser</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">Parsing Program Source</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="nodonoQu-De-"></span><h3 class="section">37.3 ノードの取得</h3>
+<span id="Retrieving-Nodes-1"></span><h3 class="section">37.3 Retrieving Nodes</h3>
 <span id="index-retrieve-node_002c-tree_002dsitter"></span>
 <span id="index-tree_002dsitter_002c-find-node"></span>
 <span id="index-get-node_002c-tree_002dsitter"></span>
@@ -182,9 +182,10 @@ node)</em>をリターンする。葉ノードとは子ノードを何ももた�
 <span id="index-nodes_002c-by-field-name"></span>
 <span id="index-syntax-tree-nodes_002c-by-field-name"></span>
 
-<p>構文ツリーの分析をより容易にするために、多くの言語ではグラマーで子ノードに<em>フィールド名(field
-names)</em>を割り当てています(<a href="Language-Grammar.html#tree_002dsitter-node-field-name">field
-name</a>を参照)。たとえば<code>function_definition</code>ノードには<code>declarator</code>や<code>body</code>というノードがあるかもしれません。
+<p>To make the syntax tree easier to analyze, many language grammars assign
+<em>field names</em> to child nodes (see <a href="Language-Grammar.html#tree_002dsitter-node-field-name">field
+name</a>).  For example, a <code>function_definition</code> node could have a
+<code>declarator</code> child and a <code>body</code> child.
 </p>
 <dl class="def">
 <dt id="index-treesit_002dnode_002dchild_002dby_002dfield_002dname"><span class="category">Function: </span><span><strong>treesit-node-child-by-field-name</strong> <em>node field-name</em><a href='#index-treesit_002dnode_002dchild_002dby_002dfield_002dname' class='copiable-anchor'> &para;</a></span></dt>
@@ -286,6 +287,57 @@ b   1   2         b   |   |      b   c   d
 <span id="yoriBian-Li-naGuan-Shu-"></span><h3 class="heading">より便利な関数</h3>
 
 <dl class="def">
+<dt id="index-treesit_002dnode_002dget"><span class="category">Function: </span><span><strong>treesit-node-get</strong> <em>node instructions</em><a href='#index-treesit_002dnode_002dget' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This is a convenience function that chains together multiple node accessor
+functions together.  For example, to get <var>node</var>&rsquo;s parent&rsquo;s next
+sibling&rsquo;s second child&rsquo;s text:
+</p>
+<div class="example">
+<pre class="example">(treesit-node-get node
+   '((parent 1)
+    (sibling 1 nil)
+    (child 1 nil)
+    (text nil)))
+</pre></div>
+
+<p><var>instruction</var> is a list of INSTRUCTIONs of the form <code>(<var>fn</var>&nbsp;<var>arg</var>...)</code><!-- /@w -->.  The following <var>fn</var>&rsquo;s are supported:
+</p>
+<dl compact="compact">
+<dt><span><code>(child <var>idx</var> <var>named</var>)</code></span></dt>
+<dd><p>Get the <var>idx</var>&rsquo;th child.
+</p>
+</dd>
+<dt><span><code>(parent <var>n</var>)</code></span></dt>
+<dd><p>Go to parent <var>n</var> times.
+</p>
+</dd>
+<dt><span><code>(field-name)</code></span></dt>
+<dd><p>Get the field name of the current node.
+</p>
+</dd>
+<dt><span><code>(type)</code></span></dt>
+<dd><p>Get the type of the current node.
+</p>
+</dd>
+<dt><span><code>(text <var>no-property</var>)</code></span></dt>
+<dd><p>Get the text of the current node.
+</p>
+</dd>
+<dt><span><code>(children <var>named</var>)</code></span></dt>
+<dd><p>Get a list of children.
+</p>
+</dd>
+<dt><span><code>(sibling <var>step</var> <var>named</var>)</code></span></dt>
+<dd><p>Get the nth prev/next sibling, negative <var>step</var> means prev sibling,
+positive means next sibling.
+</p></dd>
+</dl>
+
+<p>Note that arguments like <var>named</var> and <var>no-property</var> can&rsquo;t be omitted,
+unlike in their original functions.
+</p></dd></dl>
+
+<dl class="def">
 <dt id="index-treesit_002dfilter_002dchild"><span class="category">Function: </span><span><strong>treesit-filter-child</strong> <em>node predicate &amp;optional named</em><a href='#index-treesit_002dfilter_002dchild' class='copiable-anchor'> &para;</a></span></dt>
 <dd><p>この関数は<var>predicate</var>を満足する<var>node</var>の直接の子を探す。
 </p>
@@ -317,10 +369,10 @@ b   1   2         b   |   |      b   c   d
 <hr>
 <div class="header">
 <p>
-Next: <a href="Accessing-Node-Information.html">ノード情報へのアクセス</a>, Previous: <a href="Using-Parser.html">tree-sitterパーサーの使用</a>, Up: <a href="Parsing-Program-Source.html">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Accessing-Node-Information.html">Accessing Node Information</a>, Previous: <a href="Using-Parser.html">Using Tree-sitter Parser</a>, Up: <a href="Parsing-Program-Source.html">Parsing Program Source</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-29, commit:43eb4fb10b8b4324a6675d58ea0903445279b4c3 to check Japanese translation.
+This page has generated for branch:work/master_598ab9ca10d35d6990f9af3a4d58f265acd8b121, commit:809bb7c64c446673f976b8282975d3a4d6a0867d to check Japanese translation.
 </body>
 </html>

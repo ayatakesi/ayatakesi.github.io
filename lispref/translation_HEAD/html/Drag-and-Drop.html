@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 29.1.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="October 31, 2023">
+<meta name="date" content="December 17, 2023">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -62,40 +62,134 @@ ul.no-bullet {list-style: none}
 <div class="section" id="Drag-and-Drop">
 <div class="header">
 <p>
-Next: <a href="Color-Names.html" accesskey="n" rel="next">カラー名</a>, Previous: <a href="Yanking-Media.html" accesskey="p" rel="prev">メディアのyank</a>, Up: <a href="Frames.html" accesskey="u" rel="up">フレーム</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Color-Names.html" accesskey="n" rel="next">カラー名</a>, Previous: <a href="Yanking-Media.html" accesskey="p" rel="prev">Yanking Media</a>, Up: <a href="Frames.html" accesskey="u" rel="up">フレーム</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="doratuguandodorotupu"></span><h3 class="section">30.22 ドラッグアンドドロップ</h3>
+<span id="doratuguandodorotupu"></span><h3 class="section">30.24 ドラッグアンドドロップ</h3>
 <span id="index-drag-and-drop"></span>
 
-<p>他のアプリケーションからユーザーが何かをEmacsの上にドロップすると、Emacsはドロップされたテキストの挿入、あるいはドロップされたURLのオープンを試みます。Emacsは常にテキストがドロップされると、そのドロップ発生時のマウスポインター位置にテキストを挿入するか、挿入が失敗した場合には(そのバッファーが読み取り専用の場合に発生し得る)そのテキストをkillリングに保存します。URLがドロップされた場合には、EmacsはそのURLと変数<code>dnd-protocol-alist</code>に定義されたregexp、その後は変数<code>browse-url-handlers</code>、<code>browse-url-default-handlers</code>に定義されたregexpをマッチして適切なハンドラー関数の呼び出しを試みます。もし適切なハンドラーが見つからなければ、EmacsはそのURLを平文テキストとして挿入するというフォールバック処理を行います。
+<p>Data transferred by drag and drop is generally either plain text or a list
+of URLs designating files or other resources.  When text is dropped, it is
+inserted at the location of the drop, with recourse to saving it into the
+kill ring if that is not possible.
+</p>
+<p>URLs dropped are supplied to pertinent <em>DND handler functions</em> in the
+variable <code>dnd-protocol-alist</code>, or alternatively &ldquo;URL handlers&rdquo; as set
+forth by the variables <code>browse-url-handlers</code> and
+<code>browse-url-default-handlers</code>; absent matching handlers of either type,
+they are treated as plain text and inserted in the buffer.
 </p>
 <dl class="def">
 <dt id="index-dnd_002dprotocol_002dalist"><span class="category">Variable: </span><span><strong>dnd-protocol-alist</strong><a href='#index-dnd_002dprotocol_002dalist' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この変数は<code>(<var>pattern</var>&nbsp;.&nbsp;<var>action</var>)</code><!-- /@w -->という形式のコンスセルのリストである。ここで<var>pattern</var>はドロップされた後にそのURLにたいしてマッチされるregexp、<var>action</var>はドロップされたURLが<var>pattern</var>にマッチした場合に2つの引数で呼び出される関数で、1つ目の引数はドロップされたURL、2つ目の引数は<code>copy</code>、<code>move</code>、<code>link</code>、<code>private</code>、<code>ask</code>というシンボルのいずれか。
+<dd><p>This variable is an alist between regexps against which URLs are matched and
+DND handler functions called on the dropping of matching URLs.
 </p>
-<p><var>action</var>が<var>private</var>なら、それはドロップ操作を開始したプログラムが、そのURLでは指定されていないアクションをEmacsに行って欲しいことを意味する。この場合に行うべき妥当なアクションはそのURLのオープン、あるいはカレントバッファーへのそのURLのコンテンツのコピーとなる。それ以外の<var>action</var>は、<code>dnd-begin-file-drag</code>にたいする<var>action</var>引数と同じ意味合いとなる。
+<span id="index-dnd_002dmultiple_002dhandler_002c-a-symbol-property"></span>
+<p>If a handler function is a symbol whose <code>dnd-multiple-handler</code> property
+(see <a href="Symbol-Properties.html">シンボルのプロパティ</a>) is set, then upon a drop it is given a list of
+every URL that matches its regexp; absent this property, it is called once
+for each of those URLs.  Following this first argument is one of the symbols
+<code>copy</code>, <code>move</code>, <code>link</code>, <code>private</code> or <code>ask</code>
+identifying the action to be taken.
+</p>
+<p>If <var>action</var> is <code>private</code>, the program that initiated the drop does
+not insist on any particular behavior on the part of its recipient; a
+reasonable action to take in that case is to open the URL or copy its
+contents into the current buffer.  The other values of <var>action</var> imply
+much the same as in the <var>action</var> argument to <code>dnd-begin-file-drag</code>.
+</p>
+<p>Once its work completes, a handler function must return a symbol designating
+the action it took: either the action it was provided, or the symbol
+<code>private</code>, which communicates to the source of the drop that the action
+it prescribed has not been executed.
+</p>
+<p>When multiple handlers match an overlapping subset of items within a drop,
+the handler matched against by the greatest number of items is called to
+open that subset.  The items it is supplied are subsequently withheld from
+other handlers, even those they also match.
 </p></dd></dl>
 
 <span id="index-drag-and-drop_002c-X"></span>
 <span id="index-drag-and-drop_002c-other-formats"></span>
-<p>Emacsはウィンドウシステムそれぞれにたいして個別にテキストとURLの受信を実装しており、他の種別のドロップによる受信はデフォルトではサポートしていません。他の種別のデータの受信をサポートするためには、以下のX固有のインターフェイスを使用してください。
+<p>Emacs does not take measures to accept data besides text and URLs, for the
+window system interfaces which enable this are too far removed from each
+other to abstract over consistently.  Nor are DND handlers accorded
+influence over the actions they are meant to take, as particular
+drag-and-drop protocols deny recipients such control.  The X11 drag-and-drop
+implementation rests on several underlying protocols that make use of
+selection transfer and share much in common, to which low level access is
+provided through the following functions and variables:
 </p>
-<span id="index-x_002ddnd_002dtest_002dfunction"></span>
-<span id="index-x_002ddnd_002dknown_002dtypes"></span>
-<p>Xウィンドウシステムにおいてユーザーが別のアプリケーションからEmacsに何かをドラッグすると、そのアプリケーションはEmacsがドラッグされたデータを理解しているかどうかを告げることを期待します。このような問いにたいして何を応答するか決定するためにEmacsが用いるのが、変数<code>x-dnd-test-function</code>内の関数です。デフォルト値は<code>x-dnd-default-test-function</code>で、これはドロップされたデータのタイプが<code>x-dnd-known-types</code>内に存在すればドロップを受け入れます。何か別の条件にもとづいてEmacsにドロップを許容または拒絶させたければ、<code>x-dnd-test-function</code>および<code>x-dnd-known-types</code>を変更してください。
+<dl class="def">
+<dt id="index-x_002ddnd_002dtest_002dfunction"><span class="category">Variable: </span><span><strong>x-dnd-test-function</strong><a href='#index-x_002ddnd_002dtest_002dfunction' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function is called to ascertain whether Emacs should accept a drop.  It
+is called with three arguments:
 </p>
-<span id="index-x_002ddnd_002dtypes_002dalist"></span>
-<p>Emacsが別のデータタイプのドロップを受け取る方法を変更したり、新たなタイプを理解するためにドロップを有効にしたい場合には<code>x-dnd-types-alist</code>を変更してください。これを正しく行うためには他のアプリケーションがドラッグアンドドロップに使用するデータタイプが何なのかに関する詳細な知識が要求されます。
+<ul>
+<li> The window under the item being dragged, which is to say the window whose
+buffer is to receive the drop.  If the item is situated over a non-window
+component of a frame (such as scroll bars, tool bars and things to that
+effect), the frame itself is provided in its place.
+
+</li><li> One of the symbols <code>move</code>, <code>copy</code>, <code>link</code> or <code>ask</code>,
+representing an action to take on the item data suggested by the drop
+source.  These symbols carry the same implications as in
+<code>x-begin-drag</code>.
+
+</li><li> A vector of selection data types (see <a href="X-Selections.html">X Selections</a>) the item provides.
+</li></ul>
+
+<p>This function must return <code>nil</code> to reject the drop or a cons of the
+action that will be taken (such as through transfer to a DND handler
+function) and the selection data type to be requested.  The action returned
+in that cons may also be the symbol <code>private</code>, which intimates that the
+action taken is as yet indeterminate.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-x_002ddnd_002dknown_002dtypes"><span class="category">Variable: </span><span><strong>x-dnd-known-types</strong><a href='#index-x_002ddnd_002dknown_002dtypes' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>Modifying <code>x-dnd-test-function</code> is generally unwarranted, for its
+default set of criteria for accepting a drop can be adjusted by changing
+this list of selection data types.  Each element is a string, which if found
+as the symbol name of an element within the list of data types by the
+default &ldquo;test function&rdquo;, will induce that function to accept the drop.
 </p>
-<p>これらのデータタイプは通常は他のアプリケーションから提供されたX選択から入手できるスペシャルデータタイプとして実装されています。ほとんどのケースにおいて、これらは<code>gui-set-selection</code>が通常許容するのと同じデータタイプかMIMEタイプのいずれかであり、それは使用される固有のドラッグアンドドロップのプロトコルに依存します。たとえば平文テキストに用いられるのは<code>&quot;STRING&quot;</code>か<code>&quot;STRING&quot;</code>のいずれかでしょう。
+<p>Introducing a new entry into this list is not useful unless a counterpart
+handler function is appended to <code>x-dnd-types-alist</code>.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-x_002ddnd_002dtypes_002dalist"><span class="category">Variable: </span><span><strong>x-dnd-types-alist</strong><a href='#index-x_002ddnd_002dtypes_002dalist' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This variable is an alist between strings designating selection data types
+and functions which are called when things of such types are dropped.
+</p>
+<p>Each such function is supplied three arguments; the first is the window or
+frame below the location of the drop, as in <code>x-dnd-test-function</code>; the
+second is the action to be taken, which may be any of the actions returned
+by test functions, and third is the selection data itself (see <a href="Accessing-Selections.html">Accessing Selections</a>).
+</p></dd></dl>
+
+<p>Selection data types as provided by X11 drag-and-drop protocols are
+sometimes distinct from those provided by the ICCCM and conforming clipboard
+or primary selection owners.  Frequently, the name of a MIME type, such as
+<code>&quot;text/plain;charset=utf-8&quot;</code> (with discrepant capitalization of the
+&ldquo;utf-8&rdquo;), is substitued for a standard X selection name such as
+<code>UTF8_STRING</code>.
 </p>
 <span id="index-XDS"></span>
 <span id="index-direct-save-protocol"></span>
 <span id="index-x_002ddnd_002ddirect_002dsave_002dfunction"></span>
-<p>XウィンドウシステムでEmacsを実行する際には、<acronym>XDS</acronym> (X Direct
-Save)というプロトコルがサポートされます。このプロトコルによってユーザーがファイルをDiredウィンドウのようなEmacsウィンドウにドラッグアンドドロップして保存ができるようになります。<acronym>XDS</acronym>に独特な要件に準拠するために、これらのドラッグアンドドロップの要求は特別に処理されます。つまり<code>x-dnd-types-alist</code>に応じて処理されるのではなく、変数<code>x-dnd-direct-save-function</code>の値である<em>direct-save関数(direct-save
-function)</em>によって処理されるのです。これは<var>need-name</var>および<var>filename</var>という2つの引数を受け取る関数である必要があります。<acronym>XDS</acronym>プロトコルではファイルのドラッグにたいして2段階の手続きが用いられます:
+<p>The X Direct Save (<acronym>XDS</acronym>) protocol enables programs to devolve
+responsibility for naming a dropped file upon the recipient.  When such a
+drop transpires, DND handlers and the foregoing X-specific interface are
+largely circumvented, tasking a different function with responding to the
+drop.
+</p>
+<dl class="def">
+<dt id="index-x_002ddnd_002ddirect_002dsave_002dfunction-1"><span class="category">Variable: </span><span><strong>x-dnd-direct-save-function</strong><a href='#index-x_002ddnd_002ddirect_002dsave_002dfunction-1' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This variable should be set to a function that registers and names files
+dropped using the <acronym>XDS</acronym> protocol in a two-step procedure.  It is
+provided two arguments, <var>need-name</var> and <var>filename</var>.
 </p>
 <ol>
 <li> ファイルのドラッグ元であるアプリケーションは、ファイルを保存するためにEmacsにたいして完全なファイル名の提供を求める。この目的のために1つ目の引数<var>need-name</var>に非<code>nil</code>、2つ目の引数<var>filename</var>に保存するファイルのディレクトリー部分を除いた名前をセットしてdirect-save関数が呼び出される。この関数はファイルを保存するための完全に展開された絶対ファイル名をリターンする必要がある。たとえばDiredウィンドウにファイルがドラッグされれば、そのファイルのディレクトリーは当然ドロップされた場所に表示されているファイルのディレクトリーになるだろう。何らかの理由によりファイルの保存が不可能な場合には、この関数はドラッグアンドドロップ操作をキャンセルする<code>nil</code>をリターンする必要がある。
@@ -103,8 +197,9 @@ function)</em>によって処理されるのです。これは<var>need-name</va
 </li><li> ファイルのドラッグ元のアプリケーションは、1回目のdirect-save関数呼び出しでリターンされた名前でファイルを保存する。ファイルの保存に成功したら1つ目の引数<var>need-name</var>に<code>nil</code>、2つ目の引数<var>filename</var>に保存したファイルの完全な絶対ファイル名をセットして、もう一度direct-save関数を呼び出す。この関数にはファイルが保存されたという事実に鑑み、何であれ必要な処理を行うことが期待される。たとえばDiredならそこに新たなファイルを表示して、ディスプレイ上のディレクトリーを更新する必要があるだろう。
 </li></ol>
 
-<p><code>x-dnd-direct-save-function</code>のデフォルト値は<code>x-dnd-save-direct</code>です。
-</p>
+<p>Its default <code>x-dnd-direct-save-function</code> is <code>x-dnd-save-direct</code>.
+</p></dd></dl>
+
 <dl class="def">
 <dt id="index-x_002ddnd_002dsave_002ddirect"><span class="category">Function: </span><span><strong>x-dnd-save-direct</strong> <em>need-name filename</em><a href='#index-x_002ddnd_002dsave_002ddirect' class='copiable-anchor'> &para;</a></span></dt>
 <dd><p>引数<var>need-name</var>が非<code>nil</code>で呼び出されると、この関数はファイルを保存するためにユーザーに絶対ファイル名の入力を求める。指定されたファイルがすでに存在する場合には、上書きするかどうかの入力をユーザーに追加で求めて、ユーザーが上書きに同意した場合のみ絶対ファイル名をリターンする。
@@ -119,21 +214,34 @@ function)</em>によって処理されるのです。これは<var>need-name</va
 </p></dd></dl>
 
 <span id="index-initiating-drag_002dand_002ddrop"></span>
-<p>ウィンドウシステムが対応していれば、Emacsのフレームから他のアプリケーションウィンドウへのコンテンツのドラッグもEmacsはサポートします。
+<p>It is also possible to drag content from Emacs to other programs when this
+is supported by the current window-system.  The functions which provide for
+this are as follows:
 </p>
 <span id="index-drop-target_002c-in-drag_002dand_002ddrop-operations"></span>
 <dl class="def">
 <dt id="index-dnd_002dbegin_002dtext_002ddrag"><span class="category">Function: </span><span><strong>dnd-begin-text-drag</strong> <em>text &amp;optional frame action allow-same-frame</em><a href='#index-dnd_002dbegin_002dtext_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数は<var>frame</var>から別のプログラム(<em>ドロップターゲット(drop
-target)と呼ばれる</em>へのテキストのドラッグを開始して、テキストがドロップされた際のドラッグアンドドロップ操作の結果、またはドラッグアンドドロップ操作がキャンセルされたという結果をリターンする。<var>text</var>はドロップターゲットによって挿入されることになるテキスト。
+<dd><p>This function starts a drag-and-drop operation from <var>frame</var> to another
+program (dubbed the <em>drop target</em>), and returns when <var>text</var> is
+dropped or the operation is canceled.
 </p>
-<p><var>action</var>は<code>copy</code>か<code>move</code>というシンボルのいずれかでなければならない。ここで<code>copy</code>はドロップターゲットによって<var>text</var>が挿入されるべきであることを意味する。<code>move</code>は<code>copy</code>と同様だが、後述するように呼び出し元は更にソースから<var>text</var>を削除する必要があるかもしれないことを意味する。
+<p><var>action</var> must be one of the symbols <code>copy</code> or <code>move</code>, where
+<code>copy</code> means that <var>text</var> should be inserted by the drop target, and
+<code>move</code> means the same as <code>copy</code>, but the caller must also delete
+<var>text</var> from its source as explained in the list below.
 </p>
-<p><var>frame</var>はマウスボタンをカレントで押下したフレーム。<code>nil</code>は選択されているフレームを意味する。どのマウスボタンも押されていなければ即座にリターンするかもしれないので、<code>down-mouse-1</code>やそれに類するイベント(<a href="Mouse-Events.html">マウスイベント</a>を参照)の直後のみ、そのイベントが発生したフレーム(<a href="Click-Events.html">クリックイベント</a>を参照)を<var>frame</var>にセットして呼び出すこと。
+<p><var>frame</var> is the frame where the mouse is currently held down, or
+<code>nil</code>, which means to use the selected frame.  Since this function
+might return promptly if no mouse buttons are held down, it should be only
+called in response to a <code>down-mouse-1</code> or analogous event (see <a href="Mouse-Events.html">マウスイベント</a>), with <var>frame</var> set to the frame where that event was generated
+(see <a href="Click-Events.html">クリックイベント</a>).
 </p>
-<p><var>allow-same-frame</var>は<var>frame</var>自体の上へのドロップを無視するかどうかを指定する。
+<p>If <var>allow-same-frame</var> is <code>nil</code>, drops on top of <var>frame</var> will be
+ignored.
 </p>
-<p>リターン値はドロップターゲットが実際に行ったアクション、オプションで呼び出し元が何を行うべきかを指定する。リターン値は以下のうちのシンボルのいずれか:
+<p>The return value reflects the action that the drop target actually
+performed, and thus also what action, if any, the caller should in turn
+take.  It is one of the following symbols:
 </p>
 <dl compact="compact">
 <dt><span><code>copy</code></span></dt>
@@ -141,11 +249,12 @@ target)と呼ばれる</em>へのテキストのドラッグを開始して、�
 </p>
 </dd>
 <dt><span><code>move</code></span></dt>
-<dd><p>ドロップターゲットはドロップされたテキストを挿入したが、呼び出し元はそのドロップ元(たとえばバッファー)から<var>text</var>を削除する必要がある。
+<dd><p>The drop target inserted the dropped text, and the caller should delete
+<var>text</var> from the buffer where it was extracted from, if applicable.
 </p>
 </dd>
 <dt><span><code>private</code></span></dt>
-<dd><p>ドロップターゲットは指定されていない何らかのアクションを行った。
+<dd><p>The drop target took some other unspecified action.
 </p>
 </dd>
 <dt><span><code>nil</code></span></dt>
@@ -157,15 +266,19 @@ target)と呼ばれる</em>へのテキストのドラッグを開始して、�
 
 <dl class="def">
 <dt id="index-dnd_002dbegin_002dfile_002ddrag"><span class="category">Function: </span><span><strong>dnd-begin-file-drag</strong> <em>file &amp;optional frame action allow-same-frame</em><a href='#index-dnd_002dbegin_002dfile_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数は<var>frame</var>から別のアプリケーションへの<var>file</var>のドラッグを開始して、そのファイルがドロップされた際のドラッグアンドドロップ操作の結果、あるいはドラッグアンドドロップ操作がキャンセルされたという結果をリターンする。
+<dd><p>This function starts a drag-and-drop operation from <var>frame</var> to another
+program (dubbed the <em>drop target</em>), and returns when <var>file</var> is
+dropped or the operation is canceled.
 </p>
-<p><var>file</var>がリモートファイルなら、一時的なコピーを作成する。
+<p>If <var>file</var> is a remote file, then a temporary local copy will be made.
 </p>
 <p><var>action</var>は<code>copy</code>、<code>move</code>、または<code>link</code>,のいずれかでなければならない。ここで<code>copy</code>はドロップターゲットによって<var>file</var>がオープンまたはコピーされるべきことを、<code>move</code>はドロップターゲットがファイルを別の場所に移動すべきことを、そして<code>link</code>はドロップターゲットが<var>file</var>へのシンボリックリンクを作成するべきであることを意味する。<var>file</var>がリモートファイルの場合にアクションとして<code>link</code>を指定するとエラーになる。
 </p>
-<p><var>frame</var>と<var>allow-same-frame</var>の意味は<code>dnd-begin-text-drag</code>の場合と同様。
+<p><var>frame</var> and <var>allow-same-frame</var> mean the same as they do in calls to
+<code>dnd-begin-text-drag</code>.
 </p>
-<p>リターン値はドロップターゲットが実際に行ったアクションで、以下のうちのシンボルのいずれか:
+<p>The return value is the action that the drop target actually performed,
+which is one of the following symbols:
 </p>
 <dl compact="compact">
 <dt><span><code>copy</code></span></dt>
@@ -198,36 +311,71 @@ target)と呼ばれる</em>へのテキストのドラッグを開始して、�
 
 <dl class="def">
 <dt id="index-dnd_002ddirect_002dsave"><span class="category">Function: </span><span><strong>dnd-direct-save</strong> <em>file name &amp;optional frame allow-same-frame</em><a href='#index-dnd_002ddirect_002dsave' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数は<code>dnd-begin-file-drag</code>と似ているが、アクションのかわりに<code>name</code>を指定することによって、ターゲットプログラムがその名前のコピーを作成する点が異なる(デフォルトのアクションとしてコピーを行う関数)。
+<dd><p>The behavior of this function is akin to that of <code>dnd-begin-file-drag</code>
+(when the default action <code>copy</code> is used), except that it accepts a name
+under which the copy is meant to be filed.
 </p></dd></dl>
 
 <span id="index-initiating-drag_002dand_002ddrop_002c-low_002dlevel"></span>
-<p>上述した高レベルのインターフェイスは、低レベルなプリミティブの上位に実装されています。ファイルやテキスト以外のコンテンツのドラッグを使用が必要なら、<code>x-begin-drag</code>のかわりに低レベルのインターフェイスを使用してください。ただしこれらの低レベルなインターフェイスの使用にはデータタイプ、それにあなたがサポートしたいプラットフォームそれぞれにおいて、プログラムがドラッグアンドドロップを通じたコンテンツ転送に用いるアクションに関する詳細な知識が必要となるでしょう。
+<p>The high-level interfaces described above are implemented on top of a
+lower-level primitive.  The low-level interface <code>x-begin-drag</code> is also
+available for dragging content besides text and files.  It demands detailed
+knowledge of the data types and actions understood by programs on each
+platform its callers wish to support.
 </p>
 <dl class="def">
 <dt id="index-x_002dbegin_002ddrag"><span class="category">Function: </span><span><strong>x-begin-drag</strong> <em>targets &amp;optional action frame return-frame allow-current-frame follow-tooltip</em><a href='#index-x_002dbegin_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
 <dd><p>この関数は<var>frame</var>からのドラッグを開始して、そのドラッグアンドドロップがドロップに成功するか、あるいは拒絶されたかのいずれにより操作終了したらリターンする。ドロップは<var>frame</var>以外のトップレベルのXウィンドウ(<em>ドロップターゲット</em>、<var>allow-current-frame</var>が非<code>nil</code>なら任意のXウィンドウ)の上でマウスボタンがリリースされた際に発生する。そのドラッグアンドドロップ操作の開始時にどのマウスボタンも押されていなければ、この関数は即座に<code>nil</code>をリターンする。
 </p>
-<p><var>targets</var>は<code>gui-get-selection</code>の<var>data-type</var>引数のような、選択されているターゲットを記述した文字列のリストであり、ドロップターゲットがEmacsに要求する可能性がある(<a href="Window-System-Selections.html">ウィンドウシステムによる選択</a>を参照)。
+<p><var>targets</var> is a list of strings representing selection targets, much like
+the <var>data-type</var> argument to <code>gui-get-selection</code>, that the drop
+target can request from Emacs (see <a href="Window-System-Selections.html">ウィンドウシステムによる選択</a>).
 </p>
-<p><var>action</var>はターゲットに推奨されているアクションを記述したシンボル。<code>XdndActionCopy</code>
-(選択されている<code>XdndSelection</code>のコンテンツをドロップターゲットにコピー)、<code>XdndActionMove</code>
-(<code>XdndActionCopy</code>のようにコピーを行い更にコピー後は選択に格納されていたものが何であれ削除が必要)のいずれか。
+<p><var>action</var> is a symbol designating the action recommended to the target.
+It can either be <code>XdndActionCopy</code> or <code>XdndActionMove</code>; both imply
+copying the contents of the selection <code>XdndSelection</code> to the drop
+target, but the latter moreover conveys a promise to delete the contents of
+the selection after the copying.
 </p>
-<p>利用可能なアクションが記述されたシンボルと、ドロップターゲットが利用可能なアクションを選択する際にユーザーへの提示を期待する文字列を関連付けるalistでもよい。
+<p><var>action</var> may also be an alist which associates between symbols
+representing available actions, and strings that the drop target presents to
+the user for him to select between those actions.
 </p>
-<p><var>return-frame</var>が非<code>nil</code>、および最初にマウスが<var>frame</var>の外に移動してからEmacsフレームに移動した場合には、マウスが移動したフレームを即座にリターンする。<var>return-frame</var>がシンボル<code>now</code>なら、最初にマウスが<var>frame</var>の外に移動するのを待機せずに、フレームが何であれマウスポインター配下にあればそのフレームをリターンする。<var>return-frame</var>は特にあるフレームから別のフレームへのコンテンツのドラッグを扱いたい際に役に立つだろう。他のプログラムへのコンテンツのドラッグも扱えるものの、すべてのシステムやウィンドウマネージャーで動作する保証はない。
+<p>If <var>return-frame</var> is non-<code>nil</code> and the mouse moves over an Emacs
+frame after first moving out of <var>frame</var>, then the frame to which the
+mouse moves will be returned immediately.  If <var>return-frame</var> is the
+symbol <code>now</code>, then any frame beneath the mouse pointer will be returned
+without waiting for the mouse to first move out of <var>frame</var>.
+<var>return-frame</var> is useful when you want to treat dragging content from
+one frame to another specially, while also dragging content to other
+programs, but it is not guaranteed to function on all systems and with all
+window managers.
 </p>
-<p><var>follow-tooltip</var>が非<code>nil</code>の場合には、ドラッグアンドドロップ操作の間にマウスポインターが移動するたびに、(<code>tooltip-show</code>によって表示されるような)ツールチップの位置がマウスポインターの位置にしたがうようになる。マウスボタンがリリースされるとツールチップは非表示になる。
+<p>If <var>follow-tooltip</var> is non-<code>nil</code>, the position of any tooltip (such
+as one displayed by <code>tooltip-show</code>) will follow the location of the
+mouse pointer as it moves during the drag-and-drop operation.  The tooltip
+will be hidden once all mouse buttons are released.
 </p>
-<p>ドロップが拒絶されるかドロップターゲットが見つからなければ、この関数は<code>nil</code>をリターンする。それ以外の場合には、ターゲットが行うことを選択したアクション(ドロップターゲットがサポートしていなければ<var>action</var>とは異なるかもしれない)を記述するシンボルをリターンする。<code>XdndActionCopy</code>と<code>XdndActionMove</code>に加えて<code>XdndActionPrivate</code>も有効なリターンである。これはドロップターゲットが指定されていないアクションを選択したことを意味しており、呼び出し元はそれ以上の処理を要求されない。
+<p>If the drop was rejected or no drop target was found, this function returns
+<code>nil</code>.  Otherwise, it returns a symbol representing the action the
+target opted to take, which can differ from <var>action</var> if that isn&rsquo;t
+supported by the drop target.  <code>XdndActionPrivate</code> is also a valid
+return value in addition to <code>XdndActionCopy</code> and <code>XdndActionMove</code>;
+it suggests that the drop target opted for an indeterminate action, and no
+further action is required of the caller.
 </p>
-<p>呼び出し元はターゲットによって選択された処理を完遂するために、ターゲットと協力しなければならない。たとえばこの関数が<code>XdndActionMove</code>をリターンしたら、呼び出し元はドラッグされたバッファーのテキストを削除すること。
+<p>The caller must cooperate with the target to complete the action selected by
+the target.  For example, callers should delete any buffer text that was
+dragged if this function returns <code>XdndActionMove</code>, and likewise for
+other drag data where comparable criteria apply.
 </p></dd></dl>
 
 <span id="index-drag-and-drop-protocols_002c-X"></span>
 
-<p>Xウィンドウでは<code>x-begin-drag</code>は、複数の異なるドラッグアンドドロップのプロトコルをサポートします。ある特定のドラッグアンドドロップのプロトコルによってサポートされているか不明なコンテンツをドラッグする際には、以下の変数の値を変更してそのプロトコルをオフに切り替えることが望ましい場合があります:
+<p>The function <code>x-begin-drag</code> leverages several drag-and-drop protocols
+&ldquo;behind the scenes&rdquo;.  When dragging content that is known to not be
+supported by a specific drag-and-drop protocol, that protocol can be
+disabled by changing the values of the following variables:
 </p>
 <dl class="def">
 <dt id="index-x_002ddnd_002ddisable_002dmotif_002dprotocol"><span class="category">Variable: </span><span><strong>x-dnd-disable-motif-protocol</strong><a href='#index-x_002ddnd_002ddisable_002dmotif_002dprotocol' class='copiable-anchor'> &para;</a></span></dt>
@@ -243,17 +391,19 @@ target)と呼ばれる</em>へのテキストのドラッグを開始して、�
 <dt id="index-x_002ddnd_002duse_002dunsupported_002ddrop"><span class="category">Variable: </span><span><strong>x-dnd-use-unsupported-drop</strong><a href='#index-x_002ddnd_002duse_002dunsupported_002ddrop' class='copiable-anchor'> &para;</a></span></dt>
 <dd><p><code>x-begin-drag</code>によって与えられたリスト内に<code>&quot;STRING&quot;</code>、<code>&quot;UTF8_STRING&quot;</code>、<code>&quot;COMPOUND_TEXT&quot;</code>、<code>&quot;TEXT&quot;</code>のいずれかのターゲットがあれば、ドロップターゲットが何もドラッグアンドドロップのプロトコルをサポートしていなくても、Emacsは合成されたマウスイベントとプライマリー選択を用いてテキストの挿入を試みる。
 </p>
-<p>そのようなドロップにおいては、Emacsがそのプライマリー選択の所有者になるという副作用がある。これが望ましくなければ、この変数を<code>nil</code>にセットされたドロップエミュレーションを無効にできる。
+<p>A side effect is that Emacs will become the owner of the primary selection
+upon such a drop.  Such emulation can be disabled by setting this variable
+to <code>nil</code>.
 </p></dd></dl>
 
 </div>
 <hr>
 <div class="header">
 <p>
-Next: <a href="Color-Names.html">カラー名</a>, Previous: <a href="Yanking-Media.html">メディアのyank</a>, Up: <a href="Frames.html">フレーム</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Color-Names.html">カラー名</a>, Previous: <a href="Yanking-Media.html">Yanking Media</a>, Up: <a href="Frames.html">フレーム</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-29, commit:43eb4fb10b8b4324a6675d58ea0903445279b4c3 to check Japanese translation.
+This page has generated for branch:work/master_598ab9ca10d35d6990f9af3a4d58f265acd8b121, commit:809bb7c64c446673f976b8282975d3a4d6a0867d to check Japanese translation.
 </body>
 </html>
