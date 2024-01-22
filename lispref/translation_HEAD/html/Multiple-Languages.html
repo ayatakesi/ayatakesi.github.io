@@ -1,0 +1,237 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 29.1.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Multiple Languages (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Multiple Languages (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Multiple Languages (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="January 22, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Parsing-Program-Source.html" rel="up" title="Parsing Program Source">
+<link href="Tree_002dsitter-Major-Modes.html" rel="next" title="Tree-sitter Major Modes">
+<link href="Pattern-Matching.html" rel="prev" title="Pattern Matching">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Multiple-Languages">
+<div class="header">
+<p>
+Next: <a href="Tree_002dsitter-Major-Modes.html" accesskey="n" rel="next">tree-sitterを用いるメジャーモードの開発</a>, Previous: <a href="Pattern-Matching.html" accesskey="p" rel="prev">tree-sitterノードにたいするパターンマッチング</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Fu-Shu-Yan-Yu-nonopasu"></span><h3 class="section">37.6 複数言語ののパース</h3>
+<span id="index-multiple-languages_002c-parsing-with-tree_002dsitter"></span>
+<span id="index-parsing-multiple-languages-with-tree_002dsitter"></span>
+<p>プログラミング言語のソースの一部に他の言語のソースが含まれているときがあります。一例としては<acronym>HTML</acronym> + <acronym>CSS</acronym>
++
+JavaScriptが挙げられます。このような場合には、別の言語によって記述されたテキストセグメントには別のパーサーを割り当てる必要があります。伝統的にこれはナローイングの使用によって達成されてきました。tree-sitterはナローイング(<a href="Using-Parser.html#tree_002dsitter-narrowing">narrowing</a>を参照)とともに機能しますが、推奨される方法はバッファーテキストのリージョン(範囲)にそれを操作するパーサーを指定する方法です。このセクションではパーサーにたいして範囲のセットや取得を行う関数について説明します。
+</p>
+<p>Lispプログラムがバッファーでパーサーを使う前には、<code>treesit-update-ranges</code>の呼び出しによってパーサーそれぞれにたいする範囲が正しいか確認して、その位置にあるテキストにたいして任を負うパーサーを解決する必要があります。この2つの関数自身は作業を行わず、実際に作業を行うにはメジャーモードが<code>treesit-language-at-point-function</code>および<code>treesit-language-at-point-function</code>をセットする必要があります。これらの関数および変数については、このセクションの終わり近くで詳細に説明しましょう。
+</p>
+<span id="Fan-Wei-noQu-De-tosetuto"></span><h3 class="heading">範囲の取得とセット</h3>
+
+<dl class="def">
+<dt id="index-treesit_002dparser_002dset_002dincluded_002dranges"><span class="category">Function: </span><span><strong>treesit-parser-set-included-ranges</strong> <em>parser ranges</em><a href='#index-treesit_002dparser_002dset_002dincluded_002dranges' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>ranges</var>にたいして処理を行なうために<var>parser</var>をセットアップする。<var>parser</var>が読み込むのは指定された範囲のテキストのみ。<var>ranges</var>内の範囲はそれぞれ<code>(<var>beg</var>&nbsp;.&nbsp;<var>end</var>)</code><!-- /@w -->という形式のペアーである。
+</p>
+<p><var>ranges</var>の範囲は、以下の疑似コードのように重複せず順番に並んでいなければならない。
+</p>
+<div class="example">
+<pre class="example">(cl-loop for idx from 1 to (1- (length ranges))
+         for prev = (nth (1- idx) ranges)
+         for next = (nth idx ranges)
+         should (&lt;= (car prev) (cdr prev)
+                    (car next) (cdr next)))
+</pre></div>
+
+<span id="index-treesit_002drange_002dinvalid"></span>
+<p><var>ranges</var>がこの制約に違反したり、何か他の問題が発生した場合には、この関数は<code>treesit-range-invalid</code>エラーをシグナルする。シグナルデータには特定のエラーメッセージ、セットを試みた範囲が含まれている。
+</p>
+<p>この関数は範囲を無効にするためにも使うことができる。<var>ranges</var>が<code>nil</code>の場合には、パーサーはバッファー全体をパースするようにセットされる。
+</p>
+<p>例:
+</p>
+<div class="example">
+<pre class="example">(treesit-parser-set-included-ranges
+ parser '((1 . 9) (16 . 24) (24 . 25)))
+</pre></div>
+</dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dparser_002dincluded_002dranges"><span class="category">Function: </span><span><strong>treesit-parser-included-ranges</strong> <em>parser</em><a href='#index-treesit_002dparser_002dincluded_002dranges' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>parser</var>にセットされている範囲をリターンする。リターン値は<code>treesit-parser-included-ranges</code>の<var>ranges</var>引数と同じく<code>(<var>beg</var>&nbsp;.&nbsp;<var>end</var>)</code><!-- /@w -->という形式のコンスセルのリスト。<var>parser</var>が範囲を何ももっていなければリターン値は<code>nil</code>。
+</p>
+<div class="example">
+<pre class="example">(treesit-parser-included-ranges parser)
+    &rArr; ((1 . 9) (16 . 24) (24 . 25))
+</pre></div>
+</dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dquery_002drange"><span class="category">Function: </span><span><strong>treesit-query-range</strong> <em>source query &amp;optional beg end</em><a href='#index-treesit_002dquery_002drange' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>source</var>を<var>query</var>でマッチングしてキャプチャーされたノードをリターンする。リターン値は<code>(<var>beg</var>&nbsp;.&nbsp;<var>end</var>)</code><!-- /@w -->という形式のコンスセルのリスト。ここで<var>beg</var>と<var>end</var>はそれぞれテキスト範囲の開始と終了をする。
+</p>
+<p>利便性のために<var>source</var>は言語シンボル、パーサー、あるいはノードでもよい。この関数はそれが言語シンボルならその言語を使用する最初のパーサーのルートノード、パーサーならそのパーサーのルートノード、ノードならそのノードでマッチを行なう。
+</p>
+<p>引数<var>query</var>はノードのキャプチャーに用いるクエリー(<a href="Pattern-Matching.html">tree-sitterノードにたいするパターンマッチング</a>を参照)。引数<var>beg</var>と<var>end</var>がどちらも非<code>nil</code>なら、それはこの関数がクエリーを行なう範囲を制限する。
+</p>
+<p>他のクエリー関数と同じように、この関数は<var>query</var>が不正であれば<code>treesit-query-error</code>エラーをraiseする。
+</p></dd></dl>
+
+<span id="LisppuroguramudeFu-Shu-Yan-Yu-wosapotosuruniha"></span><h3 class="heading">Lispプログラムで複数言語をサポートするには</h3>
+
+<p>一般的なLispプログラムにおいて言語が複数ミックスされたプログラムをサポートするには、以下の2つの関数を呼び出すだけで十分です。
+</p>
+<dl class="def">
+<dt id="index-treesit_002dupdate_002dranges"><span class="category">Function: </span><span><strong>treesit-update-ranges</strong> <em>&amp;optional beg end</em><a href='#index-treesit_002dupdate_002dranges' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はバッファーのパーサーの範囲を更新する。この関数はパーサーの範囲が<var>beg</var>と<var>end</var>の間に正しくセットされているかを<code>treesit-range-settings</code>に照らして確認する。省略された場合のデフォルトは<var>beg</var>がバッファー先頭、<var>end</var>がバッファー終端となる。
+</p>
+<p>たとえばフォント表示(fontification)を行なう関数は、リージョン内のノードにクエリーを行う前にこの関数を使用する。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dlanguage_002dat"><span class="category">Function: </span><span><strong>treesit-language-at</strong> <em>pos</em><a href='#index-treesit_002dlanguage_002dat' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はバッファー位置<var>pos</var>にあるテキストの言語をリターンする。その背後では<code>treesit-language-at-point-function</code>を呼び出して、そのリターンされた値をリターンしている。<code>treesit-language-at-point-function</code>が<code>nil</code>の場合には、この関数は<code>treesit-parser-list</code>のリターン値から最初のパーサーの言語をリターンする。バッファーにパーサーがなければ<code>nil</code>をリターンする。
+</p></dd></dl>
+
+<span id="meziyamododeFu-Shu-noYan-Yu-wosapotosuruniha"></span><h3 class="heading">メジャーモードで複数の言語をサポートするには</h3>
+
+<span id="index-host-language_002c-tree_002dsitter"></span>
+<span id="index-tree_002dsitter-host-and-embedded-languages"></span>
+<span id="index-embedded-language_002c-tree_002dsitter"></span>
+<p>ミックスされているかもしれない一連の言語では、<em>ホスト言語(host language)</em>と1つ以上の<em>埋め込み言語(embedded
+languages)</em>が存在することが珍しくありません。Lispプログラムはまずホスト言語のパーサーでドキュメント全体をパースすることで情報を得てから、それを用いて埋め込み言語の範囲をセット、その後に埋め込み言語をパースするのです。
+</p>
+<p><acronym>HTML</acronym>、<acronym>CSS</acronym>、それにJavaScriptを含むバッファーを例にとります。Lispプログラムはまず<acronym>HTML</acronym>パーサーでバッファー全体をパースして、それからパーサーに<acronym>CSS</acronym>とJavaScriptに相当する<code>style_element</code>と<code>script_element</code>のノードをクエリーするのです。その後に<acronym>CSS</acronym>とJavaScriptそれぞれにたいして、対応するノードが跨がる範囲をセットします。
+</p>
+<p>シンプルな<acronym>HTML</acronym>ドキュメントが与えられると:
+</p>
+<div class="example">
+<pre class="example">&lt;html&gt;
+  &lt;script&gt;1 + 2&lt;/script&gt;
+  &lt;style&gt;body { color: &quot;blue&quot;; }&lt;/style&gt;
+&lt;/html&gt;
+</pre></div>
+
+<p>Lispプログラムはまず<acronym>HTML</acronym>パーサーでパースを行い、それから<acronym>CSS</acronym>とJavaScriptそれぞれのパーサーにたいして範囲をセットします:
+</p>
+<div class="example">
+<pre class="example">;; パーサーの作成
+(setq html (treesit-parser-create 'html))
+(setq css (treesit-parser-create 'css))
+(setq js (treesit-parser-create 'javascript))
+</pre><pre class="example">
+
+</pre><pre class="example">;; CSSの範囲をセット
+(setq css-range
+      (treesit-query-range
+       'html
+       '((style_element (raw_text) @capture))))
+(treesit-parser-set-included-ranges css css-range)
+</pre><pre class="example">
+
+</pre><pre class="example">;; JavaScriptの範囲をセット
+(setq js-range
+      (treesit-query-range
+       'html
+       '((script_element (raw_text) @capture))))
+(treesit-parser-set-included-ranges js js-range)
+</pre></div>
+
+<p><code>treesit-update-ranges</code>によってEmacsがこのプロセスを自動化します。<code>treesit-update-ranges</code>がプロセスを自動化する方法を解決するためには、複数言語のメジャーモードが<code>treesit-range-settings</code>をセットする必要があります。<code>treesit-range-settings</code>に割り当てられる値を生成するためには、メジャーモードがヘルパー関数<code>treesit-range-rules</code>を使う必要があります。この操作を直接コード化したのが以下のセッティング例になります。
+</p>
+<div class="example">
+<pre class="example">(setq treesit-range-settings
+      (treesit-range-rules
+       :embed 'javascript
+       :host 'html
+       '((script_element (raw_text) @capture))
+</pre><pre class="example">
+
+</pre><pre class="example">       :embed 'css
+       :host 'html
+       '((style_element (raw_text) @capture))))
+</pre></div>
+
+<dl class="def">
+<dt id="index-treesit_002drange_002drules"><span class="category">Function: </span><span><strong>treesit-range-rules</strong> <em>&amp;rest query-specs</em><a href='#index-treesit_002drange_002drules' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<code>treesit-range-settings</code>をセットするために用いる。クエリーのコンパイルやその他の後処理に注意を払い、<code>treesit-range-settings</code>にセットできるような値を出力する。
+</p>
+<p>この関数は引数として一連の<var>query-spec</var>を受け取る。ここで<var>query-spec</var>とは0個以上の<var>keyword</var>/<var>value</var>ペアーが前置された<var>query</var>のこと。<var>query</var>はそれぞれ文字列、S式、コンパイル済みフォーム、あるいは関数のいずれかによるtree-sitterクエリーである。
+</p>
+<p><var>query</var>がtree-sitterクエリーなら<var>:keyword</var>/<var>value</var>のペアーを2つを前置すること(<var>:keyword</var>が<code>:embed</code>は埋め込み言語、<code>:host</code>はホスト言語)。
+</p>
+<p><code>treesit-update-ranges</code>は埋め込み言語用のパーサーにたいして範囲をセットする方法の解決に<var>query</var>を使用する。ホスト言語パーサーに<var>query</var>を問い合わせてキャプチャーされたノードが跨ぐ範囲を計算、それらの範囲を埋め込み言語パーサーに適用するのである。
+</p>
+<p><var>query</var>が関数の場合には<var>keyword</var>と<var>value</var>のペアーは必要ない。関数の場合には<var>start</var>、<var>end</var>という2つの引数を受け取り、カレントバッファーで<var>start</var>と<var>end</var>の間にあるリージョンでパーサー用の範囲をセットすること。その関数が<var>start</var>と<var>end</var>の間のリージョンを包むような広いリージョンに範囲をセットしても問題はない。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002drange_002dsettings"><span class="category">Variable: </span><span><strong>treesit-range-settings</strong><a href='#index-treesit_002drange_002dsettings' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これはバッファーで<code>treesit-update-ranges</code>がパーサーにたいする範囲を更新する際の助けとなる変数である。<var>setting</var>のリストであり、その正確なフォーマットは内部的な使用を意図している。この変数が保持できる値を生成するには<code>treesit-range-rules</code>を使うこと。
+</p>
+</dd></dl>
+
+
+<dl class="def">
+<dt id="index-treesit_002dlanguage_002dat_002dpoint_002dfunction"><span class="category">Variable: </span><span><strong>treesit-language-at-point-function</strong><a href='#index-treesit_002dlanguage_002dat_002dpoint_002dfunction' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この変数の値はバッファー位置<var>pos</var>を単一の引数として受け取り、<var>pos</var>にあるテキストの言語をリターンする関数であること。この変数は<code>treesit-language-at</code>により使用される。
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Tree_002dsitter-Major-Modes.html">tree-sitterを用いるメジャーモードの開発</a>, Previous: <a href="Pattern-Matching.html">tree-sitterノードにたいするパターンマッチング</a>, Up: <a href="Parsing-Program-Source.html">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/emacs-29_ef01b634d219bcceda17dcd61024c7a12173b88c, commit:65b532e58aa54114c692c1e3eba01365c6868c5e to check Japanese translation.
+</body>
+</html>

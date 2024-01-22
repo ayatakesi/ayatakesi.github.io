@@ -1,0 +1,157 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 29.1.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Deferred Eval (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Deferred Eval (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Deferred Eval (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="January 22, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Evaluation.html" rel="up" title="Evaluation">
+<link href="Eval.html" rel="prev" title="Eval">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Deferred-Eval">
+<div class="header">
+<p>
+Previous: <a href="Eval.html" accesskey="p" rel="prev">evalについて</a>, Up: <a href="Evaluation.html" accesskey="u" rel="up">評価</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Chi-Yan-saretaLazyPing-Jia-"></span><h3 class="section">10.6 遅延されたLazy評価</h3>
+
+<span id="index-deferred-evaluation"></span>
+<span id="index-lazy-evaluation"></span>
+
+
+<p>たとえばプログラムの将来において計算結果が不要ということがわかった場合に時間を要する計算処理を回避したい等、式の評価を遅延させると便利な場合があります。そのような<em>遅延評価(deferred
+evaluation)</em>をサポートするために、<samp>thunk</samp>ライブラリは以下の関数とマクロを提供します。
+</p>
+<span id="index-thunk"></span>
+<dl class="def">
+<dt id="index-thunk_002ddelay"><span class="category">Macro: </span><span><strong>thunk-delay</strong> <em>forms&hellip;</em><a href='#index-thunk_002ddelay' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p><var>forms</var>を評価するための<em>thunk</em>をリターンする(訳注:
+thunkとは、別のサブルーチンに計算を追加で挿入するために使用するサブルーチンであり、計算結果が必要になるまで計算を遅延したり、別のサブルーチンの先頭や最後に処理を挿入するために使用される。英語版Wikipediaより)。thunkは<code>thunk-delay</code>呼び出しのlexical環境を継承するクロージャである(<a href="Closures.html">クロージャ</a>を参照)。このマクロの使用には<code>lexical-binding</code>が必要。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-thunk_002dforce"><span class="category">Function: </span><span><strong>thunk-force</strong> <em>thunk</em><a href='#index-thunk_002dforce' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>thunkを作成した<code>thunk-delay</code>で指定されたフォームの評価を<var>thunk</var>に強制する。最後のフォームの評価結果をリターンする。<var>thunk</var>が強制されたことも&ldquo;記憶&rdquo;される。同一の<var>thunk</var>にたいする以降の<code>thunk-force</code>呼び出しでは、フォームを再度評価せずに同じ結果をリターンする。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-thunk_002dlet"><span class="category">Macro: </span><span><strong>thunk-let</strong> <em>(bindings&hellip;) forms&hellip;</em><a href='#index-thunk_002dlet' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>このマクロは<code>let</code>の類似だが&ldquo;lazy(遅延された)&rdquo;変数バインディングを作成する。すべてのバインディングは<code>(<var>symbol</var>&nbsp;<var><span class="nolinebreak">value-form</span></var>)</code><!-- /@w -->という形式をもつ。<code>let</code>とは異なり、すべての<var>value-form</var>の評価は<var>forms</var>を最初に評価する際に、対応する<var>symbol</var>のバインディングが使用されるまで遅延される。すべての<var>value-form</var>は最大でも1回評価される。このマクロの使用には<code>lexical-binding</code>が必要。
+</p></dd></dl>
+
+<p>例:
+</p>
+<div class="example">
+<pre class="example">(defun f (number)
+  (thunk-let ((derived-number
+              (progn (message &quot;Calculating 1 plus 2 times %d&quot; number)
+                     (1+ (* 2 number)))))
+    (if (&gt; number 10)
+        derived-number
+      number)))
+</pre><pre class="example">
+
+</pre><pre class="example">(f 5)
+&rArr; 5
+</pre><pre class="example">
+
+</pre><pre class="example">(f 12)
+-| Calculating 1 plus 2 times 12
+&rArr; 25
+</pre><pre class="example">
+
+</pre></div>
+
+<p>遅延バインドされた変数の特性として、それらにたいする(<code>setq</code>による)セットはエラーになります。
+</p>
+
+<dl class="def">
+<dt id="index-thunk_002dlet_002a"><span class="category">Macro: </span><span><strong>thunk-let*</strong> <em>(bindings&hellip;) forms&hellip;</em><a href='#index-thunk_002dlet_002a' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これは<code>thunk-let</code>と似ているが、<var>bindings</var>内の任意の式がこの<code>thunk-let*</code>フォーム内の先行するバインディングの参照を許されている点が異なる。このマクロの使用には<code>lexical-binding</code>が必要。
+</p></dd></dl>
+
+<div class="example">
+<pre class="example">(thunk-let* ((x (prog2 (message &quot;Calculating x...&quot;)
+                    (+ 1 1)
+                  (message &quot;Finished calculating x&quot;)))
+             (y (prog2 (message &quot;Calculating y...&quot;)
+                    (+ x 1)
+                  (message &quot;Finished calculating y&quot;)))
+             (z (prog2 (message &quot;Calculating z...&quot;)
+                    (+ y 1)
+                  (message &quot;Finished calculating z&quot;)))
+             (a (prog2 (message &quot;Calculating a...&quot;)
+                    (+ z 1)
+                  (message &quot;Finished calculating a&quot;))))
+  (* z x))
+
+-| Calculating z...
+-| Calculating y...
+-| Calculating x...
+-| Finished calculating x
+-| Finished calculating y
+-| Finished calculating z
+&rArr; 8
+
+</pre></div>
+
+<p><code>thunk-let</code>と<code>thunk-let*</code>はthunkを暗黙に使用します。これらの拡張はヘルパーシンボルを作成してバインディング式をラップするthunkにバインドします。<var>forms</var>本体中の元の変数にたいするすべての参照は、対応するヘルパー変数を引数とする<code>thunk-force</code>呼び出し式に置き換えられます。したがって<code>thunk-let</code>や<code>thunk-let*</code>を使用するコードはthunkを使用するように書き換えが可能ですが、多くの場合には明示的にthunkを使用するよりこれらのマクロを使用するほうが優れたコードになるでしょう。
+</p>
+
+</div>
+
+
+This page has generated for branch:work/emacs-29_ef01b634d219bcceda17dcd61024c7a12173b88c, commit:65b532e58aa54114c692c1e3eba01365c6868c5e to check Japanese translation.
+</body>
+</html>
