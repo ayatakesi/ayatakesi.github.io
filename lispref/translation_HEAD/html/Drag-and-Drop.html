@@ -1,0 +1,259 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 29.3.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Drag and Drop (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Drag and Drop (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Drag and Drop (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="March 26, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Frames.html" rel="up" title="Frames">
+<link href="Color-Names.html" rel="next" title="Color Names">
+<link href="Yanking-Media.html" rel="prev" title="Yanking Media">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Drag-and-Drop">
+<div class="header">
+<p>
+Next: <a href="Color-Names.html" accesskey="n" rel="next">カラー名</a>, Previous: <a href="Yanking-Media.html" accesskey="p" rel="prev">メディアのyank</a>, Up: <a href="Frames.html" accesskey="u" rel="up">フレーム</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="doratuguandodorotupu"></span><h3 class="section">30.22 ドラッグアンドドロップ</h3>
+<span id="index-drag-and-drop"></span>
+
+<p>他のアプリケーションからユーザーが何かをEmacsの上にドロップすると、Emacsはドロップされたテキストの挿入、あるいはドロップされたURLのオープンを試みます。Emacsは常にテキストがドロップされると、そのドロップ発生時のマウスポインター位置にテキストを挿入するか、挿入が失敗した場合には(そのバッファーが読み取り専用の場合に発生し得る)そのテキストをkillリングに保存します。URLがドロップされた場合には、EmacsはそのURLと変数<code>dnd-protocol-alist</code>に定義されたregexp、その後は変数<code>browse-url-handlers</code>、<code>browse-url-default-handlers</code>に定義されたregexpをマッチして適切なハンドラー関数の呼び出しを試みます。もし適切なハンドラーが見つからなければ、EmacsはそのURLを平文テキストとして挿入するというフォールバック処理を行います。
+</p>
+<dl class="def">
+<dt id="index-dnd_002dprotocol_002dalist"><span class="category">Variable: </span><span><strong>dnd-protocol-alist</strong><a href='#index-dnd_002dprotocol_002dalist' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この変数は<code>(<var>pattern</var>&nbsp;.&nbsp;<var>action</var>)</code><!-- /@w -->という形式のコンスセルのリストである。ここで<var>pattern</var>はドロップされた後にそのURLにたいしてマッチされるregexp、<var>action</var>はドロップされたURLが<var>pattern</var>にマッチした場合に2つの引数で呼び出される関数で、1つ目の引数はドロップされたURL、2つ目の引数は<code>copy</code>、<code>move</code>、<code>link</code>、<code>private</code>、<code>ask</code>というシンボルのいずれか。
+</p>
+<p><var>action</var>が<var>private</var>なら、それはドロップ操作を開始したプログラムが、そのURLでは指定されていないアクションをEmacsに行って欲しいことを意味する。この場合に行うべき妥当なアクションはそのURLのオープン、あるいはカレントバッファーへのそのURLのコンテンツのコピーとなる。それ以外の<var>action</var>は、<code>dnd-begin-file-drag</code>にたいする<var>action</var>引数と同じ意味合いとなる。
+</p></dd></dl>
+
+<span id="index-drag-and-drop_002c-X"></span>
+<span id="index-drag-and-drop_002c-other-formats"></span>
+<p>Emacsはウィンドウシステムそれぞれにたいして個別にテキストとURLの受信を実装しており、他の種別のドロップによる受信はデフォルトではサポートしていません。他の種別のデータの受信をサポートするためには、以下のX固有のインターフェイスを使用してください。
+</p>
+<span id="index-x_002ddnd_002dtest_002dfunction"></span>
+<span id="index-x_002ddnd_002dknown_002dtypes"></span>
+<p>Xウィンドウシステムにおいてユーザーが別のアプリケーションからEmacsに何かをドラッグすると、そのアプリケーションはEmacsがドラッグされたデータを理解しているかどうかを告げることを期待します。このような問いにたいして何を応答するか決定するためにEmacsが用いるのが、変数<code>x-dnd-test-function</code>内の関数です。デフォルト値は<code>x-dnd-default-test-function</code>で、これはドロップされたデータのタイプが<code>x-dnd-known-types</code>内に存在すればドロップを受け入れます。何か別の条件にもとづいてEmacsにドロップを許容または拒絶させたければ、<code>x-dnd-test-function</code>および<code>x-dnd-known-types</code>を変更してください。
+</p>
+<span id="index-x_002ddnd_002dtypes_002dalist"></span>
+<p>Emacsが別のデータタイプのドロップを受け取る方法を変更したり、新たなタイプを理解するためにドロップを有効にしたい場合には<code>x-dnd-types-alist</code>を変更してください。これを正しく行うためには他のアプリケーションがドラッグアンドドロップに使用するデータタイプが何なのかに関する詳細な知識が要求されます。
+</p>
+<p>これらのデータタイプは通常は他のアプリケーションから提供されたX選択から入手できるスペシャルデータタイプとして実装されています。ほとんどのケースにおいて、これらは<code>gui-set-selection</code>が通常許容するのと同じデータタイプかMIMEタイプのいずれかであり、それは使用される固有のドラッグアンドドロップのプロトコルに依存します。たとえば平文テキストに用いられるのは<code>&quot;STRING&quot;</code>か<code>&quot;STRING&quot;</code>のいずれかでしょう。
+</p>
+<span id="index-XDS"></span>
+<span id="index-direct-save-protocol"></span>
+<span id="index-x_002ddnd_002ddirect_002dsave_002dfunction"></span>
+<p>XウィンドウシステムでEmacsを実行する際には、<acronym>XDS</acronym> (X Direct
+Save)というプロトコルがサポートされます。このプロトコルによってユーザーがファイルをDiredウィンドウのようなEmacsウィンドウにドラッグアンドドロップして保存ができるようになります。<acronym>XDS</acronym>に独特な要件に準拠するために、これらのドラッグアンドドロップの要求は特別に処理されます。つまり<code>x-dnd-types-alist</code>に応じて処理されるのではなく、変数<code>x-dnd-direct-save-function</code>の値である<em>direct-save関数(direct-save
+function)</em>によって処理されるのです。これは<var>need-name</var>および<var>filename</var>という2つの引数を受け取る関数である必要があります。<acronym>XDS</acronym>プロトコルではファイルのドラッグにたいして2段階の手続きが用いられます:
+</p>
+<ol>
+<li> ファイルのドラッグ元であるアプリケーションは、ファイルを保存するためにEmacsにたいして完全なファイル名の提供を求める。この目的のために1つ目の引数<var>need-name</var>に非<code>nil</code>、2つ目の引数<var>filename</var>に保存するファイルのディレクトリー部分を除いた名前をセットしてdirect-save関数が呼び出される。この関数はファイルを保存するための完全に展開された絶対ファイル名をリターンする必要がある。たとえばDiredウィンドウにファイルがドラッグされれば、そのファイルのディレクトリーは当然ドロップされた場所に表示されているファイルのディレクトリーになるだろう。何らかの理由によりファイルの保存が不可能な場合には、この関数はドラッグアンドドロップ操作をキャンセルする<code>nil</code>をリターンする必要がある。
+
+</li><li> ファイルのドラッグ元のアプリケーションは、1回目のdirect-save関数呼び出しでリターンされた名前でファイルを保存する。ファイルの保存に成功したら1つ目の引数<var>need-name</var>に<code>nil</code>、2つ目の引数<var>filename</var>に保存したファイルの完全な絶対ファイル名をセットして、もう一度direct-save関数を呼び出す。この関数にはファイルが保存されたという事実に鑑み、何であれ必要な処理を行うことが期待される。たとえばDiredならそこに新たなファイルを表示して、ディスプレイ上のディレクトリーを更新する必要があるだろう。
+</li></ol>
+
+<p><code>x-dnd-direct-save-function</code>のデフォルト値は<code>x-dnd-save-direct</code>です。
+</p>
+<dl class="def">
+<dt id="index-x_002ddnd_002dsave_002ddirect"><span class="category">Function: </span><span><strong>x-dnd-save-direct</strong> <em>need-name filename</em><a href='#index-x_002ddnd_002dsave_002ddirect' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>引数<var>need-name</var>が非<code>nil</code>で呼び出されると、この関数はファイルを保存するためにユーザーに絶対ファイル名の入力を求める。指定されたファイルがすでに存在する場合には、上書きするかどうかの入力をユーザーに追加で求めて、ユーザーが上書きに同意した場合のみ絶対ファイル名をリターンする。
+</p>
+<p>引数<var>need-name</var>が<code>nil</code>で呼び出された際には、カレントバッファーがDiredモード、あるいはDiredを継承する子孫の場合にはDiredの一覧リストをリバート、それ以外の場合には<code>find-file</code>
+(<a href="Visiting-Functions.html">ファイルをvisitする関数</a>を参照)を呼び出してそのファイルをvisitする。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-x_002ddnd_002dsave_002ddirect_002dimmediately"><span class="category">Function: </span><span><strong>x-dnd-save-direct-immediately</strong> <em>need-name filename</em><a href='#index-x_002ddnd_002dsave_002ddirect_002dimmediately' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<code>x-dnd-save-direct</code>と同様に機能するが、引数<var>need-name</var>が非<code>nil</code>で呼び出されても、ファイルを保存するための完全なファイル名の入力をユーザーに求めずに、カレントバッファーのデフォルトディレクトリーにたいして<var>filename</var>引数を展開してリターンする(デフォルトディレクトリーにその名前のファイルが既に存在する場合に確認を求めるのは変わらず)。
+</p></dd></dl>
+
+<span id="index-initiating-drag_002dand_002ddrop"></span>
+<p>ウィンドウシステムが対応していれば、Emacsのフレームから他のアプリケーションウィンドウへのコンテンツのドラッグもEmacsはサポートします。
+</p>
+<span id="index-drop-target_002c-in-drag_002dand_002ddrop-operations"></span>
+<dl class="def">
+<dt id="index-dnd_002dbegin_002dtext_002ddrag"><span class="category">Function: </span><span><strong>dnd-begin-text-drag</strong> <em>text &amp;optional frame action allow-same-frame</em><a href='#index-dnd_002dbegin_002dtext_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>frame</var>から別のプログラム(<em>ドロップターゲット(drop
+target)と呼ばれる</em>へのテキストのドラッグを開始して、テキストがドロップされた際のドラッグアンドドロップ操作の結果、またはドラッグアンドドロップ操作がキャンセルされたという結果をリターンする。<var>text</var>はドロップターゲットによって挿入されることになるテキスト。
+</p>
+<p><var>action</var>は<code>copy</code>か<code>move</code>というシンボルのいずれかでなければならない。ここで<code>copy</code>はドロップターゲットによって<var>text</var>が挿入されるべきであることを意味する。<code>move</code>は<code>copy</code>と同様だが、後述するように呼び出し元は更にソースから<var>text</var>を削除する必要があるかもしれないことを意味する。
+</p>
+<p><var>frame</var>はマウスボタンをカレントで押下したフレーム。<code>nil</code>は選択されているフレームを意味する。どのマウスボタンも押されていなければ即座にリターンするかもしれないので、<code>down-mouse-1</code>やそれに類するイベント(<a href="Mouse-Events.html">マウスイベント</a>を参照)の直後のみ、そのイベントが発生したフレーム(<a href="Click-Events.html">クリックイベント</a>を参照)を<var>frame</var>にセットして呼び出すこと。
+</p>
+<p><var>allow-same-frame</var>は<var>frame</var>自体の上へのドロップを無視するかどうかを指定する。
+</p>
+<p>リターン値はドロップターゲットが実際に行ったアクション、オプションで呼び出し元が何を行うべきかを指定する。リターン値は以下のうちのシンボルのいずれか:
+</p>
+<dl compact="compact">
+<dt><span><code>copy</code></span></dt>
+<dd><p>ドロップターゲットはドロップされたテキストを挿入した。
+</p>
+</dd>
+<dt><span><code>move</code></span></dt>
+<dd><p>ドロップターゲットはドロップされたテキストを挿入したが、呼び出し元はそのドロップ元(たとえばバッファー)から<var>text</var>を削除する必要がある。
+</p>
+</dd>
+<dt><span><code>private</code></span></dt>
+<dd><p>ドロップターゲットは指定されていない何らかのアクションを行った。
+</p>
+</dd>
+<dt><span><code>nil</code></span></dt>
+<dd><p>ドラッグアンドドロップの操作はキャンセルされた。
+</p></dd>
+</dl>
+
+</dd></dl>
+
+<dl class="def">
+<dt id="index-dnd_002dbegin_002dfile_002ddrag"><span class="category">Function: </span><span><strong>dnd-begin-file-drag</strong> <em>file &amp;optional frame action allow-same-frame</em><a href='#index-dnd_002dbegin_002dfile_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>frame</var>から別のアプリケーションへの<var>file</var>のドラッグを開始して、そのファイルがドロップされた際のドラッグアンドドロップ操作の結果、あるいはドラッグアンドドロップ操作がキャンセルされたという結果をリターンする。
+</p>
+<p><var>file</var>がリモートファイルなら、一時的なコピーを作成する。
+</p>
+<p><var>action</var>は<code>copy</code>、<code>move</code>、または<code>link</code>,のいずれかでなければならない。ここで<code>copy</code>はドロップターゲットによって<var>file</var>がオープンまたはコピーされるべきことを、<code>move</code>はドロップターゲットがファイルを別の場所に移動すべきことを、そして<code>link</code>はドロップターゲットが<var>file</var>へのシンボリックリンクを作成するべきであることを意味する。<var>file</var>がリモートファイルの場合にアクションとして<code>link</code>を指定するとエラーになる。
+</p>
+<p><var>frame</var>と<var>allow-same-frame</var>の意味は<code>dnd-begin-text-drag</code>の場合と同様。
+</p>
+<p>リターン値はドロップターゲットが実際に行ったアクションで、以下のうちのシンボルのいずれか:
+</p>
+<dl compact="compact">
+<dt><span><code>copy</code></span></dt>
+<dd><p>ドロップターゲットは<var>file</var>をオープンした、または別の場所へコピーした。
+</p>
+</dd>
+<dt><span><code>move</code></span></dt>
+<dd><p>ドロップターゲットは<var>file</var>を別の場所に移動した。
+</p>
+</dd>
+<dt><span><code>link</code></span></dt>
+<dd><p>ドロップターゲット(通常はファイルマネージャー)は<var>file</var>へのシンボリックリンクを作成した。
+</p>
+</dd>
+<dt><span><code>private</code></span></dt>
+<dd><p>ドロップターゲットは指定されていない何らかのアクションを行った。
+</p>
+</dd>
+<dt><span><code>nil</code></span></dt>
+<dd><p>ドラッグアンドドロップの操作はキャンセルされた。
+</p></dd>
+</dl>
+
+</dd></dl>
+
+<dl class="def">
+<dt id="index-dnd_002dbegin_002ddrag_002dfiles"><span class="category">Function: </span><span><strong>dnd-begin-drag-files</strong> <em>files &amp;optional frame action allow-same-frame</em><a href='#index-dnd_002dbegin_002ddrag_002dfiles' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<code>dnd-begin-file-drag</code>と同様だが、<var>files</var>がファイルのリストである点が異なる。ドロップターゲットが複数ファイルのドロップをサポートしていなければ、かわりに1つ目のファイルが使用される。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-dnd_002ddirect_002dsave"><span class="category">Function: </span><span><strong>dnd-direct-save</strong> <em>file name &amp;optional frame allow-same-frame</em><a href='#index-dnd_002ddirect_002dsave' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<code>dnd-begin-file-drag</code>と似ているが、アクションのかわりに<code>name</code>を指定することによって、ターゲットプログラムがその名前のコピーを作成する点が異なる(デフォルトのアクションとしてコピーを行う関数)。
+</p></dd></dl>
+
+<span id="index-initiating-drag_002dand_002ddrop_002c-low_002dlevel"></span>
+<p>上述した高レベルのインターフェイスは、低レベルなプリミティブの上位に実装されています。ファイルやテキスト以外のコンテンツのドラッグを使用が必要なら、<code>x-begin-drag</code>のかわりに低レベルのインターフェイスを使用してください。ただしこれらの低レベルなインターフェイスの使用にはデータタイプ、それにあなたがサポートしたいプラットフォームそれぞれにおいて、プログラムがドラッグアンドドロップを通じたコンテンツ転送に用いるアクションに関する詳細な知識が必要となるでしょう。
+</p>
+<dl class="def">
+<dt id="index-x_002dbegin_002ddrag"><span class="category">Function: </span><span><strong>x-begin-drag</strong> <em>targets &amp;optional action frame return-frame allow-current-frame follow-tooltip</em><a href='#index-x_002dbegin_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>frame</var>からのドラッグを開始して、そのドラッグアンドドロップがドロップに成功するか、あるいは拒絶されたかのいずれにより操作終了したらリターンする。ドロップは<var>frame</var>以外のトップレベルのXウィンドウ(<em>ドロップターゲット</em>、<var>allow-current-frame</var>が非<code>nil</code>なら任意のXウィンドウ)の上でマウスボタンがリリースされた際に発生する。そのドラッグアンドドロップ操作の開始時にどのマウスボタンも押されていなければ、この関数は即座に<code>nil</code>をリターンする。
+</p>
+<p><var>targets</var>は<code>gui-get-selection</code>の<var>data-type</var>引数のような、選択されているターゲットを記述した文字列のリストであり、ドロップターゲットがEmacsに要求する可能性がある(<a href="Window-System-Selections.html">ウィンドウシステムによる選択</a>を参照)。
+</p>
+<p><var>action</var>はターゲットに推奨されているアクションを記述したシンボル。<code>XdndActionCopy</code>
+(選択されている<code>XdndSelection</code>のコンテンツをドロップターゲットにコピー)、<code>XdndActionMove</code>
+(<code>XdndActionCopy</code>のようにコピーを行い更にコピー後は選択に格納されていたものが何であれ削除が必要)のいずれか。
+</p>
+<p>利用可能なアクションが記述されたシンボルと、ドロップターゲットが利用可能なアクションを選択する際にユーザーへの提示を期待する文字列を関連付けるalistでもよい。
+</p>
+<p><var>return-frame</var>が非<code>nil</code>、および最初にマウスが<var>frame</var>の外に移動してからEmacsフレームに移動した場合には、マウスが移動したフレームを即座にリターンする。<var>return-frame</var>がシンボル<code>now</code>なら、最初にマウスが<var>frame</var>の外に移動するのを待機せずに、フレームが何であれマウスポインター配下にあればそのフレームをリターンする。<var>return-frame</var>は特にあるフレームから別のフレームへのコンテンツのドラッグを扱いたい際に役に立つだろう。他のプログラムへのコンテンツのドラッグも扱えるものの、すべてのシステムやウィンドウマネージャーで動作する保証はない。
+</p>
+<p><var>follow-tooltip</var>が非<code>nil</code>の場合には、ドラッグアンドドロップ操作の間にマウスポインターが移動するたびに、(<code>tooltip-show</code>によって表示されるような)ツールチップの位置がマウスポインターの位置にしたがうようになる。マウスボタンがリリースされるとツールチップは非表示になる。
+</p>
+<p>ドロップが拒絶されるかドロップターゲットが見つからなければ、この関数は<code>nil</code>をリターンする。それ以外の場合には、ターゲットが行うことを選択したアクション(ドロップターゲットがサポートしていなければ<var>action</var>とは異なるかもしれない)を記述するシンボルをリターンする。<code>XdndActionCopy</code>と<code>XdndActionMove</code>に加えて<code>XdndActionPrivate</code>も有効なリターンである。これはドロップターゲットが指定されていないアクションを選択したことを意味しており、呼び出し元はそれ以上の処理を要求されない。
+</p>
+<p>呼び出し元はターゲットによって選択された処理を完遂するために、ターゲットと協力しなければならない。たとえばこの関数が<code>XdndActionMove</code>をリターンしたら、呼び出し元はドラッグされたバッファーのテキストを削除すること。
+</p></dd></dl>
+
+<span id="index-drag-and-drop-protocols_002c-X"></span>
+
+<p>Xウィンドウでは<code>x-begin-drag</code>は、複数の異なるドラッグアンドドロップのプロトコルをサポートします。ある特定のドラッグアンドドロップのプロトコルによってサポートされているか不明なコンテンツをドラッグする際には、以下の変数の値を変更してそのプロトコルをオフに切り替えることが望ましい場合があります:
+</p>
+<dl class="def">
+<dt id="index-x_002ddnd_002ddisable_002dmotif_002dprotocol"><span class="category">Variable: </span><span><strong>x-dnd-disable-motif-protocol</strong><a href='#index-x_002ddnd_002ddisable_002dmotif_002dprotocol' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この変数が非<code>nil</code>ならMotifのドラッグアンドドロップのプロトコルは無効化となり、それらのプロトコルしか理解していないプログラムへのドロップは機能しない。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-x_002ddnd_002duse_002doffix_002ddrop"><span class="category">Variable: </span><span><strong>x-dnd-use-offix-drop</strong><a href='#index-x_002ddnd_002duse_002doffix_002ddrop' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この変数が<code>nil</code>ならOffiX(旧KDE)のドラッグアンドドロップのプロトコルは無効となる。シンボル<code>files</code>なら、<code>x-begin-drag</code>によって与えられたターゲットのいずれかが<code>&quot;FILE_NAME&quot;</code>の場合のみOffiXプロトコルが使用される。それ以外の値の場合には、サポートされているコンテンツのドロップにOffiXプロトコルが使用される。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-x_002ddnd_002duse_002dunsupported_002ddrop"><span class="category">Variable: </span><span><strong>x-dnd-use-unsupported-drop</strong><a href='#index-x_002ddnd_002duse_002dunsupported_002ddrop' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p><code>x-begin-drag</code>によって与えられたリスト内に<code>&quot;STRING&quot;</code>、<code>&quot;UTF8_STRING&quot;</code>、<code>&quot;COMPOUND_TEXT&quot;</code>、<code>&quot;TEXT&quot;</code>のいずれかのターゲットがあれば、ドロップターゲットが何もドラッグアンドドロップのプロトコルをサポートしていなくても、Emacsは合成されたマウスイベントとプライマリー選択を用いてテキストの挿入を試みる。
+</p>
+<p>そのようなドロップにおいては、Emacsがそのプライマリー選択の所有者になるという副作用がある。これが望ましくなければ、この変数を<code>nil</code>にセットされたドロップエミュレーションを無効にできる。
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Color-Names.html">カラー名</a>, Previous: <a href="Yanking-Media.html">メディアのyank</a>, Up: <a href="Frames.html">フレーム</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:emacs-29, commit:612b43d4f07e4df4e904de9f692a8ac80f309a40 to check Japanese translation.
+</body>
+</html>

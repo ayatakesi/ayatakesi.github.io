@@ -1,0 +1,175 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 29.3.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Process Internals (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Process Internals (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Process Internals (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="March 26, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Object-Internals.html" rel="up" title="Object Internals">
+<link href="Window-Internals.html" rel="prev" title="Window Internals">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection" id="Process-Internals">
+<div class="header">
+<p>
+Previous: <a href="Window-Internals.html" accesskey="p" rel="prev">ウィンドウの内部</a>, Up: <a href="Object-Internals.html" accesskey="u" rel="up">オブジェクトの内部</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="purosesunoNei-Bu-"></span><h4 class="subsection">E.9.3 プロセスの内部</h4>
+<span id="index-internals_002c-of-process"></span>
+<span id="index-process-internals"></span>
+
+<p>プロセスのフィールドには以下が含まれます(完全なリストは<samp>process.h</samp>の<code>struct
+Lisp_Process</code>の定義を参照):
+</p>
+<dl compact="compact">
+<dt><span><code>name</code></span></dt>
+<dd><p>プロセス名(Lisp文字列)。
+</p>
+</dd>
+<dt><span><code>command</code></span></dt>
+<dd><p>そのプロセスの開始に使用されたコマンド引数を含むリスト。ネットワークプロセスとシリアルプロセスではプロセスが実行中なら<code>nil</code>、停止していたら<code>t</code>。
+</p>
+</dd>
+<dt><span><code>filter</code></span></dt>
+<dd><p>そのプロセスから出力を受け取るために使用されるLisp関数。
+</p>
+</dd>
+<dt><span><code>sentinel</code></span></dt>
+<dd><p>そのプロセスの状態が変化したら常に呼び出されるLisp関数。
+</p>
+</dd>
+<dt><span><code>buffer</code></span></dt>
+<dd><p>そのプロセスに関連付けられたバッファー。
+</p>
+</dd>
+<dt><span><code>pid</code></span></dt>
+<dd><p>オペレーティングシステムのプロセス<acronym>ID</acronym> (整数)。ネットワークプロセスやシリアルプロセスのような疑似プロセスでは値0を使用する。
+</p>
+</dd>
+<dt><span><code>childp</code></span></dt>
+<dd><p>フラグ。実際に子プロセスなら<code>t</code>。ネットワークプロセスやシリアルプロセスでは<code>make-network-process</code>や<code>make-serial-process</code>にもとづくplist。
+</p>
+</dd>
+<dt><span><code>mark</code></span></dt>
+<dd><p>そのプロセスの出力からバッファーに挿入された終端位置を示すマーカー。常にではないがこれはバッファー終端であることが多い。
+</p>
+</dd>
+<dt><span><code>kill_without_query</code></span></dt>
+<dd><p>これが非0ならプロセス実行中にEmacsをkillしてもプロセスのkillにたいして確認を求めない。
+</p>
+</dd>
+<dt><span><code>raw_status</code></span></dt>
+<dd><p>システムコール<code>wait</code>がリターンするrawプロセス状態。
+</p>
+</dd>
+<dt><span><code>status</code></span></dt>
+<dd><p><code>process-status</code>がリターンするようなプロセス状態。Lispシンボル、コンスセル、またはリストのいずれか。
+</p>
+</dd>
+<dt><span><code>tick</code></span></dt>
+<dt><span><code>update_tick</code></span></dt>
+<dd><p>これら2つのフィールドが等しくないなら、センチネル実行かプロセスバッファーへのメッセージ挿入によりプロセスの状態変更が報告される必要がある。
+</p>
+</dd>
+<dt><span><code>pty_flag</code></span></dt>
+<dd><p>そのサブプロセスがptyを使用して対話する場合は非0。パイプを使用する場合には0。
+</p>
+</dd>
+<dt><span><code>infd</code></span></dt>
+<dd><p>そのプロセスからの入力にたいするファイルディクリプター。
+</p>
+</dd>
+<dt><span><code>outfd</code></span></dt>
+<dd><p>そのプロセスへの出力にたいするファイルディクリプター。
+</p>
+</dd>
+<dt><span><code>tty_name</code></span></dt>
+<dd><p>そのサブプロセスが使用する端末の名前、パイプを使用する場合には<code>nil</code>。
+</p>
+</dd>
+<dt><span><code>decode_coding_system</code></span></dt>
+<dd><p>そのプロセスからの入力のデコーディングにたいするコーディングシステム。
+</p>
+</dd>
+<dt><span><code>decoding_buf</code></span></dt>
+<dd><p>デコーディング用の作業バッファー。
+</p>
+</dd>
+<dt><span><code>decoding_carryover</code></span></dt>
+<dd><p>デコーディングでのキャリーオーバーのサイズ。
+</p>
+</dd>
+<dt><span><code>encode_coding_system</code></span></dt>
+<dd><p>そのプロセスからの出力のエンコーディングにたいするコーディングシステム。
+</p>
+</dd>
+<dt><span><code>encoding_buf</code></span></dt>
+<dd><p>エンコーディング用の作業バッファー。
+</p>
+</dd>
+<dt><span><code>inherit_coding_system_flag</code></span></dt>
+<dd><p>プロセス出力のデコードに使用されるコーディングシステムからプロセスバッファーの<code>coding-system</code>をセットするフラグ。
+</p>
+</dd>
+<dt><span><code>type</code></span></dt>
+<dd><p>プロセスのタイプを示す<code>real</code>、<code>network</code>、<code>serial</code>のいずれかのシンボル。
+</p>
+</dd>
+</dl>
+
+</div>
+
+
+This page has generated for branch:emacs-29, commit:612b43d4f07e4df4e904de9f692a8ac80f309a40 to check Japanese translation.
+</body>
+</html>

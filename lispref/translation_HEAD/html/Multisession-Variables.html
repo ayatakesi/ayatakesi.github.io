@@ -1,0 +1,173 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 29.3.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Multisession Variables (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Multisession Variables (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Multisession Variables (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="March 26, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Variables.html" rel="up" title="Variables">
+<link href="Generalized-Variables.html" rel="prev" title="Generalized Variables">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Multisession-Variables">
+<div class="header">
+<p>
+Previous: <a href="Generalized-Variables.html" accesskey="p" rel="prev">ジェネリック変数</a>, Up: <a href="Variables.html" accesskey="u" rel="up">変数</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="marutisetusiyonBian-Shu-"></span><h3 class="section">12.18 マルチセッション変数</h3>
+
+<span id="index-multisession-variable"></span>
+<p>ある変数に値をセットしてからEmacsを終了すると、その後に再起動してもその値が自動的に復元されることはありません。ユーザーが値を永続的にセットする場合には、通常の変数であればスタートアップファイル、ユーザーオプションであればCustomize(<a href="Customization.html">カスタマイゼーション設定</a>を参照)を用いるのが普通です。更にデータを格納するためにさまざまなファイルをもつパッケージが沢山あります(例:
+Gnusはデータを<samp>.newsrc.eld</samp>、URLライブラリーはcookieを<samp>~/.emacs.d/url/cookies</samp>に格納する)。
+</p>
+<p>これらの2つの対極的な事項(スタートアップファイルに書き込まれる構成、あるいは大規模なアプリケーションが個別のファイルへ書き込む状態)にたいして、Emacsはセッションに跨がるデータを複製(replicate)するための<em>マルチセッション変数(multisession
+variables)</em>と呼ばれる機能を提供しています(この機能はすべてのシステムで利用できる訳ではない)。これらがどのような利用を意図しているかヒントを与えるために、以下に小さな例を示しましょう:
+</p>
+<div class="example lisp">
+<pre class="lisp">(define-multisession-variable foo 0)
+(defun my-adder (num)
+  (interactive &quot;nAdd number: &quot;)
+  (setf (multisession-value foo)
+        (+ (multisession-value foo) num))
+  (message &quot;The new number is: %s&quot; (multisession-value foo)))
+</pre></div>
+
+<p>これは変数<code>foo</code>を定義して、(この変数が以前のセッション以降に存在していなければ)値&lsquo;<samp>0</samp>&rsquo;に初期化された特別なマルチセッションオブジェクトにバインドしています。<code>my-adder</code>コマンドはユーザーに数値の入力を求めて、それを(もしかしたら保存されていた)古い値に加算してから新しい値へと保存します。
+</p>
+<p>この機能は巨大なデータ構造にたいする使用を意図したものではありませんが、ほとんどの値にたいしてパフォーマンスは高いはずです。
+</p>
+<dl class="def">
+<dt id="index-define_002dmultisession_002dvariable"><span class="category">Macro: </span><span><strong>define-multisession-variable</strong> <em>name initial-value &amp;optional doc &amp;rest args</em><a href='#index-define_002dmultisession_002dvariable' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>このマクロはマルチセッション変数として<var>name</var>を定義して、その変数に以前に値が割り当てられていなければ<var>initial-value</var>を与える。<var>doc</var>はdoc文字列、<var>args</var>にはいくつかのキーワード引数を使用できる:
+</p>
+<dl compact="compact">
+<dt><span><code>:package <var>package-symbol</var></code></span></dt>
+<dd><p>マルチセッション変数が<var>package-symbol</var>で指定されたパッケージに属することを告げるキーワード。<var>package-symbol</var>と<var>name</var>は一意な組み合わせであること。<var>package-symbol</var>が与えられない場合には、<var>name</var>のシンボル名の1つ目の&ldquo;セグメント&rdquo;(シンボル名の最初の&lsquo;<samp>-</samp>&rsquo;の手前までの部分)がデフォルトになる。たとえば<var>name</var>が<code>foo</code>で<var>package-symbol</var>を与えなければ、<var>package-symbol</var>のデフォルトは<code>foo</code>。
+</p>
+<span id="index-synchronized-multisession-variables"></span>
+</dd>
+<dt><span><code>:synchronized <var>bool</var></code></span></dt>
+<dd><p><var>bool</var>が非<code>nil</code>であればマルチセッション変数を<em>同期(synchronized)</em>できる。同時に2つのEmacsインスタンスが実行中に、別のEmacsがマルチセッション変数<code>foo</code>を変更すると、カレントのEmacsインスタンスがその値にアクセスした際には変更済みのデータが取得されることを意味する。これは<var>synchronized</var>が<code>nil</code>あるいは未指定の場合には発生せず、この変数を使用するすべてのEmacsセッションそれぞれにたいして独立した値となる。
+</p>
+</dd>
+<dt><span><code>:storage <var>storage</var></code></span></dt>
+<dd><p><var>storage</var>で指定されたメソッドを使用する。<code>sqlite</code>(SQLiteサポートつきでコンパイルされたEmacsの場合)、あるいは<code>files</code>のいずれか。与えられない場合には、後述の<code>multisession-storage</code>変数の値がデフォルトになる。
+</p></dd>
+</dl>
+</dd></dl>
+
+<dl class="def">
+<dt id="index-multisession_002dvalue"><span class="category">Function: </span><span><strong>multisession-value</strong> <em>variable</em><a href='#index-multisession_002dvalue' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>variable</var>のカレント値をリターンする。そのEmacsセッションにおいて変数にこれまでアクセスしていない、あるいは変数が外部から変更されていた場合には外部ストレージから読み込まれる。それ以外の場合にはそのセッションでのカレント値がそのままリターンされる。マルチセッション変数ではない<var>variable</var>にたいしてこの関数を呼び出すとエラーとなる。
+</p>
+<p><code>multisession-value</code>を通じて取得した値は互いに<code>eq</code>のときもあれば異なるときもあるが、常に<code>equal</code>である。
+</p>
+<p>これはジェネリック化された変数(<a href="Generalized-Variables.html">ジェネリック変数</a>を参照)なので、そのような変数はたとえば以下のような方法によって更新される:
+</p>
+<div class="example lisp">
+<pre class="lisp">(setf (multisession-value foo-bar) 'zot)
+</pre></div>
+
+<p>この方法によって保存できるのは読み取り可能なプリント構文(<a href="Printed-Representation.html">プリント表現と読み取り構文</a>を参照)をもつEmacs
+Lisp値のみ。
+</p>
+<p>そのマルチセッション変数が同期化されている場合にセットすると、最初に値が更新されるかもしれない。たとえば:
+</p>
+<div class="example lisp">
+<pre class="lisp">(cl-incf (multisession-value foo-bar))
+</pre></div>
+
+<p>ここではまず別のEmacsセッションによって値が変更されているかどうかをチェックして、その後に値に1を加算して格納している。これはロックなしでおこなわれるために、多くのセッションが同時に値を変更する場合にどのセッションが&ldquo;勝利&rdquo;するか予想できないことに注意。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-multisession_002ddelete"><span class="category">Function: </span><span><strong>multisession-delete</strong> <em>object</em><a href='#index-multisession_002ddelete' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>object</var>とその値を永続化されたストレージから削除する。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-make_002dmultisession"><span class="category">Function: </span><span><strong>make-multisession</strong><a href='#index-make_002dmultisession' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>特定の変数ではなく明示的なパッケージとキーに結びつけられらた永続的な値を作成することもできる。
+</p>
+<div class="example">
+<pre class="example">(setq foo (make-multisession :package &quot;mail&quot;
+                             :key &quot;friends&quot;))
+(setf (multisession-value foo) 'everybody)
+</pre></div>
+
+<p>この関数は<code>define-multisession-variable</code>と同じキーワードに加えて、<code>:initial-value</code>キーワード(デフォルト値を指定する)もサポートする。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-multisession_002dstorage"><span class="category">User Option: </span><span><strong>multisession-storage</strong><a href='#index-multisession_002dstorage' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この変数はマルチセッション変数をどのように格納するかを制御する。デフォルト値の<code>files</code>は<code>multisession-directory</code>で指定されたディレクトリー内に変数1つにたいしてファイル1つという構造で値が格納されることを意味する。これが<code>sqlite</code>なら値はSQLiteデータベースに格納される(SQLiteサポートつきでビルドされたEmacsでのみ利用可能)。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-multisession_002ddirectory"><span class="category">User Option: </span><span><strong>multisession-directory</strong><a href='#index-multisession_002ddirectory' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>このディレクトリー配下にマルチセッション変数は格納される。デフォルトは<code>user-emacs-directory</code>のサブディレクトリー<samp>multisession/</samp>
+(通常なら<samp>~/.emacs.d/multisession/</samp>)。
+</p></dd></dl>
+
+<span id="index-multisession_002dedit_002dmode"></span>
+<dl class="def">
+<dt id="index-list_002dmultisession_002dvalues"><span class="category">Command: </span><span><strong>list-multisession-values</strong><a href='#index-list_002dmultisession_002dvalues' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>このコマンドはすべてのマルチセッション変数をリストするバッファーをポップアップして、それらの値の削除や編集が行える特別なモード<code>multisession-edit-mode</code>にエンターする。
+</p></dd></dl>
+
+</div>
+
+
+This page has generated for branch:emacs-29, commit:612b43d4f07e4df4e904de9f692a8ac80f309a40 to check Japanese translation.
+</body>
+</html>
