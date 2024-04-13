@@ -1,0 +1,478 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 27.1.
+
+Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>X Selections (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="X Selections (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="X Selections (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="April 13, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Accessing-Selections.html" rel="up" title="Accessing Selections">
+<link href="Other-Selections.html" rel="next" title="Other Selections">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection" id="X-Selections">
+<div class="header">
+<p>
+Next: <a href="Other-Selections.html" accesskey="n" rel="next">Other Selections</a>, Up: <a href="Accessing-Selections.html" accesskey="u" rel="up">Accessing Selections</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="X-Selections-1"></span><h4 class="subsection">30.22.1 X Selections</h4>
+
+<p>X refrains from defining fixed data types for selection data or a fixed
+number of selections.  Selections are identified by X &ldquo;atoms&rdquo;, which are
+unique 29-bit identifiers issued by the X server for string names.  This
+complexity is hidden by Emacs: when Lisp provides a symbol whose name is
+that of the atom, Emacs will request these identifiers without further
+intervention.
+</p>
+<p>When a program &ldquo;sets&rdquo; a selection under X, it actually makes itself the
+&ldquo;owner&rdquo; of the selection&mdash;the X server will then deliver selection
+requests to the program, which is obliged to respond to the requesting
+client with the selection data.
+</p>
+<p>Similarly, a program does not &ldquo;get&rdquo; selection data from the X server.
+Instead, its selection requests are sent to the client with the window which
+last asserted ownership over the selection, which is expected to respond
+with the requested data.
+</p>
+<p>Each selection request incorporates three parameters:
+</p>
+<ul>
+<li> The window which requested the selection, which identifies the requesting
+program, otherwise known as the <em>requestor</em>.
+
+</li><li> An atom identifying the <em>target</em> to which the owner should convert the
+selection.  It is easiest to think of the conversion target as the kind of
+data that the requestor wants: in selection requests made by Emacs, the
+target is determined by the <var>type</var> argument to <code>gui-get-selection</code>.
+
+</li><li> A 32-bit timestamp representing the X server time at which the requestor
+last received input; this parameter is not relevant to Lisp code, for it&rsquo;s
+only meant to abet synchronization between the X server, owner and
+requestor.
+</li></ul>
+
+<p>The selection owner responds by tranferring to the requestor a series of
+bytes, 16 bit words, or 32 bit words, along with another atom identifying
+the type of those words.  After requesting a selection, Emacs then applies
+its own interpretation of the data format and data type to convert the data
+transferred by the selection owner to a Lisp representation, which
+<code>gui-get-selection</code> returns.
+</p>
+<p>Emacs converts selection data consisting of any series of bytes to a unibyte
+string holding those bytes, that consisting of a single 16-bit or 32-bit
+word as an unsigned number, and that consisting of multiple such words as a
+vector of unsigned numbers.  The exceptions to this general pattern are that
+Emacs applies special treatment for data from the following conversion
+targets:
+</p>
+<dl compact="compact">
+<dt><span><code>INTEGER</code></span></dt>
+<dd><p>16-bit or 32-bit words of this type are treated as signed rather than
+unsigned integers.  If there are multiple words in the selection data, a
+vector is returned; otherwise, the integer is returned by itself.
+</p>
+</dd>
+<dt><span><code>ATOM</code></span></dt>
+<dd><p>32-bit words of this type are treated as X atoms, and returned (either alone
+or as vectors) as Lisp symbols by the names they identify.  Invalid atoms
+are replaced by <code>nil</code>.
+</p>
+</dd>
+<dt><span><code>COMPOUND_TEXT</code></span></dt>
+<dt><span><code>UTF8_STRING</code></span></dt>
+<dt><span><code>STRING</code></span></dt>
+<dd><p>A single <code>foreign-selection</code> text property set to the type of the
+selection data will be placed in unibyte strings derived from a request for
+these data types.
+</p></dd>
+</dl>
+
+<p>Each selection owner must return at least two selection targets:
+<code>TARGETS</code>, which returns a number of atoms describing the selection
+targets that the owner supports, and <code>MULTIPLE</code>, used for internal
+purposes by X clients.  A selection owner may support any number of other
+targets, some of which may be standardized by the X Consortium&rsquo;s
+<a href="http://x.org/releases/X11R7.6/doc/xorg-docs/specs/ICCCM/icccm.html">Inter-Client Communication Conventions Manual</a>, while others, such as
+<code>UTF8_STRING</code>, were meant to be standardized by the XFree86 Project,
+but their standardization was never completed.
+</p>
+<p>Requests for a given selection target may, by convention, return data in a
+specific type, or it may return data in one of several types, whichever is
+most convenient for the selection owner; the latter type of selection target
+is dubbed a <em>polymorphic target</em>.  In response to a request, a selection
+target may also return no data at all, whereafter the selection owner
+executes some action as a side effect.  Targets that are thus replied to are
+termed <em>side-effect targets</em>.
+</p>
+<p>Here are some selection targets whose behavior is generally consistent with
+a standard when requested from the <code>CLIPBOARD</code>, <code>PRIMARY</code>, or
+<code>SECONDARY</code> selections.
+</p>
+<dl compact="compact">
+<dt><span><code>ADOBE_PORTABLE_DOCUMENT_FORMAT</code></span></dt>
+<dd><p>This target returns data in Adobe System&rsquo;s &ldquo;Portable Document Format&rdquo;
+format, as a string.
+</p>
+</dd>
+<dt><span><code>APPLE_PICT</code></span></dt>
+<dd><p>This target returns data in the &ldquo;PICT&rdquo; image format used on Macintosh
+computers, as a string.
+</p>
+</dd>
+<dt><span><code>BACKGROUND</code></span></dt>
+<dt><span><code>BITMAP</code></span></dt>
+<dt><span><code>COLORMAP</code></span></dt>
+<dt><span><code>FOREGROUND</code></span></dt>
+<dd><p>Together, these four targets return integer data necessary to make use of a
+bitmap image stored on the X server: the pixel value of the bitmap&rsquo;s
+background color, the X identifier of the bitmap, the colormap inside which
+the background and foreground are allocated, and the pixel value of the
+bitmap&rsquo;s foreground color.
+</p>
+</dd>
+<dt><span><code>CHARACTER_POSITION</code></span></dt>
+<dd><p>This target returns two unsigned 32-bit integers of type <code>SPAN</code>
+describing the start and end positions of the selection data in the text
+field containing it, in bytes.
+</p>
+</dd>
+<dt><span><code>COMPOUND_TEXT</code></span></dt>
+<dd><p>This target returns a string of type <code>COMPOUND_TEXT</code> in the X
+Consortium&rsquo;s multi-byte text encoding system.
+</p>
+</dd>
+<dt><span><code>DELETE</code></span></dt>
+<dd><p>This target returns nothing, but as a side-effect deletes the selection
+contents from any text field containing them.
+</p>
+</dd>
+<dt><span><code>DRAWABLE</code></span></dt>
+<dt><span><code>PIXMAP</code></span></dt>
+<dd><p>This target returns a list of unsigned 32-bit integers, each of which
+corresponds to an X server drawable or pixmap.
+</p>
+</dd>
+<dt><span><code>ENCAPSULATED_POSTSCRIPT</code></span></dt>
+<dt><span><code>_ADOBE_EPS</code></span></dt>
+<dd><p>This target returns a string containing encapsulated Postscript code.
+</p>
+</dd>
+<dt><span><code>FILE_NAME</code></span></dt>
+<dd><p>This target returns a string containing one or more file names, separated by
+NULL characters.
+</p>
+</dd>
+<dt><span><code>HOST_NAME</code></span></dt>
+<dd><p>This target returns a string containing the fully-qualified domain name of
+the machine on which the selection owner is running.
+</p>
+</dd>
+<dt><span><code>USER</code></span></dt>
+<dd><p>This target returns a string containing the user name of the machine on
+which the selection owner is running.
+</p>
+</dd>
+<dt><span><code>LENGTH</code></span></dt>
+<dd><p>This target returns an unsigned 32-bit or 16-bit integer containing the
+length of the selection data.
+</p>
+</dd>
+<dt><span><code>LINE_NUMBER</code></span></dt>
+<dd><p>This target returns two unsigned 32-bit integers of type <code>SPAN</code>
+describing the line numbers corresponding to the start and end positions of
+the selection data in the text field containing it.
+</p>
+</dd>
+<dt><span><code>MODULE</code></span></dt>
+<dd><p>This target returns the name of any function containing the selection data.
+It is principally requested by text editors.
+</p>
+</dd>
+<dt><span><code>STRING</code></span></dt>
+<dd><p>This target returns the selection data as a string of type <code>STRING</code>,
+encoded in ISO Latin-1 format, with Unix newline characters.
+</p>
+</dd>
+<dt><span><code>C_STRING</code></span></dt>
+<dd><p>This target returns the selection data as a &ldquo;C string&rdquo;.  This has been
+interpreted as meaning the raw selection data in whatever encoding used by
+the owner, either terminated with a NULL byte or not at all, or an ASCII
+string which may or may not be terminated.
+</p>
+</dd>
+<dt><span><code>UTF8_STRING</code></span></dt>
+<dd><p>This returns the selection data as a string of type <code>UTF8_STRING</code>,
+encoded in UTF-8, with unspecified EOL format.
+</p>
+</dd>
+<dt><span><code>TIMESTAMP</code></span></dt>
+<dd><p>This target returns the X server time at which the selection owner took
+ownership over the selection as a 16-bit or 32-bit word of type
+<code>CARDINAL</code>.
+</p>
+</dd>
+<dt><span><code>TEXT</code></span></dt>
+<dd><p>This polymorphic target returns selection data as a string, either
+<code>COMPOUND_TEXT</code>, <code>STRING</code>, <code>C_STRING</code>, or <code>UTF8_STRING</code>,
+whichever data type is convenient for the selection owner.
+</p></dd>
+</dl>
+
+<p>When a request for the targets <code>STRING</code>, <code>COMPOUND_TEXT</code>, or
+<code>UTF8_STRING</code> is made using the function <code>gui-get-selection</code>, and
+neither <code>selection-coding-system</code> nor
+<code>next-selection-coding-system</code> is set, the resultant strings are
+decoded by the proper coding systems for those targets: <code>iso-8859-1</code>,
+<code>compound-text-with-extensions</code> and <code>utf-8</code> respectively.
+</p>
+<p>In addition to the targets specified above (and the many targets used by
+various programs for their own purposes), several popular programs and
+toolkits have defined selection data types of their own, without consulting
+the appropriate X standards bodies.  These targets are generally named after
+such MIME types as <code>text/html</code> or <code>image/jpeg</code>; they have been
+witnessed returning the following forms of data:
+</p>
+<ul>
+<li> Unterminated, newline terminated, or NULL character terminated file names of
+an image or text file.
+
+</li><li> Image or text data in the appropriate format.
+
+</li><li> <code>file://</code> URIs (or conceivably newline or NUL terminated lists of URIs)
+identifying files in the appropriate format.
+</li></ul>
+
+<p>These selection targets were first used by Netscape, but are now proffered
+by all kinds of programs, especially those based on recent versions of the
+GTK+ or Qt toolkits.
+</p>
+<p>Emacs is also capable of serving as a selection owner.  When
+<code>gui-set-selection</code> is called, the selection data provided is recorded
+internally and Emacs obtains ownership of the selection being set.
+</p>
+<dl class="def">
+<dt id="index-selection_002dconverter_002dalist"><span class="category">Variable: </span><span><strong>selection-converter-alist</strong><a href='#index-selection_002dconverter_002dalist' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>Alist of selection targets to &ldquo;selection converter&rdquo; functions.  When a
+selection request is received, Emacs looks up the selection converter
+pertaining to the requested selection target.
+</p>
+<p>Selection converters are called with three arguments: the symbol
+corresponding to the atom identifying the selection being requested, the
+selection target that is being requested, and the value set with
+<code>gui-set-selection</code>.  The values which they must return are either
+conses of symbols designating the data type and numbers, symbols, vectors of
+numbers or symbols, or the cdrs of such conses by themselves.
+</p>
+<p>If a selection converter&rsquo;s value is the special symbol <code>NULL</code>, the data
+type returned to its requestor is set to <code>NULL</code>, and no data is sent in
+response.
+</p>
+<p>If such a value is a string, it must be a unibyte string; should no data
+type be explicitly specified, the data is transferred to its requestor with
+the type <code>STRING</code>.
+</p>
+<p>If it is a symbol, its &ldquo;atom&rdquo; is retrieved, and it is transferred to its
+requestor as a 32-bit value&mdash;if no data type is specified, its type is
+<code>ATOM</code>.
+</p>
+<p>If it is a number between <code>-32769</code> and <code>32768</code>, it is transferred
+to its requestor as a 16 bit value&mdash;if no data type is specified, its type
+is <code>INTEGER</code>.
+</p>
+<p>If it is any other number, it is accounted a 32 bit value.  Even if the
+number returned is unsigned, its requestor will treat words of type
+<code>INTEGER</code> as signed.  To return an unsigned value, specify the type
+<code>CARDINAL</code> in its place.
+</p>
+<p>If it is a vector of symbols or numbers, the response to its requestor will
+be a list of multiple atoms or numbers.  The data type returned when not
+expressly set is that of the list&rsquo;s first element.
+</p></dd></dl>
+
+<p>By default, Emacs is configured with selection converters for the following
+selection targets:
+</p>
+<dl compact="compact">
+<dt><span><code>TEXT</code></span></dt>
+<dd><p>This selection converter returns selection data as:
+</p>
+<ul>
+<li> A string of type <code>C_STRING</code>, if the selection contents contain no
+multibyte characters, or contain &ldquo;raw 8-bit bytes&rdquo; (see <a href="Text-Representations.html">テキストの表現方法</a>).
+
+</li><li> A string of type <code>STRING</code>, if the selection contents can be represented
+as ISO-Latin-1 text.
+
+</li><li> A string of type <code>COMPOUND_TEXT</code>, if the selection contents can be
+encoded in the X Consortium&rsquo;s Compound Text Encoding, and
+<code>selection-coding-system</code> or <code>next-selection-coding-system</code> is set
+to a coding system whose <code>:mime-charset</code> property is <code>x-ctext</code>.
+
+</li><li> A string of type <code>UTF8_STRING</code> otherwise.
+</li></ul>
+
+</dd>
+<dt><span><code>COMPOUND_TEXT</code></span></dt>
+<dd><p>This selection converter returns selection data as a string of type
+<code>COMPOUND_TEXT</code>.
+</p>
+</dd>
+<dt><span><code>STRING</code></span></dt>
+<dd><p>This selection converter returns selection data as a string of type
+<code>STRING</code>, encoded in ISO-Latin-1 format.
+</p>
+</dd>
+<dt><span><code>UTF8_STRING</code></span></dt>
+<dd><p>This selection converter returns selection data in UTF-8 format.
+</p>
+</dd>
+<dt><span><code>text/plain</code></span></dt>
+<dt><span><code>text/plain;charset=utf-8</code></span></dt>
+<dt><span><code>text/uri-list</code></span></dt>
+<dt><span><code>text/x-xdnd-username</code></span></dt>
+<dt><span><code>XmTRANSFER_SUCCESS</code></span></dt>
+<dt><span><code>XmTRANSFER_FAILURE</code></span></dt>
+<dt><span><code>FILE</code></span></dt>
+<dt><span><code>_DT_NETFILE</code></span></dt>
+<dd><p>These selection converters are used for internal purposes during
+drag-and-drop operations and are not available for selections other than
+<code>XdndSelection</code>.
+</p>
+</dd>
+<dt><span><code>TARGETS</code></span></dt>
+<dd><p>This selection converter returns a list of atoms, one for each selection
+target understood by Emacs.
+</p>
+</dd>
+<dt><span><code>MULTIPLE</code></span></dt>
+<dd><p>This selection converter is implemented in C code and is used to implement
+efficient transfer of selection requests which specify multiple selection
+targets at the same time.
+</p>
+</dd>
+<dt><span><code>LENGTH</code></span></dt>
+<dd><p>This selection converter returns the length of the selection data, in bytes.
+</p>
+</dd>
+<dt><span><code>DELETE</code></span></dt>
+<dd><p>This selection converter is used for internal purposes during drag-and-drop
+operations.
+</p>
+</dd>
+<dt><span><code>FILE_NAME</code></span></dt>
+<dd><p>This selection converter returns the file name of the buffer containing the
+selection data.
+</p>
+</dd>
+<dt><span><code>CHARACTER_POSITION</code></span></dt>
+<dd><p>This selection converter returns the character positions of each end of the
+selection in the buffer containing the selection data.
+</p>
+</dd>
+<dt><span><code>LINE_NUMBER</code></span></dt>
+<dt><span><code>COLUMN_NUMBER</code></span></dt>
+<dd><p>This selection converter returns the line and column numbers of each end of
+the selection in the buffer containing the selection data.
+</p>
+</dd>
+<dt><span><code>OWNER_OS</code></span></dt>
+<dd><p>This selection converter returns the name of the operating system on which
+Emacs is running.
+</p>
+</dd>
+<dt><span><code>HOST_NAME</code></span></dt>
+<dd><p>This selection converter returns the fully-qualified domain name of the
+machine on which Emacs is running.
+</p>
+</dd>
+<dt><span><code>USER</code></span></dt>
+<dd><p>This selection converter returns the username of the user account under
+which Emacs is running.
+</p>
+</dd>
+<dt><span><code>CLASS</code></span></dt>
+<dt><span><code>NAME</code></span></dt>
+<dd><p>These selection converters return the resource class and name used by Emacs.
+</p>
+</dd>
+<dt><span><code>INTEGER</code></span></dt>
+<dd><p>This selection converter returns an integer value verbatim.
+</p>
+</dd>
+<dt><span><code>SAVE_TARGETS</code></span></dt>
+<dt><span><code>_EMACS_INTERNAL</code></span></dt>
+<dd><p>These selection converters are used for internal purposes.
+</p></dd>
+</dl>
+
+<p>With the exception of <code>INTEGER</code>, all selection converters expect the
+data provided to <code>gui-set-selection</code> to be one of the following:
+</p>
+<ul>
+<li> A string.
+
+</li><li> A list of the form <code>(<var>beg</var>&nbsp;<var>end</var>&nbsp;<var>buf</var>)</code><!-- /@w -->, where
+<var>beg</var> and <var>end</var> are two markers or overlays describing the bounds of
+the selection data in the buffer <var>buf</var>.
+</li></ul>
+
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Other-Selections.html">Other Selections</a>, Up: <a href="Accessing-Selections.html">Accessing Selections</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:master, commit:83696b5d73b6e450bba36c2eaff0f6a4fbb42760 to check Japanese translation.
+</body>
+</html>
