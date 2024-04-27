@@ -4,9 +4,9 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 27.1.
+corresponding to Emacs version 29.3.
 
-Copyright (C) 1990-1996, 1998-2023 Free Software Foundation, Inc.
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document under
 the terms of the GNU Free Documentation License, Version 1.3 or any later
@@ -33,7 +33,8 @@ and promoting software freedom." -->
 <link href="Index.html" rel="index" title="Index">
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
 <link href="Searching-and-Matching.html" rel="up" title="Searching and Matching">
-<link href="Standard-Regexps.html" rel="prev" title="Standard Regexps">
+<link href="Match-Data.html" rel="next" title="Match Data">
+<link href="Regexp-Search.html" rel="prev" title="Regexp Search">
 <style type="text/css">
 <!--
 a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
@@ -61,93 +62,41 @@ ul.no-bullet {list-style: none}
 <div class="section" id="POSIX-Regexps">
 <div class="header">
 <p>
-Previous: <a href="Standard-Regexps.html" accesskey="p" rel="prev">編集で使用される標準的な正規表現</a>, Up: <a href="Searching-and-Matching.html" accesskey="u" rel="up">検索とマッチング</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Match-Data.html" accesskey="n" rel="next">マッチデータ</a>, Previous: <a href="Regexp-Search.html" accesskey="p" rel="prev">正規表現の検索</a>, Up: <a href="Searching-and-Matching.html" accesskey="u" rel="up">検索とマッチング</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="Emacs-versus-POSIX-Regular-Expressions"></span><h3 class="section">35.9 Emacs versus POSIX Regular Expressions</h3>
-<span id="index-POSIX-regular-expressions"></span>
+<span id="POSIXZheng-Gui-Biao-Xian-noJian-Suo-"></span><h3 class="section">35.5 POSIX正規表現の検索</h3>
 
-<p>Regular expression syntax varies signficantly among computer programs.  When
-writing Elisp code that generates regular expressions for use by other
-programs, it is helpful to know how syntax variants differ.  To give a feel
-for the variation, this section discusses how Emacs regular expressions
-differ from two syntax variants standarded by POSIX: basic regular
-expressions (BREs) and extended regular expressions (EREs).  Plain
-<code>grep</code> uses BREs, and &lsquo;<samp>grep -E</samp>&rsquo; uses EREs.
+<span id="index-backtracking-and-POSIX-regular-expressions"></span>
+<p>通常の正規表現関数は、&lsquo;<samp>\|</samp>&rsquo;や繰り返しの構文要素を処理するために必要なときだけバックトラッキングを行いますが、<em>何らか</em>のマッチが見つかるまでの間だけこれを継続します。そして成功した後に見つかった最初のマッチを報告します。
 </p>
-<p>Emacs regular expressions have a syntax closer to EREs than to BREs, with
-some extensions.  Here is a summary of how POSIX BREs and EREs differ from
-Emacs regular expressions.
+<p>このセクションでは正規表現にたいしてPOSIX標準で指定された完全なバックトラッキングを処理する他の検索関数を説明します。これらはPOSIXが要求する最長マッチを報告できるようにすべての可能なマッチを試みて、すべてのマッチが見つかるまでバックトラッキングを継続します。これは非常に低速なので、本当に最長マッチが必要なときだけこれらの関数を使用してください。
 </p>
-<ul>
-<li> In POSIX BREs &lsquo;<samp>+</samp>&rsquo; and &lsquo;<samp>?</samp>&rsquo; are not special.  The only backslash
-escape sequences are &lsquo;<samp>\(&hellip;\)</samp>&rsquo;, &lsquo;<samp>\{&hellip;\}</samp>&rsquo;, &lsquo;<samp>\1</samp>&rsquo;
-through &lsquo;<samp>\9</samp>&rsquo;, along with the escaped special characters &lsquo;<samp>\$</samp>&rsquo;,
-&lsquo;<samp>\*</samp>&rsquo;, &lsquo;<samp>\.</samp>&rsquo;, &lsquo;<samp>\[</samp>&rsquo;, &lsquo;<samp>\\</samp>&rsquo;, and &lsquo;<samp>\^</samp>&rsquo;.  Therefore
-&lsquo;<samp>\(?:</samp>&rsquo; acts like &lsquo;<samp>\([?]:</samp>&rsquo;.  POSIX does not define how other BRE
-escapes behave; for example, GNU <code>grep</code> treats &lsquo;<samp>\|</samp>&rsquo; like Emacs
-does, but does not support all the Emacs escapes.
+<p>POSIXの検索とマッチ関数は、非欲張りな繰り返し演算子(<a href="Regexp-Special.html">non-greedy</a>を参照)を正しくサポートしません。これはPOSIXのバックトラッキングが非欲張りな繰り返しのセマンチックと競合するからです。
+</p>
+<dl class="def">
+<dt id="index-posix_002dsearch_002dforward"><span class="category">Command: </span><span><strong>posix-search-forward</strong> <em>regexp &amp;optional limit noerror count</em><a href='#index-posix_002dsearch_002dforward' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これは<code>re-search-forward</code>と似ているが、正規表現マッチングにたいしてPOSIX標準が指定する完全なバックトラッキングを行う点が異なる。
+</p></dd></dl>
 
-</li><li> In POSIX BREs, it is an implementation option whether &lsquo;<samp>^</samp>&rsquo; is special
-after &lsquo;<samp>\(</samp>&rsquo;; GNU <code>grep</code> treats it like Emacs does.  In POSIX
-EREs, &lsquo;<samp>^</samp>&rsquo; is always special outside of bracket expressions, which means
-the ERE &lsquo;<samp>x^</samp>&rsquo; never matches.  In Emacs regular expressions, &lsquo;<samp>^</samp>&rsquo; is
-special only at the beginning of the regular expression, or after &lsquo;<samp>\(</samp>&rsquo;,
-&lsquo;<samp>\(?:</samp>&rsquo; or &lsquo;<samp>\|</samp>&rsquo;.
+<dl class="def">
+<dt id="index-posix_002dsearch_002dbackward"><span class="category">Command: </span><span><strong>posix-search-backward</strong> <em>regexp &amp;optional limit noerror count</em><a href='#index-posix_002dsearch_002dbackward' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これは<code>re-search-backward</code>と似ているが、正規表現マッチングにたいしてPOSIX標準が指定する完全なバックトラッキングを行う点が異なる。
+</p></dd></dl>
 
-</li><li> In POSIX BREs, it is an implementation option whether &lsquo;<samp>$</samp>&rsquo; is special
-before &lsquo;<samp>\)</samp>&rsquo;; GNU <code>grep</code> treats it like Emacs does.  In POSIX
-EREs, &lsquo;<samp>$</samp>&rsquo; is always special outside of bracket expressions
-(see <a href="Regexp-Special.html">bracket expressions</a>), which means the ERE &lsquo;<samp>$x</samp>&rsquo;
-never matches.  In Emacs regular expressions, &lsquo;<samp>$</samp>&rsquo; is special only at
-the end of the regular expression, or before &lsquo;<samp>\)</samp>&rsquo; or &lsquo;<samp>\|</samp>&rsquo;.
+<dl class="def">
+<dt id="index-posix_002dlooking_002dat"><span class="category">Function: </span><span><strong>posix-looking-at</strong> <em>regexp &amp;optional inhibit-modify</em><a href='#index-posix_002dlooking_002dat' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これは<code>looking-at</code>と似ているが、正規表現マッチングにたいしてPOSIX標準が指定する完全なバックトラッキングを行う点が異なる。
+</p></dd></dl>
 
-</li><li> In POSIX EREs &lsquo;<samp>{</samp>&rsquo;, &lsquo;<samp>(</samp>&rsquo; and &lsquo;<samp>|</samp>&rsquo; are special, and &lsquo;<samp>)</samp>&rsquo; is
-special when matched with a preceding &lsquo;<samp>(</samp>&rsquo;.  These special characters do
-not use preceding backslashes; &lsquo;<samp>(?</samp>&rsquo; produces undefined results.  The
-only backslash escape sequences are the escaped special characters
-&lsquo;<samp>\$</samp>&rsquo;, &lsquo;<samp>\(</samp>&rsquo;, &lsquo;<samp>\)</samp>&rsquo;, &lsquo;<samp>\*</samp>&rsquo;, &lsquo;<samp>\+</samp>&rsquo;, &lsquo;<samp>\.</samp>&rsquo;, &lsquo;<samp>\?</samp>&rsquo;,
-&lsquo;<samp>\[</samp>&rsquo;, &lsquo;<samp>\\</samp>&rsquo;, &lsquo;<samp>\^</samp>&rsquo;, &lsquo;<samp>\{</samp>&rsquo; and &lsquo;<samp>\|</samp>&rsquo;.  POSIX does not
-define how other ERE escapes behave; for example, GNU &lsquo;<samp>grep -E</samp>&rsquo; treats
-&lsquo;<samp>\1</samp>&rsquo; like Emacs does, but does not support all the Emacs escapes.
+<dl class="def">
+<dt id="index-posix_002dstring_002dmatch"><span class="category">Function: </span><span><strong>posix-string-match</strong> <em>regexp string &amp;optional start inhibit-modify</em><a href='#index-posix_002dstring_002dmatch' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これは<code>string-match</code>と似ているが、正規表現にたいしてPOSIX標準が指定する完全なバックトラッキングを行う点が異なる。
+</p></dd></dl>
 
-</li><li> In POSIX BREs and EREs, undefined results are produced by repetition
-operators at the start of a regular expression or subexpression (possibly
-preceded by &lsquo;<samp>^</samp>&rsquo;), except that the repetition operator &lsquo;<samp>*</samp>&rsquo; has the
-same behavior in BREs as in Emacs.  In Emacs, these operators are treated as
-ordinary.
-
-</li><li> In BREs and EREs, undefined results are produced by two repetition operators
-in sequence.  In Emacs, these have well-defined behavior, e.g., &lsquo;<samp>a**</samp>&rsquo;
-is equivalent to &lsquo;<samp>a*</samp>&rsquo;.
-
-</li><li> In BREs and EREs, undefined results are produced by empty regular
-expressions or subexpressions.  In Emacs these have well-defined behavior,
-e.g., &lsquo;<samp>\(\)*</samp>&rsquo; matches the empty string,
-
-</li><li> In BREs and EREs, undefined results are produced for the named character
-classes &lsquo;<samp>[:ascii:]</samp>&rsquo;, &lsquo;<samp>[:multibyte:]</samp>&rsquo;, &lsquo;<samp>[:nonascii:]</samp>&rsquo;,
-&lsquo;<samp>[:unibyte:]</samp>&rsquo;, and &lsquo;<samp>[:word:]</samp>&rsquo;.
-
-</li><li> BREs and EREs can contain collating symbols and equivalence class
-expressions within bracket expressions, e.g., &lsquo;<samp>[[.ch.]d[=a=]]</samp>&rsquo;.  Emacs
-regular expressions do not support this.
-
-</li><li> BREs, EREs, and the strings they match cannot contain encoding errors or NUL
-bytes.  In Emacs these constructs simply match themselves.
-
-</li><li> BRE and ERE searching always finds the longest match.  Emacs searching by
-default does not necessarily do so.  See <a href="Longest-Match.html">Longest-match searching for regular expression matches</a>.
-</li></ul>
-
-</div>
-<hr>
-<div class="header">
-<p>
-Previous: <a href="Standard-Regexps.html">編集で使用される標準的な正規表現</a>, Up: <a href="Searching-and-Matching.html">検索とマッチング</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:master, commit:78a306c7ac6f4741f1d2a14332399d5f28e6a614 to check Japanese translation.
+This page has generated for branch:work/emacs-29_d8687fd6cd807db1c76084a5e2bb214f9b6c9a49, commit:93612f0efcd8fe25b87e981a9f5e37812464184e to check Japanese translation.
 </body>
 </html>
