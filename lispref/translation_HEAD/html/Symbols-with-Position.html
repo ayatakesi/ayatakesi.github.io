@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 29.3.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
@@ -64,55 +64,98 @@ ul.no-bullet {list-style: none}
 Previous: <a href="Shorthands.html" accesskey="p" rel="prev">ショートハンド</a>, Up: <a href="Symbols.html" accesskey="u" rel="up">シンボル</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="Wei-Zhi-womotusinboru"></span><h3 class="section">9.6 位置をもつシンボル</h3>
+<span id="Symbols-with-Position-1"></span><h3 class="section">9.6 Symbols with Position</h3>
 <span id="index-symbol-with-position"></span>
 
 <span id="index-bare-symbol"></span>
-<p><em>位置つきシンボル(symbol with position)</em>とは<em>bareシンボル(bare symbol:
-裸のシンボル)</em>と<em>位置(position)</em>と呼ばれる符号なし整数を合わせたシンボルのことです。これらのオブジェクトはバイトコンパイラーによって使用されます。バイトコンパイラーはシンボルそれぞれの出現位置を記録して、警告メッセージやエラーメッセージでそれらの位置を使用します。
+<p>A <em>symbol with position</em> is a symbol, called the <em>bare symbol</em>,
+together with a nonnegative fixnum called the <em>position</em>.  Even though a
+symbol with position often acts like its bare symbol, it is not a symbol:
+instead, it is an object that has both a bare symbol and a position.
+Because symbols with position are not symbols, they don&rsquo;t have entries in
+the obarray, though their bare symbols typically do (see <a href="Creating-Symbols.html">シンボルの作成とintern</a>).
+</p>
+<p>The byte compiler uses symbols with position, records in them the position
+of each symbol occurrence, and uses those positions in warning and error
+messages.  They shouldn&rsquo;t normally be used otherwise.  Doing so can cause
+unexpected results with basic Emacs functions such as <code>eq</code> and
+<code>equal</code>.
 </p>
 <p>位置つきシンボルのプリント表現には、<a href="Printed-Representation.html">プリント表現と読み取り構文</a>で概説したハッシュ表記が使用されます。&lsquo;<samp>#&lt;symbol foo at
 12345&gt;</samp>&rsquo;のようなプリント表現であり、入力構文はありません。プリント操作の前後で変数<code>print-symbols-bare</code>を非<code>nil</code>にバインドすれば、bareシンボルだけをプリントさせることができます。バイトコンパイラーはコンパイル済みLispファイルへ書き込む前にこれを行っています。
 </p>
-<p>フラグ変数<code>symbols-with-pos-enabled</code>が非<code>nil</code>であっても、ほとんどの用途にたいして位置つきシンボルはbareシンボルと同じように動作します。たとえばこの変数がセットされている場合には、&lsquo;<samp>(eq
-#&lt;symbol foo at 12345&gt;
-foo)</samp>&rsquo;の値は<code>t</code>になります(ただしセットされていなければ<code>nil</code>)。Emacsではほとんどの場合この変数は<code>nil</code>ですが、バイトコンパイラーの実行時には<code>t</code>にバインドされます。
+<p>When the flag variable <code>symbols-with-pos-enabled</code> is non-<code>nil</code>, a
+symbol with position ordinarily behaves like its bare symbol.  For example,
+&lsquo;<samp>(eq (position-symbol 'foo 12345) 'foo)</samp>&rsquo; yields <code>t</code>, and
+<code>equal</code> likewise treats a symbol with position as its bare symbol.
+</p>
+<p>When <code>symbols-with-pos-enabled</code> is <code>nil</code>, symbols with position
+behave as themselves, not as symbols.  For example, &lsquo;<samp>(eq
+(position-symbol 'foo 12345) 'foo)</samp>&rsquo; yields <code>nil</code>, and <code>equal</code>
+likewise treats a symbol with position as not equal to its bare symbol.
+</p>
+<p>Most of the time in Emacs <code>symbols-with-pos-enabled</code> is <code>nil</code>, but
+the byte compiler and the native compiler bind it to <code>t</code> when they run
+and Emacs runs a little more slowly in this case.
 </p>
 <p>位置つきシンボルは通常はバイトコンパイラーがリーダー関数<code>read-positioning-symbols</code>を呼び出すことによって作成されます(<a href="Input-Functions.html">入力関数</a>を参照)が、関数<code>position-symbol</code>によって作成することもできます。
 </p>
 <dl class="def">
 <dt id="index-symbols_002dwith_002dpos_002denabled"><span class="category">Variable: </span><span><strong>symbols-with-pos-enabled</strong><a href='#index-symbols_002dwith_002dpos_002denabled' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この変数が非<code>nil</code>の際には、位置つきシンボルはそれに内包されているbareシンボルと同様に振る舞う。この場合にはEmacsの実行が少しだけ遅くなる。
+<dd><p>This variable affects the behavior of symbols with position when they are
+not being printed and are not arguments to one of the functions defined
+later in this section.  When this variable is non-<code>nil</code>, such a symbol
+with position behaves like its bare symbol; otherwise it behaves as itself,
+not as a symbol.
 </p></dd></dl>
 
 <dl class="def">
 <dt id="index-print_002dsymbols_002dbare"><span class="category">Variable: </span><span><strong>print-symbols-bare</strong><a href='#index-print_002dsymbols_002dbare' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>非<code>nil</code>にバインドされていると、Lispプリンターは位置つきシンボルの位置は無視してbareシンボルだけをプリントする。
+<dd><p>When bound to non-<code>nil</code>, the Lisp printer prints only the bare symbol
+of a symbol with position, ignoring the position.  Otherwise a symbol with
+position prints as itself, not as a symbol.
 </p></dd></dl>
 
 <dl class="def">
-<dt id="index-symbol_002dwith_002dpos_002dp"><span class="category">Function: </span><span><strong>symbol-with-pos-p</strong> <em>symbol.</em><a href='#index-symbol_002dwith_002dpos_002dp' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数は<var>symbol</var>がシンボルなら<code>t</code>、それ以外は<code>nil</code>をリターンする。
+<dt id="index-symbol_002dwith_002dpos_002dp"><span class="category">Function: </span><span><strong>symbol-with-pos-p</strong> <em>object</em><a href='#index-symbol_002dwith_002dpos_002dp' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function returns <code>t</code> if <var>object</var> is a symbol with position,
+<code>nil</code> otherwise.  Unlike <code>symbolp</code>, this function ignores
+<code>symbols-with-pos-enabled</code>.
 </p></dd></dl>
 
 <dl class="def">
-<dt id="index-bare_002dsymbol"><span class="category">Function: </span><span><strong>bare-symbol</strong> <em>symbol</em><a href='#index-bare_002dsymbol' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数は<var>symbol</var>に含まれるbareシンボル、<var>symbol</var>がすでにbareシンボルなら<var>symbol</var>自体をリターンする。それ以外のタイプのオブジェクトの場合にはエラーをシグナルする。
+<dt id="index-bare_002dsymbol"><span class="category">Function: </span><span><strong>bare-symbol</strong> <em>sym</em><a href='#index-bare_002dsymbol' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function returns the bare symbol of the symbol with position <var>sym</var>,
+or <var>sym</var> itself if it is already a symbol.  For any other type of
+object, it signals an error.  This function ignores
+<code>symbols-with-pos-enabled</code>.
 </p></dd></dl>
 
 <dl class="def">
-<dt id="index-symbol_002dwith_002dpos_002dpos"><span class="category">Function: </span><span><strong>symbol-with-pos-pos</strong> <em>symbol</em><a href='#index-symbol_002dwith_002dpos_002dpos' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数は位置つきシンボルの位置(数値)をリターンする。それ以外のタイプのオブジェクトの場合にはエラーをシグナルする。
+<dt id="index-symbol_002dwith_002dpos_002dpos"><span class="category">Function: </span><span><strong>symbol-with-pos-pos</strong> <em>sympos</em><a href='#index-symbol_002dwith_002dpos_002dpos' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function returns the position, a nonnegative fixnum, from the symbol
+with position <var>sympos</var>.  For any other type of object, it signals an
+error.  This function ignores <code>symbols-with-pos-enabled</code>.
 </p></dd></dl>
 
 <dl class="def">
 <dt id="index-position_002dsymbol"><span class="category">Function: </span><span><strong>position-symbol</strong> <em>sym pos</em><a href='#index-position_002dsymbol' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>位置つきシンボルを新たに作成する。<var>sym</var>はbareシンボルか位置つきシンボルで、これは新たなオブジェクトにたいしてシンボル部分を提供する。<var>pos</var>は整数(新オブジェクトの数値部分となる)、あるいは位置つきシンボル(このシンボルの位置を使用)のいずれか。引数のいずれかが無効であればEmacsはエラーをシグナルする。
+<dd><p>Make a new symbol with position.  The new object&rsquo;s bare symbol is taken from
+<var>sym</var>, which is either a symbol, or a symbol with position whose bare
+symbol is used.  The new object&rsquo;s position is taken from <var>pos</var>, which is
+either a nonnegative fixnum, or a symbol with position whose position is
+used.  Emacs signals an error if either argument is invalid.  This function
+ignores <code>symbols-with-pos-enabled</code>.
 </p></dd></dl>
 
 </div>
+<hr>
+<div class="header">
+<p>
+Previous: <a href="Shorthands.html">ショートハンド</a>, Up: <a href="Symbols.html">シンボル</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
-This page has generated for branch:emacs-29, commit:959c99b5f3e54d39986c83862c9543d7fc323b57 to check Japanese translation.
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:c7e89aedec937026422cfa62c8f1a2aa83956bc2 to check Japanese translation.
 </body>
 </html>

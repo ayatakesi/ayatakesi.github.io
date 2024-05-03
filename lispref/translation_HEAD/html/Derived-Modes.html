@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 29.3.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
@@ -67,6 +67,7 @@ Next: <a href="Basic-Major-Modes.html" accesskey="n" rel="next">基本的なメ�
 <hr>
 <span id="Pai-Sheng-modonoDing-Yi-"></span><h4 class="subsection">24.2.4 派生モードの定義</h4>
 <span id="index-derived-mode"></span>
+<span id="index-parent-mode"></span>
 
 <p>新しいメジャーモードを定義する推奨方法は、<code>define-derived-mode</code>を使用して既存のメジャーモードから派生させる方法です。それほど近いモードが存在しない場合は<code>text-mode</code>、<code>special-mode</code>、または<code>prog-mode</code>から継承するべきです。<a href="Basic-Major-Modes.html">基本的なメジャーモード</a>を参照してください。これらがいずれも適切でなければ、<code>fundamental-mode</code>から継承することができます(<a href="Major-Modes.html">メジャーモード</a>を参照)。
 </p>
@@ -91,7 +92,11 @@ table)をもち、それは変数<code><var>variant</var>-syntax-table</code>に
 </p>
 <p><var>parent</var>が非<code>nil</code>の<code>mode-class</code>シンボルプロパティをもつ場合、<code>define-derived-mode</code>は<var>variant</var>の<code>mode-class</code>プロパティに同じ値をセットします。これはたとえば<var>parent</var>がspecialモードなら<var>variant</var>もspecialモードになることを保証します(<a href="Major-Mode-Conventions.html">メジャーモードの慣習</a>を参照)。
 </p>
-<p><var>parent</var>にたいして<code>nil</code>を指定することもできます。これにより新たなモードは親をもたなくなります。その後に<code>define-derived-mode</code>は上述のように振る舞いますが、当然<var>parent</var>につながるすべてのアクションは省略されます。
+<p>You can also specify <code>nil</code> for <var>parent</var>.  This gives the new mode
+no parent.  Then <code>define-derived-mode</code> behaves as described above, but,
+of course, omits all actions connected with <var>parent</var>.  Conversely, you
+can use <code>derived-mode-set-parent</code> and <code>derived-mode-add-parents</code>,
+described below, to explicitly set the ancestry of the new mode.
 </p>
 <p>引数<var>docstring</var>は新たなモードにたいするドキュメント文字列を指定します。<code>define-derived-mode</code>はこのドキュメント文字列の最後にそのモードフックに関する一般的な情報と、その後にそのモードのキーマップを追加します。<var>docstring</var>を省略すると<code>define-derived-mode</code>がドキュメント文字列を生成します。
 </p>
@@ -135,14 +140,76 @@ group)であること(すべてのメジャーモードがカスタマイズグ�
 <p><code>define-derived-mode</code>が自動的に行うので、この定義内に<code>interactive</code>指定を記述してはならない。
 </p></dd></dl>
 
+<span id="index-ancestry_002c-of-major-modes"></span>
 <dl class="def">
-<dt id="index-derived_002dmode_002dp"><span class="category">Function: </span><span><strong>derived-mode-p</strong> <em>&amp;rest modes</em><a href='#index-derived_002dmode_002dp' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この関数はカレントメジャーモードがシンボル<var>modes</var>で与えられたメジャーモードのいずれかから派生されていたら非<code>nil</code>をリターンする。
+<dt id="index-derived_002dmode_002dp"><span class="category">Function: </span><span><strong>derived-mode-p</strong> <em>modes</em><a href='#index-derived_002dmode_002dp' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function returns non-<code>nil</code> if the current major mode is derived
+from any of the major modes given by the list of symbols in <var>modes</var>.
+Instead of a list, <var>modes</var> can also be a single mode symbol.
+</p>
+<p>Furthermore, we still support a deprecated calling convention where the
+<var>modes</var> were passed as separate arguments.
+</p>
+<p>When examining the parent modes of the current major mode, this function
+takes into consideration the current mode&rsquo;s parents set by
+<code>define-derived-mode</code>, and also its additional parents set by
+<code>derived-mode-add-parents</code>, described below.
 </p></dd></dl>
 
+<dl class="def">
+<dt id="index-provided_002dmode_002dderived_002dp"><span class="category">Function: </span><span><strong>provided-mode-derived-p</strong> <em>mode modes</em><a href='#index-provided_002dmode_002dderived_002dp' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function returns non-<code>nil</code> if <var>mode</var> is derived from any of
+the major modes given by the list of symbols in <var>modes</var>.  Like with
+<code>derived-mode-p</code>, <var>modes</var> can also be a single symbol, and this
+function also supports a deprecated calling convention where the <var>modes</var>
+were passed as separate symbol arguments.
+</p>
+<p>When examining the parent modes of <var>mode</var>, this function takes into
+consideration the parents of <var>mode</var> set by <code>define-derived-mode</code>,
+and also its additional parents set by <code>derived-mode-add-parents</code>,
+described below.
+</p></dd></dl>
+
+<p>The graph of a major mode&rsquo;s ancestry can be accessed and modified with the
+following lower-level functions:
+</p>
+<dl class="def">
+<dt id="index-derived_002dmode_002dset_002dparent"><span class="category">Function: </span><span><strong>derived-mode-set-parent</strong> <em>mode parent</em><a href='#index-derived_002dmode_002dset_002dparent' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function declares that <var>mode</var> inherits from <code>parent</code>.  This is
+the function that <code>define-derived-mode</code> calls after defining <var>mode</var>
+to register the fact that <var>mode</var> was defined by reusing <code>parent</code>.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-derived_002dmode_002dadd_002dparents"><span class="category">Function: </span><span><strong>derived-mode-add-parents</strong> <em>mode extra-parents</em><a href='#index-derived_002dmode_002dadd_002dparents' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function makes it possible to register additional parents beside the
+one that was used when defining <var>mode</var>.  This can be used when the
+similarity between <var>mode</var> and the modes in <var>extra-parents</var> is such
+that it makes sense to treat <var>mode</var> as a child of those modes for
+purposes like applying directory-local variables and other mode-specific
+settings.  The additional parent modes are specified as a list of symbols in
+<var>extra-parents</var>.  Those additional parent modes will be considered as
+one of the <var>mode</var>s parents by <code>derived-mode-p</code> and
+<code>provided-mode-derived-p</code>.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-derived_002dmode_002dall_002dparents"><span class="category">Function: </span><span><strong>derived-mode-all-parents</strong> <em>mode</em><a href='#index-derived_002dmode_002dall_002dparents' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function returns the list of all the modes in the ancestry of
+<var>mode</var>, ordered from the most specific to the least specific, and
+starting with <var>mode</var> itself.  This includes the additional parent modes,
+if any, added by calling <code>derived-mode-add-parents</code>.
+</p></dd></dl>
+
+
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Basic-Major-Modes.html">基本的なメジャーモード</a>, Previous: <a href="Mode-Help.html">メジャーモードでのヘルプ入手</a>, Up: <a href="Major-Modes.html">メジャーモード</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-29, commit:959c99b5f3e54d39986c83862c9543d7fc323b57 to check Japanese translation.
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:c7e89aedec937026422cfa62c8f1a2aa83956bc2 to check Japanese translation.
 </body>
 </html>

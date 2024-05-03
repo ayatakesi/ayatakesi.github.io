@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 29.3.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
@@ -62,7 +62,7 @@ ul.no-bullet {list-style: none}
 <div class="subsection" id="Misc-Events">
 <div class="header">
 <p>
-Next: <a href="Event-Examples.html" accesskey="n" rel="next">イベントの例</a>, Previous: <a href="Xwidget-Events.html" accesskey="p" rel="prev">Xwidgetイベント</a>, Up: <a href="Input-Events.html" accesskey="u" rel="up">入力イベント</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Event-Examples.html" accesskey="n" rel="next">イベントの例</a>, Previous: <a href="Xwidget-Events.html" accesskey="p" rel="prev">Xwidget events</a>, Up: <a href="Input-Events.html" accesskey="u" rel="up">入力イベント</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
 <span id="sonoTa-nosisutemuibento"></span><h4 class="subsection">22.7.12 その他のシステムイベント</h4>
@@ -70,7 +70,77 @@ Next: <a href="Event-Examples.html" accesskey="n" rel="next">イベントの例<
 <p>他にもシステム内での出来事を表現するイベント型がいくつかあります。
 </p>
 <dl compact="compact">
-<dd><span id="index-delete_002dframe-event"></span>
+<dd><span id="index-text_002dconversion-event"></span>
+</dd>
+<dt><span><code>text-conversion</code></span></dt>
+<dd><p>This kind of event is sent <strong>after</strong> a system-wide input method
+performs an edit to one or more buffers.
+</p>
+<span id="index-text_002dconversion_002dedits"></span>
+<p>Once the event is sent, the input method may already have made changes to
+multiple buffers inside many different frames.  To determine which buffers
+have been changed, and what edits have been made to them, use the variable
+<code>text-conversion-edits</code>, which is set prior to each
+<code>text-conversion</code> event being sent; it is a list of the form:
+</p>
+<div class="example">
+<pre class="example"><code>((<var>buffer</var> <var>beg</var> <var>end</var> <var>ephemeral</var>) ...)</code><!-- /@w -->
+</pre></div>
+
+<p>Where <var>ephemeral</var> is the buffer which was modified, <var>beg</var> and
+<var>end</var> are markers set to the positions of the edit at the time it was
+completed, and <var>ephemeral</var> is either a string, containing any text which
+was inserted (or any text before point which was deleted), <code>t</code>, meaning
+that the edit is a temporary edit made by the input method, or <code>nil</code>,
+meaning that some text was deleted after point.
+</p>
+<span id="index-text_002dconversion_002dstyle"></span>
+<p>Whether or not this event is sent depends on the value of the buffer-local
+variable <code>text-conversion-style</code>, which determines how an input method
+that wishes to make edits to buffer contents will behave.
+</p>
+<p>This variable can have one of four values:
+</p>
+<dl compact="compact">
+<dt><span><code>nil</code></span></dt>
+<dd><p>This means that the input method will be disabled entirely, and key events
+will be sent instead of text conversion events.
+</p>
+</dd>
+<dt><span><code>action</code></span></dt>
+<dd><p>This means that the input method will be enabled, but <tt class="key">RET</tt> will be sent
+whenever the input method wants to insert a new line.
+</p>
+</dd>
+<dt><span><code>password</code></span></dt>
+<dd><p>This is largely identical to <code>action</code>, but also requests an input
+method capable of inserting ASCII characters, and instructs it not to save
+input in locations from which it might be subsequently retrieved by features
+of the input method that cannot handle sensitive information, such as text
+suggestions.
+</p>
+</dd>
+<dt><span><code>t</code></span></dt>
+<dd><p>This, or any other value, means that the input method will be enabled and
+make edits followed by <code>text-conversion</code> events.
+</p></dd>
+</dl>
+
+<span id="index-set_002dtext_002dconversion_002dstyle"></span>
+<p>Changes to the value of this variable will only take effect upon the next
+redisplay after the buffer becomes the selected buffer of a frame.  If you
+need to disable text conversion in a way that takes immediate effect, call
+the function <code>set-text-conversion-style</code> instead.  This has the
+potential to lock up the input method for a significant amount of time, and
+should be used with care.
+</p>
+<span id="index-disable_002dinhibit_002dtext_002dconversion"></span>
+<p>In addition, text conversion is automatically disabled after a prefix key is
+read by the command loop or <code>read-key-sequence</code>.  This can be disabled
+by setting or binding the variable <code>disable-inhibit-text-conversion</code> to
+a non-<code>nil</code> value.
+</p>
+<span id="index-delete_002dframe-event"></span>
 </dd>
 <dt><span><code>(delete-frame (<var>frame</var>))</code></span></dt>
 <dd><p>このイベントの種類はユーザーがウィンドウマネージャーに特定のウィンドウを削除するコマンドを与えたことを示し、Emacsのフレームにたいして発生する。
@@ -97,22 +167,58 @@ Next: <a href="Event-Examples.html" accesskey="n" rel="next">イベントの例<
 </dd>
 <dt><span><code>(wheel-up <var>position</var> <var>clicks</var> <var>lines</var> <var>pixel-delta</var>)</code></span></dt>
 <dt><span><code>(wheel-down <var>position</var> <var>clicks</var> <var>lines</var> <var>pixel-delta</var>)</code></span></dt>
-<dd><p>これらのイベントはマウスホイールを動かすことによって発生する。<var>position</var>要素はそのイベント発生時のマウスカーソル位置を指定するマウス位置リスト(<a href="Click-Events.html">クリックイベント</a>を参照)。
+<dd><p>These events are generated by moving a mouse wheel.  The <var>position</var>
+element is a mouse position list (see <a href="Click-Events.html">クリックイベント</a>), specifying the
+position of the mouse cursor when the event occurred.
 </p>
 <span id="index-mwheel_002dcoalesce_002dscroll_002devents"></span>
-<p><var>clicks</var>が与えられた場合には、ホイールが連続して素早く動いた回数を示す数値。<a href="Repeat-Events.html">リピートイベント</a>を参照のこと。<var>lines</var>が与えられて、それが<code>nil</code>でなければ、それはスクロールされるべきスクリーン行を表す正の行数である(イベントが<code>wheel-up</code>ならスクロールアップ、<code>wheel-down</code>ならスクロールダウン)。<var>pixel-delta</var>が与えられた場合には、それが<code>(<var>x</var>&nbsp;.&nbsp;<var>y</var>)</code><!-- /@w -->という形式のコンスセルであれば、<var>x</var>と<var>y</var>はそれぞれの軸方向にたいしてスクロールされたピクセル数、いわゆる<em>ピクセル単位デルタ(pixelwise
-delta)</em>である。通常だと2つのうちの一方が非0、もう一方は0もしくは0に非常に近い値となる。大きい数値はウィンドウをスクロールする軸を示します。変数<code>mwheel-coalesce-scroll-events</code>が<code>nil</code>の場合には、たとえ非<code>nil</code>であってもスクロールコマンドは<var>lines</var>要素を無視<var>pixel-delta</var>のデータを使用する。この場合にはイベント種別によって暗示される方向(アップかダウン)を無視して、ピクセル単位デルタの符号によりスクロール方向を判断する。
+<p><var>clicks</var>, if present, is the number of times that the wheel was moved in
+quick succession.  See <a href="Repeat-Events.html">リピートイベント</a>.  <var>lines</var>, if present and not
+<code>nil</code>, is the positive number of screen lines that should be scrolled
+(either up, when the event is <code>wheel-up</code>, or down when the event is
+<code>wheel-down</code>).  <var>pixel-delta</var>, if present, is a cons cell of the
+form <code>(<var>x</var>&nbsp;.&nbsp;<var>y</var>)</code><!-- /@w -->, where <var>x</var> and <var>y</var> are the
+numbers of pixels by which to scroll in each axis, a.k.a. <em>pixelwise
+deltas</em>.  Usually, only one of the two will be non-zero, the other will be
+either zero or very close to zero; the larger number indicates the axis to
+scroll the window.  When the variable <code>mwheel-coalesce-scroll-events</code>
+is <code>nil</code>, the scroll commands ignore the <var>lines</var> element, even if
+it&rsquo;s non-<code>nil</code>, and use the <var>pixel-delta</var> data instead; in that
+case, the direction of scrolling is determined by the sign of the pixelwise
+deltas, and the direction (up or down) implied by the event kind is ignored.
 </p>
 <span id="index-pixel_002dresolution-wheel-events"></span>
-<p>これらのピクセル単位デルタ<var>x</var>と<var>y</var>を用いれば、マウスホイールがピクセル解像度で実際にどれだけ動いたかを判断できる。たとえばピクセル単位デルタを使うことによって、ユーザーが回したマウスホイールとまったく同じようにディスプレイをスクロールできるだろう。このピクセル単位のスクロールが可能なのは<code>mwheel-coalesce-scroll-events</code>が<code>nil</code>のときだけであり、この変数が非<code>nil</code>の場合には通常は<var>pixel-delta</var>データは生成されない。
+<p>You can use these <var>x</var> and <var>y</var> pixelwise deltas to determine how much
+the mouse wheel has actually moved at pixel resolution.  For example, the
+pixelwise deltas could be used to scroll the display at pixel resolution,
+exactly according to the user&rsquo;s turning the mouse wheel.  This pixelwise
+scrolling is possible only when <code>mwheel-coalesce-scroll-events</code> is
+<code>nil</code>, and in general the <var>pixel-delta</var> data is not generated when
+that variable is non-<code>nil</code>.
 </p>
 <span id="index-mouse_002dwheel_002dup_002devent"></span>
 <span id="index-mouse_002dwheel_002ddown_002devent"></span>
-<p><code>wheel-up</code>と<code>wheel-down</code>のイベントはある種のシステムでのみ発生する。それら以外のシステムでは、かわりに<code>mouse-4</code>と<code>mouse-5</code>が使用される。可搬性のあるコードとするためには、マウスホイールからどのイベント型が期待されるかを決定するために、<samp>mwheel.el</samp>内で定義されている変数<code>mouse-wheel-up-event</code>、<code>mouse-wheel-up-alternate-event</code>、<code>mouse-wheel-down-event</code>、<code>mouse-wheel-down-alternate-event</code>を使用すること。
+<p>The <code>wheel-up</code> and <code>wheel-down</code> events are generated only on some
+kinds of systems.  On other systems, other events like <code>mouse-4</code> and
+<code>mouse-5</code> are used instead.  Portable code should handle both
+<code>wheel-up</code> and <code>wheel-down</code> events as well as the events specified
+in the variables <code>mouse-wheel-up-event</code> and
+<code>mouse-wheel-down-event</code>, defined in <samp>mwheel.el</samp>.  Beware that for
+historical reasons the <code>mouse-wheel-<em>up</em>-event</code> is the variable
+that holds an event that should be handled similarly to
+<code>wheel-<em>down</em></code> and vice versa.
 </p>
 <span id="index-mouse_002dwheel_002dleft_002devent"></span>
 <span id="index-mouse_002dwheel_002dright_002devent"></span>
-<p>同様に<code>mouse-wheel-left-event</code>と<code>mouse-wheel-right-event</code>を生成できる一部のマウスでは、<code>mouse-wheel-tilt-scroll</code>が非<code>mouse-wheel-tilt-scroll</code>ならこれらをスクロールに使用できる。ただしこれらのスクロールイベントと同時に別のイベントをも生成するマウスもいくつかあり、邪魔をするかもしれない。この問題を解決するにはこれらのイベントにたいするバインドを削除する方法が一般的である(たとえば<code>mouse-6</code>や<code>mouse-7</code>等を削除するがバインドはハードウェアとオペレーティングシステムに大きく依存する)。
+<p>The same holds for the horizontal wheel movements which are usually
+represented by <code>wheel-left</code> and <code>wheel-right</code> events, but for
+which portable code should also obey the variables
+<code>mouse-wheel-left-event</code> and <code>mouse-wheel-right-event</code>, defined in
+<samp>mwheel.el</samp>.  However, some mice also generate other events at the same
+time as they&rsquo;re generating these scroll events which may get in the way.
+The way to fix this is generally to unbind these events (for instance,
+<code>mouse-6</code> or <code>mouse-7</code>, but this is very hardware and operating
+system dependent).
 </p>
 <span id="index-pinch-event"></span>
 </dd>
@@ -231,8 +337,13 @@ number)、<var>language-id</var>は新たな入力言語の数値IDである。<
 <p>いくつかの<code>delete-frame</code>のようなスペシャルイベントは、デフォルトではEmacsコマンドを呼び出します(他のイベントはバインドされない)。<code>special-event-map</code>を通じて、あるスペシャルイベントがコマンドを呼び出すようにすることができます。このマップでファンクションキーにバインドしたコマンドは、<code>last-input-event</code>内でそれが呼び出された完全なイベントを調べることができます。<a href="Special-Events.html">スペシャルイベント</a>を参照してください。
 </p>
 </div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Event-Examples.html">イベントの例</a>, Previous: <a href="Xwidget-Events.html">Xwidget events</a>, Up: <a href="Input-Events.html">入力イベント</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
 
 
-This page has generated for branch:emacs-29, commit:959c99b5f3e54d39986c83862c9543d7fc323b57 to check Japanese translation.
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:c7e89aedec937026422cfa62c8f1a2aa83956bc2 to check Japanese translation.
 </body>
 </html>

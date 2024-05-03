@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 29.3.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
@@ -65,7 +65,7 @@ ul.no-bullet {list-style: none}
 Next: <a href="Focus-Events.html" accesskey="n" rel="next">フォーカスイベント</a>, Previous: <a href="Motion-Events.html" accesskey="p" rel="prev">モーションイベント</a>, Up: <a href="Input-Events.html" accesskey="u" rel="up">入力イベント</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="tatutisukurinnoibento"></span><h4 class="subsection">22.7.9 タッチスクリーンのイベント</h4>
+<span id="Touchscreen-Events-1"></span><h4 class="subsection">22.7.9 Touchscreen Events</h4>
 <span id="index-touchscreen-events"></span>
 <span id="index-support-for-touchscreens"></span>
 
@@ -86,6 +86,10 @@ point)</em>によって表されることになります。たとえば&ldquo;�
 <dt><span><code>(touchscreen-begin <var>point</var>)</code></span></dt>
 <dd><p>これはユーザーがタッチスクリーンにたいして指を押すことで<var>point</var>が作成されたときに送信されるイベント。
 </p>
+<p>Imaginary prefix keys are also affixed to these events
+<code>read-key-sequence</code> when they originate on top of a special part of a
+frame or window.  See <a href="Key-Sequence-Input.html">キーシーケンス入力</a>.
+</p>
 <span id="index-touchscreen_002dupdate-event"></span>
 </dd>
 <dt><span><code>(touchscreen-update <var>points</var>)</code></span></dt>
@@ -93,14 +97,230 @@ point)</em>によって表されることになります。たとえば&ldquo;�
 </p>
 <span id="index-touchscreen_002dend-event"></span>
 </dd>
-<dt><span><code>(touchscreen-end <var>point</var>)</code></span></dt>
+<dt><span><code>(touchscreen-end <var>point</var> <var>canceled</var>)</code></span></dt>
 <dd><p>これは他のプログラムにより奪われたりユーザーがタッチスクリーンから指を離したことによって<var>point</var>がディスプレイ上に存在しなくなった際に送信されるイベント。
+</p>
+<p><var>canceled</var> is non-<code>nil</code> if the touch sequence has been intercepted
+by another program (such as the window manager), and Emacs should undo or
+avoid any editing commands that would otherwise result from the touch
+sequence.
+</p>
+<p>Imaginary prefix keys are also affixed to these events
+<code>read-key-sequence</code> when they originate on top of a special part of a
+frame or window.
 </p></dd>
 </dl>
 
+<p>If a touchpoint is pressed against the menu bar, then Emacs will not
+generate any corresponding <code>touchscreen-begin</code> or
+<code>touchscreen-end</code> events; instead, the menu bar may be displayed after
+<code>touchscreen-end</code> would have been delivered under other circumstances.
+</p>
+<span id="index-mouse-emulation-from-touch-screen-events"></span>
+<p>When no command is bound to <code>touchscreen-begin</code>, <code>touchscreen-end</code>
+or <code>touchscreen-update</code>, Emacs calls a &ldquo;key translation function&rdquo;
+(see <a href="Translation-Keymaps.html">イベントシーケンス変換のためのキーマップ</a>) to translate key sequences containing touch
+screen events into ordinary mouse events (see <a href="Mouse-Events.html">マウスイベント</a>.)  Since
+Emacs doesn&rsquo;t support distinguishing events originating from separate mouse
+devices, it assumes that a maximum of two touchpoints are active while
+translation takes place, and does not place any guarantees on the results of
+event translation when that restriction is overstepped.
+</p>
+<p>Emacs applies two different strategies for translating touch events into
+mouse events, contingent on factors such as the commands bound to keymaps
+that are active at the location of the <code>touchscreen-begin</code> event.  If a
+command is bound to <code>down-mouse-1</code> at that location, the initial
+translation consists of a single <code>down-mouse-1</code> event, with subsequent
+<code>touchscreen-update</code> events translated to mouse motion events
+(see <a href="Motion-Events.html">モーションイベント</a>), and a final <code>touchscreen-end</code> event translated
+to a <code>mouse-1</code> or <code>drag-mouse-1</code> event (unless the
+<code>touchscreen-end</code> event indicates that the touch sequence has been
+intercepted by another program.)  This is dubbed &ldquo;simple translation&rdquo;, and
+produces a simple correspondence between touchpoint motion and mouse motion.
+</p>
+<span id="index-ignored_002dmouse_002dcommand_002c-a-symbol-property"></span>
+<p>However, some commands bound to
+<code>down-mouse-1</code>&ndash;<code>mouse-drag-region</code>, for example&ndash;either conflict
+with defined touch screen gestures (such as &ldquo;long-press to drag&rdquo;), or with
+user expectations for touch input, and shouldn&rsquo;t subject the touch sequence
+to simple translation.  If a command whose name contains the property
+(see <a href="Symbol-Properties.html">シンボルのプロパティ</a>)  <code>ignored-mouse-command</code> is encountered or
+there is no command bound to <code>down-mouse-1</code>, a more irregular form of
+translation takes place: here, Emacs processes touch screen gestures
+(see <a data-manual="emacs" href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Touchscreens.html#Touchscreens">Touchscreens</a> in <cite>The GNU Emacs Manual</cite>) first, and finally
+attempts to translate touch screen events into mouse events if no gesture
+was detected prior to a closing <code>touchscreen-end</code> event (with its
+<var>canceled</var> parameter <code>nil</code>, as with simple translation) and a
+command is bound to <code>mouse-1</code> at the location of that event.  Before
+generating the <code>mouse-1</code> event, point is also set to the location of
+the <code>touchscreen-end</code> event, and the window containing the position of
+that event is selected, as a compromise for packages which assume
+<code>mouse-drag-region</code> has already set point to the location of any mouse
+click and selected the window where it took place.
+</p>
+<p>To prevent unwanted <code>mouse-1</code> events arriving after a mouse menu is
+dismissed (see <a href="Mouse-Menus.html">メニューとマウス</a>), Emacs also avoids simple translation if
+<code>down-mouse-1</code> is bound to a keymap, making it a prefix key.  In lieu
+of simple translation, it translates the closing <code>touchscreen-end</code> to a
+<code>down-mouse-1</code> event with the starting position of the touch sequence,
+consequently displaying the mouse menu.
+</p>
+<span id="index-mouse_002d1_002dmenu_002dcommand_002c-a-symbol-property"></span>
+<p>Since certain commands are also bound to <code>down-mouse-1</code> for the purpose
+of displaying pop-up menus, Emacs additionally behaves as illustrated in the
+last paragraph if <code>down-mouse-1</code> is bound to a command whose name has
+the property <code>mouse-1-menu-command</code>.
+</p>
+<span id="index-pinch_002dto_002dzoom-touchscreen-gesture-translation"></span>
+<p>When a second touch point is registered as a touch point is already being
+translated, gesture translation is terminated, and the distance from the
+second touch point (the <em>ancillary tool</em>) to the first is measured.
+Subsequent motion from either of those touch points will yield
+<code>touchscreen-pinch</code> events incorporating the ratio formed by the
+distance between their new positions and the distance measured at the
+outset, as illustrated in the following table.
+</p>
+<span id="index-touchscreen-gesture-events"></span>
+<p>If touch gestures are detected during translation, one of the following
+input events may be generated:
+</p>
+<dl compact="compact">
+<dd><span id="index-touchscreen_002dscroll-event"></span>
+</dd>
+<dt><span><code>(touchscreen-scroll <var>window</var> <var>dx</var> <var>dy</var>)</code></span></dt>
+<dd><p>If a &ldquo;scrolling&rdquo; gesture is detected during the translation process, each
+subsequent <code>touchscreen-update</code> event is translated to a
+<code>touchscreen-scroll</code> event, where <var>dx</var> and <var>dy</var> specify, in
+pixels, the relative motion of the touchpoint from the position of the
+<code>touchscreen-begin</code> event that started the sequence or the last
+<code>touchscreen-scroll</code> event, whichever came later.
+</p>
+<span id="index-touchscreen_002dhold-event"></span>
+</dd>
+<dt><span><code>(touchscreen-hold <var>posn</var>)</code></span></dt>
+<dd><p>If the single active touchpoint remains stationary for more than
+<code>touch-screen-delay</code> seconds after a <code>touchscreen-begin</code> is
+generated, a &ldquo;long-press&rdquo; gesture is detected during the translation
+process, and a <code>touchscreen-hold</code> event is sent, with <var>posn</var> set to
+a mouse position list containing the position of the
+<code>touchscreen-begin</code> event.
+</p>
+<span id="index-touchscreen_002ddrag-event"></span>
+</dd>
+<dt><span><code>(touchscreen-drag <var>posn</var>)</code></span></dt>
+<dd><p>If a &ldquo;long-press&rdquo; gesture is detected while translating the current touch
+sequence or &ldquo;drag-to-select&rdquo; is being resumed as a result of the
+<code>touch-screen-extend-selection</code> user option, a <code>touchscreen-drag</code>
+event is sent upon each subsequent <code>touchscreen-update</code> event with
+<var>posn</var> set to the new position of the touchpoint.
+</p>
+<span id="index-touchscreen_002drestart_002ddrag-event"></span>
+</dd>
+<dt><span><code>(touchscreen-restart-drag <var>posn</var>)</code></span></dt>
+<dd><p>This event is sent upon the start of a touch sequence resulting in the
+continuation of a &ldquo;drag-to-select&rdquo; gesture (subject to the aforementioned
+user option) with <var>posn</var> set to the position list of the initial
+<code>touchscreen-begin</code> event within that touch sequence.
+</p>
+<span id="index-touchscreen_002dpinch-event"></span>
+</dd>
+<dt><span><code>(touchscreen-pinch <var>posn</var> <var>ratio</var> <var>pan-x</var> <var>pan-y</var> <var>ratio-diff</var>)</code></span></dt>
+<dd><p>This event is delivered upon significant changes to the positions of either
+active touch point when an ancillary tool is active.
+</p>
+<p><var>posn</var> is a mouse position list for the midpoint of a line drawn from
+the ancillary tool to the other touch point being observed.
+</p>
+<p><var>ratio</var> is the distance between both touch points being observed divided
+by that distance when the ancillary point was first registered; which is to
+say, the scale of the &ldquo;pinch&rdquo; gesture.
+</p>
+<p><var>pan-x</var> and <var>pan-y</var> are the difference between the pixel position of
+<var>posn</var> and this position within the last event delivered appertaining to
+this series of touch events, or in the case that no such event exists, the
+centerpoint between both touch points when the ancillary tool was first
+registered.
+</p>
+<p><var>ratio-diff</var> is the difference between this event&rsquo;s ratio and
+<var>ratio</var> in the last event delivered; it is <var>ratio</var> if no such event
+exists.
+</p>
+<p>Such events are sent when the magnitude of the changes they represent will
+yield a <var>ratio</var> which differs by more than <code>0.2</code> from that in the
+previous event, or the sum of <var>pan-x</var> and <var>pan-y</var> will surpass half
+the frame&rsquo;s character width in pixels (see <a href="Frame-Font.html">フレームのフォント</a>).
+</p></dd>
+</dl>
+
+<span id="index-handling-touch-screen-events"></span>
+<span id="index-tap-and-drag_002c-touch-screen-gestures"></span>
+<p>Several functions are provided for Lisp programs that handle touch screen
+events.  The intended use of the first two functions described below is from
+commands bound directly to <code>touchscreen-begin</code> events; they allow
+responding to commonly used touch screen gestures separately from mouse
+event translation.
+</p>
+<dl class="def">
+<dt id="index-touch_002dscreen_002dtrack_002dtap"><span class="category">Function: </span><span><strong>touch-screen-track-tap</strong> <em>event &amp;optional update data threshold</em><a href='#index-touch_002dscreen_002dtrack_002dtap' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function is used to track a single &ldquo;tap&rdquo; gesture originating from the
+<code>touchscreen-begin</code> event <var>event</var>, often used to set the point or
+to activate a button.  It waits for a <code>touchscreen-end</code> event with the
+same touch identifier to arrive, at which point it returns <code>t</code>,
+signifying the end of the gesture.
+</p>
+<p>If a <code>touchscreen-update</code> event arrives in the mean time and contains
+at least one touchpoint with the same identifier as in <var>event</var>, the
+function <var>update</var> is called with two arguments, the list of touchpoints
+in that <code>touchscreen-update</code> event, and <var>data</var>.
+</p>
+<p>If <var>threshold</var> is non-<code>nil</code> and such an event indicates that the
+touchpoint represented by <var>event</var> has moved beyond a threshold of either
+<var>threshold</var> or 10 pixels if it is not a number from the position of
+<var>event</var>, <code>nil</code> is returned and mouse event translation is resumed
+for that touchpoint, so as not to impede the recognition of any subsequent
+touchscreen gesture arising from its sequence.
+</p>
+<p>If any other event arrives in the mean time, <code>nil</code> is returned.  The
+caller should not perform any action in that case.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-touch_002dscreen_002dtrack_002ddrag"><span class="category">Function: </span><span><strong>touch-screen-track-drag</strong> <em>event update &amp;optional data</em><a href='#index-touch_002dscreen_002dtrack_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function is used to track a single &ldquo;drag&rdquo; gesture originating from
+the <code>touchscreen-begin</code> event <code>event</code>.
+</p>
+<p>It behaves like <code>touch-screen-track-tap</code>, except that it returns
+<code>no-drag</code> and refrains from calling <var>update</var> if the touchpoint in
+<code>event</code> did not move far enough (by default, 5 pixels from its position
+in <code>event</code>) to qualify as an actual drag.
+</p></dd></dl>
+
+<p>In addition to those two functions, a function is provided for commands
+bound to some types of events generated through mouse event translation to
+prevent unwanted events from being generated after it is called.
+</p>
+<dl class="def">
+<dt id="index-touch_002dscreen_002dinhibit_002ddrag"><span class="category">Function: </span><span><strong>touch-screen-inhibit-drag</strong><a href='#index-touch_002dscreen_002dinhibit_002ddrag' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function inhibits the generation of <code>touchscreen-drag</code> events
+during mouse event translation for the duration of the touch sequence being
+translated after it is called.  It must be called from a command which is
+bound to a <code>touchscreen-hold</code> or <code>touchscreen-drag</code> event, and
+signals an error otherwise.
+</p>
+<p>Since this function can only be called after a gesture is already recognized
+during mouse event translation, no mouse events will be generated from touch
+events constituting the previously mentioned touch sequence after it is
+called.
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Focus-Events.html">フォーカスイベント</a>, Previous: <a href="Motion-Events.html">モーションイベント</a>, Up: <a href="Input-Events.html">入力イベント</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-29, commit:959c99b5f3e54d39986c83862c9543d7fc323b57 to check Japanese translation.
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:c7e89aedec937026422cfa62c8f1a2aa83956bc2 to check Japanese translation.
 </body>
 </html>

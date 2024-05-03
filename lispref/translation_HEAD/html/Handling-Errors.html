@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 29.3.
+corresponding to Emacs version 27.1.
 
 Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
@@ -241,6 +241,109 @@ descriptor)にたいするエラーメッセージ文字列をリターンする
 %S&quot;</code>のように、単一の&lsquo;<samp>%</samp>&rsquo;シーケンスを含むこと。エラーをシグナルするとは予測されないが、もし発生した場合は堅牢であるべきようなコードの周囲に<code>with-demoted-errors</code>を使用する。このマクロは<code>condition-case</code>ではなく、<code>condition-case-unless-debug</code>を使用することに注意。
 </p></dd></dl>
 
+<p>Occasionally, we want to catch some errors and record some information about
+the conditions in which they occurred, such as the full backtrace, or the
+current buffer.  This kinds of information is sadly not available in the
+handlers of a <code>condition-case</code> because the stack is unwound before
+running that handler, so the handler is run in the dynamic context of the
+<code>condition-case</code> rather than that of the place where the error was
+signaled.  For those circumstances, you can use the following form:
+</p>
+<dl class="def">
+<dt id="index-handler_002dbind"><span class="category">Macro: </span><span><strong>handler-bind</strong> <em>handlers body&hellip;</em><a href='#index-handler_002dbind' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This special form runs <var>body</var> and if it executes without error, the
+value it returns becomes the value of the <code>handler-bind</code> form.  In this
+case, the <code>handler-bind</code> has no effect.
+</p>
+<p><var>handlers</var> should be a list of elements of the form
+<code>(<var>conditions</var> <var>handler</var>)</code> where <var>conditions</var> is an error
+condition name to be handled, or a list of condition names, and
+<var>handler</var> should be a form whose evaluation should return a function.
+As with <code>condition-case</code>, condition names are symbols.
+</p>
+<p>Before running <var>body</var>, <code>handler-bind</code> evaluates all the
+<var>handler</var> forms and installs those handlers to be active during the
+evaluation of <var>body</var>.  When an error is signaled, Emacs searches all the
+active <code>condition-case</code> and <code>handler-bind</code> forms for a handler
+that specifies one or more of these condition names.  When the innermost
+matching handler is one installed by <code>handler-bind</code>, the <var>handler</var>
+function is called with a single argument holding the error description.
+</p>
+<p>Contrary to what happens with <code>condition-case</code>, <var>handler</var> is called
+in the dynamic context where the error happened.  This means it is executed
+without unbinding any variable bindings or running any cleanups of
+<code>unwind-protect</code>, so that all those dynamic bindings are still in
+effect.  There is one exception: while running the <var>handler</var> function,
+all the error handlers between the code that signaled the error and the
+<code>handler-bind</code> are temporarily suspended, meaning that when an error is
+signaled, Emacs will only search the active <code>condition-case</code> and
+<code>handler-bind</code> forms that are inside the <var>handler</var> function or
+outside of the current <code>handler-bind</code>.  Note also that lexically-bound
+variables (see <a href="Lexical-Binding.html">レキシカルバインディング</a>) are not affected, since they do not have
+dynamic extent.
+</p>
+<p>Like any normal function, <var>handler</var> can exit non-locally, typically via
+<code>throw</code>, or it can return normally.  If <var>handler</var> returns normally,
+it means the handler <em>declined</em> to handle the error and the search for
+an error handler is continued where it left off.
+</p>
+<p>For example, if we wanted to keep a log of all the errors that occur during
+the execution of a particular piece of code together with the buffer that&rsquo;s
+current when the error is signaled, but without otherwise affecting the
+behavior of that code, we can do it with:
+</p>
+<div class="example">
+<pre class="example">(handler-bind
+    ((error
+      (lambda (err)
+        (push (cons err (current-buffer)) my-log-of-errors))))
+  <var>body-forms</var>&hellip;)
+</pre></div>
+
+<p>This will log only those errors that are not caught internally to
+<var>body-forms</var>&hellip;, in other words errors that &ldquo;escape&rdquo; from
+<var>body-forms</var>&hellip;, and it will not prevent those errors from being
+passed on to surrounding <code>condition-case</code> handlers (or
+<code>handler-bind</code> handlers for that matter) since the above handler
+returns normally.
+</p>
+<p>We can also use <code>handler-bind</code> to replace an error with another, as in
+the code below which turns all errors of type <code>user-error</code> that occur
+during the execution of <var>body-forms</var>&hellip; into plain <code>error</code>:
+</p>
+<div class="example">
+<pre class="example">(handler-bind
+    ((user-error
+      (lambda (err)
+        (signal 'error (cdr err)))))
+  <var>body-forms</var>&hellip;)
+</pre></div>
+
+<p>We can get almost the same result with <code>condition-case</code>:
+</p>
+<div class="example">
+<pre class="example">(condition-case err
+    (progn <var>body-forms</var>&hellip;)
+  (user-error (signal 'error (cdr err))))
+</pre></div>
+
+<p>but with the difference that when we (re)signal the new error in
+<code>handler-bind</code>, the dynamic environment from the original error is
+still active, which means for example that if we enter the debugger at this
+point, it will show us a complete backtrace including the point where we
+signaled the original error:
+</p>
+<div class="example">
+<pre class="example">Debugger entered--Lisp error: (error &quot;Oops&quot;)
+  signal(error (&quot;Oops&quot;))
+  #f(lambda (err) [t] (signal 'error (cdr err)))((user-error &quot;Oops&quot;))
+  user-error(&quot;Oops&quot;)
+  &hellip;
+  eval((handler-bind ((user-error (lambda (err) &hellip;
+</pre></div>
+
+</dd></dl>
+
 </div>
 <hr>
 <div class="header">
@@ -249,6 +352,6 @@ Next: <a href="Error-Symbols.html">エラーシンボルとエラー条件</a>, 
 </div>
 
 
-This page has generated for branch:emacs-29, commit:959c99b5f3e54d39986c83862c9543d7fc323b57 to check Japanese translation.
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:c7e89aedec937026422cfa62c8f1a2aa83956bc2 to check Japanese translation.
 </body>
 </html>
