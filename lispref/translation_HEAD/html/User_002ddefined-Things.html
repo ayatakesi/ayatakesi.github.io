@@ -1,0 +1,223 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.50.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>User-defined Things (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="User-defined Things (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="User-defined Things (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="May 15, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Parsing-Program-Source.html" rel="up" title="Parsing Program Source">
+<link href="Multiple-Languages.html" rel="next" title="Multiple Languages">
+<link href="Pattern-Matching.html" rel="prev" title="Pattern Matching">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="User_002ddefined-Things">
+<div class="header">
+<p>
+Next: <a href="Multiple-Languages.html" accesskey="n" rel="next">複数言語ののパース</a>, Previous: <a href="Pattern-Matching.html" accesskey="p" rel="prev">tree-sitterノードにたいするパターンマッチング</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">Parsing Program Source</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="User_002ddefined-_0060_0060Things_0027_0027-and-Navigation"></span><h3 class="section">38.6 User-defined &ldquo;Things&rdquo; and Navigation</h3>
+<span id="index-user_002ddefined-things_002c-with-tree_002dsitter-parsing"></span>
+
+<p>It&rsquo;s often useful to be able to identify and find certain <em>things</em> in a
+buffer, like function and class definitions, statements, code blocks,
+strings, comments, etc.  Emacs allows users to define what kind of
+tree-sitter node corresponds to a &ldquo;thing&rdquo;.  This enables handy features
+like jumping to the next function, marking the code block at point, or
+transposing two function arguments.
+</p>
+<p>The &ldquo;things&rdquo; feature in Emacs is independent of the pattern matching
+feature of tree-sitter, and comparatively less powerful, but more suitable
+for navigation and traversing the parse tree.
+</p>
+<p>You can define things with <var>treesit-thing-settings</var>.
+</p>
+<dl class="def">
+<dt id="index-treesit_002dthing_002dsettings"><span class="category">Variable: </span><span><strong>treesit-thing-settings</strong><a href='#index-treesit_002dthing_002dsettings' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This is an alist of thing definitions for each language.  The key of each
+entry is a language symbol, and the value is a list of thing definitions of
+the form <code>(<var>thing</var>&nbsp;<var>pred</var>)</code><!-- /@w -->, where <var>thing</var> is a symbol
+representing the thing, like <code>defun</code>, <code>sexp</code>, or <code>sentence</code>;
+and <var>pred</var> specifies what kind of tree-sitter node is this <var>thing</var>.
+</p>
+<p><var>pred</var> can be a regexp string that matches the type of the node; it can
+be a function that takes a node as the argument and returns a boolean that
+indicates whether the node qualifies as the thing; or it can be a cons
+<code>(<var>regexp</var>&nbsp;.&nbsp;<var>fn</var>)</code><!-- /@w -->, which is a combination of a regular
+expression <var>regexp</var> and a function <var>fn</var>&mdash;the node has to match both
+the <var>regexp</var> and to satisfy <var>fn</var> to qualify as the thing.
+</p>
+<p><var>pred</var> can also be recursively defined.  It can be <code>(or&nbsp;<var>pred</var>&hellip;)</code><!-- /@w -->, meaning that satisfying any one of the <var>pred</var>s
+qualifies the node as the thing.  It can be <code>(not&nbsp;<var>pred</var>)</code><!-- /@w -->,
+meaning that not satisfying <var>pred</var> qualifies the node.
+</p>
+<p>Finally, <var>pred</var> can refer to other <var>thing</var>s defined in this list.
+For example, <code>(or&nbsp;sexp&nbsp;sentence)</code><!-- /@w --> defines something that&rsquo;s either a
+<code>sexp</code> thing or a <code>sentence</code> thing, as defined by some other rule
+in the alist.
+</p>
+<p>Here&rsquo;s an example <var>treesit-thing-settings</var> for C and C++:
+</p>
+<div class="example">
+<pre class="example">((c
+  (defun &quot;function_definition&quot;)
+  (sexp (not &quot;[](),[{}]&quot;))
+  (comment &quot;comment&quot;)
+  (string &quot;raw_string_literal&quot;)
+  (text (or comment string)))
+ (cpp
+  (defun (&quot;function_definition&quot; . cpp-ts-mode-defun-valid-p))
+  (defclass &quot;class_specifier&quot;)
+  (comment &quot;comment&quot;)))
+</pre></div>
+
+<p>Note that this example is modified for didactical purposes, and isn&rsquo;t
+exactly how C and C<tt>++</tt> modes define things.
+</p></dd></dl>
+
+<p>The rest of this section lists a few functions that take advantage of the
+thing definitions.  Besides the functions below, some other functions listed
+elsewhere also utilize the thing feature, e.g., tree-traversing functions
+like <code>treesit-search-forward</code>, <code>treesit-induce-sparse-tree</code>, etc.
+See <a href="Retrieving-Nodes.html">Retrieving Nodes</a>.
+</p>
+<dl class="def">
+<dt id="index-treesit_002dthing_002dprev"><span class="category">Function: </span><span><strong>treesit-thing-prev</strong> <em>position thing</em><a href='#index-treesit_002dthing_002dprev' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function returns the first node before <var>position</var> that is the
+specified <var>thing</var>.  If no such node exists, it returns <code>nil</code>.  It&rsquo;s
+guaranteed that, if a node is returned, the node&rsquo;s end position is less or
+equal to <var>position</var>.  In other words, this function never returns a node
+that encloses <var>position</var>.
+</p>
+<p><var>thing</var> can be either a thing symbol like <code>defun</code>, or simply a
+thing definition like <code>&quot;function_definition&quot;</code>.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dthing_002dnext"><span class="category">Function: </span><span><strong>treesit-thing-next</strong> <em>position thing</em><a href='#index-treesit_002dthing_002dnext' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function is similar to <code>treesit-thing-prev</code>, only it returns the
+first node <em>after</em> <var>position</var> that&rsquo;s the <var>thing</var>.  It also
+guarantees that if a node is returned, the node&rsquo;s start position is greater
+or equal to <var>position</var>.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dnavigate_002dthing"><span class="category">Function: </span><span><strong>treesit-navigate-thing</strong> <em>position arg side thing &amp;optional tactic</em><a href='#index-treesit_002dnavigate_002dthing' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function builds upon <code>treesit-thing-prev</code> and
+<code>treesit-thing-next</code> and provides functionality that a navigation
+command would find useful.  It returns the position after moving across
+<var>arg</var> instances of <var>thing</var> from <var>position</var>.  If there aren&rsquo;t
+enough things to navigate across, it returns nil.  The function doesn&rsquo;t move
+point.
+</p>
+<p>A positive <var>arg</var> means moving forward that many instances of
+<var>thing</var>; negative <var>arg</var> means moving backward.  If <var>side</var> is
+<code>beg</code>, this function stops at the beginning of <var>thing</var>; if
+<code>end</code>, stop at the end of <var>thing</var>.
+</p>
+<p>Like in <code>treesit-thing-prev</code>, <var>thing</var> can be a thing symbol defined
+in <var>treesit-thing-settings</var>, or a thing definition.
+</p>
+<p><var>tactic</var> determines how this function moves between things.  It can be
+<code>nested</code>, <code>top-level</code>, <code>restricted</code>, or <code>nil</code>.
+<code>nested</code> or <code>nil</code> means normal nested navigation: first try to
+move across siblings; if there aren&rsquo;t any siblings left in the current
+level, move to the parent, then its siblings, and so on.  <code>top-level</code>
+means only navigate across top-level things and ignore nested things.
+<code>restricted</code> means movement is restricted within the thing that
+encloses <var>position</var>, if there is such a thing.  This tactic is useful
+for commands that want to stop at the current nesting level and not move up.
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dthing_002dat"><span class="category">Function: </span><span><strong>treesit-thing-at</strong> <em>position thing &amp;optional strict</em><a href='#index-treesit_002dthing_002dat' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>This function returns the smallest node that&rsquo;s the <var>thing</var> and encloses
+<var>position</var>; if there&rsquo;s no such node, it returns <code>nil</code>.
+</p>
+<p>The returned node must enclose <var>position</var>, i.e., its start position is
+less or equal to <var>position</var>, and it&rsquo;s end position is greater or equal
+to <var>position</var>.
+</p>
+<p>If <var>strict</var> is non-<code>nil</code>, this function uses strict comparison,
+i.e., start position must be strictly greater than <var>position</var>, and end
+position must be strictly less than <var>position</var>.
+</p>
+<p><var>thing</var> can be either a thing symbol defined in
+<var>treesit-thing-settings</var>, or a thing definition.
+</p></dd></dl>
+
+<span id="index-treesit_002dbeginning_002dof_002dthing"></span>
+<span id="index-treesit_002dend_002dof_002dthing"></span>
+<span id="index-treesit_002dthing_002dat_002dpoint"></span>
+<p>There are also some convenient wrapper functions.
+<code>treesit-beginning-of-thing</code> moves point to the beginning of a thing,
+<code>treesit-end-of-thing</code> moves to the end of a thing, and
+<code>treesit-thing-at-point</code> returns the thing at point.
+</p>
+<p>There are also defun commands that specifically use the <code>defun</code>
+definition (as a fallback of <var>treesit-defun-type-regexp</var>), like
+<code>treesit-beginning-of-defun</code>, <code>treesit-end-of-defun</code>, and
+<code>treesit-defun-at-point</code>.  In addition, these functions use
+<var>treesit-defun-tactic</var> as the navigation tactic.  They are described in
+more detail in other sections (see <a href="Tree_002dsitter-Major-Modes.html">Developing major modes with tree-sitter</a>).
+</p>
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Multiple-Languages.html">複数言語ののパース</a>, Previous: <a href="Pattern-Matching.html">tree-sitterノードにたいするパターンマッチング</a>, Up: <a href="Parsing-Program-Source.html">Parsing Program Source</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:75dd3c3c4e1015af36ee515b6a6118d82ca4320b to check Japanese translation.
+</body>
+</html>

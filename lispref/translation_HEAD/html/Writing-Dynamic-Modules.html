@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.50.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Writing Dynamic Modules (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Writing Dynamic Modules (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Writing Dynamic Modules (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="May 15, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="GNU-Emacs-Internals.html" rel="up" title="GNU Emacs Internals">
+<link href="Object-Internals.html" rel="next" title="Object Internals">
+<link href="Writing-Emacs-Primitives.html" rel="prev" title="Writing Emacs Primitives">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Writing-Dynamic-Modules">
+<div class="header">
+<p>
+Next: <a href="Object-Internals.html" accesskey="n" rel="next">オブジェクトの内部</a>, Previous: <a href="Writing-Emacs-Primitives.html" accesskey="p" rel="prev">Emacsプリミティブの記述</a>, Up: <a href="GNU-Emacs-Internals.html" accesskey="u" rel="up">GNU Emacsの内部</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Dong-De-nirodosarerumoziyurunoJi-Shu-"></span><h3 class="section">E.8 動的にロードされるモジュールの記述</h3>
+<span id="index-writing-emacs-modules"></span>
+<span id="index-dynamic-modules_002c-writing"></span>
+
+<span id="index-module-API"></span>
+<p>このセクションでがEmacsのモジュール<acronym>API</acronym>、およびEmacs用の拡張モジュール記述の一部としてそれらを使用する方法について説明します。モジュール<acronym>API</acronym>はCプログラム言語で定義されているので、このセクション内の記述と例はモジュールがCで記述されていると仮定します。別のプログラム言語ではCコード呼び出しのための適切なバインディングやインターフェースと機能の使用が必要になるでしょう。EmacsのCコードにはC99以降のコンパイラー(<a href="C-Dialect.html">C方言</a>を参照)が必要であり、このセクションもこの標準にしたがいます。
+</p>
+<p>モジュールの記述とEmacsへの統合には以下のタスクが含まれます:
+</p>
+<ul>
+<li> モジュール用の初期化コードの記述。
+
+</li><li> 1つ以上のモジュール関数の記述。
+
+</li><li> Emacsとモジュール間での値とオブジェクトのやり取り。
+
+</li><li> エラーコンディションと非ローカル脱出のハンドリング。
+</li></ul>
+
+<p>以下のサクセクションこれらのタスクと<acronym>API</acronym>自体の詳細を説明します。
+</p>
+<p>モジュールを一度記述したら共有ライブラリーを生成するために、背景のプラットドームの慣習に応じてモジュールをコンパイルします。その後で<code>load-path</code>
+(<a href="Library-Search.html">ライブラリー検索</a>を参照)に言及されたディレクトリー内(Emacsが共有ライブラリーを探す場所)にそれを配置します。
+</p>
+<p>Emacsダイナミックモジュール<acronym>API</acronym>にたいしてモジュールの適合性を検証したければ<kbd>--module-assertions</kbd>オプションでEmacsを呼び出します。<a data-manual="emacs" href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Initial-Options.html#Initial-Options">Initial
+Options</a> in <cite>The GNU Emacs Manual</cite>を参照してください。
+</p>
+
+<ul class="section-toc">
+<li><a href="Module-Initialization.html" accesskey="1">モジュールの初期化コード</a></li>
+<li><a href="Module-Functions.html" accesskey="2">モジュール関数の記述</a></li>
+<li><a href="Module-Values.html" accesskey="3">Lisp・モジュール間の値変換</a></li>
+<li><a href="Module-Misc.html" accesskey="4">その他の便利なモジュール用関数</a></li>
+<li><a href="Module-Nonlocal.html" accesskey="5">モジュールでの非ローカル脱出</a></li>
+</ul>
+</div>
+
+
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:75dd3c3c4e1015af36ee515b6a6118d82ca4320b to check Japanese translation.
+</body>
+</html>

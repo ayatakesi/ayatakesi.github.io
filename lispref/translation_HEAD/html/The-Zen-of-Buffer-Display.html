@@ -1,0 +1,228 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.50.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>The Zen of Buffer Display (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="The Zen of Buffer Display (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="The Zen of Buffer Display (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="May 15, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Displaying-Buffers.html" rel="up" title="Displaying Buffers">
+<link href="Precedence-of-Action-Functions.html" rel="prev" title="Precedence of Action Functions">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection" id="The-Zen-of-Buffer-Display">
+<div class="header">
+<p>
+Previous: <a href="Precedence-of-Action-Functions.html" accesskey="p" rel="prev">アクション関数の優先順</a>, Up: <a href="Displaying-Buffers.html" accesskey="u" rel="up">適切なウィンドウへのバッファーの表示</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="batuhuaBiao-ShinoSi-Xiang-"></span><h4 class="subsection">29.13.6 バッファー表示の思想</h4>
+<span id="index-guidelines-for-buffer-display"></span>
+<span id="index-writing-buffer-display-actions"></span>
+<span id="index-buffer-display-conventions"></span>
+
+<p>フレームのもっとも単純な形式では常にバッファー表示に使用可能な単一のウィンドウが収容されています。結果として<code>display-buffer</code>のもっとも最近の呼び出しは、常にそのウィンドウへのバッファーの配置に成功した呼び出しとなります。
+</p>
+<p>そのようなフレームを処理することは実際的ではないので、デフォルトではEmacsはフレームサイズのデフォルト値、<code>split-height-threshold</code>や<code>split-width-threshold</code>のオプションにより制御される、より複雑なレイアウトを許容しています。そのフレームでまだ表示されていないバッファーを表示すると、フレーム上の単一ウィンドウを分割するか、2つのウィンドウのいずれかを(再)利用します。
+</p>
+<p>これらのしきい値のいずれかをカスタマイズしたり手動でフレームのレイアウトを変更するとデフォルトの動作は棄却されます。非<code>nil</code>の<var>action</var>引数で<code>display-buffer</code>を呼び出したり、前のサブセクションに示したオプションのいずれかをユーザーがカスタマイズした際にもデフォルト動作は棄却されます。<code>display-buffer</code>を習得次第、表示可能なディスプレイアクションとフレイムレイアウト結果の膨大さにフラストレーションを覚えるかもしれません。
+</p>
+<p>しかしバッファー表示関数の使用を控えてウィンドウのウィンドウの分割と削除のメタファーに逆行するのは良い考えではありません。Lispプログラムやユーザーにたいしてバッファー表示関数は、異なるニーズを調整するフレームワークを提供します。ウィンドウの分割と削除にたいする同等なフレームワークは存在しません。バッファー表示関数ではフレームからバッファーを削除する際に、少なくともフレームレイアウトを部分的に後からリストアすることが可能です(<a href="Quitting-Windows.html">ウィンドウのquit</a>を参照)。
+</p>
+<p>上述したフラストレーションを埋め合わせるとともに、文字通りフレームのウィンドウ間でバッファーが失われることを避けるために、以下にいくつのガイダンスを示します。
+</p>
+<dl compact="compact">
+<dt><span>無理せずディスプレイアクションを記述する</span></dt>
+<dd><p>ディスプレイアクションの記述はアクション関数とアクションalistを1つの巨大なリストにまとめる必要があるので多大な苦痛をともなう恐れがある(歴史的な理由によって<code>display-buffer</code>の引数として個別にサポートすることができなかった)。以下のリストのような基本形式を覚えておくと便利かもしれない:
+</p>
+<div class="example">
+<pre class="example">'(nil (inhibit-same-window . t))
+</pre></div>
+
+<p>アクション関数なしのアクションalistエントリーだけを指定する。これの唯一の目的は、どこかで指定された<code>display-buffer-same-window</code>関数が同一ウィンドウ内でのバッファー表示を抑制すること。前のサブセクションの最後の例も参照のこと。
+</p>
+<div class="example">
+<pre class="example">'(display-buffer-below-selected)
+</pre></div>
+
+<p>一方こちらは1つのアクション関数と空のアクションalistを指定する。上記2つの指定の効果を1つ組み合わせるためには以下のようなフォームを記述
+</p>
+<div class="example">
+<pre class="example">'(display-buffer-below-selected (inhibit-same-window . t))
+</pre></div>
+
+<p>別のアクション関数の追加は以下のように記述
+</p>
+<div class="example">
+<pre class="example">'((display-buffer-below-selected display-buffer-at-bottom)
+  (inhibit-same-window . t))
+</pre></div>
+
+<p>別のアクションalistを追加するには以下のように記述
+</p>
+<div class="example">
+<pre class="example">'((display-buffer-below-selected display-buffer-at-bottom)
+  (inhibit-same-window . t)
+  (window-height . fit-window-to-buffer))
+</pre></div>
+
+<p>最後のフォームは以下の方法により<code>display-buffer</code>の<var>action</var>関数に使用できる:
+</p>
+<div class="example">
+<pre class="example">(display-buffer
+ (get-buffer-create &quot;*foo*&quot;)
+ '((display-buffer-below-selected display-buffer-at-bottom)
+   (inhibit-same-window . t)
+   (window-height . fit-window-to-buffer)))
+</pre></div>
+
+<p><code>display-buffer-alist</code>のカスタマイズでは以下のように使用できる:
+</p>
+<div class="example">
+<pre class="example">(setopt
+ display-buffer-alist
+ '((&quot;\\*foo\\*&quot;
+    (display-buffer-below-selected display-buffer-at-bottom)
+    (inhibit-same-window . t)
+    (window-height . fit-window-to-buffer))))
+</pre></div>
+
+<p>2つ目のバッファーへのカスタマイズを追加するには以下のように記述:
+</p>
+<div class="example">
+<pre class="example">(setopt
+ display-buffer-alist
+ '((&quot;\\*foo\\*&quot;
+    (display-buffer-below-selected display-buffer-at-bottom)
+    (inhibit-same-window . t)
+    (window-height . fit-window-to-buffer))
+   (&quot;\\*bar\\*&quot;
+    (display-buffer-reuse-window display-buffer-pop-up-frame)
+    (reusable-frames . visible))))
+</pre></div>
+
+</dd>
+<dt><span>互いを尊重して扱う</span></dt>
+<dd><p><code>display-buffer-alist</code>と<code>display-buffer-base-action</code>はユーザーオプションであって、Lispプログラムはそれらのセットやリバインドを行ってはならない。一方で<code>display-buffer-overriding-action</code>はアプリケーション用に予約されていて滅多に使用されず、使用する場合には細心の注意を払うこと。
+</p>
+<p><code>display-buffer</code>の旧実装では、<code>pop-up-frames</code>や<code>pop-up-windows</code>のようなユーザーオプションのセッティングをめぐってユーザーとアプリケーションの競合が頻発した(<a href="Choosing-Window-Options.html">バッファー表示の追加オプション</a>を参照)。これが<code>display-buffer</code>を再デザイン(ユーザーおよびアプリケーションにたいして何を行うことが許容されているかを指定する明快なフレームワークを提供する)した主な理由である。
+</p>
+<p>Lispプログラムはユーザーのカスタマイゼーションによって予期せぬ方法でバッファーが表示されるかもしれないことに備えなければならない。<code>display-buffer</code>の後続の振る舞いにおいて<var>action</var>引数で要求した方法でバッファーが正確に表示されていると仮定しないこと。
+</p>
+<p>ユーザーは任意のバッファーが表示される方法について厳しすぎる制限を過度に多く設けるべきではない。さもないと特定の目的でバッファーを表示する際の特性を失うリスクがある。横並びの2つのウィンドウでバッファーの異なるバージョンを比較するLispプログラムを記述するとしよう。<code>display-buffer-alist</code>のカスタマイズによりそのようなすべてのバッファーは常に選択されたウィンドウの下に表示されるように定められていたら、<code>display-buffer</code>を通じて望ましいウィンドウ構成を構成するのはプログラムにとって困難だろう。
+</p>
+<p>任意のバッファーを表示するための設定を指定するためには、ユーザーは<code>display-buffer-base-action</code>をカスタマイズする必要がある。複数のフレームで作業を行うことを好むユーザーについての例は前のサブセクションを参照のこと。<code>display-buffer-alist</code>は特定のバッファーを特定の方法で表示するために予約済みである。
+</p>
+</dd>
+<dt><span>すでにバッファーを表示しているウィンドウの再利用の考慮</span></dt>
+<dd><p>一般的にユーザーとLispプログラムにとって、ウィンドウがすでに対象となるバッファーを表示していて、それを再利用するのは常に良いアイデアである。前のサブセクションではバッファーを表示しているフレームがすでに存在していても、正しく行うことに失敗すると<code>display-buffer</code>が継続的に新たなフレームをポップアップすることを示した。たとえばバッファーの異なる部分をそのウィンドウで表示する必要がある際のように、少数のケースにおいてはウィンドウの再利用は望ましくないかもしれない。
+</p>
+<p>したがって<code>display-buffer-reuse-window</code>は<var>action</var>引数とカスタマイゼーションの両方で可能なかぎり使用するべきアクション関数の1つである。<var>action</var>引数の<code>inhibit-same-window</code>エントリーは、通常はバッファーをを表示中のウィンドウ、つまり対象となるウィンドウが選択されたウィンドウならそのウィンドウの再利用を避けるような、一般的なケースのほとんどを考慮する。
+</p>
+</dd>
+<dt><span>選択したウィンドウにフォーカスを当てる</span></dt>
+<dd><p>これは複数フレームで作業を行う人にとっては思考を要しない。バッファーを表示中のフレームは自動的にraiseされて<code>inhibit-switch-frame</code>が禁じていなければフォーカスを取得する。単一フレームのユーザーにとっては、このタスクは顕著に困難になり得る。この点において特に<code>display-buffer-pop-up-window</code>と<code>display-buffer-use-some-window</code>が厄介になる可能性がある。これらは表面上は任意に見えるウィンドウ(最大のウィンドウか最近もっとも使用されていないウィンドウ)を分割または使用してユーザーの注意を逸らす。
+</p>
+<p>したがってLispプログラムのいくつかは、たとえば新たなウィンドウに関して問いに答える場所として期待されるミニバッファーウィンドウの近傍にバッファーを表示するためにフレーム最下のウィンドウの選択を試みる。選択されたウィンドウは通常はすでにユーーザーの注意を喚起済みなので、入力とは無関係なアクションである<code>display-buffer-below-selected</code>が好ましいかもしれない。
+</p>
+</dd>
+<dt><span>どのウィンドウが選択されているのか配慮する</span></dt>
+<dd><p>アプリケーションの多くは引数<var>norecord</var>に非<code>nil</code>を指定して<code>with-selected-window</code>や<code>select-window</code>を呼び出すことによって生成されたウィンドウエクスカーション内部から<code>display-buffer</code>を呼び出す。これはほとんど常に間違った考えである。なぜならそのようなエクスカーション内部で選択されたウィンドウは、ユーザーに提示されているウィンドウ構成で選択されているウィンドウと通常は異なるから。
+</p>
+<p>たとえばユーザーがalistにエントリー<code>inhibit-same-window</code>を追加していたとすると、そのエントリーによってエクスカーションのスコープ内で選択されたウィンドウを回避するが、結果となる構成において選択されたウィンドウは回避しないだろう。たとえそのようなエントリーが追加されていなくても、結果として奇妙に振る舞うかもしれない。1つの生きたウィンドウを含んだフレームで以下のフォームを評価すると
+</p>
+<div class="example">
+<pre class="example">(progn
+  (split-window)
+  (display-buffer &quot;*Messages*&quot;))
+</pre></div>
+
+<p>これは他のウィンドウが選択されたまま最下に<samp>*Messages*</samp>バッファーを表示する。次のフォームを評価すると
+</p>
+<div class="example">
+<pre class="example">(with-selected-window (split-window)
+  (display-buffer &quot;*Messages*&quot;))
+</pre></div>
+
+<p>これは最上ウィンドウに<samp>*Messages*</samp>を表示してそれを選択する(<code>display-buffer</code>の場合は通常は選択しない)。
+</p>
+<p>一方、以下のフォームを評価すると
+</p>
+<div class="example">
+<pre class="example">(progn
+  (split-window)
+  (pop-to-buffer &quot;*Messages*&quot;))
+</pre></div>
+
+<p>これは<samp>*Messages*</samp>バッファーを正しく選択するが、次のフォーム
+</p>
+<div class="example">
+<pre class="example">(progn
+  (split-window)
+  (with-selected-window (selected-window)
+    (pop-to-buffer &quot;*Messages*&quot;)))
+</pre></div>
+
+<p>こちらは異なる。
+</p>
+<p>更に選択されたウィンドウの使用時間がすべてのウィンドウの中でもっとも長いことを期待する<code>display-buffer-use-some-window</code>や<code>display-buffer-use-least-recent-window</code>のようなアクション関数の呼び出しは、その仕様にしたがったウィンドウの生成に失敗するかもしれない。
+</p>
+<p>したがってウィンドウ
+エクスカーションの使用に依存するアプリケーションは、そのエクスカーションが終了するまで<code>display-buffer</code>の呼び出しの延期を試みるべきである。
+</p></dd>
+</dl>
+
+</div>
+
+
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:75dd3c3c4e1015af36ee515b6a6118d82ca4320b to check Japanese translation.
+</body>
+</html>

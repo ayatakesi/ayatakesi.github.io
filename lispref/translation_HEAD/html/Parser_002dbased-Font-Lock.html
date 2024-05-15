@@ -1,0 +1,186 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.50.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Parser-based Font Lock (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Parser-based Font Lock (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Parser-based Font Lock (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="May 15, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Font-Lock-Mode.html" rel="up" title="Font Lock Mode">
+<link href="Multiline-Font-Lock.html" rel="prev" title="Multiline Font Lock">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection" id="Parser_002dbased-Font-Lock">
+<div class="header">
+<p>
+Previous: <a href="Multiline-Font-Lock.html" accesskey="p" rel="prev">複数行のFont Lock構造</a>, Up: <a href="Font-Lock-Mode.html" accesskey="u" rel="up">Font Lockモード</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Parser_002dbased-Font-Lock-1"></span><h4 class="subsection">24.7.10 Parser-based Font Lock</h4>
+<span id="index-parser_002dbased-font_002dlock"></span>
+
+
+<p>シンプルな構文的Font LockやregexpベースのFont Lockに加えて、Emacsはパーサーを用いた完全な構文的Font
+Lockも提供します。Emacsでは現在のところは、この目的のためにtree-sitterライブラリーを使用しています(<a href="Parsing-Program-Source.html">Parsing Program Source</a>を参照)。
+</p>
+<p>パーサーベースのFont Lockそれ以外のFont Lockのメカニズムは互いに排他ではありません。もしパーサーベースのFont
+Lockが有効なら、最初に構文的Font Lock置き換わり実行されて、その後にregexpベースのFont Lockが実行されます。
+</p>
+<p>パーサーベースのFont LockがregexpベースのFont
+Lockと同じカスタマイズ変数を共有しないとしても、カスタマイズでは類似したスキームを使用します。tree-sitterにおいて<code>font-lock-keywords</code>のカウンターパートとなるのが<code>treesit-font-lock-settings</code>です。
+</p>
+<span id="index-tree_002dsitter-fontifications_002c-overview"></span>
+<span id="index-fontifications-with-tree_002dsitter_002c-overview"></span>
+<p>tree-sitterのフォント表示は一般的には以下のように機能します:
+</p>
+<ul>
+<li> Lispプログラム(通常はメジャーモードの一部)が<em>パターン(pattern)</em>から構成される<em>query</em>を提供する。ここでパターンはそれぞれ<em>キャプチャ名(capture
+name)</em>に関連付けられている。
+
+</li><li> tree-sitterライブラリーがこれらのパターンにマッチするパースツリー(parse tree:
+解析木)からノードを探して、そのノードに対応するキャプチャ名でタグ付けして、それらをLispプログラムにリターンする。
+
+</li><li> Lispプログラムはリターンされたノードを用いて、それぞれのノードに対応するバッファーのテキスト部分にたいして、ノードにタグ付けされたキャプチャ名から正しいフォント表示を決定して適切にハイライトする。たとえば<code>font-lock-keyword</code>とタグ付けされたノードなら、<code>font-lock-keyword</code>フェイスによってハイライトされることになるだろう。
+</li></ul>
+
+<p>クエリー、パターン、キャプチャ名ｎ関する詳細については<a href="Pattern-Matching.html">tree-sitterノードにたいするパターンマッチング</a>を参照してください。
+</p>
+<p>tree-sitterのフォント表示をセットアップするためには、まずメジャーモードが<code>treesit-font-lock-rules</code>の出力を<code>treesit-font-lock-settings</code>にセットしてから<code>treesit-major-mode-setup</code>を呼び出す必要があります。
+</p>
+<dl class="def">
+<dt id="index-treesit_002dfont_002dlock_002drules"><span class="category">Function: </span><span><strong>treesit-font-lock-rules</strong> <em>&amp;rest query-specs</em><a href='#index-treesit_002dfont_002dlock_002drules' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これは<code>treesit-font-lock-settings</code>のセットに使用される関数である。この関数はクエリーのコンパイルやその他の後処理を受けもち、<code>treesit-font-lock-settings</code>が受け入れる値を出力する。以下は例:
+</p>
+<div class="example">
+<pre class="example">(treesit-font-lock-rules
+ :language 'javascript
+ :feature 'constant
+ :override t
+ '((true) @font-lock-constant-face
+   (false) @font-lock-constant-face)
+ :language 'html
+ :feature 'script
+ &quot;(script_element) @font-lock-builtin-face&quot;)
+</pre></div>
+
+<p>この関数は一連の<var>query-spec</var>
+(<var>query-spec</var>とは1つ以上の<var>keyword</var>/<var>value</var>が前置された<var>query</var>のこと)を受け取る。<var>query</var>とはそれぞれ文字列、S式、あるいはコンパイル済みフォームのいずれかによるtree-sitterクエリーのこと。
+</p>
+<p>For each <var>query</var>, the <var>keyword</var>/<var>value</var> pairs that precede it
+add meta information to it.  The <code>:language</code> keyword declares
+<var>query</var>&rsquo;s language.  The <code>:feature</code> keyword sets the feature name
+of <var>query</var>.  Users can control which features are enabled with
+<code>treesit-font-lock-level</code> and <code>treesit-font-lock-feature-list</code>
+(described below).  These two keywords are mandatory (with exceptions).
+</p>
+<p>その他のキーワードはオプションである:
+</p>
+<table>
+<thead><tr><th width="15%">キーワード</th><th width="15%">値</th><th width="60%">意味</th></tr></thead>
+<tr><td width="15%"><code>:override</code></td><td width="15%"><code>nil</code></td><td width="60%">そのリージョンにすでにフェイスがセットされていれば新たなフェイスを破棄</td></tr>
+<tr><td width="15%"></td><td width="15%"><code>t</code></td><td width="60%">常に新たなフェイスを適用する</td></tr>
+<tr><td width="15%"></td><td width="15%"><code>append</code></td><td width="60%">既存フェイスの後に新たなフェイスを追加</td></tr>
+<tr><td width="15%"></td><td width="15%"><code>prepend</code></td><td width="60%">既存フェイスの前に新たなフェイスを追加</td></tr>
+<tr><td width="15%"></td><td width="15%"><code>keep</code></td><td width="60%">既存フェイスなしでリージョンをフィルする</td></tr>
+<tr><td width="15%"><code>:default-language</code></td><td width="15%"><var>language</var></td><td width="60%">Every <var>query</var> after this keyword will use <var>language</var> by default.</td></tr>
+</table>
+
+<p>Lispプログラムは<var>query</var>内のパターンをキャプチャ名(<code>@</code>で始まる名前)でマークする。そしてtree-sitterは同じキャプチャ名でタグ付けされたノードをリターンする。フォント表示という目的のために、<var>query</var>のキャプチャ名は<code>font-lock-keyword-face</code>のようなフェイス名であること。キャプチャされたノードはそのフェイスによってフォント表示されることになる。
+</p>
+<span id="index-treesit_002dfontify_002dwith_002doverride"></span>
+<p>キャプチャ名は関数でもよい。この場合には<var>node</var> and
+<var>override</var>、<var>start</var>、<var>end</var>という4つの引数で呼び出される関数であること。ここで<var>node</var>はそのノード自身、<var>override</var>はそのノードにキャプチャされたルールの<code>:override</code>プロパティ、<var>start</var>と<var>end</var>はこの関数がフォント表示するべきリージョンを制限する(この関数が<var>override</var>を尊重したければ<code>treesit-fontify-with-override</code>を使用できる)。
+</p>
+<p>機能拡張を可能にするために、その関数は5つ以上の引数が与えられた場合にはそれらをオプションの引数として受け入れる必要がある。
+</p>
+<p>キャプチャ名がフェイスと関数のどちらにも当てはまる場合にはフェイスが優先される。フェイスにも関数にも当てはまらないキャプチャ名は無視される。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dfont_002dlock_002dfeature_002dlist"><span class="category">Variable: </span><span><strong>treesit-font-lock-feature-list</strong><a href='#index-treesit_002dfont_002dlock_002dfeature_002dlist' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これはfeatureシンボル(feature symbol:
+機能シンボル)のリストのリスト。このリストの要素はそれぞれ装飾レベルを表すためのリストである。どのレベルをアクティブにするかを制御するのが<code>treesit-font-lock-level</code>。
+</p>
+<p>リストの要素はそれぞれ<code>(<var>feature</var>&nbsp;&hellip;)</code><!-- /@w -->という形式のリスト。ここで<var>feature</var>はそれぞれ<code>treesit-font-lock-rules</code>内で定義されるクエリーで対応する<code>:feature</code>の値。このリストからfeatureシンボルを削除することによって、font-lockの間に対応するクエリーが無効なる。
+</p>
+<p>多くのプログラミング言語にとって一般的なfeature名には<code>definition</code>、<code>type</code>、<code>assignment</code>、<code>builtin</code>、<code>constant</code>、<code>keyword</code>、<code>string-interpolation</code>、<code>comment</code>、<code>doc</code>、<code>string</code>、<code>operator</code>、<code>preprocessor</code>、<code>escape-sequence</code>、<code>key</code>が含まれる。メジャーモードはこれらの一般的なfeatureを自由に分割あるいは拡張ができる。
+</p>
+<p>これらのfeatureのうちいくつかは説明が必要だろう。<code>definition</code>は何であれ定義されつつあるものをハイライトする(関数定義の関数名、構造体定義構造体名、変数定義の変数など)。<code>assignment</code>は何であれ割り当てされつつあるものをハイライトする(割り当て命令の変数やフィールドなど)。<code>key</code>はキー/値ペアーのキーをハイライトする(JSONオブジェクトのキーやPythonのdictionaryなど)。<code>doc</code>はdoc文字列やdocコメントをハイライトする。
+</p>
+<p>この変数の値はたとえば以下のようになるかもしれない:
+</p><div class="example">
+<pre class="example">((comment string doc) ; level 1
+ (function-name keyword type builtin constant) ; level 2
+ (variable-name string-interpolation key)) ; level 3
+</pre></div>
+
+<p>メジャーモードは<code>treesit-major-mode-setup</code>の呼び出し前にこの変数をセットすること。
+</p>
+<span id="index-treesit_002dfont_002dlock_002drecompute_002dfeatures"></span>
+<p>この変数が効力をもつためには、Lispプログラムが(適宜<code>treesit-font-lock-settings</code>をリセットする)<code>treesit-font-lock-recompute-features</code>、または(<code>treesit-font-lock-recompute-features</code>を呼び出す)<code>treesit-major-mode-setup</code>を呼び出す必要がある。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dfont_002dlock_002dsettings"><span class="category">Variable: </span><span><strong>treesit-font-lock-settings</strong><a href='#index-treesit_002dfont_002dlock_002dsettings' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>tree-sitterベースのfont
+lock用のセッティングのリスト。セッティングそれぞれの正確なフォーマットは内部的なフォーマットとみなされる。この変数のセットには、常に<code>treesit-font-lock-rules</code>を使うこと。
+</p>
+</dd></dl>
+
+<p>複数言語用のメジャーモードは<code>treesit-range-functions</code>でrange関数(range function:
+範囲関数)を提供する必要があり、Emacsはリージョンのフォント表示を行う前にrangeを適宜セットします(<a href="Multiple-Languages.html">複数言語ののパース</a>を参照)。
+</p>
+</div>
+
+
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:75dd3c3c4e1015af36ee515b6a6118d82ca4320b to check Japanese translation.
+</body>
+</html>
