@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="May 20, 2024">
+<meta name="date" content="May 22, 2024">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -69,24 +69,11 @@ Next: <a href="Writing-PEG-Rules.html" accesskey="n" rel="next">PEGルールの�
 
 <span id="index-parsing-actions"></span>
 <span id="index-parsing-stack"></span>
-<p>By default the process of parsing simply moves point in the current buffer,
-ultimately returning <code>t</code> if the parsing succeeds, and <code>nil</code> if it
-doesn&rsquo;t.  It&rsquo;s also possible to define <em>parsing actions</em> that can run
-arbitrary Elisp at certain points in the parsed text.  These actions can
-optionally affect something called the <em>parsing stack</em>, which is a list
-of values returned by the parsing process.  These actions only run (and only
-return values) if the parsing process ultimately succeeds; if it fails the
-action code is not run at all.
+<p>デフォルトではパース処理はカレントバッファーのポイントを単に移動して、最終的にはパースが成功すれば<code>t</code>、失敗すれば<code>nil</code>をリターンします。パースしたテキスト内の特定のポイントで任意のElispを実行できる<em>パースアクション(parsing
+actions)</em>を定義することも可能です。これらのアクションはオプションで、<em>パーススタック(parsing
+stack)</em>と呼ばれるパースプロセスによってリターンされる値リストに影響を与えることができます。これらのアクションはパースプロセスが最終的に成功した場合のみ実行(および値のリターン)されます。失敗した場合にはアクションのコードは何も実行されません。
 </p>
-<p>Actions can be added anywhere in the definition of a rule.  They are
-distinguished from parsing expressions by an initial backquote (&lsquo;<samp>`</samp>&rsquo;),
-followed by a parenthetical form that must contain a pair of hyphens
-(&lsquo;<samp>--</samp>&rsquo;) somewhere within it.  Symbols to the left of the hyphens are
-bound to values popped from the stack (they are somewhat analogous to the
-argument list of a lambda form).  Values produced by code to the right of
-the hyphens are pushed onto the stack (analogous to the return value of the
-lambda).  For instance, the previous grammar can be augmented with actions
-to return the parsed number as an actual integer:
+<p>アクションはルール定義のどこでも追加できます。アクションは先頭にバッククォートを記述することでパース式とは区別されます。バッククォートの後には2つのハイフン(&lsquo;<samp>--</samp>&rsquo;)をどこかに含んだカッコの括りが続きます。ハイフン左側のシンボルにはスタックからポップされた値にバインドされます(幾分ラムダ式の引数リストに似ている)。ハイフン右側のコードが生成した値はスタックへとプッシュされます(ラムダのリターン値と似ている)。たとえば前述したグラマーはパースした数値を実際の整数としてリターンするアクションに拡張できます:
 </p>
 <div class="example">
 <pre class="example">(with-peg-rules ((number sign digit (* digit
@@ -99,15 +86,9 @@ to return the parsed number as an actual integer:
   (peg-run (peg number)))
 </pre></div>
 
-<p>There must be values on the stack before they can be popped and returned &ndash;
-if there aren&rsquo;t enough stack values to bind to an action&rsquo;s left-hand terms,
-they will be bound to <code>nil</code>.  An action with only right-hand terms will
-push values to the stack; an action with only left-hand terms will consume
-(and discard) values from the stack.  At the end of parsing, stack values
-are returned as a flat list.
+<p>値をポップしてリターンする前に、スタックには値が存在しなければなりません。アクションの左項にバインドするスタック値が不足している場合には、不足している項にたいして<code>nil</code>がバインドされるでしょう。スタックに値をプッシュするのはアクションの右項だけです。左項しかないアクションはスタックの値を消費(と破棄)するだけです。パースの最後でスタック値はフラットなリストとしてリターンされます。
 </p>
-<p>To return the string matched by a <acronym>PEX</acronym> (instead of simply moving
-point over it), a grammar can use a rule like this:
+<p>(単にポイントを移動するのではなく)<acronym>PEX</acronym>がマッチした文字列をリターンさせるために、以下のようなルールを用いるグラマーを記述できます:
 </p>
 <div class="example">
 <pre class="example">(one-word
@@ -116,50 +97,35 @@ point over it), a grammar can use a rule like this:
   `(start -- (buffer-substring start (point))))
 </pre></div>
 
-<p>The first action above pushes the initial value of point to the stack.  The
-intervening <acronym>PEX</acronym> moves point over the next word.  The second action
-pops the previous value from the stack (binding it to the variable
-<code>start</code>), then uses that value to extract a substring from the buffer
-and push it to the stack.  This pattern is so common that <acronym>PEG</acronym>
-provides a shorthand function that does exactly the above, along with a few
-other shorthands for common scenarios:
+<p>上記1つ目のアクションはポイントの初期値をスタックにプッシュしています。アクションの間に記述された<acronym>PEX</acronym>によって、ポイントが次の単語の上に移動します。2つ目のアクションにより、前の値をスタックからポップします(その値は変数<code>start</code>にバインドされてから、バッファーからの部分文字列抽出に使用されて、抽出された文字列はスタックにプッシュされる)。これははよくあるパターンなので上述の処理、および他の一般的なシナリオを正確こなす略記関数を<acronym>PEG</acronym>が提供しています。
 </p>
 <dl compact="compact">
 <dd><span id="index-substring-_0028a-PEG-shorthand_0029"></span>
 </dd>
 <dt><span><code>(substring <var>e</var>)</code></span></dt>
-<dd><p>Match <acronym>PEX</acronym> <var>e</var> and push the matched string onto the stack.
+<dd><p><acronym>PEX</acronym>の<var>e</var>をマッチして、マッチした文字列をスタックにプッシュする。
 </p>
 <span id="index-region-_0028a-PEG-shorthand_0029"></span>
 </dd>
 <dt><span><code>(region <var>e</var>)</code></span></dt>
-<dd><p>Match <var>e</var> and push the start and end positions of the matched region
-onto the stack.
+<dd><p><var>e</var>をマッチして、マッチしたリージョンの開始と終了をスタックにプッシュする。
 </p>
 <span id="index-replace-_0028a-PEG-shorthand_0029"></span>
 </dd>
 <dt><span><code>(replace <var>e</var> <var>replacement</var>)</code></span></dt>
-<dd><p>Match <var>e</var> and replaced the matched region with the string
-<var>replacement</var>.
+<dd><p><var>e</var>をマッチして、マッチしたリージョンを文字列<var>replacement</var>で置き換える。
 </p>
 <span id="index-list-_0028a-PEG-shorthand_0029"></span>
 </dd>
 <dt><span><code>(list <var>e</var>)</code></span></dt>
-<dd><p>Match <var>e</var>, collect all values produced by <var>e</var> (and its
-sub-expressions) into a list, and push that list onto the stack.  Stack
-values are typically returned as a flat list; this is a way of &ldquo;grouping&rdquo;
-values together.
+<dd><p><var>e</var>をマッチして、<var>e</var>
+(とその部分式)が生成した値をリストに収集、そのリストをスタックにプッシュする。スタック値は通常はフラットなリストとしてリターンされる(この方法により複数の値を一緒に&ldquo;グループ化&rdquo;される)。
 </p></dd>
 </dl>
 
 </div>
-<hr>
-<div class="header">
-<p>
-Next: <a href="Writing-PEG-Rules.html">PEGルールの記述</a>, Previous: <a href="PEX-Definitions.html">PEX定義</a>, Up: <a href="Parsing-Expression-Grammars.html">式グラマーの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
-This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:a00957ee12ef9e762a23bcd663fc151454e16d6e to check Japanese translation.
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:02a08569393be9edc995cc8e566f6c725c14c12f to check Japanese translation.
 </body>
 </html>
