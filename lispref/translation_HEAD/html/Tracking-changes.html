@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="May 24, 2024">
+<meta name="date" content="May 25, 2024">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -67,149 +67,49 @@ Up: <a href="Change-Hooks.html" accesskey="u" rel="up">フックの変更</a> &n
 <span id="index-track_002dchanges"></span>
 <span id="index-change-tracker"></span>
 
-<p>Using <code>before-change-functions</code> and <code>after-change-functions</code> can
-be difficult in practice because of a number of pitfalls, such as the fact
-that the two calls are not always properly paired, or some calls may be
-missing, either because some Emacs primitives failed to properly pair them
-or because of incorrect use of <code>inhibit-modification-hooks</code>.
-Furthermore, many restrictions apply to those hook functions, such as the
-fact that they basically should never modify the current buffer, nor use an
-operation that may block, and they proceed quickly because some commands may
-call these hooks a large number of times.
+<p><code>before-change-functions</code>と<code>after-change-functions</code>を実際に使用するのは困難かもしれません。2つの呼び出しが常に正しくペアーになっていないという事実、一部の呼び出しが失われるかもしれない、一部のEmacsプリミティブが2つを正しくペアーとして呼び出すのに失敗する、あるいは<code>inhibit-modification-hooks</code>の不正な使用といった数々の落とし穴が存在するからです。さらにこれらのフック関数には基本的にカレントバッファーの修正やブロックするような操作を行ってはならない、そしてこれらのフックを多数回呼び出すコマンドがあるかもしれないので処理を迅速に行わなければならないといった、多くの制約が課せられるからです。
 </p>
-<p>The Track-Changes library fundamentally provides an alternative API, built
-on top of those hooks.  Compared to <code>after-change-functions</code>, the first
-important difference is that, instead of providing the bounds of the change
-and the previous length, it provides the bounds of the change and the actual
-previous content of that region.  The need to extract information from the
-original contents of the buffer is one of the main reasons why some packages
-need to use both <code>before-change-functions</code> and
-<code>after-change-functions</code> and then try to match them up.
+<p>Track-Changesライブラリーは、基本的にはこれらのフックの上位に構築された代替えAPIを提供するライブラリーです。<code>after-change-functions</code>と比べて1つ目の大きな違いは変更の境界と前の長さではなく、変更の境界とそのリージョンの前の実際の内容を提供することです。一部のパッケージが<code>before-change-functions</code>と<code>after-change-functions</code>の両方を使うのは、バッファーの元の内容から情報を抽出してそれらをマッチする必要があるから、というのが主な理由の1つなのです。
 </p>
-<p>The second difference is that it decouples the notification of a change from
-the act of processing it, and it automatically combines into a single change
-operation all the changes that occur between the first change and the actual
-processing.  This makes it natural and easy to process the changes at a
-larger granularity, such as once per command, and eliminates most of the
-restrictions that apply to the usual change hook functions, making it
-possible to use blocking operations or to modify the buffer.
+<p>2つ目の違いは変更の通知とその実際の処理動作が切り離されており、最初の変更と実際の処理の間に発生したすべての変更が1つの変更操作に自動的に統合されることです。これによりコマンドごとに1回といったように変更をより大きな粒度で自然かつ容易に処理できるようになるとともに、通常の変更フック関数に課せられる制限のほとんどが排除されてブロック操作の使用やバッファーの変更が可能になります。
 </p>
-<p>To start tracking changes, you have to call <code>track-changes-register</code>,
-passing it a <var>signal</var> function as argument.  This returns a tracker
-<var>id</var> which is used to identify your change tracker to the other
-functions of the library.  When the buffer is modified, the library calls
-the <var>signal</var> function to inform you of that change and immediately
-starts accumulating subsequent changes into a single combined change.  The
-<var>signal</var> function serves only to warn that a modification occurred but
-does not receive a description of the change.  Also the library will not
-call it again until after you retrieved the change.
+<p>変更の追跡を開始するには<var>signal</var>関数を引数として渡して<code>track-changes-register</code>を呼び出す必要があります。これによりライブラリーの他の関数があなたの変更トラッカーを識別する、トラッカーの<var>id</var>がリターンされます。バッファーが変更されると変更を知らせるためにライブラリーが<var>signal</var>関数を呼び出して、同時にそれ以降の変更を単一の変更に統合するための変更の累積が即座に開始されます。<var>signal</var>関数の役目は変更発生の警告だけであり、変更の詳細を受け取ることはできません。さらにその変更が取得されるまでは、ライブラリーが再度これを呼び出すことはありません。
 </p>
-<p>To retrieve changes, you need to call <code>track-changes-fetch</code>, which
-provides you with the bounds of the changes accumulated since the last call,
-as well as the previous content of that region.  It also &ldquo;re-arms&rdquo; the
-<var>signal</var> function so that the library will call it again after the next
-buffer modification.
+<p>変更を取得するためには<code>track-changes-fetch</code>を呼び出す必要があります。これは最後に呼び出されたて以降に蓄積された変更、およびそのリージョンの以前の内容を提供する関数です。さらに次にバッファーが変更された後にライブラリーが再度呼び出せるように、<var>signal</var>関数の&ldquo;再セット&rdquo;も行います。
 </p>
 <dl class="def">
 <dt id="index-track_002dchanges_002dregister"><span class="category">Function: </span><span><strong>track-changes-register</strong> <em>signal &amp;key nobefore disjoint immediate</em><a href='#index-track_002dchanges_002dregister' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This function creates a new <em>change tracker</em>.  Change trackers are kept
-abstract, so we refer to them as mere identities, and the function thus
-returns the tracker&rsquo;s <var>id</var>.
+<dd><p>この関数は<em>変更トラッカー(change
+tracker)</em>を新たに作成する。変更トラッカー自体は抽象的なままなので、それらを明確に参照するためのトラッカーの<var>id</var>がリターンされる。
 </p>
-<p><var>signal</var> is a function that the library will call to notify of a
-change.  It will sometimes call it with a single argument and sometimes with
-two.  Upon the first change to the buffer since this tracker last called
-<code>track-changes-fetch</code>, the library calls this <var>signal</var> function
-with a single argument holding the <var>id</var> of the tracker.
+<p><var>signal</var>はライブラリーが変更を通知するために呼び出す関数。この関数は引数が1つ、あるいは2つの引数で呼び出されることもある。このトラッカーが最後に<code>track-changes-fetch</code>を呼び出して以降、最初のバッファーへの変更において、ライブラリーがトラッカーの<var>id</var>を引数にセットしてこの<var>signal</var>関数を呼び出す。
 </p>
-<p>By default, the call to the <var>signal</var> function does not happen
-immediately, but is instead postponed with a 0 seconds timer
-(see <a href="Timers.html">遅延実行のためのタイマー</a>).  This is usually desired to make sure the <var>signal</var>
-function is not called too frequently and runs in a permissive context,
-freeing the client from performance concerns or worries about which
-operations might be problematic.  If a client wants to have more control,
-they can provide a non-<code>nil</code> value as the <var>immediate</var> argument in
-which case the library calls the <var>signal</var> function directly from
-<code>after-change-functions</code>.  Beware that it means that the <var>signal</var>
-function has to be careful not to modify the buffer or use operations that
-may block.
+<p>デフォルトでは<var>signal</var>関数の呼び出しは即座に発生しないが、0秒のタイマーによって延期される(<a href="Timers.html">遅延実行のためのタイマー</a>を参照)。これは<var>signal</var>関数の呼び出しが頻繁すぎないよう寛容なコンテキストで実行することで、性能上の懸念や問題となり得る操作に関する心配からクライアントを開放するので通常は望ましい。クライアントがより詳細な制御を望む場合には、<var>immediate</var>引数に非<code>nil</code>値を指定できる。この場合にはライブラリーは<code>after-change-functions</code>から直接、即座に<var>signal</var>関数を呼び出す。これは<var>signal</var>関数がバッファーを変更したり、ブロックするかもしれない操作をしないよう配慮する必要があることを意味することに注意。
 </p>
-<p>If you&rsquo;re not interested in the actual previous content of the buffer, but
-are using this library only for its ability to combine many small changes
-into a larger one and to delay the processing to a more convenient time, you
-can specify a non-<code>nil</code> value for the <var>nobefore</var> argument.  In that
-case, <code>track-change-fetch</code> provides you only with the length of the
-previous content, just like <code>after-change-functions</code>.  It also allows
-the library to save some work.
+<p>バッファーの以前の実際の内容に興味がなく、多くの小さな変更を1つの大きな変更に統合したり、より都合のいいタイミングまで処理を遅延するというこのライブラリーの能力だけのためにこのライブラリーを使用する場合には、<var>nobefore</var>引数に非<code>nil</code>値を指定できる。この場合には<code>track-change-fetch</code>は<code>after-change-functions</code>と同じように以前の内容の長さだけを提供する。これによりライブラリーも一部の作業を節約できる。
 </p>
-<p>While you may like to accumulate many small changes into larger ones, you
-may not want to do that if the changes are too far apart.  If you specify a
-non-<code>nil</code> value for the <var>disjoint</var> argument, the library will let
-you know when a change is about to occur &ldquo;far&rdquo; from the currently pending
-ones by calling the <var>signal</var> function right away, passing it two
-arguments this time: the <var>id</var> of the tracker, and the number of
-characters that separates the upcoming change from the already pending
-changes.  This in itself does not prevent combining this new change with the
-previous ones, so if you think the upcoming change is indeed too far, you
-need to call <code>track-change-fetch</code> right away.  Beware that when the
-<var>signal</var> function is called because of a disjoint change, this happens
-directly from <code>before-change-functions</code>, so the usual restrictions
-apply about modifying the buffer or using operations that may block.
+<p>多数の小さな変更を1つの大きな変更に蓄積することに問題はなくとも、変更があまりに遠く離れてしまうようなら、それは望ましくないかもしれない。<var>disjoint</var>引数に非<code>nil</code>値を指定すると、現在保留中の変更から&ldquo;離れた&rdquo;変更が発生した際に、ライブラリーが<var>signal</var>関数を即座に呼び出して通知する。この場合にはトラッカーの<var>id</var>、およびすでに保留中の変更と新たな変更を隔てる文字数という2つの引数とともに<var>signal</var>が呼び出される。これ自体が新たな変更と以前の変更の統合を妨げることはないので、新たな変更が実際に遠すぎると判断したら、即座に<code>track-change-fetch</code>を呼び出す必要がある。解体された変更によって<var>signal</var>関数が呼び出されると、それは<code>before-change-functions</code>から直接発生したものなので、バッファー変更やブロックするかもしれない操作の使用に関する通常の制約が適用されることに注意。
 </p></dd></dl>
 
 <dl class="def">
 <dt id="index-track_002dchanges_002dfetch"><span class="category">Function: </span><span><strong>track-changes-fetch</strong> <em>id func</em><a href='#index-track_002dchanges_002dfetch' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This is the function that lets you find out what has changed in the buffer.
-By providing the tracker <var>id</var> you let the library figure out which
-changes have already been seen by your tracker.  Instead of returning a
-description of the changes, <code>track-changes-fetch</code> calls the <var>func</var>
-function with that description in the form of 3 arguments: <var>beg</var>,
-<var>end</var>, and <var>before</var>, where <code><var>beg</var>..<var>end</var></code> delimit the
-region that was modified and <var>before</var> describes the previous content of
-that region.  Usually <var>before</var> is a string containing the previous text
-of the modified region, but if you specified a non-<code>nil</code> <var>nobefore</var>
-argument to <code>track-changes-register</code>, then it is replaced by the number
-of characters of that previous text.
+<dd><p>これはバッファーで何が変更されたかを探すための関数である。トラッカーの<var>id</var>を与えることにより、トラッカーがすでに確認済みの変更をライブラリーに認識させる。<code>track-changes-fetch</code>は変更の記述をリターンするかわりに、<var>beg</var>、<var>end</var>、<var>before</var>という3つの引数として表された変更の記述とともに<var>func</var>関数を呼び出す。ここで<code><var>beg</var>..<var>end</var></code>は変更されたリージョンの区切り、<var>before</var>はリージョンの以前の内容を記述する。<var>before</var>は通常は変更されたリージョンの以前のテキストを含んだ文字列だが、<code>track-changes-register</code>の<var>nobefore</var>引数に非<code>nil</code>を指定した場合には以前のテキストの文字数で置き換えられる。
 </p>
-<p>In case no changes occurred since the last call, <code>track-changes-fetch</code>
-simply does not call <var>func</var> and returns <code>nil</code>.  If changes did
-occur, it calls <var>func</var> and returns the value returned by <var>func</var>.
-But note that <var>func</var> is called just once regardless of how many changes
-occurred: those are summarized into a single
-<var>beg</var>/<var>end</var>/<var>before</var> triplet.
+<p>最後の呼び出し以降に何も変更が発生していなければ、<code>track-changes-fetch</code>は<var>func</var>を呼び出さずに単に<code>nil</code>をリターンする。変更が発生していたら<var>func</var>を呼び出して、<var>func</var>がリターンした値をリターンする。ただし変更が何回発生したとしても、<var>func</var>は1回しか呼び出されないことに注意。発生した変更は<var>beg</var>/<var>end</var>/<var>before</var>という単一のトリプレットにまとめられる。
 </p>
-<p>In some cases, the library is not properly notified of all changes, for
-example because of a bug in the low-level C code or because of an improper
-use of <code>inhibit-modification-hooks</code>.  When it detects such a problem,
-<var>func</var> receives a <code><var>beg</var>..<var>end</var></code> region which covers the
-whole buffer and the <var>before</var> argument is the symbol <code>error</code> to
-indicate that the library was unable to determine what was changed.
+<p>たとえば低レベルのCコードのバグや、<code>inhibit-modification-hooks</code>の不正な使用によって、ライブラリーがすべての変更を正しく通知しない場合がある。そのような問題を検知すると<var>func</var>はバッファー全体をカバーするような<code><var>beg</var>..<var>end</var></code>、そして何が変更されたかライブラリーには判断不能であることうぃ示すシンボル<code>error</code>がセットされた<var>before</var>引数を受け取ることになる。
 </p>
-<p>Once <var>func</var> finishes, <code>track-changes-fetch</code> re-enables the
-<var>signal</var> function so that it will be called the next time a change
-occurs.  This is the reason why it calls <var>func</var> instead of returning a
-description: it lets you process the change without worrying about the risk
-that the <var>signal</var> function gets triggered in the middle of it, because
-the <var>signal</var> is re-enabled only after <var>func</var> finishes.
+<p><var>func</var>が完了すると変更が次回発生した際に呼び出せるように、<code>track-changes-fetch</code>は<var>signal</var>関数をふたたび有効化する。これはなぜこの関数が変更の記述をリターンするのではなく、<var>func</var>を呼び出すのかという理由である。これにより<var>signal</var>がふたたび有効化されるのが<var>func</var>の完了後だけなので、途中で<var>signal</var>関数がトリガーされるというリスクへの懸念なしで変更を処理できるのだ。
 </p></dd></dl>
 
 <dl class="def">
 <dt id="index-track_002dchanges_002dunregister"><span class="category">Function: </span><span><strong>track-changes-unregister</strong> <em>id</em><a href='#index-track_002dchanges_002dunregister' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>This function tells the library that the tracker <var>id</var> does not need to
-know about buffer changes any more.  Most clients will never want to stop
-tracking changes, but for clients such as minor modes, it is important to
-call this function when the minor mode is disabled, otherwise the tracker
-will keep accumulating changes and consume more and more resources.
+<dd><p>この関数はライブラリーにたいして、トラッカー<var>id</var>がこれ以上変更について知る必要がないことを告げる。変更の追跡を停止したくないクライアントがほとんどだとしても、マイナーモードのようなクライアントはモードが無効化される前にこの関数を呼び出すことが重要である。さもなくばトラッカーは変更を累積し続けてますます多くのリソースが消費されることになるだろう。
 </p></dd></dl>
 
 </div>
-<hr>
-<div class="header">
-<p>
-Up: <a href="Change-Hooks.html">フックの変更</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
-</div>
 
 
-This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:a623411fb1cec6c99d44d6ba2c55bfdcf126e424 to check Japanese translation.
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:dc45a7e8cbe49e2ac3d9194e6953d0fb182b7cae to check Japanese translation.
 </body>
 </html>
