@@ -1,0 +1,330 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.50.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Language Grammar (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Language Grammar (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Language Grammar (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="May 25, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Parsing-Program-Source.html" rel="up" title="Parsing Program Source">
+<link href="Using-Parser.html" rel="next" title="Using Parser">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section" id="Language-Grammar">
+<div class="header">
+<p>
+Next: <a href="Using-Parser.html" accesskey="n" rel="next">Tree-sitterパーサーの使用</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="Tree_002dsitterYan-Yu-gurama"></span><h3 class="section">38.1 Tree-sitter言語グラマー</h3>
+<span id="index-language-grammar_002c-for-tree_002dsitter"></span>
+
+<span id="Yan-Yu-guramanorodo"></span><h3 class="heading">言語グラマーのロード</h3>
+<span id="index-loading-language-grammar-for-tree_002dsitter"></span>
+
+<span id="index-language-argument_002c-for-tree_002dsitter"></span>
+<p>ある言語で記述されたテキストをパースするために、tree-sitterはその言語のグラマー(grammar:
+文法)に依存します。Emacsにおける言語グラマーはシンボルによって表現されます。たとえばC言語のグラマーはシンボル<code>c</code>として表現されます。この<code>c</code>というシンボルはtree-sitter関数の<var>language</var>引数として渡すことができます。
+</p>
+<span id="index-treesit_002dextra_002dload_002dpath"></span>
+<span id="index-treesit_002dload_002dlanguage_002derror"></span>
+<p>tree-sitterの言語グラマーはダイナミックライブラリーとして配布されています。ある言語のグラマーをEmacsで使用するためには、そのダイナミックライブラリーがシステム上にインストール済みかを確認する必要があります。Emacsは以下の順序で複数の場所から言語グラマーを探します:
+</p>
+<ul>
+<li> まず変数<code>treesit-extra-load-path</code>で指定されたディレクトリーのリストから;
+</li><li> それから<code>user-emacs-directory</code>で指定されるディレクトリーのサブディレクトリー<samp>tree-sitter</samp>から(<a href="Init-File.html">initファイル</a>を参照);
+</li><li> 最後にシステムのダイナミックライブラリー用のデフォルト位置。
+</li></ul>
+
+<p>これらのディレクトリーそれぞれにおいて、Emacsは変数<code>dynamic-library-suffixes</code>が指定するファイル名拡張子をもつファイルを探すのです。
+</p>
+<p>Emacsがライブラリーを見つけられなかったりロードに問題がある場合には、Emacsが<code>treesit-load-language-error</code>エラーをシグナルします。このシグナルのデータは以下のいずれかです:
+</p>
+<dl compact="compact">
+<dt><span><code>(not-found <var>error-msg</var> &hellip;)</code></span></dt>
+<dd><p>その言語のグラマーライブラリーをEmacsが見つけられなかったという意味。
+</p></dd>
+<dt><span><code>(symbol-error <var>error-msg</var>)</code></span></dt>
+<dd><p>すべての言語のグラマーライブラリーでエクスポートされているべき関数を、そのライブラリーではEmacsが見つけられなかったという意味。
+</p></dd>
+<dt><span><code>(version-mismatch <var>error-msg</var>)</code></span></dt>
+<dd><p>その言語のグラマーライブラリーとtree-sitterライブラリーのバージョンに互換性がないという意味。
+</p></dd>
+</dl>
+
+<p>上記すべてのケースにおいて、<var>error-msg</var>により失敗に関する追加の詳細が提供されるかもしれません。
+</p>
+<dl class="def">
+<dt id="index-treesit_002dlanguage_002davailable_002dp"><span class="category">Function: </span><span><strong>treesit-language-available-p</strong> <em>language &amp;optional detail</em><a href='#index-treesit_002dlanguage_002davailable_002dp' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<var>language</var>にたいする言語グラマーが存在して、それがロード可能であれば非<code>nil</code>をリターンする。
+</p>
+<p><var>detail</var>が非<code>nil</code>の場合には、<var>language</var>が利用可能なら<code>(t
+. nil)</code>、利用不可なら<code>(nil
+. <var>data</var>)</code>をリターンする。<var>data</var>は<code>treesit-load-language-error</code>のシグナルデータ。
+</p></dd></dl>
+
+<span id="index-treesit_002dload_002dname_002doverride_002dlist"></span>
+<p>慣例により<var>language</var>用ダイナミックライブラリーのファイル名は<samp>libtree-sitter-<var>language</var>.<var>ext</var></samp>です。ここで<var>ext</var>はダイナミックライブラリー用のシステム固有な拡張子です。同じく慣例により、そのライブラリーが提供する関数の名前は<code>tree_sitter_<var>language</var></code>です。この慣例にしたがっていない言語グラマーライブラリーの場合には、
+</p>
+<div class="example">
+<pre class="example">(<var>language</var> <var>library-base-name</var> <var>function-name</var>)
+</pre></div>
+
+<p>上記エントリーを変数<code>treesit-load-name-override-list</code>のリストに追加する必要があります。ここで<var>library-base-name</var>はダイナミックライブラリーのファイル名のベースネーム(basename:
+先行するディレクトリー部分を除外したファイル名のことで、通常だと<samp>libtree-sitter-<var>language</var></samp>)、<var>function-name</var>はそのライブラリーが提供する関数(通常だと<code>tree_sitter_<var>language</var></code>)です。たとえば、
+</p>
+<div class="example">
+<pre class="example">(cool-lang &quot;libtree-sitter-coool&quot; &quot;tree_sitter_cooool&quot;)
+</pre></div>
+
+<p>これは慣例に屈するには自分があまりにも&ldquo;cool&rdquo;に過ぎると考える言語の例です。
+</p>
+<span id="index-language-grammar-version_002c-compatibility"></span>
+<dl class="def">
+<dt id="index-treesit_002dlibrary_002dabi_002dversion"><span class="category">Function: </span><span><strong>treesit-library-abi-version</strong> <em>&amp;optional min-compatible</em><a href='#index-treesit_002dlibrary_002dabi_002dversion' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はtree-sitterライブラリーがサポートしている言語グラマーの<acronym>ABI</acronym> (Application Binary
+Interface:
+アプリケーションバイナリーインターフェイス)のバージョンをリターンする。デフォルトではそのライブラリーがサポートする最新のABIバージョンをリターンするが、<var>min-compatible</var>が非<code>nil</code>の場合にはそのライブラリーでまだサポートできる最古のABIバージョンをリターンする。言語グラマーライブラリーはtree-sitterライブラリーがサポートする最古と最新の間にあるABIバージョンにたいしてビルドしなければ、tree-sitterライブラリーがそれらをロードできなくなる。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dlanguage_002dabi_002dversion"><span class="category">Function: </span><span><strong>treesit-language-abi-version</strong> <em>language</em><a href='#index-treesit_002dlanguage_002dabi_002dversion' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はEmacsがロードした<var>language</var>用の言語グラマーライブラリーの<acronym>ABI</acronym>バージョンをリターンする。<var>language</var>が利用できなければ<code>nil</code>をリターンする。
+</p></dd></dl>
+
+<span id="Gou-WenturinoJu-Ti-Li"></span><h3 class="heading">構文ツリーの具体例</h3>
+<span id="index-syntax-tree_002c-concrete"></span>
+
+<p>構文ツリーはパーサーによって生成されます。構文ツリーにおけるノードはそれぞれがテキストのある部分を表し、お互いが親子関係というリレーションシップによって接続されています。たとえば以下のようなソーステキストがあるとします
+</p>
+<div class="example">
+<pre class="example">1 + 2
+</pre></div>
+
+<p>これは以下のような構文ツリーになるかもしれません
+</p>
+<div class="example">
+<pre class="example">                  +--------------+
+                  | root &quot;1 + 2&quot; |
+                  +--------------+
+                         |
+        +--------------------------------+
+        |       expression &quot;1 + 2&quot;       |
+        +--------------------------------+
+           |             |            |
++------------+   +--------------+   +------------+
+| number &quot;1&quot; |   | operator &quot;+&quot; |   | number &quot;2&quot; |
++------------+   +--------------+   +------------+
+</pre></div>
+
+<p>これを以下のようにS式で表すことも可能です:
+</p>
+<div class="example">
+<pre class="example">(root (expression (number) (operator) (number)))
+</pre></div>
+
+<span id="nodotaipu"></span><h4 class="subheading">ノードタイプ</h4>
+<span id="index-node-types_002c-in-a-syntax-tree"></span>
+
+<span id="index-type-of-node_002c-tree_002dsitter"></span>
+<span id="tree_002dsitter-node-type"></span><span id="index-named-node_002c-tree_002dsitter"></span>
+<span id="tree_002dsitter-named-node"></span><span id="index-anonymous-node_002c-tree_002dsitter"></span>
+<p><code>root</code>、<code>expression</code>、<code>number</code>、<code>operator</code>のような名前はノードの<em>タイプ(type:
+型)</em>を指定します。ただし構文ツリーのすべてのノードがタイプをもつ訳ではありません。タイプをもっていないノードは<em>無名ノード(anonymous
+nodes)</em>、タイプをもつノードは<em>名前つきノード(named
+nodes)</em>と呼ばれています。無名ノードは角カッコ&lsquo;<samp>]</samp>&rsquo;のような区切り文字や<code>return</code>のようなキーワードを含む、固定化された綴りのトークン(token:
+字句単位)です。
+</p>
+<span id="huirudoMing-"></span><h4 class="subheading">フィールド名</h4>
+
+<span id="index-field-name_002c-tree_002dsitter"></span>
+<span id="index-tree_002dsitter-node-field-name"></span>
+<span id="tree_002dsitter-node-field-name"></span><p>構文ツリーの分析を容易にするために、多くの言語グラマーは子ノードに<em>フィールド名(field
+names)</em>を割り当てています。たとえば<code>function_definition</code>ノードは<code>declarator</code>と<code>body</code>のフィールド名をもつかもしれません:
+</p>
+<div class="example">
+<pre class="example">(function_definition
+ declarator: (declaration)
+ body: (compound_statement))
+</pre></div>
+
+<span id="Gou-WenturinoDiao-Cha-"></span><h3 class="heading">構文ツリーの調査</h3>
+<span id="index-explore-tree_002dsitter-syntax-tree"></span>
+<span id="index-inspection-of-tree_002dsitter-parse-tree-nodes"></span>
+
+<p>言語の構文の理解、および構文ツリー割り当て使用するLispプログラムのデバッグ支援のために、Emacsはカレントバッファーのソースの構文ツリーをリアルタイムで表示する&ldquo;explore&rdquo;モードを提供しています。更にEmacsにはポイント位置にあるノードの情報をモードラインに表示する&ldquo;inspect&rdquo;モードも付属しています。
+</p>
+<dl class="def">
+<dt id="index-treesit_002dexplore_002dmode"><span class="category">Command: </span><span><strong>treesit-explore-mode</strong><a href='#index-treesit_002dexplore_002dmode' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>このモードはカレントバッファーのソースの構文ツリーを表示するウィンドウをポップアップする。ソースバッファーでテキストを選択することによって、表示されている構文ツリーの対応する部分がハイライトされる。構文ツリーでノードをクリックすれば、ソースバッファーの対応するテキストがハイライトされる。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dinspect_002dmode"><span class="category">Command: </span><span><strong>treesit-inspect-mode</strong><a href='#index-treesit_002dinspect_002dmode' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>このマイナーモードはポイント位置で<em>始まる</em>ノードをモードラインに表示する。たとえばモードラインに以下のように表示されるかもしれない
+</p>
+<div class="example">
+<pre class="example"><var>parent</var> <var>field</var>: (<var>node</var> (<var>child</var> (&hellip;)))
+</pre></div>
+
+<p>ここで<var>node</var>、<var>child</var>、...等はポイント位置で始まるノード、<var>parent</var>は<var>node</var>の親である。<var>node</var>はbold書体で表示される。<var>field-name</var>は<var>node</var>、<var>child</var>、...等のフィールド名である。
+</p>
+<p>ポイント位置で始まるノードがない(ポイントがノードの中間にある)場合には、ポイントを跨ぐ(span)もっとも前のノード、およびそのノードの直近の親ノードがモードラインに表示される。
+</p>
+<p>このマイナーモード自身はパーサーを作成せず、<code>(treesit-parser-list)</code>の最初のパーサーを使用する(<a href="Using-Parser.html">Tree-sitterパーサーの使用</a>を参照)。
+</p></dd></dl>
+
+<span id="guramaDing-Yi-woDu-mu"></span><h3 class="heading">グラマー定義を読む</h3>
+<span id="index-reading-grammar-definition_002c-tree_002dsitter"></span>
+
+<p>言語グラマーの製作者はプログラミング言語の<em>グラマー(grammar:
+文法)</em>を定義します。パーサーがどのようにしてプログラムテキストから具体的な構文ツリーを構築するかを決めるのがグラマーです。構文ツリーを効果的に使用するためには、<em>グラマーファイル(grammar
+file)</em>を調べる必要があります。
+</p>
+<p>グラマーファイルは通常だと言語グラマーのプロジェクトレポジトリにある<samp>grammar.js</samp>です。言語グラマーのホームページへのリンクは<a href="https://tree-sitter.github.io/tree-sitter">tree-sitter&rsquo;s homepage</a>で見つけることができるでしょう。
+</p>
+<p>グラマー定義はJavaScriptによって記述されます。たとえば<code>function_definition</code>ノードにマッチするようなルールは以下のようなものかもしれません
+</p>
+<div class="example">
+<pre class="example">function_definition: $ =&gt; seq(
+  $.declaration_specifiers,
+  field('declarator', $.declaration),
+  field('body', $.compound_statement)
+)
+</pre></div>
+
+<p>ルールは単一の引数<var>$</var>を受け取る関数によって表現されます。この関数がグラマー全体を表すのです。この関数自体は他の関数によって構築されています。一連の子ノードをまとめるのが<code>seq</code>関数、子ノードにフィールド名の注釈をつけるのが<code>field</code>関数です。上記の定義を俗に<acronym>BNF</acronym>
+(<em>Backus-Naur Form: バッカス・ナウア記法</em>)と呼ばれる構文で表せば以下のようになるでしょう
+</p>
+<div class="example">
+<pre class="example">function_definition :=
+  &lt;declaration_specifiers&gt; &lt;declaration&gt; &lt;compound_statement&gt;
+</pre></div>
+
+<p>そしてパーサーがリターンするノードは以下のようになります
+</p>
+<div class="example">
+<pre class="example">(function_definition
+  (declaration_specifier)
+  declarator: (declaration)
+  body: (compound_statement))
+</pre></div>
+
+<p>以下はグラマー定義で目にするかもしれない関数のリストです。これらの関数はいずれも引数として他のルールを受け取り新たなルールをリターンします。
+</p>
+<dl compact="compact">
+<dt><span><code>seq(<var>rule1</var>, <var>rule2</var>, &hellip;)</code></span></dt>
+<dd><p>すべてのルールに逐一マッチする。
+</p></dd>
+<dt><span><code>choice(<var>rule1</var>, <var>rule2</var>, &hellip;)</code></span></dt>
+<dd><p>引数のルールいずれかにマッチする。
+</p></dd>
+<dt><span><code>repeat(<var>rule</var>)</code></span></dt>
+<dd><p><var>rule</var>に<em>0回以上</em>マッチする。正規表現の演算子&lsquo;<samp>*</samp>&rsquo;に似ている。
+</p></dd>
+<dt><span><code>repeat1(<var>rule</var>)</code></span></dt>
+<dd><p><var>rule</var>に<em>1回以上</em>マッチする。正規表現の演算子&lsquo;<samp>+</samp>&rsquo;に似ている。
+</p></dd>
+<dt><span><code>optional(<var>rule</var>)</code></span></dt>
+<dd><p><var>rule</var>に<em>0回または1回</em>マッチする。正規表現の演算子&lsquo;<samp>?</samp>&rsquo;に似ている。
+</p></dd>
+<dt><span><code>field(<var>name</var>, <var>rule</var>)</code></span></dt>
+<dd><p><var>rule</var>にマッチする子ノードにフィールド名<var>name</var>を割り当てる。
+</p></dd>
+<dt><span><code>alias(<var>rule</var>, <var>alias</var>)</code></span></dt>
+<dd><p><var>rule</var>にマッチしたノードをパーサーが生成する構文ツリーで<var>alias</var>として表示する。たとえば、
+</p>
+<div class="example">
+<pre class="example">alias(preprocessor_call_exp, call_expression)
+</pre></div>
+
+<p>これにより<code>preprocessor_call_exp</code>がマッチしたノードが<code>call_expression</code>と表示される。
+</p></dd>
+</dl>
+
+<p>以下は言語グラマーを読むにあたってそれほど重要ではないグラマー関数です。
+</p>
+<dl compact="compact">
+<dt><span><code>token(<var>rule</var>)</code></span></dt>
+<dd><p>単一の葉ノード(leaf
+node)として<var>rule</var>をマークする。つまり個別の子ノードをもつ親ノードではなく、その単一の葉ノードにすべてが収斂されるようなノードを生成する。<a href="Retrieving-Nodes.html">ノードの取得</a>を参照のこと。
+</p></dd>
+<dt><span><code>token.immediate(<var>rule</var>)</code></span></dt>
+<dd><p>通常のグラマールールは先行する空白を無視するが、これは空白が前置されていない<var>rule</var>だけにマッチするよう変更する。
+</p></dd>
+<dt><span><code>prec(<var>n</var>, <var>rule</var>)</code></span></dt>
+<dd><p><var>rule</var>にたいしてレベル<var>n</var>の優先度を与える。
+</p></dd>
+<dt><span><code>prec.left([<var>n</var>,] <var>rule</var>)</code></span></dt>
+<dd><p><var>rule</var>にたいしてオプションとしてレベル<var>n</var>を付与して左結合(left-associative)とマークする。
+</p></dd>
+<dt><span><code>prec.right([<var>n</var>,] <var>rule</var>)</code></span></dt>
+<dd><p><var>rule</var>にたいしてオプションとしてレベル<var>n</var>を付与して右結合(right-associative)とマークする。
+</p></dd>
+<dt><span><code>prec.dynamic(<var>n</var>, <var>rule</var>)</code></span></dt>
+<dd><p><code>prec</code>と似ているが優先度は実行時に適用される。
+</p></dd>
+</dl>
+
+<p>tree-sitterプロジェクトには<a href="https://tree-sitter.github.io/tree-sitter/creating-parsers">more about writing a grammar</a>というドキュメントがあります。特に&ldquo;The Grammar
+DSL&rdquo;というセクションを読んでください。
+</p>
+</div>
+<hr>
+<div class="header">
+<p>
+Next: <a href="Using-Parser.html">Tree-sitterパーサーの使用</a>, Up: <a href="Parsing-Program-Source.html">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/master_4078d0fd3ee9e55c3da219aa6e7788ac6130697b, commit:4c065a680125925dafd11ab8f437e387bf10b592 to check Japanese translation.
+</body>
+</html>
