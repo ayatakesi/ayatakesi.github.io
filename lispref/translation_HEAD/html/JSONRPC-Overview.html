@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 30.0.50.
+corresponding to Emacs version 29.4.
 
 Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="June 7, 2024">
+<meta name="date" content="June 27, 2024">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -73,52 +73,42 @@ Next: <a href="Process_002dbased-JSONRPC-connections.html" accesskey="n" rel="ne
 </p>
 <span id="index-JSONRPC-application-interfaces"></span>
 <ol>
-<li> JSONRPCアプリケーション構築用のAPI
+<li> JSONRPCアプリケーション構築用のユーザーインターフェース
 
 <span id="index-_003arequest_002ddispatcher"></span>
 <span id="index-_003anotification_002ddispatcher"></span>
 <span id="index-jsonrpc_002dnotify"></span>
 <span id="index-jsonrpc_002drequest"></span>
 <span id="index-jsonrpc_002dasync_002drequest"></span>
-<p>このシナリオでは野心的な新しいJSONRPCベースのアプリケーションが、エンドポイント間で取り交わされるJSONRPCメッセージのトランスポートを提供する<code>jsonrpc-connection</code>の具体的なサブクラスを選択したものとする。
-</p>
-<p>アプリケーションは<code>make-instance</code>を用いてそのサブクラスのオブジェクトを作成する。リモートのエンドポイントとの接続を開始するために、アプリケーションはそのオブジェクトを<code>jsonrpc-notify</code>、<code>jsonrpc-request</code>、<code>jsonrpc-async-request</code>のような関数に渡す。
-</p>
-<p>リモートで開始された接続(通常は非同期で到来)を処理するには、<code>make-instance</code>によるインスタンス化においてEIEIOのキーワード引数<code>:request-dispatcher</code>および<code>:notification-dispatcher</code>を用いて初期化する必要がある。これらはいずれも接続オブジェクト、リモート呼び出しされるJSONRPCメッセージを命名するシンボル、JSONRPCの<code>params</code>オブジェクトという3つの引数をもつ。
+<p>このシナリオではJSONRPCアプリケーションは<code>jsonrpc-connection</code>の具象サブクラスを選択して、<code>make-instance</code>を使用することによりサブクラスのオブジェクト作成を行う。JSONRPCアプリケーションはリモートのエンドポイントとの対話を開始するために、関数<code>jsonrpc-notify</code>、<code>jsonrpc-request</code>、および/または<code>jsonrpc-async-request</code>にこのオブジェクトを渡す。一般的には非同期に到達するリモートで開始された対話を処理するために、インスタンス化には<code>:request-dispatcher</code>と<code>:notification-dispatcher</code>の初期化引数(initarg)を含める必要があり、これらはいずれも接続オブジェクト、リモートで呼び出されたJSONRPCメソッドを命名するシンボル、JSONRPCの<code>params</code>オブジェクトという3つの引数を受け取る関数である。
 </p>
 <span id="index-jsonrpc_002derror"></span>
-<p><code>:request-dispatcher</code>として渡される関数はリモートのエンドポイントのリクエストを処理する役目をもち、ローカルのエンドポイント(この例では構築中のアプリケーション)からのリプライを期待する。この関数の内部ではローカルにリターン(通常のリターン)、あるいは非ローカルにリターン(エラーをthrow)できる。リクエストディスパッチャーからどちらでexitしたとしても、トランスポートを通じてリモートのエンドポイントにリプライが送信される。
-</p>
-<p>通常のリターンは成功レスポンスと判断される。リターン値はJSONとしてシリアライズ可能なLispオブジェクトでなければならない(<a href="Parsing-JSON.html">JSON値の解析と生成</a>を参照)。この結果はJSONRPCの<code>result</code>オブジェクトとしてサーバーにフォワードされる。非ローカルなリターンは関数<code>jsonrpc-error</code>を呼び出すことによって行われる。これによりエラーのレスポンスがサーバーに送信される。JSONRPCの<code>error</code>に付随する詳細には、<code>jsonrpc-error</code>に渡されるものすべてが含まれる。他のタイプの予期せぬエラーからトリガーされた非局所的なリターンでも、(
+<p><code>:request-dispatcher</code>として渡された関数は、ローカルのエンドポイントからのリプライ(この場合では構築するプログラム)を除いた、リモートのエンドポイントのリクエストを処理する役目を担う。その関数の内部では局所的なリターン(通常のリターン)と非局所的なリターン(エラーによるリターン)が起こり得る。局所的なリターン値はJSONとしてシリアライズ可能なLispオブジェクトでなければならない(<a href="Parsing-JSON.html">JSON値の解析と生成</a>を参照)。これは成功レスポンスを決定するとともに、オブジェクトはJSONRPCの<code>result</code>オブジェクトとしてサーバーにフォワードされる。関数<code>jsonrpc-error</code>の呼び出しにより達成される非局所的なリターンは、エラーレスポンスをサーバーに送信する。JSONRPCの<code>error</code>に付随する詳細には、<code>jsonrpc-error</code>に渡されるものすべてが含まれる。他のタイプの予期せぬエラーからトリガーされた非局所的なリターンでも、(
 <code>debug-on-error</code>をセットしていなければ)エラーレスポンスを送信して、この場合にはLispデバッガが呼び出される。<a href="Error-Debugging.html">エラーによるデバッガへのエンター</a>を参照のこと。
 </p>
-<span id="index-jsonrpc_002dconvert_002dto_002dendpoint"></span>
-<span id="index-jsonrpc_002dconvert_002dfrom_002dendpoint"></span>
-<p><code>jsonrpc</code>ライブラリーを使用して、&ldquo;準JSONRPC&rdquo;として記述されたトランスポートプロトコルベースのアプリケーションを構築することは可能である。これらは似てはいるが、<a href="https://www.jsonrpc.org/">DAP (Debug Adapter
-Protocol)</a>のようにJSONRPCと完全に同一ではない。これらのプロトコルはリクエスト、レスポンス、通知メッセージも定義しているがフォーマットはJSONRPCと完全に同一ではない。JSONRPCの内部表現とエンドポイントが受け入れる表現を変換するように、ジェネリック関数<code>jsonrpc-convert-to-endpoint</code>および<code>jsonrpc-convert-from-endpoint</code>をカスタマイズできる(<a href="Generic-Functions.html">ジェネリック関数</a>を参照)。
-</p>
-</li><li> JSONRPCトランスポート構築用のAPI
+</li><li> JSONRPCトランスポート実装構築用の継承インターフェース
 
 <p>このシナリオでは基盤として異なるトランスポートストラテジーを実装するために<code>jsonrpc-connection</code>をサブクラス化する(サブクラス化する方法についての詳細は<a data-manual="eieio" href="https://www.gnu.org/software/emacs/manual/html_node/eieio/Inheritance.html#Inheritance">(eieio)Inheritance</a>を参照)。その後にアプリケーション構築インターフェースのユーザーは、(
-<code>make-instance</code>関数を使用して)その具象クラスのオブジェクトをインスタンス化して、そのストラテジーを使用してJSONRPCエンドポイントに接続できる。ビルトインのトランスポート実装については、<a href="Process_002dbased-JSONRPC-connections.html">プロセスベースのJSONRPC接続</a>を参照のこと。
+<code>make-instance</code>関数を使用して)その具象クラスのオブジェクトをインスタンス化して、そのストラテジーを使用してJSONRPCエンドポイントに接続できる。
 </p>
 <p>このAPIには必須部分とオプション部分がある。
 </p>
 <span id="index-jsonrpc_002dconnection_002dsend"></span>
-<p>JSONRPC接続(通知やリクエスト)を開始したりエンドポイントのリクエストへのリプライをユーザーに許すには、その新たなトランスポート実装がジェネリック関数<code>jsonrpc-connection-send</code>を新たなサブクラス用に特化して実装しなければならない(<a href="Generic-Functions.html">ジェネリック関数</a>を参照)。このジェネリック関数は<code>jsonrpc-request</code>や<code>jsonrpc-notify</code>のようなプリミティブから自動的に呼び出される。この特化によって引数リストに記述されたメッセージが、基礎となる通信メカニズム(&ldquo;wire&rdquo;とも呼ばれる)を介して送信されて、新たなトランスポートがエンドポイントとの対話に使用することを保証する必要がある。この&ldquo;wire&rdquo;はネットワークソケット、シリアルインターフェイス、あるいはHTTP接続などかもしれない。
+<p>ユーザーがJSONRPCコンタクト(通知やリクエスト)を開始したり、エンドポイントにリプライできるようにするためには、そのサブクラスは<code>jsonrpc-connection-send</code>メソッドを実装しなければならない。
 </p>
 <span id="index-jsonrpc_002dconnection_002dreceive"></span>
-<p>同様に3種類のリモートコンタクト(リクエスト、通知、ローカルリクエストへの応答)を処理するために、トランスポート実装は&ldquo;wire&rdquo;上のJSONRPC(あるいは準JSONRPC)の作成に用いられるかもしれないJSONRPCメッセージに気づいたら、Elispから関数<code>jsonrpc-connection-receive</code>が呼び出されるように計らわなければならない。
+<p>同様に3種類のリモートコンタクト(リクエスト、通知、ローカルリクエストへの応答)を処理するために、トランスポート実装はワイヤー(wire:
+通信ライン)上への新たなJSONRPCメッセージの通知後に、(その&quot;ワイヤー&quot;が何であれ)関数<code>jsonrpc-connection-receive</code>が呼び出されるように計らわなければならない。
 </p>
 <span id="index-jsonrpc_002dshutdown"></span>
 <span id="index-jsonrpc_002drunning_002dp"></span>
-<p>最後にオプションとして<code>jsonrpc-connection</code>サブクラスはジェネリック関数<code>jsonrpc-shutdown</code>および<code>jsonrpc-running-p</code>にたいして、これらの概念をトランスポートに適用する場合には、これらのジェネリック関数を特化する必要がある。<code>jsonrpc-shutdown</code>の特化によって、wire上でのメッセージのlistenに用いたすべてのシステムリソース(プロセス、タイマー等)を確実にリリースすること、<code>jsonrpc-running-p</code>の特化によって、これらのリソースがまだアクティブなのか、(<code>jsonrpc-shutdown</code>やその他を通じて)すでにリリース済みかを伝えるように実装する必要がある。
+<p>最後にオプジョンとして<code>jsonrpc-shutdown</code>メソッドと<code>jsonrpc-running-p</code>メソッドの概念をトランスポートに適用する場合には、<code>jsonrpc-connection</code>サブクラスはそれらのメソッドを実装する必要がある。それらを行う場合には、ワイヤー上でメッセージをリッスン(listen)するために使用するシステムリソース(プロセス、タイマー等)は<code>jsonrpc-shutdown</code>で解放する必要がある(それらのリソースは<code>jsonrpc-running-p</code>が非<code>nil</code>の間だけ必要なはずなので)。
 </p>
 </li></ol>
 
 </div>
 
 
-This page has generated for branch:master, commit:81f587b506e2563074cc3822ad20525d82e8969d to check Japanese translation.
+This page has generated for branch:work/emacs-29_6a299b3caceb2c73b932ba73849738faa8c5d975, commit:219f266ac70a193f0cf693b5952bc9c884e8be71 to check Japanese translation.
 </body>
 </html>
