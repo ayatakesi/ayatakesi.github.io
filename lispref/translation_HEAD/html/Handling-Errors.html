@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 29.4.
+corresponding to Emacs version 30.0.60.
 
 Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="July 8, 2024">
+<meta name="date" content="July 10, 2024">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -241,6 +241,65 @@ descriptor)にたいするエラーメッセージ文字列をリターンする
 %S&quot;</code>のように、単一の&lsquo;<samp>%</samp>&rsquo;シーケンスを含むこと。エラーをシグナルするとは予測されないが、もし発生した場合は堅牢であるべきようなコードの周囲に<code>with-demoted-errors</code>を使用する。このマクロは<code>condition-case</code>ではなく、<code>condition-case-unless-debug</code>を使用することに注意。
 </p></dd></dl>
 
+<p>一部のエラーをcatchして、フルバックトレースやカレントバッファーのようにエラーは発生した条件に関する情報を記録したいことがあります。残念ながらこの種の情報は<code>condition-case</code>のハンドラーでは利用できません。なぜならエラーがシグナルされた場所のダイナミックコンテキストではなく、<code>condition-case</code>のダイナミックコンテキストでハンドラーは実行されるので、そのハンドラーの実行前にスタックが巻き戻されるからです。このような状況にたいしては、以下のフォームを使用することができます:
+</p>
+<dl class="def">
+<dt id="index-handler_002dbind"><span class="category">Macro: </span><span><strong>handler-bind</strong> <em>handlers body&hellip;</em><a href='#index-handler_002dbind' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>このスペシャルフォームは<var>body</var>を実行して、エラーなしで実行された場合には<code>handler-bind</code>フォームの値をリターンする。この場合には<code>handler-bind</code>は効果をもたない。
+</p>
+<p><var>handlers</var>は<code>(<var>conditions</var>
+<var>handler</var>)</code>というフォームを要素としてもつリストであること。ここで<var>conditions</var>はハンドルされるエラーコンディション名かコンディション名のリスト、<var>handler</var>は評価することによって関数をリターンするフォームであること。<code>condition-case</code>の場合と同じようにコンディション名はシンボル。
+</p>
+<p><var>body</var>の実行前に<code>handler-bind</code>はすべての<var>handler</var>フォームを評価して、<var>body</var>の評価中アクティブになるようにそれらのハンドラーをインストールする。エラーがシグナルされるとEmacsはアクティブなすべての<code>condition-case</code>、1つ以上のコンディション名を指定するハンドラーについては<code>handler-bind</code>フォームを検索する。最内でマッチしたのが<code>handler-bind</code>によってインストールされたハンドラーのいずれかなら、エラー記述(error
+description)を保持する単一の引数とともに<var>handler</var>関数を呼び出す。
+</p>
+<p><code>condition-case</code>に起こることとは反対に、<var>handler</var>はエラーが発生したダイナミックコンテキストで呼び出される。これは変数のバインド解除や<code>unwind-protect</code>のクリーンアップを何も行わずに、すべてのダイナミックバインディングが効力をもったままで実行されることを意味する。例外が1つあり、<var>handler</var>関数の実行中はエラーをシグナルするコード間のすべてのエラーハンドラーと<code>handler-bind</code>は一時的にサスペンドされる。これはエラーがシグナルされた際にはEmacsがアクティブな<code>condition-case</code>、<var>handler</var>関数内部の<code>handler-bind</code>、およびカレントの<code>handler-bind</code>の外部だけを検索することを意味する。レキシカルバインドされた変数(<a href="Lexical-Binding.html">レキシカルバインディング</a>を参照)もダイナミックエクステントをもたないので影響を受けないことに注意。
+</p>
+<p>通常のすべての関数と同じように<var>handler</var>は典型的には<code>throw</code>を通じて、通常のようにリターンすることで非ローカルにexitできる。<var>handler</var>が通常通りリターンした場合には、それはハンドラーがエラーの処理を<em>拒否</em>したことを意味する。この場合にはエラーハンドラーの検索は中断された場所から続行される。
+</p>
+<p>たとえばエラーのシグナル時にカレントであるようなバッファーとともに特定のコード部分を実行した間に発生するすべてのエラーのログを、そのコードの実行に影響を与えずに維持したい場合には、以下のようｎできます:
+</p>
+<div class="example">
+<pre class="example">(handler-bind
+    ((error
+      (lambda (err)
+        (push (cons err (current-buffer)) my-log-of-errors))))
+  <var>body-forms</var>&hellip;)
+</pre></div>
+
+<p>これは内部的にcatchされたものではないエラーだけが<var>body-forms</var>&hellip;にログされる。言い換えると<var>body-forms</var>&hellip;から&ldquo;逃げ出した&rdquo;エラーだけをログする。上記ハンドラーは通常通りリターンするので、これらのエラーが周囲を囲む<code>condition-case</code>ハンドラー(または<code>handler-bind</code>ハンドラー)に渡されるのを妨げることはできない。
+</p>
+<p><code>handler-bind</code>を用いてエラーを他のエラーに置き換えることもできる。以下のコードでは<var>body-forms</var>&hellip;実行中に発生したタイプ<code>user-error</code>のエラーすべてをプレーンな<code>error</code>に変換する:
+</p>
+<div class="example">
+<pre class="example">(handler-bind
+    ((user-error
+      (lambda (err)
+        (signal 'error (cdr err)))))
+  <var>body-forms</var>&hellip;)
+</pre></div>
+
+<p><code>condition-case</code>とほとんど同じ結果を得ることができるだろう:
+</p>
+<div class="example">
+<pre class="example">(condition-case err
+    (progn <var>body-forms</var>&hellip;)
+  (user-error (signal 'error (cdr err))))
+</pre></div>
+
+<p>しかし<code>handler-bind</code>で新たなエラーを(再)シグナルすると元のエラー由来のダイナミック環境が依然としてアクティブであるという点が異なる。これはたとえばその時点でデバッガにエンターすると、元のエラーがシグナルされたポイントが含まれた完全なバックトレースが表示されることを意味している:
+</p>
+<div class="example">
+<pre class="example">Debugger entered--Lisp error: (error &quot;Oops&quot;)
+  signal(error (&quot;Oops&quot;))
+  #f(lambda (err) [t] (signal 'error (cdr err)))((user-error &quot;Oops&quot;))
+  user-error(&quot;Oops&quot;)
+  &hellip;
+  eval((handler-bind ((user-error (lambda (err) &hellip;
+</pre></div>
+
+</dd></dl>
+
 </div>
 <hr>
 <div class="header">
@@ -249,6 +308,6 @@ Next: <a href="Error-Symbols.html">エラーシンボルとエラー条件</a>, 
 </div>
 
 
-This page has generated for branch:emacs-29, commit:b288da26c2b05780e2bf468ced5344a2c4465984 to check Japanese translation.
+This page has generated for branch:emacs-30, commit:ad27b2a96fb67e5e4e6ccb406175feb9e2cfa5a1 to check Japanese translation.
 </body>
 </html>

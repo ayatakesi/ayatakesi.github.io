@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 29.4.
+corresponding to Emacs version 30.0.60.
 
 Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
@@ -26,7 +26,7 @@ and promoting software freedom." -->
 <meta name="resource-type" content="document">
 <meta name="distribution" content="global">
 <meta name="Generator" content="texi2any">
-<meta name="date" content="July 8, 2024">
+<meta name="date" content="July 10, 2024">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <link href="index.html" rel="start" title="Top">
@@ -34,7 +34,7 @@ and promoting software freedom." -->
 <link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
 <link href="Parsing-Program-Source.html" rel="up" title="Parsing Program Source">
 <link href="Tree_002dsitter-Major-Modes.html" rel="next" title="Tree-sitter Major Modes">
-<link href="Pattern-Matching.html" rel="prev" title="Pattern Matching">
+<link href="User_002ddefined-Things.html" rel="prev" title="User-defined Things">
 <style type="text/css">
 <!--
 a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
@@ -62,17 +62,42 @@ ul.no-bullet {list-style: none}
 <div class="section" id="Multiple-Languages">
 <div class="header">
 <p>
-Next: <a href="Tree_002dsitter-Major-Modes.html" accesskey="n" rel="next">tree-sitterを用いるメジャーモードの開発</a>, Previous: <a href="Pattern-Matching.html" accesskey="p" rel="prev">tree-sitterノードにたいするパターンマッチング</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Tree_002dsitter-Major-Modes.html" accesskey="n" rel="next">Tree-sitterとのメジャーモード開発</a>, Previous: <a href="User_002ddefined-Things.html" accesskey="p" rel="prev">ユーザー定義の&ldquo;Things&rdquo;とナビゲーション</a>, Up: <a href="Parsing-Program-Source.html" accesskey="u" rel="up">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 <hr>
-<span id="Fu-Shu-Yan-Yu-nonopasu"></span><h3 class="section">37.6 複数言語ののパース</h3>
+<span id="Fu-Shu-Yan-Yu-nopasu"></span><h3 class="section">38.7 複数言語のパース</h3>
 <span id="index-multiple-languages_002c-parsing-with-tree_002dsitter"></span>
 <span id="index-parsing-multiple-languages-with-tree_002dsitter"></span>
 <p>プログラミング言語のソースの一部に他の言語のソースが含まれているときがあります。一例としては<acronym>HTML</acronym> + <acronym>CSS</acronym>
 +
 JavaScriptが挙げられます。このような場合には、別の言語によって記述されたテキストセグメントには別のパーサーを割り当てる必要があります。伝統的にこれはナローイングの使用によって達成されてきました。tree-sitterはナローイング(<a href="Using-Parser.html#tree_002dsitter-narrowing">narrowing</a>を参照)とともに機能しますが、推奨される方法はバッファーテキストのリージョン(範囲)にそれを操作するパーサーを指定する方法です。このセクションではパーサーにたいして範囲のセットや取得を行う関数について説明します。
 </p>
-<p>Lispプログラムがバッファーでパーサーを使う前には、<code>treesit-update-ranges</code>の呼び出しによってパーサーそれぞれにたいする範囲が正しいか確認して、その位置にあるテキストにたいして任を負うパーサーを解決する必要があります。この2つの関数自身は作業を行わず、実際に作業を行うにはメジャーモードが<code>treesit-language-at-point-function</code>および<code>treesit-language-at-point-function</code>をセットする必要があります。これらの関数および変数については、このセクションの終わり近くで詳細に説明しましょう。
+<span id="index-primary-parser"></span>
+<p>Generally when there are multiple languages at play, there is a &ldquo;primary&rdquo;,
+or &ldquo;host&rdquo; language.  The parser for this language&mdash;the <em>primary
+parser</em>, parses the entire buffer.  Parsers for other languages are
+&ldquo;embedded&rdquo; or &ldquo;guest&rdquo; parsers, which only work on part of the buffer.
+The parse tree of the primary parser is usually used to determine the ranges
+in which the embedded parsers operate.
+</p>
+<span id="index-treesit_002dprimary_002dparser"></span>
+<p>Major modes should set <code>treesit-primary-parser</code> to the primary parser
+before calling <code>treesit-major-mode-setup</code>, so that Emacs can configure
+the primary parser correctly for font-lock and other features.
+</p>
+<p>Lisp programs should call <code>treesit-update-ranges</code> to make sure the
+ranges for each parser are correct before using parsers in a buffer, and
+call <code>treesit-language-at</code> to figure out the language responsible for
+the text at some position.  These two functions don&rsquo;t work by themselves;
+they need major modes to set <code>treesit-range-settings</code> and
+<code>treesit-language-at-point-function</code>, which do the actual work.  These
+functions and variables are explained in more detail towards the end of the
+section.
+</p>
+<p>In short, multi-language major modes should set
+<code>treesit-primary-parser</code>, <code>treesit-range-settings</code>, and
+<code>treesit-language-at-point-function</code> before calling
+<code>treesit-major-mode-setup</code>.
 </p>
 <span id="Fan-Wei-noQu-De-tosetuto"></span><h3 class="heading">範囲の取得とセット</h3>
 
@@ -192,11 +217,27 @@ languages)</em>が存在することが珍しくありません。Lispプログ�
        :embed 'javascript
        :host 'html
        '((script_element (raw_text) @capture))
-</pre><pre class="example">
-
 </pre><pre class="example">       :embed 'css
        :host 'html
        '((style_element (raw_text) @capture))))
+</pre><pre class="example">
+
+</pre><pre class="example">;; Major modes with multiple languages should always set
+;; `treesit-language-at-point-function' (which see).
+(setq treesit-language-at-point-function
+      (lambda (pos)
+        (let* ((node (treesit-node-at pos 'html))
+               (parent (treesit-node-parent node)))
+          (cond
+           ((and node parent
+                 (equal (treesit-node-type node) &quot;raw_text&quot;)
+                 (equal (treesit-node-type parent) &quot;script_element&quot;))
+            'javascript)
+           ((and node parent
+                 (equal (treesit-node-type node) &quot;raw_text&quot;)
+                 (equal (treesit-node-type parent) &quot;style_element&quot;))
+            'css)
+           (t 'html)))))
 </pre></div>
 
 <dl class="def">
@@ -206,6 +247,13 @@ languages)</em>が存在することが珍しくありません。Lispプログ�
 <p>この関数は引数として一連の<var>query-spec</var>を受け取る。ここで<var>query-spec</var>とは0個以上の<var>keyword</var>/<var>value</var>ペアーが前置された<var>query</var>のこと。<var>query</var>はそれぞれ文字列、S式、コンパイル済みフォーム、あるいは関数のいずれかによるtree-sitterクエリーである。
 </p>
 <p><var>query</var>がtree-sitterクエリーなら<var>:keyword</var>/<var>value</var>のペアーを2つを前置すること(<var>:keyword</var>が<code>:embed</code>は埋め込み言語、<code>:host</code>はホスト言語)。
+</p>
+<span id="index-local-parser"></span>
+<p>値が<code>t</code>であるような<code>:local</code>キーワードを与えられたクエリーでは、クエリーによってセットされた範囲に専用のローカルパーサーが適用され、それ以外の場合には範囲に同じ言語にたいする他の範囲のパーサーが共有される。
+</p>
+<p>デフォルトではパーサーは範囲を個別の独立したセグメントではなく、連続的なものとして認識する。したがって埋め込まれた範囲が意味論的に独立したセグメントの場合には、以降で説明するローカルパーサーによって処理する必要がある。
+</p>
+<p>範囲にセットされたローカルパーサーは<code>treesit-local-parsers-at</code>および<code>treesit-local-parsers-on</code>で取得できる。
 </p>
 <p><code>treesit-update-ranges</code>は埋め込み言語用のパーサーにたいして範囲をセットする方法の解決に<var>query</var>を使用する。ホスト言語パーサーに<var>query</var>を問い合わせてキャプチャーされたノードが跨ぐ範囲を計算、それらの範囲を埋め込み言語パーサーに適用するのである。
 </p>
@@ -224,14 +272,28 @@ languages)</em>が存在することが珍しくありません。Lispプログ�
 <dd><p>この変数の値はバッファー位置<var>pos</var>を単一の引数として受け取り、<var>pos</var>にあるテキストの言語をリターンする関数であること。この変数は<code>treesit-language-at</code>により使用される。
 </p></dd></dl>
 
+<dl class="def">
+<dt id="index-treesit_002dlocal_002dparsers_002dat"><span class="category">Function: </span><span><strong>treesit-local-parsers-at</strong> <em>&amp;optional pos language</em><a href='#index-treesit_002dlocal_002dparsers_002dat' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はカレントバッファーの<var>pos</var>にセットされたすべてのローカルパーサーをリターンする。<var>pos</var>のデフォルトはポイント位置。
+</p>
+<p>ローカルパーサーは非<code>nil</code>の<code>treesit-parser</code>プロパティをもつオーバーレイによってマークされた、限定された範囲だけをパースする。<var>language</var>が非<code>nil</code>なら、その言語用のパーサーだけがリターンされる。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-treesit_002dlocal_002dparsers_002don"><span class="category">Function: </span><span><strong>treesit-local-parsers-on</strong> <em>&amp;optional beg end language</em><a href='#index-treesit_002dlocal_002dparsers_002don' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<code>treesit-local-parsers-at</code>と同様だが、ポイント位置ではなく<var>beg</var>と<var>end</var>の間の範囲にセットされたローカルパーサーをリターンする点が異なる。
+</p>
+<p><var>beg</var>と<var>end</var>のデフォルトは、そのバッファーのアクセス可能範囲全体。
+</p></dd></dl>
+
 </div>
 <hr>
 <div class="header">
 <p>
-Next: <a href="Tree_002dsitter-Major-Modes.html">tree-sitterを用いるメジャーモードの開発</a>, Previous: <a href="Pattern-Matching.html">tree-sitterノードにたいするパターンマッチング</a>, Up: <a href="Parsing-Program-Source.html">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+Next: <a href="Tree_002dsitter-Major-Modes.html">Tree-sitterとのメジャーモード開発</a>, Previous: <a href="User_002ddefined-Things.html">ユーザー定義の&ldquo;Things&rdquo;とナビゲーション</a>, Up: <a href="Parsing-Program-Source.html">プログラムソースの解析</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
 </div>
 
 
-This page has generated for branch:emacs-29, commit:b288da26c2b05780e2bf468ced5344a2c4465984 to check Japanese translation.
+This page has generated for branch:emacs-30, commit:ad27b2a96fb67e5e4e6ccb406175feb9e2cfa5a1 to check Japanese translation.
 </body>
 </html>

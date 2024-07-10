@@ -1,0 +1,115 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!-- Created by GNU Texinfo 6.8, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.60.
+
+Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Tracking changes (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Tracking changes (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Tracking changes (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="July 10, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Change-Hooks.html" rel="up" title="Change Hooks">
+<style type="text/css">
+<!--
+a.copiable-anchor {visibility: hidden; text-decoration: none; line-height: 0em}
+a.summary-letter {text-decoration: none}
+blockquote.indentedblock {margin-right: 0em}
+div.display {margin-left: 3.2em}
+div.example {margin-left: 3.2em}
+kbd {font-style: oblique}
+pre.display {font-family: inherit}
+pre.format {font-family: inherit}
+pre.menu-comment {font-family: serif}
+pre.menu-preformatted {font-family: serif}
+span.nolinebreak {white-space: nowrap}
+span.roman {font-family: initial; font-weight: normal}
+span.sansserif {font-family: sans-serif; font-weight: normal}
+span:hover a.copiable-anchor {visibility: visible}
+ul.no-bullet {list-style: none}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection" id="Tracking-changes">
+<div class="header">
+<p>
+Up: <a href="Change-Hooks.html" accesskey="u" rel="up">フックの変更</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<span id="batuhuanitaisuruBian-Geng-noZhui-Ji-"></span><h4 class="subsection">33.34.1 バッファーにたいする変更の追跡</h4>
+<span id="index-track_002dchanges"></span>
+<span id="index-change-tracker"></span>
+
+<p><code>before-change-functions</code>と<code>after-change-functions</code>を実際に使用するのは困難かもしれません。2つの呼び出しが常に正しくペアーになっていないという事実、一部の呼び出しが失われるかもしれない、一部のEmacsプリミティブが2つを正しくペアーとして呼び出すのに失敗する、あるいは<code>inhibit-modification-hooks</code>の不正な使用といった数々の落とし穴が存在するからです。さらにこれらのフック関数には基本的にカレントバッファーの修正やブロックするような操作を行ってはならない、そしてこれらのフックを多数回呼び出すコマンドがあるかもしれないので処理を迅速に行わなければならないといった、多くの制約が課せられるからです。
+</p>
+<p>Track-Changesライブラリーは、基本的にはこれらのフックの上位に構築された代替えAPIを提供するライブラリーです。<code>after-change-functions</code>と比べて1つ目の大きな違いは変更の境界と前の長さではなく、変更の境界とそのリージョンの前の実際の内容を提供することです。一部のパッケージが<code>before-change-functions</code>と<code>after-change-functions</code>の両方を使うのは、バッファーの元の内容から情報を抽出してそれらをマッチする必要があるから、というのが主な理由の1つなのです。
+</p>
+<p>2つ目の違いは変更の通知とその実際の処理動作が切り離されており、最初の変更と実際の処理の間に発生したすべての変更が1つの変更操作に自動的に統合されることです。これによりコマンドごとに1回といったように変更をより大きな粒度で自然かつ容易に処理できるようになるとともに、通常の変更フック関数に課せられる制限のほとんどが排除されてブロック操作の使用やバッファーの変更が可能になります。
+</p>
+<p>変更の追跡を開始するには<var>signal</var>関数を引数として渡して<code>track-changes-register</code>を呼び出す必要があります。これによりライブラリーの他の関数があなたの変更トラッカーを識別する、トラッカーの<var>id</var>がリターンされます。バッファーが変更されると変更を知らせるためにライブラリーが<var>signal</var>関数を呼び出して、同時にそれ以降の変更を単一の変更に統合するための変更の累積が即座に開始されます。<var>signal</var>関数の役目は変更発生の警告だけであり、変更の詳細を受け取ることはできません。さらにその変更が取得されるまでは、ライブラリーが再度これを呼び出すことはありません。
+</p>
+<p>変更を取得するためには<code>track-changes-fetch</code>を呼び出す必要があります。これは最後に呼び出されたて以降に蓄積された変更、およびそのリージョンの以前の内容を提供する関数です。さらに次にバッファーが変更された後にライブラリーが再度呼び出せるように、<var>signal</var>関数の&ldquo;再セット&rdquo;も行います。
+</p>
+<dl class="def">
+<dt id="index-track_002dchanges_002dregister"><span class="category">Function: </span><span><strong>track-changes-register</strong> <em>signal &amp;key nobefore disjoint immediate</em><a href='#index-track_002dchanges_002dregister' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数は<em>変更トラッカー(change
+tracker)</em>を新たに作成する。変更トラッカー自体は抽象的なままなので、それらを明確に参照するためのトラッカーの<var>id</var>がリターンされる。
+</p>
+<p><var>signal</var>はライブラリーが変更を通知するために呼び出す関数。この関数は引数が1つ、あるいは2つの引数で呼び出されることもある。このトラッカーが最後に<code>track-changes-fetch</code>を呼び出して以降、最初のバッファーへの変更において、ライブラリーがトラッカーの<var>id</var>を引数にセットしてこの<var>signal</var>関数を呼び出す。
+</p>
+<p>デフォルトでは<var>signal</var>関数の呼び出しは即座に発生しないが、0秒のタイマーによって延期される(<a href="Timers.html">遅延実行のためのタイマー</a>を参照)。これは<var>signal</var>関数の呼び出しが頻繁すぎないよう寛容なコンテキストで実行することで、性能上の懸念や問題となり得る操作に関する心配からクライアントを開放するので通常は望ましい。クライアントがより詳細な制御を望む場合には、<var>immediate</var>引数に非<code>nil</code>値を指定できる。この場合にはライブラリーは<code>after-change-functions</code>から直接、即座に<var>signal</var>関数を呼び出す。これは<var>signal</var>関数がバッファーを変更したり、ブロックするかもしれない操作をしないよう配慮する必要があることを意味することに注意。
+</p>
+<p>バッファーの以前の実際の内容に興味がなく、多くの小さな変更を1つの大きな変更に統合したり、より都合のいいタイミングまで処理を遅延するというこのライブラリーの能力だけのためにこのライブラリーを使用する場合には、<var>nobefore</var>引数に非<code>nil</code>値を指定できる。この場合には<code>track-change-fetch</code>は<code>after-change-functions</code>と同じように以前の内容の長さだけを提供する。これによりライブラリーも一部の作業を節約できる。
+</p>
+<p>多数の小さな変更を1つの大きな変更に蓄積することに問題はなくとも、変更があまりに遠く離れてしまうようなら、それは望ましくないかもしれない。<var>disjoint</var>引数に非<code>nil</code>値を指定すると、現在保留中の変更から&ldquo;離れた&rdquo;変更が発生した際に、ライブラリーが<var>signal</var>関数を即座に呼び出して通知する。この場合にはトラッカーの<var>id</var>、およびすでに保留中の変更と新たな変更を隔てる文字数という2つの引数とともに<var>signal</var>が呼び出される。これ自体が新たな変更と以前の変更の統合を妨げることはないので、新たな変更が実際に遠すぎると判断したら、即座に<code>track-change-fetch</code>を呼び出す必要がある。解体された変更によって<var>signal</var>関数が呼び出されると、それは<code>before-change-functions</code>から直接発生したものなので、バッファー変更やブロックするかもしれない操作の使用に関する通常の制約が適用されることに注意。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-track_002dchanges_002dfetch"><span class="category">Function: </span><span><strong>track-changes-fetch</strong> <em>id func</em><a href='#index-track_002dchanges_002dfetch' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>これはバッファーで何が変更されたかを探すための関数である。トラッカーの<var>id</var>を与えることにより、トラッカーがすでに確認済みの変更をライブラリーに認識させる。<code>track-changes-fetch</code>は変更の記述をリターンするかわりに、<var>beg</var>、<var>end</var>、<var>before</var>という3つの引数として表された変更の記述とともに<var>func</var>関数を呼び出す。ここで<code><var>beg</var>..<var>end</var></code>は変更されたリージョンの区切り、<var>before</var>はリージョンの以前の内容を記述する。<var>before</var>は通常は変更されたリージョンの以前のテキストを含んだ文字列だが、<code>track-changes-register</code>の<var>nobefore</var>引数に非<code>nil</code>を指定した場合には以前のテキストの文字数で置き換えられる。
+</p>
+<p>最後の呼び出し以降に何も変更が発生していなければ、<code>track-changes-fetch</code>は<var>func</var>を呼び出さずに単に<code>nil</code>をリターンする。変更が発生していたら<var>func</var>を呼び出して、<var>func</var>がリターンした値をリターンする。ただし変更が何回発生したとしても、<var>func</var>は1回しか呼び出されないことに注意。発生した変更は<var>beg</var>/<var>end</var>/<var>before</var>という単一のトリプレットにまとめられる。
+</p>
+<p>たとえば低レベルのCコードのバグや、<code>inhibit-modification-hooks</code>の不正な使用によって、ライブラリーがすべての変更を正しく通知しない場合がある。そのような問題を検知すると<var>func</var>はバッファー全体をカバーするような<code><var>beg</var>..<var>end</var></code>、そして何が変更されたかライブラリーには判断不能であることうぃ示すシンボル<code>error</code>がセットされた<var>before</var>引数を受け取ることになる。
+</p>
+<p><var>func</var>が完了すると変更が次回発生した際に呼び出せるように、<code>track-changes-fetch</code>は<var>signal</var>関数をふたたび有効化する。これはなぜこの関数が変更の記述をリターンするのではなく、<var>func</var>を呼び出すのかという理由である。これにより<var>signal</var>がふたたび有効化されるのが<var>func</var>の完了後だけなので、途中で<var>signal</var>関数がトリガーされるというリスクへの懸念なしで変更を処理できるのだ。
+</p></dd></dl>
+
+<dl class="def">
+<dt id="index-track_002dchanges_002dunregister"><span class="category">Function: </span><span><strong>track-changes-unregister</strong> <em>id</em><a href='#index-track_002dchanges_002dunregister' class='copiable-anchor'> &para;</a></span></dt>
+<dd><p>この関数はライブラリーにたいして、トラッカー<var>id</var>がこれ以上変更について知る必要がないことを告げる。変更の追跡を停止したくないクライアントがほとんどだとしても、マイナーモードのようなクライアントはモードが無効化される前にこの関数を呼び出すことが重要である。さもなくばトラッカーは変更を累積し続けてますます多くのリソースが消費されることになるだろう。
+</p></dd></dl>
+
+</div>
+
+
+This page has generated for branch:emacs-30, commit:ad27b2a96fb67e5e4e6ccb406175feb9e2cfa5a1 to check Japanese translation.
+</body>
+</html>
