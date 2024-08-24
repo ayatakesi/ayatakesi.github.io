@@ -4,7 +4,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <!-- This is the GNU Emacs Lisp Reference Manual
-corresponding to Emacs version 30.0.50.
+corresponding to Emacs version 30.0.60.
 
 Copyright (C) 1990-1996, 1998-2024 Free Software Foundation, Inc.
 
@@ -90,7 +90,11 @@ history)&rdquo;になる。更に(<var>keymap</var>引数を通じて)呼び出�
 </p>
 <p>引数<var>history</var>は入力の保存やミニバッファー内で使用されるヒストリーコマンドが使用するヒストリーリスト変数を指定する。デフォルトは<code>minibuffer-history</code>。<var>history</var>がシンボル<code>t</code>なら、ヒストリーを記録しない。同様にオプションでヒストリーリスト内の開始位置を指定できる。<a href="Minibuffer-History.html">ミニバッファーのヒストリー</a>を参照のこと。
 </p>
-<p>変数<code>minibuffer-allow-text-properties</code>が非<code>nil</code>なら、リターンされる文字列にはミニバッファーでのすべてのテキストプロパティが含まれる。それ以外なら、値がリターンされるときすべてのテキストプロパティが取り除かれる(この変数はデフォルトでは<code>nil</code>)。
+<p>If the variable <code>minibuffer-allow-text-properties</code> is non-<code>nil</code>,
+either let-bound or buffer-local in the minibuffer, then the string that is
+returned includes whatever text properties were present in the minibuffer.
+Otherwise all the text properties are stripped when the value is returned.
+(By default this variable is <code>nil</code>.)
 </p>
 <span id="index-minibuffer_002dprompt_002dproperties"></span>
 <p><code>minibuffer-prompt-properties</code>内のテキストプロパティはプロンプトに適用される。このプロパティリストはデフォルトではプロンプトに使用するフェイスを定義する。このフェイスが与えられるとフェイスリストの最後に適用されて表示前にマージされる。
@@ -189,19 +193,30 @@ c</kbd>コマンドを使うことができる。ユーザーがこのコマン�
 
 <dl class="def">
 <dt id="index-minibuffer_002dallow_002dtext_002dproperties"><span class="category">Variable: </span><span><strong>minibuffer-allow-text-properties</strong><a href='#index-minibuffer_002dallow_002dtext_002dproperties' class='copiable-anchor'> &para;</a></span></dt>
-<dd><p>この変数が<code>nil</code>
-(デフォルト)なら、<code>read-from-minibuffer</code>と<code>read-string</code>はミニバッファー入力をリターンする前にすべてのテキストプロパティを取り除く。しかし<code>read-no-blanks-input</code>(以下参照)、同様に補完つきでミニバッファー入力を行う<code>read-minibuffer</code>とそれに関連する関数(<a href="Object-from-Minibuffer.html">Reading Lisp Objects With the
-Minibuffer</a>を参照)は、この変数の値に関わらず、無条件で<code>face</code>プロパティを破棄する。
+<dd><p>If this variable is <code>nil</code>, the default, then
+<code>read-from-minibuffer</code> and all functions that do minibuffer input strip
+all text properties from the minibuffer input before returning it.
 </p>
-<p>この変数が非<code>nil</code>なら、補完テーブル由来の文字列(ただし補完された文字列部分のみ)のほとんどのテキストプロパティは保持される。
+<p>However, <code>read-minibuffer</code> and related functions (see <a href="Object-from-Minibuffer.html">Reading Lisp Objects With the Minibuffer</a>), remove the text
+properties unconditionally, regardless of the value of this variable.
+</p>
+<p>If this variable is non-<code>nil</code>, either let-bound or buffer-local in the
+minibuffer, then <code>read-from-minibuffer</code>, <code>read-string</code>, and all
+related functions preserve text properties.  But functions that do
+minibuffer input with completion remove the <code>face</code> property while
+preserving other text properties.
 </p>
 <div class="example lisp">
-<pre class="lisp">(let ((minibuffer-allow-text-properties t))
-  (completing-read &quot;String: &quot; (list (propertize &quot;foobar&quot; 'data 'zot))))
-=&gt; #(&quot;foobar&quot; 3 6 (data zot))
+<pre class="lisp">(minibuffer-with-setup-hook
+    (lambda ()
+      (setq-local minibuffer-allow-text-properties t))
+  (completing-read
+   &quot;String: &quot; (list (propertize &quot;foobar&quot; 'face 'baz 'data 'zot))))
+=&gt; #(&quot;foobar&quot; 0 6 (data zot))
 </pre></div>
 
-<p>この例ではユーザーが&lsquo;<samp>foo</samp>&rsquo;とタイプしてから<kbd>TAB</kbd>キーを押下しており、最後の3文字のテキストプロパティだけが保持される。
+<p>In this example, the user typed &lsquo;<samp>foo</samp>&rsquo; and then hit the <kbd>TAB</kbd> key,
+and all text properties are preserved except the <code>face</code> property.
 </p></dd></dl>
 
 <span id="index-minibuffer_002dmode_002dmap"></span>
@@ -254,16 +269,7 @@ Minibuffer</a>を参照)は、この変数の値に関わらず、無条件で<c
 <dd><p>この関数はミニバッファーから文字列を読み取るが、入力の一部として空白文字を認めず、そのかわりに空白文字は入力を終端させる。引数<var>prompt</var>、<var>initial</var>、<var>inherit-input-method</var>は<code>read-from-minibuffer</code>で使用するときと同様。
 </p>
 <p>これは関数<code>read-from-minibuffer</code>の簡略化されたインターフェイスであり、キーマップ<code>minibuffer-local-ns-map</code>の値を<var>keymap</var>引数として<code>read-from-minibuffer</code>関数に渡す。キーマップ<code>minibuffer-local-ns-map</code>は<kbd>C-q</kbd>をリバインドしないので、クォートすることによって文字列内にスペースを挿入することが<em>可能</em>である。
-</p>
-<p><code>minibuffer-allow-text-properties</code>の値に関わらず、この関数はテキストプロパティを破棄する。
-</p>
-<div class="example">
-<pre class="example">(read-no-blanks-input <var>prompt</var> <var>initial</var>)
-&equiv;
-(let (minibuffer-allow-text-properties)
-  (read-from-minibuffer <var>prompt</var> <var>initial</var> minibuffer-local-ns-map))
-</pre></div>
-</dd></dl>
+</p></dd></dl>
 
 <dl class="def">
 <dt id="index-minibuffer_002dlocal_002dns_002dmap"><span class="category">Variable: </span><span><strong>minibuffer-local-ns-map</strong><a href='#index-minibuffer_002dlocal_002dns_002dmap' class='copiable-anchor'> &para;</a></span></dt>
@@ -327,6 +333,6 @@ Next: <a href="Object-from-Minibuffer.html">ミニバッファーでのLispオ�
 </div>
 
 
-This page has generated for branch:master, commit:4ae206a667c3fa33caacc507119303fd9d45bceb to check Japanese translation.
+This page has generated for branch:work/emacs-30_0a626a64c70e6842027d58dd2b52776d864cedb2, commit:5bb4c3306e855fdf2c6553a2e123d3a4916bfc17 to check Japanese translation.
 </body>
 </html>
