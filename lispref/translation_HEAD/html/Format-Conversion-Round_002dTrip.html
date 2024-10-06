@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.91.
+
+Copyright © 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Format Conversion Round-Trip (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Format Conversion Round-Trip (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Format Conversion Round-Trip (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="October 6, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Format-Conversion.html" rel="up" title="Format Conversion">
+<link href="Format-Conversion-Piecemeal.html" rel="next" title="Format Conversion Piecemeal">
+<link href="Format-Conversion-Overview.html" rel="prev" title="Format Conversion Overview">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+kbd.key {font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+ul.mark-bullet {list-style-type: disc}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Format-Conversion-Round_002dTrip">
+<div class="nav-panel">
+<p>
+Next: <a href="Format-Conversion-Piecemeal.html" accesskey="n" rel="next">漸次仕様</a>, Previous: <a href="Format-Conversion-Overview.html" accesskey="p" rel="prev">概要</a>, Up: <a href="Format-Conversion.html" accesskey="u" rel="up">ファイルのフォーマット変換</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="raundotoritupuShi-Yang-"><span>26.13.2 ラウンドトリップ仕様<a class="copiable-link" href="#raundotoritupuShi-Yang-"> &para;</a></span></h4>
+
+<p>読み取りと書き込みのもっとも一般的な機能は変数<code class="code">format-alist</code>で制御されます。これは<em class="dfn">ファイルフォーマット(file
+format)</em>仕様のリストで、Emacsバッファー内のデータにたいしてファイル内で使用されるテキスト表現を記述します。読み取りと書き込みの仕様記述はペアーになっており、わたしたちがそれを&ldquo;ラウンドトリップ(round-trip)&rdquo;仕様と呼ぶのはこれが理由です(非ペアー仕様については<a class="ref" href="Format-Conversion-Piecemeal.html">漸次仕様</a>を参照)。
+</p>
+<dl class="first-defvr first-defvar-alias-first-defvr">
+<dt class="defvr defvar-alias-defvr" id="index-format_002dalist"><span class="category-def">Variable: </span><span><strong class="def-name">format-alist</strong><a class="copiable-link" href="#index-format_002dalist"> &para;</a></span></dt>
+<dd><p>このリストには定義されるファイルフォーマットごとに1つのフォーマット定義が含まれる。フォーマット定義はそれぞれ以下の形式のリスト:
+</p>
+<div class="example">
+<pre class="example-preformatted">(<var class="var">name</var> <var class="var">doc-string</var> <var class="var">regexp</var> <var class="var">from-fn</var> <var class="var">to-fn</var> <var class="var">modify</var> <var class="var">mode-fn</var> <var class="var">preserve</var>)
+</pre></div>
+</dd></dl>
+
+<a class="index-entry-id" id="index-format-definition"></a>
+<p>以下はフォーマット定義内で要素がもつ意味:
+</p>
+<dl class="table">
+<dt><var class="var">name</var></dt>
+<dd><p>フォーマットの名前。
+</p>
+</dd>
+<dt><var class="var">doc-string</var></dt>
+<dd><p>フォーマットのドキュメント文字列。
+</p>
+</dd>
+<dt><var class="var">regexp</var></dt>
+<dd><p>このフォーマットで表現されるファイルの認識に使用される正規表現。<code class="code">nil</code>ならフォーマットが自動的に適用されることは決してない。
+</p>
+</dd>
+<dt><var class="var">from-fn</var></dt>
+<dd><p>このフォーマットのデータをデコードする、(ファイルデータを通常のEmacsデータ表現に変換するための)シェルコマンドか関数。
+</p>
+<p>シェルコマンドは文字列として表され、Emacsはそのコマンドを変換処理用のフィルターとして実行する。
+</p>
+<p><var class="var">from-fn</var>が関数なら、それは変換するべきバッファー部分を指定する2つの引数<var class="var">begin</var>と<var class="var">end</var>で呼び出される。これはインプレースでテキストを編集することにより変換を行うこと。これはテキスト長を変更する可能性があるので<var class="var">from-fn</var>は変更されたend位置をリターンすること。
+</p>
+<p>ファイルの先頭が変換により<var class="var">regexp</var>にマッチしないようにするのは<var class="var">from-fn</var>の役目の1つである。そうでないとおそらく再度変換が呼び出される。さらに<var class="var">from-fn</var>はデコードされるバッファーやバッファーではないこと。さもなければフォーマット用の内部バッファーが上書きされるかもしれない。
+</p>
+</dd>
+<dt><var class="var">to-fn</var></dt>
+<dd><p>このフォーマットのデータをエンコード、すなわち通常のEmacsデータ表現をこのフォーマットに変換するためのシェルコマンドか関数。
+</p>
+<p><var class="var">to-fn</var>が文字列ならそれはシェルコマンドである。Emacsは変換処理のためのフィルターとしてこのコマンドを実行する。
+</p>
+<p><var class="var">to-fn</var>が関数なら、それは3つの引数で呼び出される。<var class="var">begin</var>と<var class="var">end</var>は変換されるべきバッファー部分、<var class="var">buffer</var>でそれがどのバッファーかを指定する。変換を行うには2つの方法がある:
+</p>
+<ul class="itemize mark-bullet">
+<li>そのバッファー内でインプレースで編集を行う。<var class="var">to-fn</var>はこの場合は変更にしたがいテキスト範囲のend位置をリターンすること。
+
+</li><li>注釈(annotation)のリストをリターンする。これは<code class="code">(<var class="var">position</var>
+.
+<var class="var">string</var>)</code>という形式の要素をもつリストで、<var class="var">position</var>は書き込まれるテキスト内での相対位置を指定する整数、<var class="var">string</var>はそこに追加される注釈である。このリストは<var class="var">to-fn</var>がそれをリターンする際には、位置順でソートされていなければならない。
+
+<p><code class="code">write-region</code>が実際にバッファーからファイルにテキストを書き込む際には、指定された注釈を対応する位置に混合する。これはすべてバッファーを変更せずに行われる。
+</p></li></ul>
+
+<p><var class="var">from-fn</var>はデコードされるバッファーやバッファーではないこと。さもなければフォーマット用の内部バッファーが上書きされるかもしれない。
+</p>
+</dd>
+<dt><var class="var">modify</var></dt>
+<dd><p>フラグ。エンコード関数がバッファーを変更するなら<code class="code">t</code>、注釈リストをリターンすることによって機能するなら<code class="code">nil</code>。
+</p>
+</dd>
+<dt><var class="var">mode-fn</var></dt>
+<dd><p>このフォーマットから変換されたファイルをvisit後に呼び出されるマイナーモード関数。この関数は1つの引数で呼び出されて、それが整数1ならマイナーモード関数はそのモードを有効にする。
+</p>
+</dd>
+<dt><var class="var">preserve</var></dt>
+<dd><p>フラグ。<code class="code">format-write-file</code>が<code class="code">buffer-file-format</code>からこのフォーマットを取り除くべきでなければ<code class="code">t</code>。
+</p></dd>
+</dl>
+
+<p>関数<code class="code">insert-file-contents</code>は指定されたファイルを読み込む際にファイルフォーマットを自動的に認識します。これはフォーマット定義の正規表現にたいしてファイルの先頭テキストをチェックして、マッチが見つかったら、そのフォーマットにたいするデコード関数を呼び出します。その後は再度すべての既知のフォーマットをチェックします。適用できるフォーマットがない間はチェックを続行します。
+</p>
+<p><code class="code">find-file-noselect</code>やそれを使用するコマンドでファイルをvisitすることにより、同じように変換が行われます(内部で<code class="code">insert-file-contents</code>を呼び出すため)。さらにそれをデコードする各フォーマットのモード関数も呼び出します。これはバッファーローカル変数<code class="code">buffer-file-format</code>内にフォーマット名のリストを格納します。
+</p>
+<dl class="first-defvr first-defvar-alias-first-defvr">
+<dt class="defvr defvar-alias-defvr" id="index-buffer_002dfile_002dformat"><span class="category-def">Variable: </span><span><strong class="def-name">buffer-file-format</strong><a class="copiable-link" href="#index-buffer_002dfile_002dformat"> &para;</a></span></dt>
+<dd><p>この変数はvisitしているファイルのフォーマットを表す。より正確にはこれはカレントバッファーのファイルをvisitに起因するデコードのファイルフォーマット名のリストである。これはすべてのバッファーにたいして常にローカル。
+</p></dd></dl>
+
+<p><code class="code">write-region</code>がデータをファイルに書き込む際には、まず<code class="code">buffer-file-format</code>にリストされたフォーマットにたいするエンコード関数をリスト内での出現順に呼び出します。
+</p>
+<dl class="first-deffn">
+<dt class="deffn" id="index-format_002dwrite_002dfile"><span class="category-def">Command: </span><span><strong class="def-name">format-write-file</strong> <var class="def-var-arguments">file format &amp;optional confirm</var><a class="copiable-link" href="#index-format_002dwrite_002dfile"> &para;</a></span></dt>
+<dd><p>このコマンドはカレントバッファーのコンテンツをフォーマット名のリスト<var class="var">format</var>にもとづいたフォーマットでファイル<var class="var">file</var>に書き込む。これは<var class="var">format</var>を起点に、<code class="code">buffer-file-format</code>の値から<var class="var">preserve</var>フラグ(上記参照)が非<code class="code">nil</code>の要素にたいして、それがまだ<var class="var">format</var>内に存在しなければ任意の個数それらを追加する。その後に将来の保存においてデフォルトとなるように、このフォーマットで<code class="code">buffer-file-format</code>を更新する。<var class="var">format</var>引数を除けばこのコマンドは<code class="code">write-file</code>と似ている。特に<var class="var">confirm</var>は<code class="code">write-file</code>での対応する引数と、意味やinteractiveでの扱いが同じである。<a class="ref" href="Saving-Buffers.html#Definition-of-write_002dfile">Definition of write-file</a>を参照のこと。
+</p></dd></dl>
+
+<dl class="first-deffn">
+<dt class="deffn" id="index-format_002dfind_002dfile"><span class="category-def">Command: </span><span><strong class="def-name">format-find-file</strong> <var class="def-var-arguments">file format</var><a class="copiable-link" href="#index-format_002dfind_002dfile"> &para;</a></span></dt>
+<dd><p>このコマンドはファイル<var class="var">file</var>を探してそれをフォーマット<var class="var">format</var>にしたがって変換する。これは後でそのバッファーを保存する場合に<var class="var">format</var>をデフォルトにすることも行う。
+</p>
+<p>引数<var class="var">format</var>はフォーマット名のリスト。<var class="var">format</var>が<code class="code">nil</code>なら何の変換も行われない。interactiveに呼び出した場合には、<var class="var">format</var>にたいして単に<kbd class="key">RET</kbd>をタイプすると<code class="code">nil</code>が指定される。
+</p></dd></dl>
+
+<dl class="first-deffn">
+<dt class="deffn" id="index-format_002dinsert_002dfile"><span class="category-def">Command: </span><span><strong class="def-name">format-insert-file</strong> <var class="def-var-arguments">file format &amp;optional beg end</var><a class="copiable-link" href="#index-format_002dinsert_002dfile"> &para;</a></span></dt>
+<dd><p>このコマンドはファイル<var class="var">file</var>のコンテンツをフォーマット<var class="var">format</var>にしたがって変換して挿入する。<var class="var">beg</var>と<var class="var">end</var>が非<code class="code">nil</code>なら、それは<code class="code">insert-file-contents</code>と同様、ファイルのどの部分を読み込むかを指定する(<a class="ref" href="Reading-from-Files.html">ファイルからの読み込み</a>を参照)。
+</p>
+<p>リターン値は絶対ファイル名のリスト、および挿入されたデータの長さ(変換後)であり、これは<code class="code">insert-file-contents</code>がリターンするものと同様。
+</p>
+<p>引数<var class="var">format</var>はフォーマット名のリスト。<var class="var">format</var>が<code class="code">nil</code>なら何の変換も行われない。interactiveに呼び出した場合には、<var class="var">format</var>にたいして単に<kbd class="key">RET</kbd>をタイプすると<code class="code">nil</code>が指定される。
+</p></dd></dl>
+
+<dl class="first-defvr first-defvar-alias-first-defvr">
+<dt class="defvr defvar-alias-defvr" id="index-buffer_002dauto_002dsave_002dfile_002dformat"><span class="category-def">Variable: </span><span><strong class="def-name">buffer-auto-save-file-format</strong><a class="copiable-link" href="#index-buffer_002dauto_002dsave_002dfile_002dformat"> &para;</a></span></dt>
+<dd><p>この変数は自動保存(auto-saving)にたいして使用するフォーマットを指定する。値は<code class="code">buffer-file-format</code>と同様、ファイル名のリストだが、これはauto-saveファイルへの書き込みで<code class="code">buffer-file-format</code>のかわりに使用される。値が<code class="code">t</code>(デフォルト)なら自動保存は当バッファーの通常の保存時と同じフォーマットを使用する。この変数はすべてのバッファーにおいて常にバッファーローカル。
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Format-Conversion-Piecemeal.html">漸次仕様</a>, Previous: <a href="Format-Conversion-Overview.html">概要</a>, Up: <a href="Format-Conversion.html">ファイルのフォーマット変換</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/emacs-30_11e7ae3964e192b0e4bcc437a04278ee727e720b, commit:c4c5930dbd799678308f200cfc5225ca3ecf76b2 to check Japanese translation.
+</body>
+</html>

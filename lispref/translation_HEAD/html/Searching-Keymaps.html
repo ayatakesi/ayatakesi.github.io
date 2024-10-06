@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.91.
+
+Copyright © 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Searching Keymaps (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Searching Keymaps (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Searching Keymaps (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="October 6, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Keymaps.html" rel="up" title="Keymaps">
+<link href="Controlling-Active-Maps.html" rel="next" title="Controlling Active Maps">
+<link href="Active-Keymaps.html" rel="prev" title="Active Keymaps">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="Searching-Keymaps">
+<div class="nav-panel">
+<p>
+Next: <a href="Controlling-Active-Maps.html" accesskey="n" rel="next">アクティブなキーマップの制御</a>, Previous: <a href="Active-Keymaps.html" accesskey="p" rel="prev">アクティブなキーマップ</a>, Up: <a href="Keymaps.html" accesskey="u" rel="up">キーマップ</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="akuteibunakimatupunoJian-Suo-"><span>23.8 アクティブなキーマップの検索<a class="copiable-link" href="#akuteibunakimatupunoJian-Suo-"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-searching-active-keymaps-for-keys"></a>
+
+<p>以下はEmacsがアクティブなキーマップを検索する方法を示すLisp処理の概要です:
+</p>
+<div class="example lisp">
+<pre class="lisp-preformatted">(or (if overriding-terminal-local-map
+        (<var class="var">find-in</var> overriding-terminal-local-map))
+    (if overriding-local-map
+        (<var class="var">find-in</var> overriding-local-map)
+      (or (<var class="var">find-in</var> (get-char-property (point) 'keymap))
+          (<var class="var">find-in-any</var> emulation-mode-map-alists)
+          (<var class="var">find-in-any</var> minor-mode-overriding-map-alist)
+          (<var class="var">find-in-any</var> minor-mode-map-alist)
+          (if (get-char-property (point) 'local-map)
+              (<var class="var">find-in</var> (get-char-property (point) 'local-map))
+            (<var class="var">find-in</var> (current-local-map)))))
+    (<var class="var">find-in</var> (current-global-map)))
+</pre></div>
+
+<p>ここで<var class="var">find-in</var>と<var class="var">find-in-any</var>はそれぞれ、1つのキーマップとキーマップのalistを検索する仮の関数です。関数<code class="code">set-transient-map</code>が<code class="code">overriding-terminal-local-map</code>
+(<a class="ref" href="Controlling-Active-Maps.html">アクティブなキーマップの制御</a>を参照)をセットすることによって機能する点に注意してください。
+</p>
+<p>上記の処理概要ではキーシーケンスがマウスイベント(<a class="ref" href="Mouse-Events.html">マウスイベント</a>を参照)で始まる場合には、ポイント位置のかわりにそのイベント位置、カレントバッファーのかわりにそのイベントのバッファーが使用されます。これは特にプロパティ<code class="code">keymap</code>と<code class="code">local-map</code>をルックアップする方法に影響を与えます。<code class="code">display</code>、<code class="code">before-string</code>、<code class="code">after-string</code>プロパティ(<a class="ref" href="Special-Properties.html">特殊な意味をもつプロパティ</a>を参照)が埋め込まれていて<code class="code">keymap</code>か<code class="code">local-map</code>プロパティが非<code class="code">nil</code>の文字列上でマウスイベントが発生すると、それは基調となるバッファーテキストの対応するプロパティをオーバーライドします(バッファーテキストにより指定されたプロパティは無視される)。
+</p>
+<p>アクティブなキーマップの1つでキーバインディングが見つかって、そのバインディングがコマンドなら検索は終了してそのコマンドが実行されます。しかしそのバインディングが値をもつ変数か文字列なら、Emacsは入力キーシーケンスをその変数の値か文字列で置き換えて、アクティブなキーマップの検索を再開します。
+<a class="ref" href="Key-Lookup.html">キーの照合</a>を参照してください。
+</p>
+<p>最終的に見つかったコマンドもリマップされるかもしれません。<a class="ref" href="Remapping-Commands.html">コマンドのリマップ</a>を参照してください。
+</p>
+</div>
+
+
+This page has generated for branch:work/emacs-30_11e7ae3964e192b0e4bcc437a04278ee727e720b, commit:c4c5930dbd799678308f200cfc5225ca3ecf76b2 to check Japanese translation.
+</body>
+</html>

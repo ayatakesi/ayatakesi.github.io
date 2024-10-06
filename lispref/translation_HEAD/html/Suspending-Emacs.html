@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.91.
+
+Copyright © 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Suspending Emacs (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Suspending Emacs (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Suspending Emacs (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="October 6, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Getting-Out.html" rel="up" title="Getting Out">
+<link href="Killing-Emacs.html" rel="prev" title="Killing Emacs">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+kbd.kbd {font-style: oblique}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Suspending-Emacs">
+<div class="nav-panel">
+<p>
+Previous: <a href="Killing-Emacs.html" accesskey="p" rel="prev">Emacsのkill</a>, Up: <a href="Getting-Out.html" accesskey="u" rel="up">Emacsからの脱出</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="Emacsnosasupendo"><span>43.2.2 Emacsのサスペンド<a class="copiable-link" href="#Emacsnosasupendo"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-suspending-Emacs"></a>
+
+<p>テキスト端末では<em class="dfn">Emacsのサスペンド</em>ができます。これはEmacsを一時的にストップして上位のプロセスに制御を返します。これは通常はshellです。これにより後で同じEmacsプロセス内の同じバッファー、同じkillリング、同じアンドゥヒストリー、...で編集を再開できます。Emacsを再開するには親shell内で適切なコマンド
+&mdash; 恐らくは<code class="code">fg</code> &mdash; を使用します。
+</p>
+<a class="index-entry-id" id="index-controlling-terminal"></a>
+<p>そのEmacsセッションが開始された端末デバイス上でのみサスペンドは機能します。そのデバイスのことをセッションの<em class="dfn">制御端末(controlling
+terminal)</em>と呼びます。制御端末がグラフィカルな端末ならサスペンドは許されません。グラフィカルな端末ではEmacsで特別なことをせずに単に別のアプリケーションにスイッチできるのでサスペンドは通常は関係ありません。
+</p>
+<a class="index-entry-id" id="index-SIGTSTP"></a>
+<p>いくつかのオペレーティングシステム(<code class="code">SIGTSTP</code>のないシステムやMS-DOS)ではジョブの停止はサポートされません。これらのシステムでの停止はEmacsのサブプロセスとして新たなshellを一時的に作成します。Emacsに戻るためにはshellをexitすればよいでしょう。
+</p>
+<dl class="first-deffn">
+<dt class="deffn" id="index-suspend_002demacs"><span class="category-def">Command: </span><span><strong class="def-name">suspend-emacs</strong> <var class="def-var-arguments">&amp;optional string</var><a class="copiable-link" href="#index-suspend_002demacs"> &para;</a></span></dt>
+<dd><p>この関数はEmacsを停止して上位のプロセスに制御を返す。上位プロセスがEmacsを再開する際には、Lispでの<code class="code">suspend-emacs</code>の呼び出し元に<code class="code">nil</code>をリターンする。
+</p>
+<p>この関数はそのEmacsセッションの制御端末上でのみ機能する。他のTTYデバイスの制御を放棄するには<code class="code">suspend-tty</code>を使用する(下記参照)。そのEmacsセッションが複数の端末を使用する場合にはEmacsのサスペンド前に他のすべての端末からフレームを削除しなければならず、さもないとこの関数はエラーをシグナルする。<a class="ref" href="Multiple-Terminals.html">複数の端末</a>を参照のこと。
+</p>
+<p>If <var class="var">string</var> is non-<code class="code">nil</code>, its characters are sent to Emacs&rsquo;s
+superior shell, to be read as terminal input.
+</p>
+<p>サスペンドする前に<code class="code">suspend-emacs</code>はノーマルフック<code class="code">suspend-hook</code>を実行する。ユーザーがEmacs再開後に<code class="code">suspend-emacs</code>はノーマルフック<code class="code">suspend-resume-hook</code>を実行する。<a class="ref" href="Hooks.html">フック</a>を参照のこと。
+</p>
+<p>再開後の次回再表示では変数<code class="code">no-redraw-on-reenter</code>が<code class="code">nil</code>ならスクリーン全体が再描画される。<a class="ref" href="Refresh-Screen.html">スクリーンのリフレッシュ</a>を参照のこと。
+</p>
+<p>以下はこれらのフックの使用例:
+</p>
+<div class="example smallexample">
+<div class="group"><pre class="example-preformatted">(add-hook 'suspend-hook
+          (lambda () (or (y-or-n-p &quot;Really suspend?&quot;)
+                         (error &quot;Suspend canceled&quot;))))
+</pre></div><pre class="example-preformatted">(add-hook 'suspend-resume-hook (lambda () (message &quot;Resumed!&quot;)
+                                 (sit-for 2)))
+</pre></div>
+
+<p><code class="code">(suspend-emacs &quot;pwd&quot;)</code>を評価すると以下を目にするだろう:
+</p>
+<div class="example smallexample">
+<div class="group"><pre class="example-preformatted">---------- Buffer: Minibuffer ----------
+Really suspend? <kbd class="kbd">y</kbd>
+---------- Buffer: Minibuffer ----------
+</pre></div><pre class="example-preformatted">
+
+</pre><div class="group"><pre class="example-preformatted">---------- Parent Shell ----------
+bash$ pwd
+/home/username
+bash$ fg
+</pre></div><pre class="example-preformatted">
+
+</pre><div class="group"><pre class="example-preformatted">---------- Echo Area ----------
+Resumed!
+</pre></div></div>
+
+<p>Note that on some operating systems, sending <var class="var">string</var> to the Emacs
+parent shell might require special privileges, in which case it might
+silently fail to send <var class="var">string</var> to the shell for execution.  On other
+systems this is not supported, and Emacs will signal an error if you try.
+Also, <var class="var">string</var> might not be echoed, even if it is executed by the
+shell.  So we don&rsquo;t recommend relying on this feature in portable Lisp
+programs.
+</p></dd></dl>
+
+<dl class="first-defvr first-defvar-alias-first-defvr">
+<dt class="defvr defvar-alias-defvr" id="index-suspend_002dhook"><span class="category-def">Variable: </span><span><strong class="def-name">suspend-hook</strong><a class="copiable-link" href="#index-suspend_002dhook"> &para;</a></span></dt>
+<dd><p>この変数はEmacsがサスペンド前に実行するノーマルフック。
+</p></dd></dl>
+
+<dl class="first-defvr first-defvar-alias-first-defvr">
+<dt class="defvr defvar-alias-defvr" id="index-suspend_002dresume_002dhook"><span class="category-def">Variable: </span><span><strong class="def-name">suspend-resume-hook</strong><a class="copiable-link" href="#index-suspend_002dresume_002dhook"> &para;</a></span></dt>
+<dd><p>この変数はサスペンド後の再開時にEmacsが実行するノーマルフック。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-suspend_002dtty"><span class="category-def">Function: </span><span><strong class="def-name">suspend-tty</strong> <var class="def-var-arguments">&amp;optional tty</var><a class="copiable-link" href="#index-suspend_002dtty"> &para;</a></span></dt>
+<dd><p><var class="var">tty</var>にEmacsが使用する端末デバイスを指定すると、この関数はそのデバイスを放棄して以前の状態にリストアする。そのデバイスを使用していたフレームは存在を続けるが更新はされず、Emacsはそれらのフレームから入力を読み取らない。<var class="var">tty</var>には端末オブジェクト、フレーム(そのフレームの端末の意)、<code class="code">nil</code>
+(選択されたフレームの端末の意)を指定できる。<a class="ref" href="Multiple-Terminals.html">複数の端末</a>を参照のこと。
+</p>
+<p><var class="var">tty</var>がサスペンド済みなら何も行わない。
+</p>
+<a class="index-entry-id" id="index-suspend_002dtty_002dfunctions"></a>
+<p>この関数は端末オブジェクトを各関数への引数としてフック<code class="code">suspend-tty-functions</code>を実行する。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-resume_002dtty"><span class="category-def">Function: </span><span><strong class="def-name">resume-tty</strong> <var class="def-var-arguments">&amp;optional tty</var><a class="copiable-link" href="#index-resume_002dtty"> &para;</a></span></dt>
+<dd><p>この関数は以前にサスペンドされたデバイス<var class="var">tty</var>を再開する。ここで<var class="var">tty</var>は<code class="code">suspend-tty</code>に指定できる値と同じである。
+</p>
+<a class="index-entry-id" id="index-resume_002dtty_002dfunctions"></a>
+<p>この関数は端末デバイスの再オープンと再初期化を行い、その端末の選択されたフレームで端末を再描画する。それから端末ブジェクトを各関数への引数としてフック<code class="code">resume-tty-functions</code>を実行する。
+</p>
+<p>同じデバイスが別のEmacs端末で使用済みなら、この関数はエラーをシグナルする。<var class="var">tty</var>がサスペンドされていなければ何もしない。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-controlling_002dtty_002dp"><span class="category-def">Function: </span><span><strong class="def-name">controlling-tty-p</strong> <var class="def-var-arguments">&amp;optional tty</var><a class="copiable-link" href="#index-controlling_002dtty_002dp"> &para;</a></span></dt>
+<dd><p>この関数は<var class="var">tty</var>がそのEmacsセッションの制御端末なら非<code class="code">nil</code>をリターンする。<var class="var">tty</var>には端末オブジェクト、フレーム(そのフレームの端末の意)、<code class="code">nil</code>
+(選択されたフレームの端末の意)を指定できる。
+</p></dd></dl>
+
+<dl class="first-deffn">
+<dt class="deffn" id="index-suspend_002dframe"><span class="category-def">Command: </span><span><strong class="def-name">suspend-frame</strong><a class="copiable-link" href="#index-suspend_002dframe"> &para;</a></span></dt>
+<dd><p>このコマンドはフレームを<em class="dfn">サスペンド</em>する。GUIフレームでは<code class="code">iconify-frame</code>を呼び出す(<a class="ref" href="Visibility-of-Frames.html">フレームの可視性</a>を参照)。テキスト端末上のフレームでは、そのフレームが制御端末デバイス上で表示されていれば<code class="code">suspend-emacs</code>、されていなければ<code class="code">suspend-tty</code>のいずれかを呼び出す。
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Previous: <a href="Killing-Emacs.html">Emacsのkill</a>, Up: <a href="Getting-Out.html">Emacsからの脱出</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/emacs-30_11e7ae3964e192b0e4bcc437a04278ee727e720b, commit:c4c5930dbd799678308f200cfc5225ca3ecf76b2 to check Japanese translation.
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.91.
+
+Copyright © 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Touchscreen Events (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Touchscreen Events (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Touchscreen Events (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="October 6, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Input-Events.html" rel="up" title="Input Events">
+<link href="Focus-Events.html" rel="next" title="Focus Events">
+<link href="Motion-Events.html" rel="prev" title="Motion Events">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Touchscreen-Events">
+<div class="nav-panel">
+<p>
+Next: <a href="Focus-Events.html" accesskey="n" rel="next">フォーカスイベント</a>, Previous: <a href="Motion-Events.html" accesskey="p" rel="prev">モーションイベント</a>, Up: <a href="Input-Events.html" accesskey="u" rel="up">入力イベント</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="tatutisukurinibento"><span>22.7.9 タッチスクリーンイベント<a class="copiable-link" href="#tatutisukurinibento"> &para;</a></span></h4>
+<a class="index-entry-id" id="index-touchscreen-events"></a>
+<a class="index-entry-id" id="index-support-for-touchscreens"></a>
+
+<p>一部のウィンドウシステムではユーザーがスクリーンにタッチしたり、タッチしながら指を動かすことで反応する入力デバイスがサポートされています。Emacsはこれらのタッチスクリーンと呼ばれる入力デバイスが生成したイベントを<em class="dfn">タッチスクリーンイベント(touchscreen
+event)</em>として報告します。
+</p>
+<p>タッチスクリーンが生成した個々のイベントのほとんどは、他のイベントのより大きなシーケンスの一部としての意味しかもっていません。たとえばタッチスクリーンをタップするという単純な操作はユーザーがタッチスクリーンに指を置いて離すという操作、ディスプレイをスクロールためのスワイプはタッチスクリーンに指を置いて何度も上(下)に動かしてから指を離すという操作を引き起こすのです。
+</p>
+<a class="index-entry-id" id="index-touch-point_002c-in-touchscreen-events"></a>
+<p>タップやスクロールにたいしては一本の指で構成される単純なモデルで十分ですが、より複雑なジェスチャーには複数の指を追跡するためのサポートが要求されまづ。指が複数の場合には、それぞれの指の位置は<em class="dfn">タッチポイント(touch
+point)</em>によって表されることになります。たとえば&ldquo;ズームするためのピンチアウト&rdquo;というジェスチャーは、ユーザーが指を2本置いて、それらの指を別個に反対方向へ動かすことから構成されます。ここでこれら2本の指による個別のポイント位置の間の距離によってディスプレイのズーム量、これらの位置を結ぶ想像上の線の中央位置によってズーム後にどこにディスプレイをパンする(振る)かが決まります。
+</p>
+<p>下記の低レベルなタッチスクリーンイベントを使って、上述したタッチシーケンスすべてを実装できます。これらのイベントでは、ポイントはそれぞれポイントを識別する任意の番号、およびイベント発生時の指の位置を指定するマウス位置リスト(<a class="ref" href="Click-Events.html">クリックイベント</a>を参照)のコンスセルによって表現されます。
+</p>
+<dl class="table">
+<dt><a id="index-touchscreen_002dbegin-event"></a><span><code class="code">(touchscreen-begin <var class="var">point</var>)</code><a class="copiable-link" href="#index-touchscreen_002dbegin-event"> &para;</a></span></dt>
+<dd><p>これはユーザーがタッチスクリーンにたいして指を押すことで<var class="var">point</var>が作成されたときに送信されるイベント。
+</p>
+<p>これらのイベントがフレームやウィンドウの特別な場所で発生した場合には、<code class="code">read-key-sequence</code>は想像上のプレフィクスキーもこれらのイベントに付加する。<a class="ref" href="Key-Sequence-Input.html">キーシーケンス入力</a>を参照のこと。
+</p>
+</dd>
+<dt><a id="index-touchscreen_002dupdate-event"></a><span><code class="code">(touchscreen-update <var class="var">points</var>)</code><a class="copiable-link" href="#index-touchscreen_002dupdate-event"> &para;</a></span></dt>
+<dd><p>これはタッチスクリーン上のポイントの位置が変更されたときに送信されるイベント。<var class="var">points</var>はカレントでタッチスクリーン上にあるタッチポイントの最新位置を含んだタッチポイントのリスト。
+</p>
+</dd>
+<dt><a id="index-touchscreen_002dend-event"></a><span><code class="code">(touchscreen-end <var class="var">point</var> <var class="var">canceled</var>)</code><a class="copiable-link" href="#index-touchscreen_002dend-event"> &para;</a></span></dt>
+<dd><p>これは他のプログラムにより奪われたりユーザーがタッチスクリーンから指を離したことによって<var class="var">point</var>がディスプレイ上に存在しなくなった際に送信されるイベント。
+</p>
+<p>タッチシーケンスが(ウィンドウマネージャーのような)他のプログラムからインターセプト(intercept:
+横取り)されると<var class="var">canceled</var>が非<code class="code">nil</code>となり、Emacsはインターセプトされなければ得られたであろすべての編集コマンドの結果をアンドゥまたは破棄する必要がある。
+</p>
+<p>これらのイベントがフレームやウィンドウの特別な場所で発生した場合には、<code class="code">read-key-sequence</code>は想像上のプレフィクスキーもこれらのイベントに付加する。
+</p></dd>
+</dl>
+
+<p>Emacsはメニューバーにたいしてタッチポイントが押下されるとそれに対応する<code class="code">touchscreen-begin</code>や<code class="code">touchscreen-end</code>のイベントを生成しません。そのかわりに他の状況においては<code class="code">touchscreen-end</code>の配信後に表示されるメニューバーが表示されるかもしれません。
+</p>
+<a class="index-entry-id" id="index-mouse-emulation-from-touch-screen-events"></a>
+<p><code class="code">touchscreen-begin</code>、<code class="code">touchscreen-end</code>、<code class="code">touchscreen-update</code>にコマンドがバインドされていなければ、Emacsはタッチスクリーンイベントを含んだキーシーケンスを通常のマウスイベント(<a class="ref" href="Mouse-Events.html">マウスイベント</a>を参照)に変換するために&ldquo;キー変換関数(key translation
+function)&rdquo;を呼び出します(<a class="ref" href="Translation-Keymaps.html">イベントシーケンス変換のためのキーマップ</a>を参照)。Emacsは別個のマウスデバイスを発生源とするイベントの区別をサポートしていないので、変換が行われる際にアクティブなタッチポイントは最大で2つと仮定して、この制限を超えた際のイベント変換の結果については保証されていません。
+</p>
+<p>Emacsはタッチイベントからマウスイベントへの変換にたいして、<code class="code">touchscreen-begin</code>イベントの位置でアクティブなキーマップにバインドされているコマンドといったような偶発的な要因に応じた2つの異なるストラテジー(strategiesl:
+戦略)を適用します。その位置においてあるコマンドが<code class="code">down-mouse-1</code>にバインドされていれば、最初のイベントは単独の<code class="code">down-mouse-1</code>として構成されて後続の<code class="code">touchscreen-update</code>イベントがマウスモーションイベント(<a class="ref" href="Motion-Events.html">モーションイベント</a>を参照)へと変換、最後に<code class="code">touchscreen-end</code>イベントが<code class="code">mouse-1</code>か<code class="code">drag-mouse-1</code>のイベントに変換されます(他のプログラムによってタッチシーケンスがインターセプトされたことを<code class="code">touchscreen-end</code>イベントが示す場合を除く)。これは&ldquo;単純変換(simple
+translation)&rdquo;と呼ばれるもので、タッチポイントとマウスモーションの間に単純な対応を生成する変換です。
+</p>
+<a class="index-entry-id" id="index-ignored_002dmouse_002dcommand_002c-a-symbol-property"></a>
+<p>ただし<code class="code">down-mouse-1</code>にバインドされているコマンドの一部(たとえば<code class="code">mouse-drag-region</code>)は、(たとえば&ldquo;long-press
+to
+drag&rdquo;、長押ししてドラッグのような)定義済みのタッチスクリーンジェスチャーと競合するか、あるいはタッチ入力にたいするユーザーの期待に応えるためにもタッチシーケンスを単純な変換の対象にするべきではありません。名前にプロパティ<code class="code">ignored-mouse-command</code>
+(<a class="ref" href="Symbol-Properties.html">シンボルのプロパティ</a>を参照)を含むコマンドに遭遇した場合や<code class="code">down-mouse-1</code>にバインドされているコマンドがない場合には、より変則的な変換形式が採用されます。この場合はまずEmacsはタッチスクリーンジェスチャー(<a data-manual="emacs" href="https://www.gnu.org/software/emacs/manual/html_node/emacs/Touchscreens.html#Touchscreens">Touchscreens</a> in <cite class="cite">The GNU Emacs
+Manual</cite>を参照)を処理してから、最後に(単純変換のときのように<var class="var">canceled</var>パラメーターを<code class="code">nil</code>にして)<code class="code">touchscreen-end</code>イベントをクローズする前に何もジェスチャーが検知されなければタッチスクリーンイベントをマウスイベントへと変換、そのイベント位置で<code class="code">mouse-1</code>にコマンドをバインドします。<code class="code">mouse-1</code>イベントの生成に先立ちポイントを<code class="code">touchscreen-end</code>イベントの位置にセット、<code class="code">mouse-drag-region</code>がすでにすべてのマウスクリック位置を指すとともに、クリックされたウィンドウが選択されていると仮定するパッケージへの妥協策として、そのイベント位置を含むウィンドウを選択します。
+</p>
+<p>マウスメニューを閉じた後(<a class="ref" href="Mouse-Menus.html">メニューとマウス</a>を参照)に予期せぬ<code class="code">mouse-1</code>イベントが到達するのを避けるために、<code class="code">down-mouse-1</code>がキーマップにバインドされている場合には、Emacsがそれをプレフィクスキーにすることで単純な変換も回避します。Emacsは単純な変換を行うかわりに<code class="code">touchscreen-end</code>のクローズを、イベント位置がタッチシーケンスの開始位置であるような<code class="code">down-mouse-1</code>イベントに変換、それによりマウスメニューが表示されます。
+</p>
+<a class="index-entry-id" id="index-mouse_002d1_002dmenu_002dcommand_002c-a-symbol-property"></a>
+<p>ポップアップメニューを表示する目的のための特定のコマンドも<code class="code">down-mouse-1</code>にバインドされているので、<code class="code">down-mouse-1</code>が名前にプロパティ<code class="code">mouse-1-menu-command</code>をもつようなコマンドにバインドされている場合には、Emacsはさらに最後のパラグラフで示したような動作を行います。
+</p>
+<a class="index-entry-id" id="index-pinch_002dto_002dzoom-touchscreen-gesture-translation"></a>
+<p>あるタッチポイントがすでに変換中なので2つ目のタッチポイントを登録するとジェスチャーの変換は終了して、2つ目のタッチポイント(<em class="dfn">ancillary
+tool</em>、いわゆる補助工具)から1つ目のタッチポイントまでの距離が測定されます。これらタッチポイントいずれかからの後続モーションによる新たな位置間の距離と、最初に測定された距離によって形成される比率を組み込んだ<code class="code">touchscreen-pinch</code>イベントが生成されます(以下テーブルを参照)。
+</p>
+<a class="index-entry-id" id="index-touchscreen-gesture-events"></a>
+<p>変換中にタッチジェスチャーが検知されると、以下の入力イベントのいずれかが生成されるかもしれません:
+</p>
+<dl class="table">
+<dt><a id="index-touchscreen_002dscroll-event"></a><span><code class="code">(touchscreen-scroll <var class="var">window</var> <var class="var">dx</var> <var class="var">dy</var>)</code><a class="copiable-link" href="#index-touchscreen_002dscroll-event"> &para;</a></span></dt>
+<dd><p>変換プロセス中に&ldquo;スクロール(scrolling)&rdquo;のジェスチャーが検知されると、それに続く<code class="code">touchscreen-update</code>イベントはそれぞれ<code class="code">touchscreen-scroll</code>イベントへと変換される。ここで<var class="var">dx</var>と<var class="var">dy</var>はそのシーケンスを開始した<code class="code">touchscreen-begin</code>イベント、あるいは最後の<code class="code">touchscreen-scroll</code>イベントのいずれか遅く発生したイベント位置からの相対的モーションをピクセル単位で指定する。
+</p>
+</dd>
+<dt><a id="index-touchscreen_002dhold-event"></a><span><code class="code">(touchscreen-hold <var class="var">posn</var>)</code><a class="copiable-link" href="#index-touchscreen_002dhold-event"> &para;</a></span></dt>
+<dd><p>単一のアクティブなタッチポイントが<code class="code">touchscreen-begin</code>が生成されて以降<code class="code">touch-screen-delay</code>秒を超える間静止した状態のままだと、変換プロセス中に&ldquo;長押し(long-press)&rdquo;のジェスチャーが検知されて、<var class="var">posn</var>に<code class="code">touchscreen-begin</code>のイベント位置を含んだマウス位置リストをセットした<code class="code">touchscreen-hold</code>イベントが送出される。
+</p>
+</dd>
+<dt><a id="index-touchscreen_002ddrag-event"></a><span><code class="code">(touchscreen-drag <var class="var">posn</var>)</code><a class="copiable-link" href="#index-touchscreen_002ddrag-event"> &para;</a></span></dt>
+<dd><p>カレントのタッチシーケンスの変換中、あるいはユーザーオプション<code class="code">touch-screen-extend-selection</code>により&ldquo;ドラッグ選択(drag-to-select)&rdquo;が再開されると、<var class="var">posn</var>にタッチポイントの新たな位置をセットした<code class="code">touch-screen-extend-selection</code>イベントが後続のイベントとしてそれぞれ送出される。
+</p>
+</dd>
+<dt><a id="index-touchscreen_002drestart_002ddrag-event"></a><span><code class="code">(touchscreen-restart-drag <var class="var">posn</var>)</code><a class="copiable-link" href="#index-touchscreen_002drestart_002ddrag-event"> &para;</a></span></dt>
+<dd><p>このイベントは継続中の&ldquo;ドラッグ選択(drag-to-select)&rdquo;の結果としてタッチシーケンス開始時に、<var class="var">posn</var>にそのタッチシーケンス中の最初の<code class="code">touchscreen-begin</code>イベントの位置リストをセットして送出される。
+</p>
+</dd>
+<dt><a id="index-touchscreen_002dpinch-event"></a><span><code class="code">(touchscreen-pinch <var class="var">posn</var> <var class="var">ratio</var> <var class="var">pan-x</var> <var class="var">pan-y</var> <var class="var">ratio-diff</var>)</code><a class="copiable-link" href="#index-touchscreen_002dpinch-event"> &para;</a></span></dt>
+<dd><p>このイベントは補助工具(ancillary tool)がアクティブな際にアクティブなタッチポイント位置が有意に変更されると配信される。
+</p>
+<p><var class="var">posn</var>は補助工具から観測中の別のタッチポイントに描画される線分の中間点にたいするマウス位置リスト。
+</p>
+<p><var class="var">ratio</var>は観測中の両方のタッチポイント間の距離を、補助工具が最初に登録された際の位置で除した値、すなわち&ldquo;ピンチ(pinch)&rdquo;のジェスチャーのスケールのこと。
+</p>
+<p><var class="var">pan-x</var>と<var class="var">pan-y</var>は<var class="var">posn</var>のピクセル位置とこの一連のタッチイベントに関して配信された最後のイベントにおけるこの位置の差、そのようなイベントが存在しない場合には補助工具が最初に登録された際の両方のタッチポイントの中心点。
+</p>
+<p><var class="var">ratio-diff</var>はこのイベントのratioと配信された最後のイベントの<var class="var">ratio</var>。そのようなイベントが存在しない場合には<var class="var">ratio</var>。
+</p>
+<p>イベントが表す変更の重大さと前のイベントで得られた<var class="var">ratio</var>の差が<code class="code">0.2</code>より大きい、あるいは<var class="var">pan-x</var>と<var class="var">pan-y</var>の和がそのフレームの文字(<a class="ref" href="Frame-Font.html">フレームのフォント</a>を参照)のピクセル幅の半分を超える場合にこのようなイベントが送出される。
+</p></dd>
+</dl>
+
+<a class="index-entry-id" id="index-handling-touch-screen-events"></a>
+<a class="index-entry-id" id="index-tap-and-drag_002c-touch-screen-gestures"></a>
+<p>タッチスクリーンイベントを処理するLispプログラム向けにいくつかの関数が提供されています。以下で説明する関数のうち最初期2つは、<code class="code">touchscreen-begin</code>イベントに直接バインドされるコマンドからの使用を意図しています。これらの関数はマウスイベントの変換とは別に、一般的に使用されるタッチスクリーンジェスチャーへの応答も可能です。
+</p>
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-touch_002dscreen_002dtrack_002dtap"><span class="category-def">Function: </span><span><strong class="def-name">touch-screen-track-tap</strong> <var class="def-var-arguments">event &amp;optional update data threshold</var><a class="copiable-link" href="#index-touch_002dscreen_002dtrack_002dtap"> &para;</a></span></dt>
+<dd><p>この関数は<code class="code">touchscreen-begin</code>イベントである<var class="var">event</var>を発生源とする単独の&ldquo;タップ(tap)&rdquo;ジェスチャーの追跡、およびポイントのセットやボタンのアクティブ化によく用いられる。同一のタッチ識別子をもつ<code class="code">touchscreen-end</code>イベントの到着を待機して、到着するとその時点でジェスチャーの終了を意味する<code class="code">t</code>をリターンする。
+</p>
+<p>待機中に<code class="code">touchscreen-update</code>イベントが到着して、そのうち少なくとも1つのタッチポイントが<var class="var">event</var>と同じ識別子をもつ場合には、その<code class="code">touchscreen-update</code>イベント内のタッチポイントのリスト、<var class="var">data</var>という2つの引数で関数<var class="var">update</var>を呼び出す。
+</p>
+<p><var class="var">threshold</var>が非<code class="code">nil</code>、かつ<var class="var">event</var>で表されるタッチポイントが<var class="var">threshold</var>、<var class="var">event</var>位置からの数値でなければ10ピクセルといういずれかの閾値を超えて移動した場合には<code class="code">nil</code>がリターンされて、そのシーケンスから生じる後続のタッチスクリーンジェスチャーの認識を阻害しないようにそのタッチポイントにたいするマウスイベント変換が再開される。
+</p>
+<p>待機中に他のイベントが到達すると<code class="code">nil</code>をリターンする。この場合には呼び出し側は何のアクションも処理するべきではない。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-touch_002dscreen_002dtrack_002ddrag"><span class="category-def">Function: </span><span><strong class="def-name">touch-screen-track-drag</strong> <var class="def-var-arguments">event update &amp;optional data</var><a class="copiable-link" href="#index-touch_002dscreen_002dtrack_002ddrag"> &para;</a></span></dt>
+<dd><p>この関数は<code class="code">touchscreen-begin</code>イベントである<code class="code">event</code>を発生源とする単独の&ldquo;ドラッグ(drag)&rdquo;ジェスチャーを追跡するために使用される。
+</p>
+<p>これは<code class="code">touch-screen-track-tap</code>と同じように振る舞うが<code class="code">no-drag</code>をリターンすること、および実際のドラッグとして認識されるほど十分にタッチポイントが移動しなかった場合(デフォルトでは<code class="code">event</code>内の位置から5ピクセル)に<var class="var">update</var>の呼び出しを控える点が異なる。
+</p></dd></dl>
+
+<p>上記2つの関数に加えて、マウスイベント変換を介して生成される一部のイベントタイプにバインドされるコマンド向けに、コマンド呼び出し後に予期せぬイベント生成を防ぐための関数が提供されています。
+</p>
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-touch_002dscreen_002dinhibit_002ddrag"><span class="category-def">Function: </span><span><strong class="def-name">touch-screen-inhibit-drag</strong><a class="copiable-link" href="#index-touch_002dscreen_002dinhibit_002ddrag"> &para;</a></span></dt>
+<dd><p>この関数は呼び出された後のタッチシーケンス変換の間、マウスイベント変換中の<code class="code">touchscreen-drag</code>イベントの生成を抑止する。この関数が<code class="code">touchscreen-hold</code>か<code class="code">touchscreen-drag</code>のイベントにバインドされたコマンドから呼び出さなければならず、それ以外に場合にはエラーをシグナルする。
+</p>
+<p>この関数はマウスイベント変換中にジェスチャーがすでに認識された後でのみ呼び出せるので、呼び出し後に前述したタッチシーケンスを構成するタッチイベントから生成されるマウスイベントは存在しない。
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Focus-Events.html">フォーカスイベント</a>, Previous: <a href="Motion-Events.html">モーションイベント</a>, Up: <a href="Input-Events.html">入力イベント</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/emacs-30_11e7ae3964e192b0e4bcc437a04278ee727e720b, commit:c4c5930dbd799678308f200cfc5225ca3ecf76b2 to check Japanese translation.
+</body>
+</html>
