@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.91.
+
+Copyright © 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Lexical Binding (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Lexical Binding (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Lexical Binding (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="October 6, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Variable-Scoping.html" rel="up" title="Variable Scoping">
+<link href="Dynamic-Binding.html" rel="next" title="Dynamic Binding">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span.r {font-family: initial; font-weight: normal; font-style: normal}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Lexical-Binding">
+<div class="nav-panel">
+<p>
+Next: <a href="Dynamic-Binding.html" accesskey="n" rel="next">ダイナミックバインディング</a>, Up: <a href="Variable-Scoping.html" accesskey="u" rel="up">変数のバインディングのスコーピングルール</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="rekisikarubaindeingu"><span>12.10.1 レキシカルバインディング<a class="copiable-link" href="#rekisikarubaindeingu"> &para;</a></span></h4>
+
+<p>レキシカルバインディングは現代的なEmacs Lisp方言でのみ利用できます(<a class="ref" href="Selecting-Lisp-Dialect.html">Lisp方言の選択</a>を参照)。レキシカルにバインドされた変数は<em class="dfn">レキシカルスコープ(lexical
+scope)</em>をもちます。これはその変数にたいする参照が、そのバインディング構文内にテキスト的に配置されなければならないことを意味しています。以下は例です
+</p>
+<div class="example">
+<div class="group"><pre class="example-preformatted">(let ((x 1))    ; <span class="r"><code class="code">x</code>はレキシカルにバインドされる</span>
+  (+ x 3))
+     &rArr; 4
+
+(defun getx ()
+  x)            ; <span class="r">この関数内では<code class="code">x</code>は自由に使用される</span>
+
+(let ((x 1))    ; <span class="r"><code class="code">x</code>はレキシカルにバインドされる</span>
+  (getx))
+error&rarr; Symbol's value as variable is void: x
+</pre></div></div>
+
+<p>ここでは<code class="code">x</code>はグローバル値をもちません。<code class="code">let</code>フォーム内でレキシカルにバインドされたとき、この変数は<code class="code">let</code>のテキスト境界内で使用できます。しかしこの<code class="code">let</code>内から呼び出される<code class="code">getx</code>関数からは、<code class="code">getx</code>の関数定義が<code class="code">let</code>フォームの外側なので使用することが<em class="emph">できません</em>。
+</p>
+<a class="index-entry-id" id="index-lexical-environment"></a>
+<p>レキシカルバインディングが機能する方法を説明します。バインディング構文はぞれぞれ、その構文内でローカル値にバインドする変数を指定する、<em class="dfn">レキシカル環境(lexical
+environment)</em>を定義します。Lispの評価機能(Lisp
+evaluator)が、ある変数のカレント値を得たいときは、最初にレキシカル環境内を探します。そこで変数が指定されていなければ、ダイナミック値が格納されるシンボルの値セルを探します。
+</p>
+<a class="index-entry-id" id="index-closures_002c-example-of-using"></a>
+<p>レキシカルバインディングは不定エクステント(indefinite
+extent)をもちます。バインディング構造が終了した後でも、そのレキシカル環境は<em class="dfn">クロージャ(closures)</em>と呼ばれるLispオブジェクト内に&ldquo;保持&rdquo;されるかもしれません。クロージャはレキシカルバインディングが有効な、名前つきまたは無名(anonymous)の関数が作成されたときに作成されます。詳細は<a class="ref" href="Closures.html">クロージャー</a>を参照してください。
+</p>
+<p>クロージャが関数として呼び出されたとき、その関数の定義内のレキシカル変数にたいする任意の参照は、維持されたレキシカル環境を使用します。以下は例です:
+</p>
+<div class="example">
+<pre class="example-preformatted">(defvar my-ticker nil)   ; <span class="r">クロージャを格納するために</span>
+                         ; <span class="r">この変数を使用する</span>
+
+(let ((x 0))             ; <span class="r"><code class="code">x</code>はレキシカルにバインドされる</span>
+  (setq my-ticker (lambda ()
+                    (setq x (1+ x)))))
+    &rArr; #f(lambda () [(x 0)]
+          (setq x (1+ x)))
+
+(funcall my-ticker)
+    &rArr; 1
+
+(funcall my-ticker)
+    &rArr; 2
+
+(funcall my-ticker)
+    &rArr; 3
+
+x                        ; <span class="r"><code class="code">x</code>はグローバル値をもたないことに注意</span>
+error&rarr; Symbol's value as variable is void: x
+</pre></div>
+
+<p><code class="code">let</code>バインディングは、内部に変数<code class="code">x</code>をもつレキシカル環境を定義して、変数は0にローカルにバインドされます。このバインディング構文内で<code class="code">x</code>を1増加して、増加された値をリターンするクロージャを定義しています。このラムダ式は自動的にクロージャとなり、たとえ<code class="code">let</code>構文を抜けた後でも、その内部ではレキシカル環境が存続します。クロージャを評価するときは、毎回レキシカル環境内の<code class="code">x</code>のバインディングが使用されて、<code class="code">x</code>が加算されます。
+</p>
+<p>シンボルオブジェクト自体に束縛されるダイナミック変数と異なり、レキシカル変数とシンボルの関係はインタープリター(かコンパイラー)内にのみ存在します。したがって(<code class="code">symbol-value</code>、<code class="code">boundp</code>、<code class="code">set</code>のような)シンボル引数を受け取る関数ができるのは、変数のダイナミックなバインディング(そのシンボルの値セルの内容)の取得と変更だけです。
+</p>
+</div>
+
+
+This page has generated for branch:work/emacs-30_11e7ae3964e192b0e4bcc437a04278ee727e720b, commit:c18ea4791d8726b16014b7922a9b1646638d37db to check Japanese translation.
+</body>
+</html>

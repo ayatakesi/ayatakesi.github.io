@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.91.
+
+Copyright © 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Examples of Catch (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Examples of Catch (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Examples of Catch (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="October 6, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Nonlocal-Exits.html" rel="up" title="Nonlocal Exits">
+<link href="Errors.html" rel="next" title="Errors">
+<link href="Catch-and-Throw.html" rel="prev" title="Catch and Throw">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="subsection-level-extent" id="Examples-of-Catch">
+<div class="nav-panel">
+<p>
+Next: <a href="Errors.html" accesskey="n" rel="next">エラー</a>, Previous: <a href="Catch-and-Throw.html" accesskey="p" rel="prev">明示的な非ローカル脱出: <code class="code">catch</code>と<code class="code">throw</code></a>, Up: <a href="Nonlocal-Exits.html" accesskey="u" rel="up">非ローカル脱出</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h4 class="subsection" id="catchtothrownoLi"><span>11.7.2 <code class="code">catch</code>と<code class="code">throw</code>の例<a class="copiable-link" href="#catchtothrownoLi"> &para;</a></span></h4>
+
+<p>2重にネストされたループから脱出する1つの方法は、<code class="code">catch</code>と<code class="code">throw</code>を使うことです(これはほとんどの言語では<code class="code">goto</code>により行なわれるだろう)。ここでは<var class="var">i</var>と<var class="var">j</var>を0から9に変化させて、<code class="code">(foo
+<var class="var">i</var> <var class="var">j</var>)</code>を計算します:
+</p>
+<div class="example">
+<div class="group"><pre class="example-preformatted">(defun search-foo ()
+  (catch 'loop
+    (let ((i 0))
+      (while (&lt; i 10)
+        (let ((j 0))
+          (while (&lt; j 10)
+            (if (foo i j)
+                (throw 'loop (list i j)))
+            (setq j (1+ j))))
+        (setq i (1+ i))))))
+</pre></div></div>
+
+<p><code class="code">foo</code>が非<code class="code">nil</code>をリターンしたら即座に処理を中止して、<var class="var">i</var>と<var class="var">j</var>のリストをリターンしています。<code class="code">foo</code>が常に<code class="code">nil</code>をリターンする場合には、<code class="code">catch</code>は通常どおりリターンして、その値は<code class="code">while</code>の結果である<code class="code">nil</code>となります。
+</p>
+<p>以下では2つのリターン位置を一度に表す、微妙に異なるトリッキーな例を2つ示します。まず同じタグ<code class="code">hack</code>にたいして2つのリターン位置があります:
+</p>
+<div class="example">
+<div class="group"><pre class="example-preformatted">(defun catch2 (tag)
+  (catch tag
+    (throw 'hack 'yes)))
+&rArr; catch2
+</pre></div><pre class="example-preformatted">
+
+</pre><div class="group"><pre class="example-preformatted">(catch 'hack
+  (print (catch2 'hack))
+  'no)
+-| yes
+&rArr; no
+</pre></div></div>
+
+<p>どちらのリターン位置も<code class="code">throw</code>にマッチするタグをもつので内側のもの、つまり<code class="code">catch2</code>で確立されたcatchへgotoします。したがって<code class="code">catch2</code>は通常どおり値<code class="code">yes</code>をリターンして、その値がプリントされます。最後に外側の<code class="code">catch</code>の2番目のbody、つまり<code class="code">'no</code>が評価されて外側の<code class="code">catch</code>からそれがリターンされます。
+</p>
+<p>ここで<code class="code">catch2</code>に与える引数を変更してみましょう:
+</p>
+<div class="example">
+<div class="group"><pre class="example-preformatted">(catch 'hack
+  (print (catch2 'quux))
+  'no)
+&rArr; yes
+</pre></div></div>
+
+<p>この場合も2つのリターン位置がありますが、今回は外側だけがタグ<code class="code">hack</code>で、内側はかわりにタグ<code class="code">quux</code>をもちます。したがって<code class="code">throw</code>により、外側の<code class="code">catch</code>が値<code class="code">yes</code>をリターンします。関数<code class="code">print</code>が呼び出されることはなくbodyのフォーム<code class="code">'no</code>も決して評価されません。
+</p>
+</div>
+
+
+This page has generated for branch:work/emacs-30_11e7ae3964e192b0e4bcc437a04278ee727e720b, commit:c18ea4791d8726b16014b7922a9b1646638d37db to check Japanese translation.
+</body>
+</html>

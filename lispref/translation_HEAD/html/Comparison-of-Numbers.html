@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<!-- Created by GNU Texinfo 7.1, https://www.gnu.org/software/texinfo/ -->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!-- This is the GNU Emacs Lisp Reference Manual
+corresponding to Emacs version 30.0.91.
+
+Copyright © 1990-1996, 1998-2024 Free Software Foundation, Inc.
+
+Permission is granted to copy, distribute and/or modify this document under
+the terms of the GNU Free Documentation License, Version 1.3 or any later
+version published by the Free Software Foundation; with the Invariant
+Sections being "GNU General Public License," with the Front-Cover Texts
+being "A GNU Manual," and with the Back-Cover Texts as in (a) below.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License."
+
+(a) The FSF's Back-Cover Text is: "You have the freedom to copy and modify
+this GNU manual.  Buying copies from the FSF supports it in developing GNU
+and promoting software freedom." -->
+<title>Comparison of Numbers (GNU Emacs Lisp Reference Manual)</title>
+
+<meta name="description" content="Comparison of Numbers (GNU Emacs Lisp Reference Manual)">
+<meta name="keywords" content="Comparison of Numbers (GNU Emacs Lisp Reference Manual)">
+<meta name="resource-type" content="document">
+<meta name="distribution" content="global">
+<meta name="Generator" content="texi2any">
+<meta name="date" content="October 6, 2024">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<link href="index.html" rel="start" title="Top">
+<link href="Index.html" rel="index" title="Index">
+<link href="index.html#SEC_Contents" rel="contents" title="Table of Contents">
+<link href="Numbers.html" rel="up" title="Numbers">
+<link href="Numeric-Conversions.html" rel="next" title="Numeric Conversions">
+<link href="Predicates-on-Numbers.html" rel="prev" title="Predicates on Numbers">
+<style type="text/css">
+<!--
+a.copiable-link {visibility: hidden; text-decoration: none; line-height: 0em}
+div.example {margin-left: 3.2em}
+span:hover a.copiable-link {visibility: visible}
+strong.def-name {font-family: monospace; font-weight: bold; font-size: larger}
+-->
+</style>
+
+
+</head>
+
+<body lang="en">
+<div class="section-level-extent" id="Comparison-of-Numbers">
+<div class="nav-panel">
+<p>
+Next: <a href="Numeric-Conversions.html" accesskey="n" rel="next">数値の変換</a>, Previous: <a href="Predicates-on-Numbers.html" accesskey="p" rel="prev">数値のための述語</a>, Up: <a href="Numbers.html" accesskey="u" rel="up">数値</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+<hr>
+<h3 class="section" id="Shu-Zhi-noBi-Jiao-"><span>3.4 数値の比較<a class="copiable-link" href="#Shu-Zhi-noBi-Jiao-"> &para;</a></span></h3>
+<a class="index-entry-id" id="index-number-comparison"></a>
+<a class="index-entry-id" id="index-comparing-numbers"></a>
+
+<p>数値にたいして数学的な等価性をテストするには通常は<code class="code">eq</code>、<code class="code">eql</code>、<code class="code">equal</code>のような非数値的な比較述語のかわりに<code class="code">=</code>を使用するべきです。異なる浮動小数点オブジェクトと大きい整数オブジェクトを数値的に等しくすることができます。これらの比較に<code class="code">eq</code>を使用した場合にはそれらが同一の<em class="emph">オブジェクト</em>かどうかを、<code class="code">eql</code>や<code class="code">equal</code>を使用した場合にはそれらの値が区別不能かどうかをテストすることになります。対照的に<code class="code">=</code>は数値比較を使用して、非数値的な比較が<code class="code">nil</code>をリターンするような場合に<code class="code">t</code>をリターンしたり、その逆もあり得ます。<a class="ref" href="Float-Basics.html">浮動小数点数の基礎</a>を参照してください。
+</p>
+<p>Emacs
+Lispでは2つのfixnumが数値的に等しければ同一のLispオブジェクトです。つまりfixnumでは<code class="code">eq</code>は<code class="code">=</code>と同じです。値が未知のfixnumの比較に<code class="code">eq</code>を使用する方が便利な場合があります。なぜなら未知の値が数でない場合でも<code class="code">eq</code>はエラーを報告しないからです。これは任意のタイプの引数を受け付けます。対照的に引数が数でもマーカーでもなければ<code class="code">=</code>はエラーをシグナルします。しかし整数の比較においてさえ、使用できる場合には<code class="code">=</code>を使用するのがよいプログラミング習慣です。
+</p>
+<p>数の比較において、2つの数が同じデータ型(どちらも整数であるかどちらも浮動小数であるか)で同じ値の場合は等しい数として扱う<code class="code">eql</code>や<code class="code">equal</code>のほうが便利なときもあります。対照的に<code class="code">=</code>は整数と浮動小数点数を(訳注:同じ値の場合には)等しい数と扱うことができます。<a class="ref" href="Equality-Predicates.html">同等性のための述語</a>を参照してください。
+</p>
+<p>他の欠点もあります。浮動小数演算は正確ではないので、浮動小数値を比較するのが悪いアイデアとなるときがよくあります。通常は近似的に等しいことをテストするほうがよいでしょう。以下はこれを行なう関数です:
+</p>
+<div class="example">
+<pre class="example-preformatted">(defvar fuzz-factor 1.0e-6)
+(defun approx-equal (x y)
+  (or (= x y)
+      (&lt; (/ (abs (- x y))
+            (max (abs x) (abs y)))
+         fuzz-factor)))
+</pre></div>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-_003d"><span class="category-def">Function: </span><span><strong class="def-name">=</strong> <var class="def-var-arguments">number-or-marker &amp;rest number-or-markers</var><a class="copiable-link" href="#index-_003d"> &para;</a></span></dt>
+<dd><p>この関数はすべての引数が数値的に等しいかどうかをテストしてもしそうなら<code class="code">t</code>、それ以外は<code class="code">nil</code>をリターンする。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-eql"><span class="category-def">Function: </span><span><strong class="def-name">eql</strong> <var class="def-var-arguments">value1 value2</var><a class="copiable-link" href="#index-eql"> &para;</a></span></dt>
+<dd><p>この関数は<code class="code">eq</code>と同様に振る舞うが引数が両方とも数のときを除く。これは数を型と数値的な値により比較するので<code class="code">(eql 1.0
+1)</code>は<code class="code">nil</code>をリターンするが、<code class="code">(eql 1.0 1.0)</code>と<code class="code">(eql 1
+1)</code>は<code class="code">t</code>をリターンする。これは小さい整数と同様に大きい整数の比較に使用できる。符号、指数部、小数部が同じ浮動小数点数は<code class="code">eql</code>であり、これは数値の比較とは異なる。<code class="code">(eql
+0.0 -0.0)</code>は<code class="code">nil</code>、<code class="code">(eql 0.0e+NaN
+0.0e+NaN)</code>は<code class="code">t</code>をリターンするが、これは<code class="code">=</code>の動作とは逆である。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-_002f_003d"><span class="category-def">Function: </span><span><strong class="def-name">/=</strong> <var class="def-var-arguments">number-or-marker1 number-or-marker2</var><a class="copiable-link" href="#index-_002f_003d"> &para;</a></span></dt>
+<dd><p>この関数は引数が数値的に等しいかどうかをテストして、もし異なる場合は<code class="code">t</code>、等しい場合は<code class="code">nil</code>をリターンする。
+</p></dd></dl>
+
+<a class="anchor" id="definition-of-_003c"></a><dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-_003c"><span class="category-def">Function: </span><span><strong class="def-name">&lt;</strong> <var class="def-var-arguments">number-or-marker &amp;rest number-or-markers</var><a class="copiable-link" href="#index-_003c"> &para;</a></span></dt>
+<dd><p>この関数は、各引数それぞれを後の引数より小さいかどうかをテストしてもしそうなら<code class="code">t</code>、それ以外は<code class="code">nil</code>をリターンする。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-_003c_003d"><span class="category-def">Function: </span><span><strong class="def-name">&lt;=</strong> <var class="def-var-arguments">number-or-marker &amp;rest number-or-markers</var><a class="copiable-link" href="#index-_003c_003d"> &para;</a></span></dt>
+<dd><p>この関数は、各引数それぞれが後の引数以下かどうかをテストしてもしそうなら<code class="code">t</code>、それ以外は<code class="code">nil</code>をリターンする。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-_003e"><span class="category-def">Function: </span><span><strong class="def-name">&gt;</strong> <var class="def-var-arguments">number-or-marker &amp;rest number-or-markers</var><a class="copiable-link" href="#index-_003e"> &para;</a></span></dt>
+<dd><p>この関数は、各引数それぞれが後の引数より大きいかどうかをテストしてもしそうなら<code class="code">t</code>、それ以外は<code class="code">nil</code>をリターンする。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-_003e_003d"><span class="category-def">Function: </span><span><strong class="def-name">&gt;=</strong> <var class="def-var-arguments">number-or-marker &amp;rest number-or-markers</var><a class="copiable-link" href="#index-_003e_003d"> &para;</a></span></dt>
+<dd><p>この関数は、各引数それぞれが後の引数以上かどうかをテストしてもしそうなら<code class="code">t</code>、それ以外は<code class="code">nil</code>をリターンする。
+</p></dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-max"><span class="category-def">Function: </span><span><strong class="def-name">max</strong> <var class="def-var-arguments">number-or-marker &amp;rest numbers-or-markers</var><a class="copiable-link" href="#index-max"> &para;</a></span></dt>
+<dd><p>この関数は最大の引数をリターンする。
+</p>
+<div class="example">
+<pre class="example-preformatted">(max 20)
+     &rArr; 20
+(max 1 2.5)
+     &rArr; 2.5
+(max 1 3 2.5)
+     &rArr; 3
+</pre></div>
+</dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-min"><span class="category-def">Function: </span><span><strong class="def-name">min</strong> <var class="def-var-arguments">number-or-marker &amp;rest numbers-or-markers</var><a class="copiable-link" href="#index-min"> &para;</a></span></dt>
+<dd><p>この関数は最小の引数をリターンする。
+</p>
+<div class="example">
+<pre class="example-preformatted">(min -4 1)
+     &rArr; -4
+</pre></div>
+</dd></dl>
+
+<dl class="first-deffn first-defun-alias-first-deffn">
+<dt class="deffn defun-alias-deffn" id="index-abs"><span class="category-def">Function: </span><span><strong class="def-name">abs</strong> <var class="def-var-arguments">number</var><a class="copiable-link" href="#index-abs"> &para;</a></span></dt>
+<dd><p>この関数は<var class="var">number</var>の絶対値をリターンする。
+</p></dd></dl>
+
+</div>
+<hr>
+<div class="nav-panel">
+<p>
+Next: <a href="Numeric-Conversions.html">数値の変換</a>, Previous: <a href="Predicates-on-Numbers.html">数値のための述語</a>, Up: <a href="Numbers.html">数値</a> &nbsp; [<a href="index.html#SEC_Contents" title="Table of contents" rel="contents">Contents</a>][<a href="Index.html" title="Index" rel="index">Index</a>]</p>
+</div>
+
+
+This page has generated for branch:work/emacs-30_11e7ae3964e192b0e4bcc437a04278ee727e720b, commit:c18ea4791d8726b16014b7922a9b1646638d37db to check Japanese translation.
+</body>
+</html>
